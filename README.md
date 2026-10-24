@@ -1,17 +1,73 @@
 # Mini Newsroom
 
-A pixel-art, always-on TV newsroom for the fictional town of **Port Wexley**.
-An LLM writes the scripts, Kokoro voices them on the CPU, and a Pygame window
-plays them out like a small local station: bumpers, weather, bulletins and
-on-site field reports, looping forever.
+**An always-on, pixel-art TV news channel for a town that doesn't exist.**
+
+Port Wexley has a mayor, a stopped Town Hall clock, ghost tours at the old
+cannery and a baker who renames his treacle tart after the news. None of it is
+real. An LLM writes the scripts, Kokoro voices the presenters on the CPU, and a
+Pygame window plays it out like a small local station: bumpers, weather,
+bulletins, on-site reports and, when the editor thinks a story has earned it,
+a five-minute special report with residents interviewed on location.
+
+Stories develop over days. A story desk plans what happens next, public
+figures recur with their own voices, and everything that airs goes into the
+town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
+
+| | |
+|---|---|
+| ![Weather](docs/screenshots/weather.png) | ![Studio bulletin](docs/screenshots/studio.png) |
+| Gordon Pell and the weather map | Dana Ferris reads the bulletin |
+| ![Field report](docs/screenshots/field.png) | ![Special report title card](docs/screenshots/special_title_card.png) |
+| Miles Okafor live from the cannery | A special report opens |
+| ![Special report guest](docs/screenshots/special_guest.png) | ![Filler](docs/screenshots/filler.png) |
+| The harbourmaster, interviewed on location | Filler card while the buffer refills |
+
+## How it works
 
 The one rule the whole design hangs on: **the broadcast never waits on the AI.**
-A producer plans the rundown minutes ahead, worker threads fill a buffer with
-finished audio, and the player consumes that buffer on the wall clock. When the
-buffer runs dry it plays filler and replays the last weather until new content
-lands.
+
+```
+ producer ──plans slots ahead──▶ priority queue ──▶ worker thread ──▶ buffer ──▶ player (wall clock)
+                                      ▲                 │                            │
+                                      │        LLM script + Kokoro voice             ▼
+                              story desk / editor                              filler when dry
+                              (idle time only)
+```
+
+- **Producer** keeps about ten minutes of unplayed content planned.
+- **Worker** scripts each slot with the LLM (strict JSON, validated with
+  pydantic, one retry, canned template as a last resort), voices every line
+  with Kokoro, and stores a mouth envelope for lip-sync.
+- **Player** consumes finished segments on the clock, never cutting audio
+  mid-sentence. When nothing is ready it plays filler and, after a while,
+  replays the last weather.
+- **Story desk** and **editor** run only when the worker is idle and the live
+  buffer is healthy. The desk gives each thread a phase and a planned next
+  development; the editor occasionally commissions a special, which is written
+  in resumable stages that interleave with live work.
+- **Scenes** are drawn on a 320×180 canvas and scaled up with nearest
+  neighbour, which is where the pixel look comes from. The sprites are
+  placeholders drawn in code.
+
+Model routing is config-driven. Any OpenAI-compatible endpoint works (LM
+Studio and llama.cpp locally, Moonshot's Kimi in the cloud), plus the Anthropic
+SDK. The shipped config uses Kimi k2.6 for live segments and Kimi k3 for the
+editor, the story desk and specials.
+
+## Status
+
+Early and working. The longest run so far is a ten-minute soak with zero
+filler and frame times under 7 ms; it has not yet been left on overnight.
+Things that exist: the four live segment types, special reports, the story
+bible and desk, provider switching, caching, failure recovery. Things that
+don't yet: a 24-hour schedule with day-parts, breaking-news interrupts, local
+adverts and tides, real sprite art, and the 30-minute documentary that
+specials are the template for.
 
 ## Run it
+
+Needs Python 3.12 (Kokoro doesn't install on 3.13), [uv](https://docs.astral.sh/uv/),
+and either a local OpenAI-compatible server or an API key.
 
 ```bash
 uv sync
@@ -19,16 +75,17 @@ uv run python -m newsroom
 ```
 
 Scripts come from whichever provider `[llm.routes]` in `config.toml` names.
-Providers are declared under `[llm.providers.<name>]`; any OpenAI-compatible
-endpoint works (`kind = "openai"`), plus the Anthropic SDK (`kind = "anthropic"`).
-Shipped entries: `moonshot` (Kimi, needs `MOONSHOT_API_KEY` in the environment),
-`lmstudio` (local, `http://localhost:1234`), `anthropic`. Set
-`NEWSROOM_LLM=<name>` to force one provider for every task, or `NEWSROOM_LLM=off`
-to run entirely on canned template scripts with no model at all.
+Providers are declared under `[llm.providers.<name>]`. Shipped entries:
+`moonshot` (Kimi, needs `MOONSHOT_API_KEY` in the environment), `moonshot_k3`,
+`lmstudio` (local, `http://localhost:1234`) and `anthropic`. Set
+`NEWSROOM_LLM=<name>` to force one provider for every task, or
+`NEWSROOM_LLM=off` to run entirely on canned template scripts with no model
+at all, which is handy for working on the visuals.
 
 Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 `--no-window` runs the producer, workers and a simulated player headless,
-`--snap DIR` saves a frame every 10 s.
+`--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
+a special immediately.
 
 Expected cold start: filler card → bumper → short filler while Kokoro loads →
 weather → bulletin → field report → bumper → … After the first loop the buffer
@@ -52,8 +109,8 @@ stays ahead and there is no more filler.
 - **Archive**: every segment aired, searchable, for callbacks now and for
   documentary research later.
 
-The **story desk** (`desk.py`, `kimi-k3`) runs every `plan_every_s` when the
-worker is idle and the live buffer is healthy. It assigns phases, writes next
+The **story desk** (`desk.py`) runs every `plan_every_s` when the worker is
+idle and the live buffer is healthy. It assigns phases, writes next
 developments, closes finished threads and occasionally seeds a new one.
 
 ```bash
@@ -65,40 +122,38 @@ uv run python -m newsroom.world archive        # last 20 archive entries
 
 ## Special reports
 
-The first step towards documentaries. The editor (`kimi-k3`, thinking on)
-reads the open threads every `check_every_s` and decides whether one has
-earned a five-minute piece; usually the answer is no. A commissioned special
-is a **resumable** low-priority job: outline, then one section per stage,
-then voicing, then finish. After each stage it re-queues itself, so live
-slots are served in between and the longest uninterruptible unit is one
-model call. Progress is checkpointed to `data/cache/*.partial.json`. A
-finished special waits for the next bumper. Background work only runs when
-the live buffer is above `min_buffer_frac` of the horizon. Knobs live under
-`[special]` and `[story]` in `config.toml`.
+The first step towards documentaries. The editor reads the open threads every
+`check_every_s` and decides whether one has earned a five-minute piece;
+usually the answer is no. A commissioned special is a **resumable**
+low-priority job: outline, then one section per stage, then voicing, then
+finish. After each stage it re-queues itself, so live slots are served in
+between and the longest uninterruptible unit is one model call. Progress is
+checkpointed to `data/cache/*.partial.json` and resumed on startup. A finished
+special waits for the next bumper. Knobs live under `[special]` and `[story]`
+in `config.toml`.
 
 ```bash
 uv run python -m newsroom.special decide                       # ask the editor now
 uv run python -m newsroom.special make --thread t002           # write one for a thread
-uv run python -m newsroom --special-now                        # run with the editor triggered at start
 ```
 
 ## Layout
 
 | file | job |
 |---|---|
-| `config.toml` / `config.py` | models, voices, buffer horizon, paths |
+| `config.toml` / `config.py` | providers, routes, voices, buffer horizon, paths |
 | `models.py` | `Segment`, `Line`, `VisualCue`, and the per-type LLM schemas |
-| `world.py` | persistent town state: characters, threads, headlines, last weather |
-| `llm.py` | one `complete_json()` door; LM Studio or Anthropic; strict JSON + one retry |
-| `writers.py` | prompts per segment type and template fallbacks |
+| `world.py` | the story bible: presenters, people, threads, archive |
+| `llm.py` | one `complete_json()` door; OpenAI-compatible or Anthropic; strict JSON + one retry |
+| `writers.py` | prompts per live segment type and template fallbacks |
 | `special.py` | the editor decision and the resumable special-report stages |
 | `desk.py` | the story desk: phases, next developments, new threads |
-| `tts.py` | Kokoro on CPU → 24 kHz mono WAV + mouth envelope |
+| `tts.py` | Kokoro on CPU → 24 kHz WAV + mouth envelope |
 | `assets.py` | bakes the placeholder bumper and music bed on first run |
-| `buffer.py` | priority intake queue + ready-by-slot dictionary |
+| `buffer.py` | priority intake queue + ready-by-slot dictionary + specials pocket |
 | `producer.py` | plans slots ahead, retimes when real durations land |
-| `workers.py` | generation thread(s), content cache, watchdog |
-| `player.py` | consumes the buffer, drives audio, builds the `View` |
+| `workers.py` | generation thread, content cache, watchdog, idle editorial work |
+| `player.py` | consumes the buffer, drives audio, applies timed cues, builds the `View` |
 | `scenes.py` / `sprites.py` | draws the `View` on a 320×180 canvas scaled up |
 
 ## Dev commands
@@ -106,26 +161,24 @@ uv run python -m newsroom --special-now                        # run with the ed
 ```bash
 uv run python -m newsroom.tts "Good evening"          # synth one line and play it
 uv run python -m newsroom.llm weather --dry-run        # show prompt + schema, no call
-uv run python -m newsroom.llm weather                  # live call to LM Studio
-uv run python -m newsroom.world                        # print the prompt summary
+uv run python -m newsroom.llm weather                  # live call to the routed provider
+uv run python -m newsroom.world                        # print the writers' briefing
 uv run python -m newsroom.workers field_report         # one segment end to end
 uv run python -m newsroom --no-window --minutes 3      # headless soak
 ```
 
-Generated audio and segment JSON live in `data/cache/`, keyed by
-(type, date, slot, town, day). Delete the folder to force regeneration.
+Generated audio and segment JSON live in `data/cache/`, keyed by (type, date,
+slot, town, day, provider). Delete the folder to force regeneration.
 
 ## Notes
 
 - Python is pinned to 3.12 because `kokoro`/`misaki` do not install on 3.13.
-- Kokoro runs on CPU on purpose so the GPU is free for LM Studio.
+- Kokoro runs on CPU on purpose so the GPU is free for a local model.
 - Kimi k2.6 is a thinking model: with thinking disabled it only accepts
   temperature 0.6; with it enabled, only 1.0 and it needs ~4000 `max_tokens`
-  to leave room for reasoning. The shipped config disables thinking.
-- The LM Studio entry disables Qwen thinking per request; `<think>` blocks are
-  stripped defensively regardless of provider.
+  to leave room for reasoning. The shipped config disables thinking for live
+  segments and enables it for the editor, desk and specials on k3.
+- `<think>` blocks are stripped defensively regardless of provider.
 - Generated content is cached per provider, so switching providers never
   replays another provider's scripts.
-- Longer documentaries with real research, a 24 h schedule, breaking-news
-  interrupts and real sprite art are not here yet; specials are the template
-  for the first of those.
+- More than one worker is not supported yet: the world state has no lock.
