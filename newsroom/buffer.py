@@ -60,6 +60,10 @@ class Buffer:
         self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
         log.info("special commissioned: %r", seg.headline)
 
+    def requeue(self, seg: Segment) -> None:
+        """Put a multi-stage job back for its next stage; live jobs get served in between."""
+        self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
+
     def special_pending(self) -> bool:
         """True while a special is being made or waiting to air."""
         with self._lock:

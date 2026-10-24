@@ -34,15 +34,47 @@ Expected cold start: filler card → bumper → short filler while Kokoro loads 
 weather → bulletin → field report → bumper → … After the first loop the buffer
 stays ahead and there is no more filler.
 
+## The story bible
+
+`data/world.json` is the town's memory and cast list:
+
+- **Presenters**: Dana Ferris (anchor), Gordon Pell (weather), Miles Okafor
+  (field reporter), with fixed voices.
+- **People**: seeded public figures and worthies (the mayor, police and fire
+  chiefs, the MP, the harbourmaster, a head teacher, the lifeboat coxswain,
+  the historical society chair) plus residents promoted from special-report
+  guests. Each has a stable voice, speaking speed and look so they can recur.
+  Appearances are counted whenever a script names them.
+- **Threads**: story lines with a phase (emerging → developing → peak →
+  resolving → closed), the beats aired so far, the people involved and a
+  planned NEXT development. Writers see the NEXT in their briefing and are told
+  a follow-up must deliver it, so stories move instead of repeating.
+- **Archive**: every segment aired, searchable, for callbacks now and for
+  documentary research later.
+
+The **story desk** (`desk.py`, `kimi-k3`) runs every `plan_every_s` when the
+worker is idle and the live buffer is healthy. It assigns phases, writes next
+developments, closes finished threads and occasionally seeds a new one.
+
+```bash
+uv run python -m newsroom.desk plan --dry      # see what the desk would do
+uv run python -m newsroom.desk plan            # apply it
+uv run python -m newsroom.world editor         # the fuller briefing the desk sees
+uv run python -m newsroom.world archive        # last 20 archive entries
+```
+
 ## Special reports
 
-The first step towards documentaries. When the worker is idle, an editor
-(`kimi-k3`, thinking on) reads the open story threads every `check_every_s`
-and decides whether one has earned a five-minute piece; usually the answer is
-no. A commissioned special is a low-priority job written in stages (outline,
-then one call per section, each with an optional invented resident), voiced
-like any other segment, and held aside until the next bumper, so it never
-interrupts a live slot. Knobs live under `[special]` in `config.toml`.
+The first step towards documentaries. The editor (`kimi-k3`, thinking on)
+reads the open threads every `check_every_s` and decides whether one has
+earned a five-minute piece; usually the answer is no. A commissioned special
+is a **resumable** low-priority job: outline, then one section per stage,
+then voicing, then finish. After each stage it re-queues itself, so live
+slots are served in between and the longest uninterruptible unit is one
+model call. Progress is checkpointed to `data/cache/*.partial.json`. A
+finished special waits for the next bumper. Background work only runs when
+the live buffer is above `min_buffer_frac` of the horizon. Knobs live under
+`[special]` and `[story]` in `config.toml`.
 
 ```bash
 uv run python -m newsroom.special decide                       # ask the editor now
@@ -59,7 +91,8 @@ uv run python -m newsroom --special-now                        # run with the ed
 | `world.py` | persistent town state: characters, threads, headlines, last weather |
 | `llm.py` | one `complete_json()` door; LM Studio or Anthropic; strict JSON + one retry |
 | `writers.py` | prompts per segment type and template fallbacks |
-| `special.py` | the editor decision and the staged special-report writer |
+| `special.py` | the editor decision and the resumable special-report stages |
+| `desk.py` | the story desk: phases, next developments, new threads |
 | `tts.py` | Kokoro on CPU → 24 kHz mono WAV + mouth envelope |
 | `assets.py` | bakes the placeholder bumper and music bed on first run |
 | `buffer.py` | priority intake queue + ready-by-slot dictionary |

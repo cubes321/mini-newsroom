@@ -74,6 +74,8 @@ class Segment(BaseModel):
     thread_id: str | None = None
     content_hash: str = ""
     error: str | None = None
+    stage: str = ""                        # multi-stage jobs (specials): where generation got to
+    work: dict = Field(default_factory=dict)   # their scratch state, JSON-serialisable
 
     @property
     def duration_s(self) -> float:
@@ -151,7 +153,7 @@ class EditorDecision(BaseModel):
     thread_id: str | None = Field(default=None, description="the thread to cover, or null")
     working_title: str = Field(default="", max_length=80)
     angle: str = Field(default="", max_length=300, description="the question the piece answers")
-    reason: str = Field(default="", max_length=300, description="why now, or why not")
+    reason: str = Field(default="", max_length=400, description="one or two sentences: why now, or why not")
 
 
 class SectionPlan(BaseModel):
@@ -160,6 +162,7 @@ class SectionPlan(BaseModel):
     backdrop: Backdrop
     guest_name: str | None = Field(default=None, max_length=40, description="an invented resident to hear from, or null")
     guest_role: str | None = Field(default=None, max_length=50, description="e.g. 'harbourmaster', 'retired cannery worker'")
+    guest_gender: Literal["f", "m"] | None = Field(default=None, description="for casting the guest's voice")
 
 
 class SpecialOutline(BaseModel):
@@ -172,6 +175,32 @@ class SpecialOutline(BaseModel):
 
 class SpecialSection(BaseModel):
     lines: list[ScriptLine] = Field(min_length=2, max_length=10)
+
+
+# ----------------------------------------------------------- story desk
+
+Phase = Literal["emerging", "developing", "peak", "resolving", "closed"]
+
+
+class ThreadUpdate(BaseModel):
+    thread_id: str
+    phase: Phase
+    next_development: str = Field(max_length=300, description="one sentence: the concrete next thing that happens, with a day if relevant")
+    people: list[str] = Field(default_factory=list, max_length=4,
+                              description="names of known public figures or residents now involved")
+
+
+class NewThread(BaseModel):
+    title: str = Field(max_length=80)
+    status: str = Field(max_length=200, description="what is known so far, one sentence")
+    next_development: str = Field(max_length=300, description="one sentence")
+    people: list[str] = Field(default_factory=list, max_length=3)
+
+
+class StoryPlan(BaseModel):
+    updates: list[ThreadUpdate] = Field(default_factory=list, max_length=10)
+    new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
+    note: str = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 
 SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {

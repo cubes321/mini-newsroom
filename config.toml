@@ -22,6 +22,7 @@ field_report = "moonshot"
 editor = "moonshot_k3"            # decides whether a thread deserves a special
 special_outline = "moonshot_k3"
 special_section = "moonshot_k3"
+story_desk = "moonshot_k3"        # plans how threads develop, seeds new ones
 
 # Special reports (documentary v0). The editor runs on the worker thread when
 # it is idle; a commissioned special is a low-priority job that plays at the
@@ -31,6 +32,13 @@ check_every_s = 900      # how often the editor looks at the open threads
 cooldown_s = 3600        # minimum gap between specials
 target_s = 300           # length of a special
 min_mentions = 2         # a thread needs this much coverage to be considered
+min_buffer_frac = 0.8    # background work (editor, story desk) only when the live buffer is this full
+
+# The story desk gives threads a phase and a planned next development, closes
+# finished ones and occasionally seeds a new story, so follow-ups move things on.
+[story]
+plan_every_s = 1200
+max_open_threads = 8
 
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, Moonshot, ...). api_key_env names the env var holding the

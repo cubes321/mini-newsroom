@@ -2,15 +2,16 @@
 
 Two jobs live here, both run on the worker thread, never the main thread:
 
-1. The editor. Every `check_every_s`, when the worker is idle, it reads the
-   open threads and asks the model whether one of them has earned a deeper
-   piece. Most of the time the answer should be no.
+1. The editor. When the worker is idle and the live buffer is healthy, it
+   reads the open threads and asks the model whether one of them has earned
+   a deeper piece. Most of the time the answer should be no.
 
-2. The writer. A commissioned special is written in stages so each model call
-   stays small and recoverable: an outline (title, standfirst, anchor intro
-   and outro, 3-6 sections with an optional invented interviewee), then one
-   call per section. Lines are voiced like any other segment; cues (chapter
-   cards, backdrops, guest lower thirds) are placed by real audio timing.
+2. The writer, as a RESUMABLE multi-stage job. A commissioned special goes
+   through `advance()` one stage per turn on the worker: outline, then one
+   section per stage, then voicing, then finish. After each stage the job is
+   re-queued at low priority, so live slots are served in between and the
+   longest uninterruptible unit is one model call. Progress is checkpointed
+   to data/cache so a restart resumes rather than starting over.
 
 A ready special sits in the buffer's side pocket and the player airs it at
 the next bumper boundary, so it never pre-empts a live slot mid-sentence.
@@ -21,14 +22,13 @@ import hashlib
 import logging
 import os
 import time
-from datetime import date
+from pathlib import Path
 
 from . import llm
 from .config import CONFIG
 from .models import (
     EditorDecision,
     Line,
-    ScriptLine,
     Segment,
     SegmentState,
     SegmentType,
@@ -46,9 +46,9 @@ _special_counter = 0
 _EDITOR_SYSTEM = """\
 You are the editor of a small-town TV newsroom in the FICTIONAL town described in the briefing.
 You decide whether any open story thread has earned a SPECIAL REPORT: a five-minute piece with a
-presenter on location and invented local residents interviewed. Commission one only when a thread
-has real texture: history, people with a stake, a question worth five minutes. A thread covered
-once with nothing new is not enough. If nothing qualifies, say so; that is the usual answer.
+presenter on location and local people interviewed. Commission one only when a thread has real
+texture: history, people with a stake, a question worth five minutes. A thread covered once with
+nothing new is not enough. If nothing qualifies, say so; that is the usual answer.
 Everything is fiction; never reference real people or events. Return ONLY JSON.
 """
 
@@ -57,8 +57,10 @@ You are the producer of a five-minute SPECIAL REPORT for a small-town TV newsroo
 town in the briefing. The presenter is the field reporter (speaker id "reporter"); the anchor
 (speaker id "anchor") introduces and closes the piece from the studio. Plan 3 to 6 sections. Each
 section has a heading, the beats it establishes, a backdrop from the allowed list, and optionally one
-invented resident to hear from, with a role. Vary the guests; give them specific, believable names.
-Make it warm, local, specific, a little dry. Everything is fiction. Return ONLY JSON.
+person to hear from, with their role. Prefer the public figures and residents listed in the briefing
+when they fit the story (use their exact names); invent a new resident only when nobody listed would
+plausibly be involved. Respect the dates in the briefing. Make it warm, local, specific, a little dry.
+Everything is fiction. Return ONLY JSON.
 """
 
 _SECTION_SYSTEM = """\
@@ -66,13 +68,13 @@ You write one section of a five-minute SPECIAL REPORT for a small-town TV newsro
 town in the briefing. Speakers allowed in this section: "reporter" (the presenter, narrating on
 location) and, if a guest is named, "guest" with guest_name set to that exact name. Spoken lines
 only: no stage directions, brackets, markdown or emojis. Numbers as words when short. Keep to the
-word budget. Let the guest talk like a real person: a detail, an opinion, a short story. Do not
-re-introduce the piece or sign off; this is one section in the middle. Return ONLY JSON.
+word budget. Let the guest talk like a real person: a detail, an opinion, a short story. Respect the
+dates in the briefing; do not invent how long things have been going on. Do not re-introduce the
+piece or sign off; this is one section in the middle. Return ONLY JSON.
 """
 
 
 # ------------------------------------------------------------------ editor
-
 
 _force: bool | None = None
 
@@ -100,7 +102,7 @@ def should_check(world: World, now: float | None = None) -> bool:
 def decide(world: World, *, force: bool = False) -> EditorDecision:
     """Ask the editor model. Returns a non-commissioning decision on any failure."""
     world.last_editor_check_ts = time.time()
-    eligible = [t for t in world.threads if t.mentions >= CONFIG.special.min_mentions]
+    eligible = [t for t in world.open_threads() if t.mentions >= CONFIG.special.min_mentions]
     if not eligible and not force:
         return EditorDecision(commission=False, reason="no thread has enough coverage yet")
     user = (
@@ -126,7 +128,7 @@ def decide(world: World, *, force: bool = False) -> EditorDecision:
 def commission(world: World, decision: EditorDecision) -> Segment:
     global _special_counter
     _special_counter += 1
-    seg = Segment(
+    return Segment(
         slot_id=SPECIAL_SLOT_BASE + _special_counter,
         type=SegmentType.documentary,
         priority=9,
@@ -134,16 +136,16 @@ def commission(world: World, decision: EditorDecision) -> Segment:
         target_s=CONFIG.special.target_s,
         headline=decision.working_title or None,
         thread_id=decision.thread_id,
+        stage="outline",
+        work={"angle": decision.angle},
     )
-    seg.cues = [VisualCue(kind="chapter", payload={"angle": decision.angle})]   # placeholder; replaced on generate
-    return seg
 
 
 # ------------------------------------------------------------------ writer
 
 
 def _hash(seg: Segment, world: World) -> str:
-    key = f"special|{date.today().isoformat()}|{seg.thread_id}|{seg.headline}|{world.town}|{llm.provider_for('special_outline')}"
+    key = f"special|{world.last_date}|{seg.thread_id}|{seg.headline or seg.work.get('title')}|{world.town}|{llm.provider_for('special_outline')}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
@@ -151,24 +153,56 @@ def _word_budget(seconds: float) -> int:
     return int(seconds / 60 * CONFIG.broadcast.words_per_minute)
 
 
+def _partial_path(h: str) -> Path:
+    return CONFIG.paths.cache / f"{h}.partial.json"
+
+
+def _save_partial(seg: Segment, h: str) -> None:
+    p = _partial_path(h)
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(seg.model_dump_json(), encoding="utf-8")
+    tmp.replace(p)
+
+
+def _load_partial(seg: Segment, h: str) -> bool:
+    p = _partial_path(h)
+    if not p.exists():
+        return False
+    try:
+        saved = Segment.model_validate_json(p.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("special partial %s unreadable (%s); starting over", h, e)
+        return False
+    seg.lines, seg.work, seg.stage, seg.headline = saved.lines, saved.work, saved.stage, saved.headline
+    log.info("special %r resumed at stage %s", seg.headline, seg.stage)
+    return True
+
+
 def write_outline(seg: Segment, world: World) -> SpecialOutline:
-    angle = next((c.payload.get("angle") for c in seg.cues if c.kind == "chapter"), "") or ""
+    angle = seg.work.get("angle", "")
     thread = world.thread(seg.thread_id)
-    subject = (f"Thread [{thread.id}] {thread.title} — {thread.status} (covered {thread.mentions}x)"
+    subject = (f"Thread [{thread.id}] {thread.title} — {thread.phase}; {thread.status} "
+               f"(opened {thread.opened}, covered {thread.mentions}x)"
                if thread else f"Subject: {seg.headline}")
+    if thread and thread.beats:
+        subject += "\nCoverage so far:\n" + "\n".join(f"  - {b['date']}: {b['headline']}" for b in thread.beats[-6:])
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
         f"SPECIAL REPORT COMMISSION\nWorking title: {seg.headline}\n{subject}\nAngle: {angle}\n"
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
-        f"plus a short anchor intro and outro. Today is {date.today():%A %d %B}."
+        f"plus a short anchor intro and outro."
     )
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
 
 def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, words: int) -> SpecialSection:
     sec = outline.sections[i]
-    guest = (f"Guest for this section: {sec.guest_name}, {sec.guest_role}. Use speaker 'guest' with "
-             f"guest_name '{sec.guest_name}' for their lines.") if sec.guest_name else "No guest in this section."
+    if sec.guest_name:
+        known = world.person_by_name(sec.guest_name)
+        who = f"{known.name}, {known.role}" + (f"; {known.notes}" if known and known.notes else "") if known else f"{sec.guest_name}, {sec.guest_role}"
+        guest = f"Guest for this section: {who}. Use speaker 'guest' with guest_name '{sec.guest_name}' for their lines."
+    else:
+        guest = "No guest in this section."
     prev = outline.sections[i - 1].heading if i > 0 else "(this is the first section)"
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
@@ -179,31 +213,6 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         f"Word budget for this section: about {words} words."
     )
     return llm.complete_json("special_section", SpecialSection, _SECTION_SYSTEM, user)
-
-
-def script_special(seg: Segment, world: World, on_progress=None) -> tuple[Segment, SpecialOutline, list[int]]:
-    """Fill seg.lines from outline + sections. Returns section start line indices too."""
-    outline = write_outline(seg, world)
-    seg.headline = outline.title
-    n = len(outline.sections)
-    per_section = _word_budget(seg.target_s) // n
-    lines: list[Line] = [Line(speaker="anchor", text=outline.intro.strip())]
-    starts: list[int] = []
-    for i in range(n):
-        starts.append(len(lines))
-        sec = write_section(seg, world, outline, i, per_section)
-        for l in sec.lines:
-            if not l.text.strip():
-                continue
-            name = l.guest_name or outline.sections[i].guest_name if l.speaker == "guest" else None
-            lines.append(Line(speaker=l.speaker, text=l.text.strip(), guest_name=name))
-        if on_progress:
-            on_progress(i + 1, n)
-        log.info("special %r section %d/%d scripted (%d lines)", outline.title, i + 1, n, len(sec.lines))
-    lines.append(Line(speaker="anchor", text=outline.outro.strip()))
-    seg.lines = lines
-    seg.state = SegmentState.scripted
-    return seg, outline, starts
 
 
 def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list[VisualCue]:
@@ -231,42 +240,127 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list
                                       payload={"title": l.guest_name or "Resident", "subtitle": sec.guest_role or "Port Wexley"}))
             elif j > start_idx and seg.lines[j - 1].speaker == "guest":
                 cues.append(VisualCue(at_s=line_start[j], kind="lower_third", payload={}))
-    # Anchor outro: back in the studio with the title as caption.
     cues.append(VisualCue(at_s=line_start[-1], kind="lower_third", payload={"title": outline.title, "subtitle": "Special report"}))
     return cues
 
 
-def generate_special(seg: Segment, world: World, buffer=None) -> Segment:
-    """Outline -> sections -> voice -> cues. Cached like any other segment."""
+# --------------------------------------------------------------- stages
+
+
+def advance(seg: Segment, world: World, buffer=None) -> Segment:
+    """Run ONE stage of a special. Re-queues itself if more stages remain.
+
+    Stages: outline -> sections (one per call) -> voice -> finish.
+    """
     from . import workers, world as world_mod
 
-    t0 = time.perf_counter()
-    h = _hash(seg, world)
+    # The hash is fixed at the first stage: the outline renames the segment, so
+    # recomputing it later would scatter checkpoints under different keys.
+    h = seg.content_hash or _hash(seg, world)
     seg.content_hash = h
-    cached = workers._load_cached(seg, h)
-    if cached is not None:
-        cached.state = SegmentState.ready
-        log.info("special: cache hit %s (%r)", h, cached.headline)
-        if buffer:
-            buffer.mark(cached, SegmentState.ready)
-        return cached
+    stage = seg.stage or "outline"
 
-    seg, outline, starts = script_special(seg, world)
-    if buffer:
-        buffer.mark(seg, SegmentState.scripted)
-    workers.voice_segment(seg, world, h)
-    if buffer:
-        buffer.mark(seg, SegmentState.voiced)
-    seg.cues = build_cues(seg, outline, starts)
-    seg.state = SegmentState.ready
-    workers._save_cached(seg, h)
-    world.record_special(outline.title, seg.thread_id)
-    world.record_headline(f"Special report: {outline.title}")
+    if stage == "outline":
+        cached = workers._load_cached(seg, h)
+        if cached is not None:
+            cached.state = SegmentState.ready
+            log.info("special: cache hit %s (%r)", h, cached.headline)
+            if buffer:
+                buffer.mark(cached, SegmentState.ready)
+            return cached
+        if _load_partial(seg, h):
+            return advance(seg, world, buffer)
+        outline = write_outline(seg, world)
+        seg.headline = outline.title
+        seg.work.update({"outline": outline.model_dump(), "starts": [], "next_section": 0, "t0": time.time()})
+        seg.lines = [Line(speaker="anchor", text=outline.intro.strip())]
+        seg.stage = "sections"
+        log.info("special %r outlined: %d sections", outline.title, len(outline.sections))
+
+    elif stage == "sections":
+        outline = SpecialOutline.model_validate(seg.work["outline"])
+        i = seg.work["next_section"]
+        n = len(outline.sections)
+        words = _word_budget(seg.target_s) // n
+        seg.work["starts"].append(len(seg.lines))
+        sec = write_section(seg, world, outline, i, words)
+        plan = outline.sections[i]
+        if plan.guest_name:
+            world.ensure_person(plan.guest_name, plan.guest_role, gender=plan.guest_gender)
+        for l in sec.lines:
+            if not l.text.strip():
+                continue
+            name = (l.guest_name or plan.guest_name) if l.speaker == "guest" else None
+            seg.lines.append(Line(speaker=l.speaker, text=l.text.strip(), guest_name=name))
+        seg.work["next_section"] = i + 1
+        log.info("special %r section %d/%d scripted (%d lines)", outline.title, i + 1, n, len(sec.lines))
+        if i + 1 >= n:
+            seg.lines.append(Line(speaker="anchor", text=outline.outro.strip()))
+            seg.stage = "voice"
+            seg.state = SegmentState.scripted
+            if buffer:
+                buffer.mark(seg, SegmentState.scripted)
+
+    elif stage == "voice":
+        workers.voice_segment(seg, world, h)
+        seg.stage = "finish"
+        if buffer:
+            buffer.mark(seg, SegmentState.voiced)
+
+    elif stage == "finish":
+        outline = SpecialOutline.model_validate(seg.work["outline"])
+        seg.cues = build_cues(seg, outline, seg.work["starts"])
+        seg.state = SegmentState.ready
+        workers._save_cached(seg, h)
+        try:
+            _partial_path(h).unlink()
+        except OSError:
+            pass
+        world.record_special(outline.title, seg.thread_id)
+        world.record_headline(f"Special report: {outline.title}")
+        world.record_aired("special", outline.title, seg.thread_id, " ".join(l.text for l in seg.lines))
+        world_mod.save(world)
+        if buffer:
+            buffer.mark(seg, SegmentState.ready)
+        log.info("special %r ready: %d lines, %.0fs of audio, %d sections, %.0fs wall across stages",
+                 outline.title, len(seg.lines), seg.duration_s, len(seg.work["starts"]),
+                 time.time() - seg.work.get("t0", time.time()))
+        return seg
+
+    else:
+        raise ValueError(f"unknown special stage {stage!r}")
+
+    _save_partial(seg, h)
     world_mod.save(world)
     if buffer:
-        buffer.mark(seg, SegmentState.ready)
-    log.info("special %r ready: %d lines, %.0fs of audio, %d sections, in %.0fs wall",
-             outline.title, len(seg.lines), seg.duration_s, len(starts), time.perf_counter() - t0)
+        buffer.requeue(seg)
+    return seg
+
+
+def resume_partials(buffer) -> int:
+    """On startup, put any checkpointed special back on the queue. Returns how many."""
+    global _special_counter
+    n = 0
+    for p in sorted(CONFIG.paths.cache.glob("*.partial.json")):
+        try:
+            seg = Segment.model_validate_json(p.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            log.warning("ignoring unreadable checkpoint %s: %s", p.name, e)
+            continue
+        if seg.type is not SegmentType.documentary or not seg.stage:
+            continue
+        _special_counter = max(_special_counter, seg.slot_id - SPECIAL_SLOT_BASE)
+        seg.state = SegmentState.planned
+        buffer.submit_special(seg)
+        log.info("resuming special %r from stage %s", seg.headline, seg.stage)
+        n += 1
+    return n
+
+
+def generate_special(seg: Segment, world: World, buffer=None) -> Segment:
+    """Run all stages back to back (CLI / tests). The worker uses advance()."""
+    while seg.state is not SegmentState.ready:
+        seg = advance(seg, world, buffer)
     return seg
 
 

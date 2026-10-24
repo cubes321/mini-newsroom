@@ -42,9 +42,11 @@ Rules:
 - Use ONLY the speaker ids given in the town briefing. Never invent new speakers.
 - Spoken lines only: no stage directions, no brackets, no markdown, no emojis.
 - Numbers as words when short ("twelve degrees"); write out units.
-- Do not repeat recent headlines. Follow up an open thread by id only when there is
-  genuinely new development; a thread covered twice already should rest. Most segments
-  should bring a NEW story.
+- Do not repeat recent headlines. When you follow up an open thread (by id), report its NEXT
+  development or a concrete step towards it; never restate what was already reported. Threads
+  without a NEXT should rest. Most segments should still bring at least one NEW story.
+- Quote the listed public figures by name where natural; do not invent a new mayor, chief or
+  councillor when a listed one fits. Respect the dates in the briefing.
 - Stay within the word budget. Return ONLY JSON matching the schema; no commentary.
 """
 
@@ -192,3 +194,4 @@ def _apply_to_world(seg: Segment, script, world: World) -> None:
         status = getattr(script, "thread_status", None)
         known = {t.id for t in world.threads}
         seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
+    world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines))
