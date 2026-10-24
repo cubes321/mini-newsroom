@@ -1,0 +1,65 @@
+# Mini Newsroom configuration
+
+[broadcast]
+width = 960
+height = 540
+fps = 60
+horizon_s = 600          # seconds of unplayed content the producer keeps queued
+words_per_minute = 150   # used to turn target seconds into a word budget
+
+[llm]
+default_provider = "moonshot"
+timeout_s = 90
+first_call_timeout_s = 120
+max_tokens = 700
+temperature = 0.8
+
+# Which provider writes which segment type. Any name under [llm.providers].
+[llm.routes]
+weather = "moonshot"
+bulletin = "moonshot"
+field_report = "moonshot"
+documentary = "anthropic"
+
+# kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
+# llama.cpp server, Moonshot, ...). api_key_env names the env var holding the
+# key; leave it empty for local servers. extra_body is passed through as-is.
+[llm.providers.lmstudio]
+kind = "openai"
+base_url = "http://localhost:1234/v1"
+api_key_env = ""
+model = "qwen/qwen3.5-9b"
+extra_body = { enable_thinking = false }
+
+[llm.providers.moonshot]
+kind = "openai"
+base_url = "https://api.moonshot.ai/v1"
+api_key_env = "MOONSHOT_API_KEY"
+model = "kimi-k2.6"          # also available: kimi-k3, kimi-k3.1-pro(-highspeed)
+# k2.6 is a thinking model. Thinking off is faster and cheaper for short
+# scripts; in that mode it only accepts temperature 0.6 (with thinking on,
+# only 1.0, and max_tokens needs ~4000 to leave room for the reasoning).
+temperature = 0.6
+max_tokens = 2000
+extra_body = { thinking = { type = "disabled" } }
+
+[llm.providers.anthropic]
+kind = "anthropic"
+model = "claude-opus-5-5"
+
+[tts]
+backend = "kokoro"
+lang_code = "a"          # Kokoro: "a" American, "b" British
+sample_rate = 24000
+device = "cpu"
+
+[tts.voices]
+anchor = "af_heart"
+weather = "bm_george"
+reporter = "am_michael"
+
+[paths]
+data = "data"
+cache = "data/cache"
+world = "data/world.json"
+assets = "assets"

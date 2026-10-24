@@ -1,0 +1,91 @@
+"""Placeholder audio assets, generated on first run.
+
+Nothing here is art. It exists so the pipeline can be proven before any real
+jingle or music exists:
+- bumper.wav: a four-note synth sting followed by a Kokoro station ident.
+- music_bed.wav: a slow, quiet chord loop used under filler.
+
+Both are 24 kHz mono PCM_16 like everything else. Drop real files with the
+same names into assets/ to replace them.
+"""
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
+from .config import CONFIG
+from .models import Line, Segment, SegmentState
+
+log = logging.getLogger(__name__)
+
+SR = CONFIG.tts.sample_rate
+BUMPER = CONFIG.paths.assets / "bumper.wav"
+MUSIC_BED = CONFIG.paths.assets / "music_bed.wav"
+IDENT_TEXT = "You're watching Port Wexley News, on channel seven."
+
+
+def _tone(freq: float, dur: float, vol: float = 0.3, harmonics: int = 3) -> np.ndarray:
+    t = np.linspace(0, dur, int(SR * dur), endpoint=False)
+    sig = sum(np.sin(2 * np.pi * freq * (k + 1) * t) / (k + 1) ** 1.5 for k in range(harmonics))
+    env = np.minimum(1.0, t / 0.02) * np.exp(-3.0 * t / dur)
+    return (sig * env * vol).astype(np.float32)
+
+
+def _write(path: Path, audio: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".wav.tmp")
+    sf.write(tmp, np.clip(audio, -1, 1), SR, format="WAV", subtype="PCM_16")
+    os.replace(tmp, path)
+
+
+def ensure_bumper() -> Path:
+    if BUMPER.exists():
+        return BUMPER
+    from . import tts
+
+    log.info("baking placeholder bumper -> %s", BUMPER.name)
+    notes = [392.0, 523.25, 659.25, 783.99]        # G4 C5 E5 G5
+    sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(783.99, 0.9, 0.25)])
+    ident = tts.synthesize(IDENT_TEXT, CONFIG.tts.voices.get("anchor", "af_heart"), CONFIG.paths.cache / "_ident.wav")
+    voice, _ = sf.read(str(ident.wav_path), dtype="float32")
+    gap = np.zeros(int(SR * 0.25), dtype=np.float32)
+    _write(BUMPER, np.concatenate([sting, gap, voice, gap]))
+    return BUMPER
+
+
+def ensure_music_bed(seconds: float = 24.0) -> Path:
+    if MUSIC_BED.exists():
+        return MUSIC_BED
+    log.info("baking placeholder music bed -> %s", MUSIC_BED.name)
+    chords = [(261.63, 329.63, 392.0), (220.0, 261.63, 329.63), (174.61, 220.0, 261.63), (196.0, 246.94, 293.66)]
+    per = seconds / len(chords)
+    parts = []
+    for chord in chords:
+        t = np.linspace(0, per, int(SR * per), endpoint=False)
+        pad = sum(np.sin(2 * np.pi * f * t) * (1 + 0.15 * np.sin(2 * np.pi * 0.3 * t)) for f in chord) / len(chord)
+        env = np.minimum(1.0, t / 0.6) * np.minimum(1.0, (per - t) / 0.6)
+        parts.append((pad * env * 0.12).astype(np.float32))
+    _write(MUSIC_BED, np.concatenate(parts))
+    return MUSIC_BED
+
+
+def ensure_all() -> None:
+    ensure_music_bed()
+    ensure_bumper()
+
+
+def bumper_segment(seg: Segment) -> Segment:
+    """Turn a planned bumper slot into a ready one backed by the baked asset."""
+    from . import tts
+
+    path = ensure_bumper()
+    audio, sr = sf.read(str(path), dtype="float32")
+    seg.lines = [Line(speaker="anchor", text=IDENT_TEXT, wav_path=path,
+                      duration_s=len(audio) / sr, mouth_env=tts.mouth_envelope(audio, sr))]
+    seg.headline = None
+    seg.state = SegmentState.ready
+    return seg

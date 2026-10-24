@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+data/cache/
+data/world.json
+*.wav
+!assets/**/*.wav
