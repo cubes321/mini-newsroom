@@ -18,7 +18,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from .models import Segment, SegmentState
+from .models import Segment, SegmentState, SegmentType
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class Buffer:
         self._lock = threading.Lock()
         self._segments: dict[int, Segment] = {}      # every slot we know about
         self._ready: dict[int, Segment] = {}         # subset in state ready
+        self._specials_ready: list[Segment] = []     # side pocket: specials waiting for a bumper boundary
         self.transitions: list[tuple[float, int, str]] = []   # (ts, slot, state) for logs/soak
 
     # ------------------------------------------------------------- intake
@@ -50,6 +51,25 @@ class Buffer:
         self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
         log.debug("submitted slot %d %s due %.0fs", seg.slot_id, seg.type.value, seg.nominal_start_ts - time.time())
 
+    def submit_special(self, seg: Segment) -> None:
+        """A commissioned special: lowest priority, far deadline, outside the rundown."""
+        with self._lock:
+            seg.state = SegmentState.planned
+            self._segments[seg.slot_id] = seg
+            self.transitions.append((time.time(), seg.slot_id, seg.state))
+        self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
+        log.info("special commissioned: %r", seg.headline)
+
+    def special_pending(self) -> bool:
+        """True while a special is being made or waiting to air."""
+        with self._lock:
+            return any(s.type is SegmentType.documentary and s.state not in (SegmentState.done, SegmentState.failed)
+                       for s in self._segments.values())
+
+    def pop_special(self) -> Segment | None:
+        with self._lock:
+            return self._specials_ready.pop(0) if self._specials_ready else None
+
     def next_job(self, timeout: float = 0.5) -> Segment | None:
         try:
             return self._q.get(timeout=timeout).segment
@@ -63,7 +83,9 @@ class Buffer:
             seg.state = state
             seg.error = error
             self._segments[seg.slot_id] = seg
-            if state is SegmentState.ready:
+            if state is SegmentState.ready and seg.type is SegmentType.documentary:
+                self._specials_ready.append(seg)
+            elif state is SegmentState.ready:
                 self._ready[seg.slot_id] = seg
             elif seg.slot_id in self._ready and state not in (SegmentState.playing,):
                 self._ready.pop(seg.slot_id, None)
@@ -107,7 +129,8 @@ class Buffer:
         with self._lock:
             return sum(
                 s.duration_s if s.state is SegmentState.ready else s.target_s
-                for s in self._segments.values() if s.state in unplayed
+                for s in self._segments.values()
+                if s.state in unplayed and s.type is not SegmentType.documentary
             )
 
     def counts(self) -> dict[str, int]:

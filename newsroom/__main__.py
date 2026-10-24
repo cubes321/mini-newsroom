@@ -28,6 +28,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--debug", action="store_true", help="draw status overlay")
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--snap", type=str, default="", help="save a PNG of the frame to this dir every 10 s")
+    p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -168,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
         logging.getLogger(noisy).setLevel(logging.WARNING)
     from .config import CONFIG
 
+    if args.special_now:
+        os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
     if args.workers != 1:
         # world.py mutates shared state from the worker thread without a lock;
         # more than one generator is unsupported until that is added.

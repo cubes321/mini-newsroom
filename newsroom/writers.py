@@ -21,7 +21,7 @@ from .models import (
     BulletinScript,
     FieldReportScript,
     Line,
-    ScriptLine,
+    LiveLine,
     Segment,
     SegmentState,
     SegmentType,
@@ -96,8 +96,8 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random):
         temp = rng.randint(6, 19)
         return WeatherScript(
             lines=[
-                ScriptLine(speaker="anchor", text="Now over to Gordon for the weather."),
-                ScriptLine(speaker="weather", text=(
+                LiveLine(speaker="anchor", text="Now over to Gordon for the weather."),
+                LiveLine(speaker="weather", text=(
                     f"Thanks Dana. A {state} evening across {world.town}, {temp} degrees on the harbour "
                     "and a light onshore breeze. Tomorrow looks much the same, with a chance of a "
                     "brighter spell by the afternoon. A fine night for a walk along the front."
@@ -110,11 +110,11 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random):
         lm = rng.choice(world.landmarks)
         return BulletinScript(
             lines=[
-                ScriptLine(speaker="anchor", text=(
+                LiveLine(speaker="anchor", text=(
                     f"Good evening. The council has confirmed that repairs to {lm} will begin next week, "
                     "with the work expected to take around a month."
                 )),
-                ScriptLine(speaker="anchor", text=(
+                LiveLine(speaker="anchor", text=(
                     "And the Harrow Street market will stay open an hour later on Saturdays through the autumn, "
                     "after traders voted in favour of the change."
                 )),
@@ -125,13 +125,13 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random):
     if seg_type is SegmentType.field_report:
         return FieldReportScript(
             lines=[
-                ScriptLine(speaker="anchor", text="Our reporter Miles Okafor is down at the harbour tonight. Miles?"),
-                ScriptLine(speaker="reporter", text=(
+                LiveLine(speaker="anchor", text="Our reporter Miles Okafor is down at the harbour tonight. Miles?"),
+                LiveLine(speaker="reporter", text=(
                     "Thanks Dana. I'm standing by the old cannery, where a group of volunteers has spent the day "
                     "clearing the slipway. One of them told me it's the first time in twenty years the ramp has "
                     "been usable at low tide. They're hoping to have small boats launching from here by spring."
                 )),
-                ScriptLine(speaker="anchor", text="Thanks Miles. We'll keep an eye on that one."),
+                LiveLine(speaker="anchor", text="Thanks Miles. We'll keep an eye on that one."),
             ],
             headline="Volunteers clear the old cannery slipway",
             location="The old cannery, Port Wexley harbour",

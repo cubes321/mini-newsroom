@@ -12,7 +12,7 @@ import math
 import pygame
 
 from .player import View
-from .sprites import draw_character, draw_mic
+from .sprites import draw_character, draw_mic, guest_palette
 
 CANVAS = (320, 180)
 
@@ -35,6 +35,25 @@ def font(size: int) -> pygame.font.Font:
     if size not in _fonts:
         _fonts[size] = pygame.font.SysFont("consolas,couriernew,monospace", size, bold=size >= 10)
     return _fonts[size]
+
+
+def wrap(s: str, size: int, maxw: int, max_lines: int = 3) -> list[str]:
+    """Greedy word wrap for the pixel font; last line gets an ellipsis if it still overflows."""
+    f = font(size)
+    lines, cur = [], ""
+    for word in s.split():
+        trial = f"{cur} {word}".strip()
+        if f.size(trial)[0] <= maxw or not cur:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = lines[-1].rstrip(".,;") + "…"
+    return lines
 
 
 def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), center=False, maxw: int | None = None):
@@ -155,6 +174,73 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     text(canvas, "LIVE", 22, 13, 8, center=True)
 
 
+def _location(canvas: pygame.Surface, backdrop: str | None, t: float) -> None:
+    """Shared exterior painter for field reports and specials."""
+    w, h = canvas.get_size()
+    sky, ground = BACKDROPS.get(backdrop, BACKDROPS["main_street"])
+    canvas.fill(sky)
+    pygame.draw.rect(canvas, ground, (0, 120, w, 60))
+    for i in range(5):
+        bh = 40 + (i * 23) % 50
+        pygame.draw.rect(canvas, tuple(max(0, c - 30) for c in ground), (10 + i * 62, 120 - bh, 48, bh))
+    if backdrop == "harbour":
+        pygame.draw.rect(canvas, (40, 70, 110), (0, 128, w, 52))
+        for i in range(8):
+            pygame.draw.rect(canvas, (90, 130, 170), (i * 42 + int(t * 10) % 42, 140 + (i % 3) * 10, 20, 1))
+    elif backdrop == "park":
+        for i in range(6):
+            pygame.draw.circle(canvas, (70, 120, 60), (20 + i * 55, 108), 16)
+            pygame.draw.rect(canvas, (80, 60, 40), (18 + i * 55, 110, 4, 14))
+    elif backdrop == "farm":
+        for i in range(0, w, 16):
+            pygame.draw.rect(canvas, (150, 130, 70), (i, 124 + (i // 16 % 2) * 3, 10, 2))
+
+
+def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
+    """Documentary look: letterboxed location, presenter or guest, chapter cards."""
+    w, h = canvas.get_size()
+    _location(canvas, v.backdrop, t)
+    # Slightly desaturated, moodier grade: a translucent dark wash.
+    wash = pygame.Surface((w, h), pygame.SRCALPHA)
+    wash.fill((10, 10, 30, 70))
+    canvas.blit(wash, (0, 0))
+    if v.speaker == "guest":
+        draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, palette=guest_palette(v.guest_name))
+        draw_character(canvas, 62, 148, "reporter", 0.0, t, scale=1)
+        draw_mic(canvas, 72, 122)
+    else:
+        draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
+        draw_mic(canvas, 105, 110)
+    # Letterbox bars
+    pygame.draw.rect(canvas, (0, 0, 0), (0, 0, w, 14))
+    pygame.draw.rect(canvas, (0, 0, 0), (0, h - 28, w, 14))
+    pygame.draw.rect(canvas, (200, 170, 60), (8, 3, 70, 9))
+    text(canvas, "SPECIAL REPORT", 43, 7, 8, (20, 20, 20), center=True)
+
+    ch = v.chapter
+    if ch:
+        if ch.get("number") == 1 and v.chapter_age_s < 7.0:
+            # Title card over the opening seconds
+            card = pygame.Surface((w, h), pygame.SRCALPHA)
+            card.fill((5, 5, 15, 225))
+            canvas.blit(card, (0, 0))
+            text(canvas, "A PORT WEXLEY NEWS SPECIAL", w // 2, 46, 8, (200, 170, 60), center=True)
+            y = 66
+            for ln in wrap(ch.get("title", ""), 14, w - 24, 2):
+                text(canvas, ln, w // 2, y, 14, center=True)
+                y += 18
+            y += 6
+            for ln in wrap(ch.get("standfirst", ""), 8, w - 40, 3):
+                text(canvas, ln, w // 2, y, 8, (200, 200, 210), center=True)
+                y += 11
+        elif v.chapter_age_s < 6.0:
+            slide = min(1.0, v.chapter_age_s / 0.4)
+            x = int(-120 + 128 * slide)
+            pygame.draw.rect(canvas, (200, 170, 60), (x, 22, 120, 18))
+            text(canvas, f"PART {ch.get('number')}", x + 6, 25, 8, (20, 20, 20))
+            text(canvas, ch.get("heading", ""), x + 6, 33, 8, (20, 20, 20), maxw=110)
+
+
 # ------------------------------------------------------------------ overlays
 
 
@@ -196,7 +282,8 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
         text(canvas, "REPLAY", w - 24, 22, 8, (255, 200, 80), center=True)
 
 
-SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather, "field": draw_field}
+SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
+          "field": draw_field, "special": draw_special}
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
@@ -209,4 +296,5 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_ticker(canvas, v, t)
         draw_clock(canvas, v)
     if debug:
-        text(canvas, debug, 2, 2, 8, (255, 255, 120))
+        # Bottom-left, between the lower third and the ticker, clear of scene tags.
+        text(canvas, debug, 2, canvas.get_height() - 24, 8, (255, 255, 120))

@@ -77,7 +77,7 @@ def voice_segment(seg: Segment, world: World, h: str) -> Segment:
     """Synthesize every line to its own WAV; fill duration and mouth envelope."""
     for i, line in enumerate(seg.lines):
         out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
-        res = tts.synthesize(line.text, world.voice_for(line.speaker), out)
+        res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out)
         line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
     seg.state = SegmentState.voiced
     return seg
@@ -96,6 +96,10 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
         if buffer:
             buffer.mark(ready, SegmentState.ready)
         return ready
+    if seg.type is SegmentType.documentary:
+        from .special import generate_special
+
+        return generate_special(seg, world, buffer)
 
     cached = _load_cached(seg, h)
     if cached is not None:
@@ -161,6 +165,7 @@ class WorkerPool:
         while not self.stop.is_set():
             seg = self.buffer.next_job(timeout=0.5)
             if seg is None:
+                self._maybe_run_editor()
                 continue
             try:
                 generate(seg, self.world, self.buffer)
@@ -169,6 +174,23 @@ class WorkerPool:
                 self.jobs_failed += 1
                 log.exception("slot %d %s failed", seg.slot_id, seg.type.value)
                 self.buffer.mark(seg, SegmentState.failed, error=str(e)[:200])
+
+    def _maybe_run_editor(self) -> None:
+        """When idle, occasionally let the editor look for a special to commission."""
+        from . import special
+
+        try:
+            if self.buffer.special_pending():
+                return
+            force = special.take_force()
+            if not force and not special.should_check(self.world):
+                return
+            decision = special.decide(self.world, force=force)
+            world_mod.save(self.world)
+            if decision.commission:
+                self.buffer.submit_special(special.commission(self.world, decision))
+        except Exception:  # noqa: BLE001
+            log.exception("editor check failed")
 
     def shutdown(self) -> None:
         self.stop.set()

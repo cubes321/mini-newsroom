@@ -63,6 +63,14 @@ class TTSCfg:
 
 
 @dataclass(frozen=True)
+class SpecialCfg:
+    check_every_s: float = 900.0
+    cooldown_s: float = 3600.0
+    target_s: float = 300.0
+    min_mentions: int = 2
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
@@ -76,6 +84,7 @@ class Config:
     llm: LLMCfg
     tts: TTSCfg
     paths: PathsCfg
+    special: SpecialCfg
 
 
 def load(path: Path | None = None) -> Config:
@@ -96,6 +105,7 @@ def load(path: Path | None = None) -> Config:
         llm=LLMCfg(routes=routes, providers=providers, **llm_raw),
         tts=TTSCfg(voices=voices, **tts_raw),
         paths=PathsCfg(**paths_raw),
+        special=SpecialCfg(**raw.get("special", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

@@ -34,6 +34,22 @@ Expected cold start: filler card → bumper → short filler while Kokoro loads 
 weather → bulletin → field report → bumper → … After the first loop the buffer
 stays ahead and there is no more filler.
 
+## Special reports
+
+The first step towards documentaries. When the worker is idle, an editor
+(`kimi-k3`, thinking on) reads the open story threads every `check_every_s`
+and decides whether one has earned a five-minute piece; usually the answer is
+no. A commissioned special is a low-priority job written in stages (outline,
+then one call per section, each with an optional invented resident), voiced
+like any other segment, and held aside until the next bumper, so it never
+interrupts a live slot. Knobs live under `[special]` in `config.toml`.
+
+```bash
+uv run python -m newsroom.special decide                       # ask the editor now
+uv run python -m newsroom.special make --thread t002           # write one for a thread
+uv run python -m newsroom --special-now                        # run with the editor triggered at start
+```
+
 ## Layout
 
 | file | job |
@@ -43,6 +59,7 @@ stays ahead and there is no more filler.
 | `world.py` | persistent town state: characters, threads, headlines, last weather |
 | `llm.py` | one `complete_json()` door; LM Studio or Anthropic; strict JSON + one retry |
 | `writers.py` | prompts per segment type and template fallbacks |
+| `special.py` | the editor decision and the staged special-report writer |
 | `tts.py` | Kokoro on CPU → 24 kHz mono WAV + mouth envelope |
 | `assets.py` | bakes the placeholder bumper and music bed on first run |
 | `buffer.py` | priority intake queue + ready-by-slot dictionary |
@@ -76,6 +93,6 @@ Generated audio and segment JSON live in `data/cache/`, keyed by
   stripped defensively regardless of provider.
 - Generated content is cached per provider, so switching providers never
   replays another provider's scripts.
-- Documentaries, a real 24 h schedule, breaking-news interrupts and real sprite
-  art are deliberately not here yet; the buffer and priority queue are already
-  shaped for them.
+- Longer documentaries with real research, a 24 h schedule, breaking-news
+  interrupts and real sprite art are not here yet; specials are the template
+  for the first of those.

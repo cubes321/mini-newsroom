@@ -19,7 +19,18 @@ temperature = 0.8
 weather = "moonshot"
 bulletin = "moonshot"
 field_report = "moonshot"
-documentary = "anthropic"
+editor = "moonshot_k3"            # decides whether a thread deserves a special
+special_outline = "moonshot_k3"
+special_section = "moonshot_k3"
+
+# Special reports (documentary v0). The editor runs on the worker thread when
+# it is idle; a commissioned special is a low-priority job that plays at the
+# next bumper boundary once it is ready.
+[special]
+check_every_s = 900      # how often the editor looks at the open threads
+cooldown_s = 3600        # minimum gap between specials
+target_s = 300           # length of a special
+min_mentions = 2         # a thread needs this much coverage to be considered
 
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, Moonshot, ...). api_key_env names the env var holding the
@@ -42,6 +53,16 @@ model = "kimi-k2.6"          # also available: kimi-k3, kimi-k3.1-pro(-highspeed
 temperature = 0.6
 max_tokens = 2000
 extra_body = { thinking = { type = "disabled" } }
+
+[llm.providers.moonshot_k3]
+kind = "openai"
+base_url = "https://api.moonshot.ai/v1"
+api_key_env = "MOONSHOT_API_KEY"
+model = "kimi-k3"
+# thinking on for editorial judgment and long-form writing: needs temperature
+# 1.0 and headroom for reasoning tokens
+temperature = 1.0
+max_tokens = 6000
 
 [llm.providers.anthropic]
 kind = "anthropic"

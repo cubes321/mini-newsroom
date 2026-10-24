@@ -16,13 +16,28 @@ PALETTES = {
     "anchor":   ((232, 190, 160), (60, 40, 30), (40, 60, 110), (240, 240, 240)),
     "weather":  ((210, 170, 140), (120, 120, 120), (90, 110, 70), (255, 230, 150)),
     "reporter": ((150, 100, 70), (20, 20, 20), (120, 60, 50), (230, 230, 230)),
+    "guest":    ((225, 180, 150), (160, 120, 60), (70, 90, 80), (200, 210, 190)),
 }
+
+GUEST_PALETTES = [
+    ((225, 180, 150), (160, 120, 60), (70, 90, 80), (200, 210, 190)),
+    ((190, 140, 110), (230, 230, 230), (110, 70, 90), (240, 220, 200)),
+    ((120, 80, 60), (30, 30, 30), (160, 130, 60), (235, 235, 235)),
+    ((240, 205, 180), (200, 60, 40), (50, 70, 120), (250, 250, 250)),
+    ((205, 160, 130), (90, 60, 40), (120, 120, 120), (255, 240, 200)),
+]
+
+
+def guest_palette(name: str | None):
+    """Stable look per guest name, matching how world.py picks their voice."""
+    key = (name or "guest").strip().lower()
+    return GUEST_PALETTES[sum(map(ord, key)) % len(GUEST_PALETTES)]
 
 
 def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: float, t: float,
-                   *, scale: int = 1, facing: int = 1) -> None:
+                   *, scale: int = 1, facing: int = 1, palette=None) -> None:
     """Head-and-shoulders character with feet at (x, y) baseline. mouth in 0..1."""
-    skin, hair, jacket, shirt = PALETTES.get(who, PALETTES["anchor"])
+    skin, hair, jacket, shirt = palette or PALETTES.get(who, PALETTES["anchor"])
     s = scale
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
     head_w, head_h = 14 * s, 14 * s

@@ -23,6 +23,10 @@ log = logging.getLogger(__name__)
 MAX_THREADS_IN_PROMPT = 5
 MAX_HEADLINES_IN_PROMPT = 10
 
+# Voices for invented interviewees in specials; chosen by name so a guest
+# sounds the same if they come back.
+GUEST_VOICES = ["af_bella", "bm_lewis", "af_nicole", "am_puck", "bf_emma", "bm_daniel", "af_kore", "am_fenrir"]
+
 
 @dataclass
 class Character:
@@ -56,6 +60,9 @@ class World:
     broadcast_day: int = 1
     last_date: str = field(default_factory=lambda: date.today().isoformat())
     landmarks: list[str] = field(default_factory=list)
+    specials: list[dict] = field(default_factory=list)     # {title, thread_id, date}
+    last_special_ts: float = 0.0
+    last_editor_check_ts: float = 0.0
 
     # ------------------------------------------------------------ prompt view
 
@@ -83,14 +90,40 @@ class World:
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
 
+    def summary_for_editor(self) -> str:
+        """Fuller view for the editor: every thread with coverage counts, past specials."""
+        threads = "\n".join(
+            f"  - [{t.id}] {t.title} — {t.status} (covered {t.mentions}x, opened {t.opened}, last {t.updated})"
+            for t in self.open_threads()
+        ) or "  (none)"
+        done = "\n".join(f"  - {s['date']}: {s['title']} (thread {s['thread_id']})" for s in self.specials[-10:]) or "  (none)"
+        heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
+        return (
+            f"Town: {self.town}, {self.region}. Broadcast day {self.broadcast_day}.\n"
+            f"Open threads:\n{threads}\n"
+            f"Specials already made (do not repeat these subjects):\n{done}\n"
+            f"Recent headlines:\n{heads}"
+        )
+
     def open_threads(self) -> list[Thread]:
         return sorted(self.threads, key=lambda t: t.updated, reverse=True)
 
-    def voice_for(self, speaker: str) -> str:
+    def thread(self, thread_id: str | None) -> Thread | None:
+        return next((t for t in self.threads if t.id == thread_id), None)
+
+    def voice_for(self, speaker: str, guest_name: str | None = None) -> str:
+        if speaker == "guest":
+            key = (guest_name or "guest").strip().lower()
+            return GUEST_VOICES[sum(map(ord, key)) % len(GUEST_VOICES)]
         for c in self.characters:
             if c.id == speaker:
                 return c.voice
         return CONFIG.tts.voices.get(speaker, "af_heart")
+
+    def record_special(self, title: str, thread_id: str | None) -> None:
+        self.specials.append({"title": title, "thread_id": thread_id, "date": date.today().isoformat()})
+        self.specials = self.specials[-30:]
+        self.last_special_ts = __import__("time").time()
 
     # --------------------------------------------------------------- updates
 
