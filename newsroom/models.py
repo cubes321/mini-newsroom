@@ -41,6 +41,7 @@ class SegmentType(StrEnum):
     vox_pop = "vox_pop"          # magazine: Miles asks passers-by one question
     consumer = "consumer"        # magazine: the consumer slot
     monologue = "monologue"      # talk show: the host's opening
+    breaking = "breaking"        # breaking news from the tip-line: interrupts whatever is on
 
 
 class SegmentState(StrEnum):
@@ -79,6 +80,8 @@ class Segment(BaseModel):
     priority: int = 0                      # 0 = live slot, 9 = documentary
     show: str = "news"                     # schedule.SHOWS id
     repeat: bool = False                   # an earlier segment aired again overnight
+    part: str = ""                         # place in the show's running order: open | cont | close
+    brief: str = ""                        # the running order's angle for this item
     nominal_start_ts: float = Field(default_factory=time.time)
     target_s: float = 60.0
     lines: list[Line] = Field(default_factory=list)
@@ -322,9 +325,15 @@ class StoryPlan(BaseModel):
     note: str = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 
+class TipBulletinScript(BulletinScript):
+    """A bulletin, plus which viewer tip (if any) it used, so the tip is spent."""
+    tip_used: int | None = Field(default=None, description="number of the VIEWER TIP used, or null")
+
+
 SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.weather: WeatherScript,
-    SegmentType.bulletin: BulletinScript,
+    SegmentType.bulletin: TipBulletinScript,
+    SegmentType.breaking: BulletinScript,
     SegmentType.field_report: FieldReportScript,
     SegmentType.sofa: BulletinScript,       # same shape: lines, headline, caption, optional follow-up
     SegmentType.links: BulletinScript,

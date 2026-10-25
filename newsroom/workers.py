@@ -149,6 +149,10 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
         if buffer:
             buffer.mark(ready, SegmentState.ready)
         return ready
+    if seg.type is SegmentType.breaking:
+        from .breaking import make
+
+        return make(seg, world, buffer)
     if seg.type is SegmentType.documentary:
         from .special import advance, generate_special
 
@@ -220,7 +224,15 @@ class WorkerPool:
         # No explicit warmup: the first slot is an asset-backed bumper that needs
         # no TTS, so it goes out immediately and the first real synth pays the
         # model-load cost while the bumper is on air.
+        from . import breaking, tipline
+
         while not self.stop.is_set():
+            try:                              # the tip-line, read here so world writes stay on this thread
+                lines, age = tipline.poll()
+                if lines:
+                    breaking.intake(lines, age, self.buffer)
+            except Exception:  # noqa: BLE001
+                log.exception("tip-line intake failed")
             seg = self.buffer.next_job(timeout=0.5)
             if seg is None:
                 self._idle_work()
@@ -272,7 +284,8 @@ def _cli(argv: list[str]) -> int:
     import argparse
 
     p = argparse.ArgumentParser(prog="python -m newsroom.workers")
-    p.add_argument("type", choices=[t.value for t in SegmentType if t not in (SegmentType.filler, SegmentType.documentary)])
+    p.add_argument("type", choices=[t.value for t in SegmentType
+                                    if t not in (SegmentType.filler, SegmentType.documentary, SegmentType.breaking)])
     p.add_argument("--show", default="news", help="schedule show id (news, breakfast, overnight)")
     p.add_argument("--slot", type=int, default=0)
     p.add_argument("--target", type=float, default=45.0)

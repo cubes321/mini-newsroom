@@ -78,6 +78,28 @@ def ensure_bumper(show: str = "news") -> Path:
     return path
 
 
+BREAKING_STING = CONFIG.paths.assets / "breaking_sting.wav"
+
+
+def ensure_breaking_sting() -> Path:
+    """Urgent pulses and a low hit, about 2.5 s; tones only, so it never waits on TTS."""
+    if BREAKING_STING.exists():
+        return BREAKING_STING
+    log.info("baking placeholder breaking sting -> %s", BREAKING_STING.name)
+    pulses = [_tone(f, 0.12, 0.32, harmonics=4) for f in (880.0, 659.25) * 4]
+    hit = _tone(110.0, 1.2, 0.45, harmonics=5) + _tone(220.0, 1.2, 0.2)
+    gap = np.zeros(int(SR * 0.3), dtype=np.float32)
+    _write(BREAKING_STING, np.concatenate(pulses + [hit, gap]))
+    return BREAKING_STING
+
+
+def sting_line() -> Line:
+    """The breaking sting as a silent first line (the scenes show the BREAKING NEWS card over it)."""
+    path = ensure_breaking_sting()
+    info = sf.info(str(path))
+    return Line(speaker="anchor", text="", wav_path=path, duration_s=info.frames / info.samplerate, mouth_env=[])
+
+
 def ensure_music_bed(seconds: float = 24.0) -> Path:
     if MUSIC_BED.exists():
         return MUSIC_BED

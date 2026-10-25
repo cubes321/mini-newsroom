@@ -5,11 +5,6 @@ bottom with the date.
 
 ## Art
 
-- [ ] **Dusk grade.** On PNG art, dusk is a whole-picture multiply, so blue
-  skies go flat grey instead of turning to sunset. Either a vertical gradient
-  grade for exteriors (purple at the top, orange towards the horizon) or
-  `<id>_dusk.png` files for the busiest places. This also fixes breakfast's
-  first hour, since 06:00 grades as dusk.
 - [ ] **Night variants.** Lit windows and lamps exist only on the placeholders;
   hand-made `<id>_night.png` for the harbour, high street and Town Hall first.
 - [ ] Re-fit positions set for the placeholders to the art: the lighthouse
@@ -29,16 +24,15 @@ bottom with the date.
 - [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
   ComfyUI with a contact sheet) to replace the interview set with the lights
   down; perhaps a house band sting and a second, shorter guest.
-- [ ] Magazine and talk-show loops repeat their format every 6–8 minutes, so
-  an hour sees the same shape (and often the same big story) several times.
-  Consider longer patterns, or the hour as one planned running order.
 - [ ] Breakfast extras: tides and adverts on *Morning Tide*; a guest in the
-  sofa armchair (the `guest` mark is free).
+  sofa armchair (the `guest` mark is free). Breakfast still loops a 6-item
+  pattern for three hours; an hour order like the magazine's would help.
+- [ ] Breaking news from the story desk or the editor (now tip-line only),
+  and a follow-up field report from Miles once a breaking story is confirmed.
+- [ ] A model-planned running order for the magazine and the talk show (a
+  theme and a topic per item) on top of the fixed hour orders.
 - [ ] Schedule: whether specials (or later documentaries) get their own
   scheduled slots rather than only after news bumpers.
-- [ ] Breaking news: pre-empt at a line boundary with a sting; driven by the
-  editor or the tip-line.
-- [ ] Viewer tip-line: a text file the producer reads and hands to the next bulletin.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
 - [ ] The 15–30 minute documentary: specials plus a research step over the
   town's own archive (`world.search_archive`), more sections, archive "footage".
@@ -48,15 +42,15 @@ bottom with the date.
 
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
-- [ ] Re-queue finished specials on restart: one waiting for a news bumper is
-  saved to `data/cache/<hash>.json`, but `resume_partials` only picks up
-  unfinished `*.partial.json`, so after a restart it never airs.
 - [ ] Lock around world state so more than one worker is safe.
 - [ ] Give section writers the thread's dates and beats (the editor already
   sees them) to keep timelines straight.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
 - [ ] LM Studio provider: verify end to end when the GPU is free; tune the
   9B model's prompt compliance.
+- [ ] `record_aired` for a special runs when it is finished, not when it airs, so
+  the archive says it aired early. Moving it means a world write from the main
+  thread (wait for the world-state lock).
 - [ ] Leave it on overnight and read the stats (now with the overnight
   test card, repeats and the editor working through the night).
 - [ ] Kimi overruns string caps and fails validation once (the retry
@@ -67,8 +61,6 @@ bottom with the date.
   details and "female"/"male".)
 - [ ] A presenter booked as a guest (Gordon on his ghost tours) is captioned
   with their presenter role; use the script's `guest_role` instead.
-- [ ] 06:00 grades as dusk, so breakfast field reports in the first hour look
-  flat grey on the art (the dusk-grade item under Art cures it).
 
 ## Housekeeping
 
@@ -76,6 +68,18 @@ bottom with the date.
 - [ ] Decide whether the baked placeholder WAVs should stay in the repo.
 
 ## Done
+
+- 2026-10-25 Breaking news and the viewer tip-line: lines in `data/tipline.txt`
+  (`python -m newsroom.tipline "..."`) go to the next bulletins as viewer tips;
+  `BREAKING:` lines interrupt whatever is on at the next sentence, with a sting
+  and Dana at the news desk, then the programme resumes. The story broke today
+  is the light shows' big running story.
+- 2026-10-25 Hour-long running orders for *Coastwide* and *The Last Ferry*: a
+  written-out order with a brief per item, the big story only at the top, two-part
+  guests on the talk show, and a sign-off before the next show.
+- 2026-10-25 Dusk grade: a sunset tint (purple sky to an orange horizon, violet
+  water) for art without its own dusk picture; fixes breakfast's first hour too.
+- 2026-10-25 Finished specials survive a restart and air once (`<hash>.aired`).
 
 - 2026-10-25 Day-parts, part 2: studio interviews (in the news every third
   loop, on `studio_interview`), *Coastwide* the early-evening magazine (Pat

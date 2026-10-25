@@ -7,6 +7,13 @@ boundary near the hour rather than cutting anything off.
 
 `time_of_day()` in locations.py is a different thing: it grades the art.
 
+The news and breakfast loop a short pattern. The magazine and the talk show
+have a written-out order for the hour instead: an opening, a long middle the
+order wraps back to if it runs out (never to the bumper), and a closing the
+producer plans once as the hour runs out. Entries can be an `Item` with a
+part ("open", "cont" for the same guest after the break, "close") and a brief,
+so the third feature of the hour isn't the first one again.
+
 The broadcast clock is `now()`, which is `time.time()` plus an offset that
 `set_clock("HH:MM")` sets, so any show can be tested at any hour.
 """
@@ -21,12 +28,20 @@ RGB = tuple[int, int, int]
 
 
 @dataclass(frozen=True)
+class Item:
+    """One entry in a running order when a bare segment type isn't enough."""
+    type: T
+    part: str = ""                   # "open" | "cont" | "close" (writers.py)
+    brief: str = ""                  # the angle for this item, given to the writer
+
+
+@dataclass(frozen=True)
 class Show:
     id: str
     title: str                       # on the bumper and the filler card
     ticker: str                      # the ticker's label box
     colour: RGB                      # bumper and ticker accent
-    pattern: tuple[T, ...]
+    pattern: tuple[T | Item, ...]
     target_s: dict[T, float] = field(hash=False)
     cast: tuple[str, ...] = ()       # speaker ids allowed in live segments
     lead: str = "anchor"             # who fronts the show and hands over
@@ -35,9 +50,34 @@ class Show:
     airs_specials: bool = False      # a ready special may air after this show's bumpers
     light: bool = False              # lighter stories unless a big running story is on (writers.py)
     cast_by_type: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # narrower casts
+    loop_from: int = 0               # where the order wraps when it runs out
+    closing: tuple[T | Item, ...] = ()   # planned once as the show's time runs out
 
     def cast_for(self, seg_type: T) -> tuple[str, ...]:
         return self.cast_by_type.get(seg_type, self.cast)
+
+    def item(self, pos: int) -> Item:
+        """The pattern entry at `pos`, counting on past the end through the wrap."""
+        n = len(self.pattern)
+        if pos >= n:
+            pos = self.loop_from + (pos - self.loop_from) % (n - self.loop_from)
+        return as_item(self.pattern[pos])
+
+    @property
+    def opens(self) -> bool:
+        """True when the order marks an opening item: the big running story is covered there only."""
+        return any(as_item(e).part == "open" for e in self.pattern)
+
+    @property
+    def closing_s(self) -> float:
+        return sum(self.target_s[as_item(e).type] for e in self.closing)
+
+
+def as_item(entry: T | Item) -> Item:
+    return entry if isinstance(entry, Item) else Item(entry)
+
+
+I = Item
 
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
@@ -49,7 +89,7 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                  T.bumper, T.weather, T.bulletin, T.interview),
         target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0},
         cast=("anchor", "weather", "reporter"), lead="anchor",
-        cast_by_type={T.interview: ("anchor", "guest")},
+        cast_by_type={T.interview: ("anchor", "guest"), T.breaking: ("anchor", "reporter")},
         station="Port Wexley News on channel 7",
         tone="warm, dry, local",
         airs_specials=True,
@@ -66,8 +106,38 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "magazine", "COASTWIDE", "COASTWIDE", (40, 140, 150),
-        pattern=(T.bumper, T.links, T.feature, T.interview, T.vox_pop, T.consumer, T.weather),
-        target_s={T.bumper: 8.0, T.links: 45.0, T.feature: 90.0, T.interview: 110.0, T.vox_pop: 60.0,
+        pattern=(
+            # the top of the programme: about ten minutes
+            T.bumper, I(T.links, "open"),
+            I(T.feature, brief="a local tradition or a bit of the town's history"),
+            I(T.interview, brief="a resident with a hobby or a collection to show"),
+            T.vox_pop,
+            I(T.consumer, brief="prices: the market, the shops or the pumps"),
+            I(T.links, brief="what viewers have been saying, and Clive's odd fact"),
+            I(T.feature, brief="someone with an unusual job in town"),
+            T.weather,
+            # the middle, about twenty-five minutes; the order wraps back to here
+            T.links,
+            I(T.interview, brief="a public figure off duty"),
+            I(T.feature, brief="out in the countryside or on the water"),
+            T.vox_pop,
+            I(T.consumer, brief="a warning: a scam, a rogue trader or a small-print trap"),
+            T.links,
+            I(T.feature, brief="a club, a team or a society"),
+            I(T.interview, brief="someone who has lived here a very long time"),
+            T.vox_pop,
+            T.links,
+            I(T.feature, brief="food: a cafe, a baker, a fishmonger or a recipe"),
+            I(T.consumer, brief="a bill, a fare or a charge that has changed"),
+            I(T.interview, brief="someone young doing something new in town"),
+            T.weather,
+            I(T.feature, brief="an animal story"),
+            I(T.interview, brief="a shopkeeper or a publican"),
+            T.vox_pop,
+        ),
+        loop_from=9,
+        closing=(T.weather, I(T.links, "close")),
+        target_s={T.bumper: 8.0, T.links: 45.0, T.feature: 100.0, T.interview: 120.0, T.vox_pop: 60.0,
                   T.consumer: 75.0, T.weather: 40.0},
         cast=("mag_a", "mag_b", "weather", "reporter"), lead="mag_a",
         station="Coastwide, Port Wexley's early-evening magazine on channel 7",
@@ -84,13 +154,29 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "late", "THE LAST FERRY", "LATE", (90, 50, 130),
-        pattern=(T.bumper, T.monologue, T.interview, T.interview),
-        target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 150.0},
+        # One monologue an hour; each guest stays for two parts either side of a break.
+        pattern=(
+            T.bumper, I(T.monologue, "open"),
+            I(T.interview, brief="a public figure, more candid than usual"), I(T.interview, "cont"),
+            I(T.vox_pop, brief="night owls: Miles asks people out late (the taxi rank, the chip shop, the last ferry)"),
+            I(T.interview, brief="a local character with a life story"), I(T.interview, "cont"),
+            # the order wraps back to here
+            I(T.links, brief="a letter from a viewer, read out and answered"),
+            I(T.interview, brief="someone who works nights: a nurse, a baker, a ferry hand"), I(T.interview, "cont"),
+            I(T.vox_pop, brief="Miles at the harbour or on the last ferry, asking one late-night question"),
+            I(T.interview, brief="someone with a story from the town's past"), I(T.interview, "cont"),
+            I(T.links, brief="tomorrow's papers, or what's on in town tomorrow"),
+            I(T.interview, brief="a performer, a musician or an artist"), I(T.interview, "cont"),
+        ),
+        loop_from=7,
+        closing=(I(T.links, "close"),),
+        target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 180.0, T.vox_pop: 60.0, T.links: 40.0},
         cast=("late_host", "guest"), lead="late_host",
         station="The Last Ferry, Port Wexley's late-night talk show on channel 7",
         tone="late-night, wry and unhurried; affectionate about the town, never cruel",
         light=True,
-        cast_by_type={T.monologue: ("late_host",)},
+        cast_by_type={T.monologue: ("late_host",), T.links: ("late_host",),
+                      T.vox_pop: ("late_host", "reporter", "guest")},
     ),
     Show(
         "overnight", "PORT WEXLEY NEWS", "OVERNIGHT", (90, 90, 140),
@@ -126,6 +212,18 @@ def slot_at(ts: float) -> str:
 def show_at(ts: float) -> Show:
     slot = slot_at(ts)
     return SHOWS[STAND_INS.get(slot, slot)]
+
+
+def show_end(ts: float) -> float:
+    """When the show on air at `ts` hands over to a different one (the top of that hour)."""
+    lt = time.localtime(ts)
+    top = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, lt.tm_hour, 0, 0, 0, 0, -1))
+    now_id = show_at(ts).id
+    for k in range(1, 25):
+        t = top + k * 3600
+        if show_at(t).id != now_id:
+            return t
+    return top + 24 * 3600
 
 
 def part_of_day(ts: float) -> str:
@@ -172,10 +270,14 @@ def set_clock(hhmm: str) -> None:
 def _cli() -> int:
     for start, slot in SCHEDULE:
         s = SHOWS[STAND_INS.get(slot, slot)]
-        loop = sum(s.target_s.get(t, 0.0) for t in s.pattern)
+        items = [as_item(e) for e in s.pattern]
+        total = sum(s.target_s.get(i.type, 0.0) for i in items)
         name = slot if slot == s.id else f"{slot} (not built; {s.id} stands in)"
+        order = " ".join(i.type.value + (f"({i.part})" if i.part else "") for i in items)
+        shape = (f"order ~{total / 60:.0f} min, wraps to item {s.loop_from}, closing ~{s.closing_s:.0f}s"
+                 if s.loop_from or s.closing else f"loop ~{total / 60:.1f} min")
         print(f"{start:02d}:00  {name:<10} {s.title:<18}{' light' if s.light else ''}  cast={','.join(s.cast) or '-'}  "
-              f"loop ~{loop / 60:.1f} min: {' '.join(t.value for t in s.pattern)}")
+              f"{shape}: {order}")
     lt = time.localtime()
     at = [time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, 1, 0, 0, 0, -1)) for h in range(24)]   # DST-safe
     print("by hour: " + " ".join(f"{h:02d}={show_at(ts).id[0]}" for h, ts in enumerate(at)))

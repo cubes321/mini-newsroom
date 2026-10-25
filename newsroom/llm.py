@@ -250,7 +250,9 @@ def _cli(argv: list[str]) -> int:
     p.add_argument("type", choices=[t.value for t in SCRIPT_SCHEMAS])
     p.add_argument("--dry-run", action="store_true", help="print prompt and schema, call nothing")
     p.add_argument("--target", type=float, default=60.0, help="target seconds")
-    p.add_argument("--show", default="news", help="schedule show id (news, breakfast)")
+    p.add_argument("--show", default="news", help="schedule show id (news, breakfast, magazine, late)")
+    p.add_argument("--part", default="", help="running-order part: open, cont or close")
+    p.add_argument("--brief", default="", help="the running order's angle for the item")
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)-5s %(name)s: %(message)s")
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3"):
@@ -262,7 +264,12 @@ def _cli(argv: list[str]) -> int:
     show = schedule.get(a.show)
     schema = script_schema(seg_type, show.cast_for(seg_type))
     w = world_mod.load()
-    system, user = build_prompt(seg_type, w, target_s=a.target, show=show)
+    from . import tipline
+
+    tips = tipline.offer() if seg_type is SegmentType.bulletin else []
+    work = {"tip": "Smoke over the old cannery", "interrupting": "Coastwide"} if seg_type is SegmentType.breaking else None
+    system, user = build_prompt(seg_type, w, target_s=a.target, show=show, part=a.part, brief=a.brief,
+                                work=work, tips=tips)
     name = provider_for(a.type)
     if a.dry_run:
         print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user)

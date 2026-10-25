@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 from collections import deque
 from datetime import date
 
-from . import llm, schedule
+from . import llm, schedule, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -84,6 +85,15 @@ This is an ON-SITE FIELD REPORT. Structure:
 Choose a backdrop id from the LOCATIONS list for the picture. Separately, location is the
 place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
+""",
+    SegmentType.breaking: _COMMON_RULES + """
+This is BREAKING NEWS, interrupting {interrupting}. The anchor (speaker id "anchor") cuts in from
+the news desk: what has happened, where, and that it is not yet confirmed (it came in from a viewer
+on the tip-line). Keep it small-town and calm; no casualties or horrors that the tip doesn't state.
+The reporter (speaker id "reporter") may phone in for one to three short lines if he plausibly
+could be nearby. The anchor finishes by promising more in the next bulletin and handing back to
+{interrupting}. thread_id is null: this opens a new story; thread_status is what is known so far.
+headline = the breaking story in under 12 words. lower_third = a short caption.
 """,
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + """
 This is a STUDIO INTERVIEW on the news. The anchor (speaker id "anchor") has one guest in the
@@ -198,6 +208,20 @@ club, a market trader with a past). Get stories, a laugh, and one moment of some
 on what is going on in town. Vincent asks short questions; the guest talks more than he does.
 headline = the guest and the best thing they said, under 12 words. lower_third = a short caption.
 """,
+    SegmentType.links: _COMMON_RULES + """
+This is a SHORT DESK PIECE on The Last Ferry between guests. Vincent ("late_host") speaks alone, wry
+and warm, on the subject given in THIS ITEM (a viewer's letter, tomorrow's papers, what's on). No
+guests speak. thread_id is null unless you mention an open thread in passing.
+headline = the piece in under 12 words. lower_third = "The Last Ferry" plus a short tag.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + """
+This is the LATE VOX POP on The Last Ferry. Vincent ("late_host") hands over in one line; Miles
+("reporter") is out in town late at night and asks ONE question; then three or four night owls
+answer in a line or two each. Each is speaker "guest" with their own guest_name (first name and
+surname) and guest_gender; different ages and moods, one of them funny. Vincent may add one line
+back in the studio. question = the question as a caption. Choose a backdrop id from the LOCATIONS
+list; location is the place in words.
+""",
 }
 
 _LIGHT = """Weight: a LIGHTER programme than the main news. Prefer warm, quirky, everyday local
@@ -208,9 +232,26 @@ BIG RUNNING STORY, which the headlines lead with briefly (what is new), then mov
 
 BIG_STORY_MIN_MENTIONS = 4      # a peak the desk planned but nobody has covered yet doesn't count
 
+_CONT = """PART TWO: you are CONTINUING the conversation with {name} ({role}) after the break. Use the
+same guest_name, guest_role and guest_gender. One line welcoming viewers back, no long reintroduction,
+then pick up where it left off and go somewhere new: another story, a different side of them.
+Part one, for continuity: keep every fact the same, and do NOT ask these questions again or retell
+the answers:
+{asked}"""
+
+_CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on tonight, a thank-you
+to the guests, a goodnight; {next_title} follows at {next_at}. No new stories."""
+
+# The last interview per show, so a "cont" part keeps the same guest (see schedule.py).
+_last_interview: dict[str, dict] = {}
+
 
 def big_story(world: World):
-    """The one running story a light show shouldn't skip: the most-covered thread at its peak."""
+    """The one running story a light show shouldn't skip: something that broke as breaking news
+    today, else the most-covered thread at its peak."""
+    broke = [t for t in world.open_threads() if t.breaking == world.last_date]
+    if broke:
+        return max(broke, key=lambda t: (t.updated, t.mentions))
     peak = [t for t in world.open_threads() if t.phase == "peak" and t.mentions >= BIG_STORY_MIN_MENTIONS]
     return max(peak, key=lambda t: (t.mentions, t.updated), default=None)
 
@@ -221,14 +262,21 @@ def _part(show: schedule.Show) -> str:
 
 
 def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
-                 show: schedule.Show | None = None) -> tuple[str, str]:
+                 show: schedule.Show | None = None, part: str = "", brief: str = "",
+                 at_ts: float | None = None, work: dict | None = None,
+                 tips: list[str] | None = None) -> tuple[str, str]:
+    """System and user prompt. `part` and `brief` come from the show's running order:
+    the big running story only at the top of a programme that has one, a second part
+    with the same guest, the sign-off."""
     from .config import CONFIG
 
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
-    system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "")
+    work = work or {}
+    system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
+                           interrupting=work.get("interrupting", "the programme"))
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type))}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
@@ -237,10 +285,29 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     )
     if show.light:
         big = big_story(world)
-        user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
-                 if big else "\n\nNo big running story today: keep it light.")
-    if seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
+        if big and show.opens and part != "open":
+            user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
+                     "a passing mention at most, and nothing about it unless it fits this item.")
+        else:
+            user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
+                     if big else "\n\nNo big running story today: keep it light.")
+    cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
+    if brief:
+        user += f"\n\nTHIS ITEM: {brief}."
+    if cont:
+        user += "\n\n" + _CONT.format(**cont)
+    elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
+    if seg_type is SegmentType.breaking:
+        user += f"\n\nTHE TIP (from a viewer, unconfirmed): {work.get('tip', '')}"
+    if tips:
+        user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
+                 "tip_used to its number; otherwise tip_used is null):\n"
+                 + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
+    if part == "close":
+        end = schedule.show_end(at_ts or schedule.now())
+        user += "\n\n" + _CLOSE.format(next_title=schedule.show_at(end).title.title(),
+                                        next_at=time.strftime("%H:%M", time.localtime(end)))
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     return system, user
@@ -249,7 +316,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
 # --------------------------------------------------------------- templates
 
 
-def _template(seg_type: SegmentType, world: World, rng: random.Random, show: schedule.Show):
+def _template(seg_type: SegmentType, world: World, rng: random.Random, show: schedule.Show, part_: str = "",
+              work: dict | None = None):
     """Canned scripts fronted by the show's lead; every LLM-scripted type needs one."""
     wx_states = ["sunny", "cloudy", "rain", "fog", "wind"]
     lead = show.lead
@@ -274,6 +342,19 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             ],
             headline=f"{state.title()} {part}, {temp} degrees",
             map_state=state, temp_c=temp,
+        )
+    if seg_type is SegmentType.breaking:
+        tip = (work or {}).get("tip", "reports of an incident in town")
+        back = (work or {}).get("interrupting", "the programme")
+        return BulletinScript(
+            lines=[
+                LiveLine(speaker="anchor", text="We're interrupting the programme with some breaking news."),
+                LiveLine(speaker="anchor", text=f"We're hearing reports that {tip[:1].lower() + tip[1:].rstrip('.')}. "
+                                                "That hasn't been confirmed yet; it came in from a viewer a few minutes ago."),
+                LiveLine(speaker="anchor", text=f"We'll have more in our next bulletin. Now, back to {back}."),
+            ],
+            headline=tip[:80],
+            lower_third="Breaking: reports from a viewer",
         )
     if seg_type is SegmentType.sofa:
         lm = rng.choice(world.landmarks)
@@ -332,6 +413,22 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             lower_third="Harbour slipway cleared by volunteers",
         )
     other = next((c for c in show.cast_for(seg_type) if c not in (lead, "guest", "weather", "reporter")), lead)
+    if seg_type is SegmentType.links and part_ == "close":
+        return BulletinScript(
+            lines=[LiveLine(speaker=lead, text=f"That's all from {show.title.title()} tonight. Thank you to all our guests."),
+                   LiveLine(speaker=other, text="Goodnight from us, and the news is next.")
+                   if other != lead else LiveLine(speaker=lead, text="Goodnight, Port Wexley. The news is next.")],
+            headline=f"Goodnight from {show.title.title()}",
+            lower_third=f"{show.title.title()}, channel seven",
+        )
+    if seg_type is SegmentType.links and show.id == "late":
+        return BulletinScript(
+            lines=[LiveLine(speaker=lead, text="A letter now, from a viewer on Harrow Street, who asks why the gulls "
+                                               "only steal chips from people who have just sat down."),
+                   LiveLine(speaker=lead, text="I have no answer. I have only sympathy, and a hat I no longer wear.")],
+            headline="A letter about the gulls",
+            lower_third="The Last Ferry",
+        )
     if seg_type is SegmentType.links:
         return BulletinScript(
             lines=[
@@ -408,20 +505,29 @@ def script_segment(seg: Segment, world: World) -> Segment:
         raise ValueError(f"{seg.type} is not an LLM-scripted type")
 
     show = schedule.get(seg.show)
-    system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show)
+    # A second part continues only the interview in the slot before it; after a restart that
+    # one may have come from the cache, and then this is a fresh interview.
+    cont = seg.part == "cont" and _last_interview.get(show.id, {}).get("slot") == seg.slot_id - 1
+    part = "" if seg.part == "cont" and not cont else seg.part
+    tips = tipline.offer() if seg.type is SegmentType.bulletin else []
+    system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
+                                part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
     schema = script_schema(seg.type, show.cast_for(seg.type))
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        rebooked = _rebooked(script, world)
+        rebooked = None if cont else _rebooked(script, world)
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
             script = llm.complete_json(seg.type.value, schema, system, user + (
                 f"\n\nNOT {rebooked}: they were a guest very recently. Book a different person."))
         source = "llm"
+        used = getattr(script, "tip_used", None)
+        if tips and isinstance(used, int) and 1 <= used <= len(tips):
+            tipline.consume(tips[used - 1])
     except llm.LLMError as e:
         log.warning("%s slot %d: using template (%s)", seg.type.value, seg.slot_id, e)
-        script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show)
+        script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work)
         source = "template"
 
     seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script))
@@ -487,7 +593,8 @@ def _cues_for(seg: Segment, script) -> list[VisualCue]:
 
 
 # Segments that may open a new story thread; the rest only follow existing ones up.
-THREAD_OPENERS = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview, SegmentType.feature)
+THREAD_OPENERS = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview, SegmentType.feature,
+                  SegmentType.breaking)
 _recent_guests: deque[str] = deque(maxlen=8)
 
 
@@ -509,4 +616,8 @@ def _apply_to_world(seg: Segment, script, world: World) -> None:
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:
             world.ensure_person(l.guest_name, "resident", gender=l.guest_gender)
+    if seg.type is SegmentType.interview and getattr(script, "guest_name", None):
+        _last_interview[seg.show] = {
+            "slot": seg.slot_id, "name": script.guest_name, "role": script.guest_role or "a guest",
+            "asked": "\n".join(f"  {l.speaker}: {l.text[:220]}" for l in seg.lines)[:3000]}
     world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines))

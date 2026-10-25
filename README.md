@@ -49,13 +49,19 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
 
 - **Producer** keeps about ten minutes of unplayed content planned. The
   schedule (`schedule.py`) decides which show each slot belongs to, by the
-  slot's planned start time, and each show loops its own pattern.
+  slot's planned start time. The news and breakfast loop a short pattern;
+  *Coastwide* and *The Last Ferry* run a written-out hour with a brief per item
+  and sign off before the next show.
 - **Worker** scripts each slot with the LLM (strict JSON, validated with
   pydantic, one retry, canned template as a last resort), voices every line
   with Kokoro, and stores a mouth envelope for lip-sync.
 - **Player** consumes finished segments on the clock, never cutting audio
   mid-sentence. When nothing is ready it plays filler and, after a while,
-  replays the last weather.
+  replays the last weather. Breaking news cuts in at the next sentence and
+  the programme resumes afterwards.
+- **Tip-line**: anyone can add a line to `data/tipline.txt`. Plain tips go to
+  the next bulletins; a line starting `BREAKING:` interrupts whatever is on,
+  with a sting and Dana at the news desk.
 - **Story desk** and **editor** run only when the worker is idle and the live
   buffer is healthy. The desk gives each thread a phase and a planned next
   development; the editor occasionally commissions a special, which is written
@@ -80,23 +86,22 @@ Early and working. The longest run so far is a ten-minute soak with zero
 filler and frame times under 7 ms; it has not yet been left on overnight.
 Things that exist: the four live segment types, special reports, the story
 bible and desk, provider switching, caching, failure recovery, and backdrop art
-for every location. It now has a daily schedule with breakfast, a magazine and a talk show. Things that
-don't yet: breaking-news interrupts, local
-adverts and tides, real sprite art, and the 30-minute documentary that
-specials are the template for.
+for every location. It now has a daily schedule with breakfast, a magazine and a talk show,
+and breaking news from a viewer tip-line. Things that don't yet: local adverts and tides,
+real sprite art, and the 30-minute documentary that specials are the template for.
 
 ## A normal day
 
-Without breaking news (not built yet), the station runs this schedule:
+Unless breaking news cuts in, the station runs this schedule:
 
 | from | show | what's on |
 |---|---|---|
 | 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight waits for the news |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats, Gordon's weather, Miles's reports |
 | 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
-| 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: their links and banter, a filmed feature from Miles, a studio guest, a vox pop, the consumer slot, Gordon's weather |
+| 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: an hour of links and banter, filmed features from Miles, studio guests, vox pops, the consumer slot and Gordon's weather, each item with its own angle |
 | 20:00 | the news | |
-| 22:00 | *The Last Ferry* | Vincent Marr's late-night talk show on the interview set with the lights down: a monologue, then long guest chats |
+| 22:00 | *The Last Ferry* | Vincent Marr's late-night talk show on the interview set with the lights down: a monologue, then guests who stay for two parts, late-night vox pops and a goodnight |
 | 23:00 | the news | the late news |
 
 Breakfast, the magazine and the talk show are **lighter** than the news: warm,
@@ -220,6 +225,8 @@ uv run python -m newsroom.world                        # print the writers' brie
 uv run python -m newsroom.workers field_report         # one segment end to end
 uv run python -m newsroom --no-window --minutes 3      # headless soak
 uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
+uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
+uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
 ```
 
 Generated audio and segment JSON live in `data/cache/`, keyed by (type, date,

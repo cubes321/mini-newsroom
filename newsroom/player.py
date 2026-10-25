@@ -9,6 +9,11 @@ Rules:
 - A ready special airs right after a bumper, between loops of the rundown,
   without consuming a slot number, and only in a show that airs specials
   (the news): one made overnight waits for it.
+- Breaking news cuts in at the next line boundary (the overnight test card at
+  once): the segment on air is set aside with its place and elapsed time, the
+  breaking segment plays, then the programme resumes from the next line. A
+  replay is dropped rather than resumed. Breaking news, like a special, uses
+  no slot number and doesn't move the rundown on.
 - A failed slot is skipped; the producer's retime keeps deadlines honest.
 - Cues are applied by elapsed time within the segment, so a five-minute
   special can change backdrop and captions as it goes.
@@ -33,6 +38,7 @@ from .world import World
 log = logging.getLogger(__name__)
 
 REPLAY_AFTER_S = 25.0      # filler this long -> replay last weather
+LET_FINISH_S = 12.0        # breaking news waits for a segment with less than this left
 
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue)
@@ -71,6 +77,7 @@ class View:
     status: str = ""
     replay: bool = False
     repeat: bool = False                 # an earlier segment aired again overnight
+    breaking: bool = False               # breaking news: red captions, and the BREAKING card over the sting
 
 
 class Player:
@@ -88,6 +95,8 @@ class Player:
         self.ticker: deque[str] = deque(maxlen=6)
         self.played = 0
         self.specials_played = 0
+        self.breaking_played = 0
+        self.stash: tuple[Segment, int, float] | None = None   # set aside by breaking news: (segment, next line, elapsed)
         self.filler_total_s = 0.0
         self._voice = None
         self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
@@ -159,8 +168,49 @@ class Player:
                  seg.slot_id, seg.type.value, seg.duration_s, len(seg.lines),
                  f" — {seg.headline!r}" if seg.headline else "")
 
+    def _breaking_due(self) -> bool:
+        """At a line boundary: cut in now? Not into a bumper or another breaking segment, and not
+        when only a tag is left ("Thanks, Miles"): that finishes first, then breaking news airs."""
+        seg = self.current
+        left = sum(l.duration_s or 0.0 for l in seg.lines[self.line_idx:])
+        return (self.stash is None and seg.type not in (SegmentType.breaking, SegmentType.bumper)
+                and (left >= LET_FINISH_S or seg.type is SegmentType.testcard) and self.buffer.breaking_ready())
+
+    def _interrupt(self, now: float) -> None:
+        """Set the segment on air aside (or end it: a replay, the test card) and air breaking news."""
+        seg = self.current
+        if self.audio and self._voice is not None:
+            self._voice.stop()
+        if seg.type is SegmentType.testcard:
+            self._finish(now)                    # the card just ends early
+        elif self.replaying:
+            self.current, self.replaying = None, False
+        else:
+            self.stash = (seg, self.line_idx, now - self.seg_start)
+            self.current = None
+            log.info("breaking news interrupts slot %d %s at line %d/%d",
+                     seg.slot_id, seg.type.value, self.line_idx + 1, len(seg.lines))
+        self._start(self.buffer.pop_breaking(), now)
+
+    def _resume(self, now: float) -> None:
+        seg, idx, elapsed = self.stash
+        self.stash = None
+        # Back-date the start so the segment's cues carry on where they were.
+        self.current, self.line_idx, self.seg_start, self.replaying = seg, idx, now - elapsed, False
+        self._play_line(now)
+        log.info("resuming slot %d %s at line %d/%d", seg.slot_id, seg.type.value, idx + 1, len(seg.lines))
+
     def _finish(self, now: float) -> None:
         seg = self.current
+        if seg.type is SegmentType.breaking:
+            # Outside the rundown: no retime, no slot advance, and last_type stays as it was,
+            # so a special can still follow the bumper before it.
+            self.buffer.mark(seg, SegmentState.done)
+            self.buffer.forget(seg.slot_id)
+            self.breaking_played += 1
+            self.current = None
+            self._set_music(0.25)
+            return
         if not self.replaying:
             self.buffer.mark(seg, SegmentState.done)
             if seg.type is SegmentType.documentary:
@@ -186,10 +236,22 @@ class Player:
                 self._finish(now)
             elif self._line_done(now):
                 self.line_idx += 1
-                if self.line_idx < len(self.current.lines):
+                if self.line_idx < len(self.current.lines) and self._breaking_due():
+                    self._interrupt(now)
+                elif self.line_idx < len(self.current.lines):
                     self._play_line(now)
                 else:
                     self._finish(now)
+            elif self.current.type is SegmentType.testcard and self._breaking_due():
+                self._interrupt(now)
+            return
+
+        # Breaking news first, then whatever it interrupted.
+        if self.buffer.breaking_ready():
+            self._start(self.buffer.pop_breaking(), now)
+            return
+        if self.stash is not None:
+            self._resume(now)
             return
 
         # A finished special is aired right after a bumper, between loops,
@@ -301,6 +363,7 @@ class Player:
         v.replay = self.replaying
         v.repeat = seg.repeat
         v.show = seg.show
+        v.breaking = seg.type is SegmentType.breaking
         if line and line.mouth_env:
             i = int((now - self.line_start) / ENV_WINDOW_S)
             v.mouth = line.mouth_env[i] if 0 <= i < len(line.mouth_env) else 0.0
@@ -314,6 +377,8 @@ class Player:
         v.chapter = cues.get("chapter")
         if seg.type is SegmentType.documentary:
             v.mode = "studio" if v.speaker == "anchor" else "special"
+        elif v.breaking and self.line_idx == 0:
+            v.mode, v.speaker = "breaking", None             # the sting, under the BREAKING NEWS card
         elif seg.type is SegmentType.testcard:
             v.mode, v.speaker = "testcard", None
             v.show, v.resume_at = on_air.id, schedule.next_start(on_air.id)
@@ -339,6 +404,7 @@ class Player:
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
-        v.status = f"{'SPECIAL' if seg.type is SegmentType.documentary else 'slot ' + str(seg.slot_id)} " \
+        label = {SegmentType.documentary: "SPECIAL", SegmentType.breaking: "BREAKING"}.get(seg.type, f"slot {seg.slot_id}")
+        v.status = f"{label} " \
                    f"{seg.type.value} line {self.line_idx + 1}/{len(seg.lines)}"
         return v

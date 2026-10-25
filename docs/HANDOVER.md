@@ -2,7 +2,9 @@
 
 Where Mini Newsroom stands at the end of 2026-10-25, and how to pick it up.
 The backlog is [TODO.md](../TODO.md) and the overview is the [README](../README.md).
-Everything below is on `master` at `cubes321/mini-newsroom`, last commit `5d234ba`.
+Everything below is on `master` at `cubes321/mini-newsroom`. Updated at the end of the day with
+the second session's work: finished specials survive restarts, the dusk grade, hour-long running
+orders for the magazine and the talk show, and breaking news from a viewer tip-line.
 
 ## What it is now
 
@@ -21,16 +23,38 @@ full day on a schedule (`newsroom/schedule.py`):
 
 Gordon Pell (`weather`) and Miles Okafor (`reporter`) work across the shows.
 Breakfast, the magazine and the talk show are `light=True`: gentler stories,
-except one big running story (the most-covered thread at its peak with at
-least four pieces of coverage), which they lead with briefly.
+except one big running story, which they lead with briefly. That is a story
+that broke as breaking news today, or else the most-covered thread at its peak
+with at least four pieces of coverage. In the magazine and the talk show only
+the opening item leads with it; later items mention it in passing at most.
+
+**Breaking news** can cut into any of these (see below).
 
 ## How it fits together
 
 - **The pipeline:**
   - `schedule.show_at(ts)` picks the show for each slot by its *planned* start time.
   - The producer restarts the pattern at each show change, so every show opens on its bumper.
+  - The producer keeps its show until that show's own end (`schedule.show_end`), and only then asks
+    the schedule what is next. Retime can pull the planning cursor back across the hour, and a show
+    once left must stay left.
   - Workers script each slot with the LLM, voice it with Kokoro, and cache it.
   - The player plays it on the clock.
+- **Running orders:**
+  - The news and breakfast loop a short `pattern`.
+  - *Coastwide* and *The Last Ferry* have a written-out hour order. Entries are a type or an
+    `Item(type, part, brief)`.
+  - `loop_from` is where the order wraps if it runs out; it never wraps back to the bumper.
+  - `closing` is planned once when less than half of the next item would fit before the hour.
+    A guest's second part is never cut. If the hour turns mid-item, the goodbye runs a little
+    over. Then the next show starts straight away.
+  - Parts:
+    - `open`: the only item that leads with the big story.
+    - `cont`: the same guest after the break. Writers pass part one's transcript and skip the
+      "recently booked" check. It falls back to a fresh interview if part one wasn't the slot
+      just before, e.g. after a restart.
+    - `close`: the sign-off.
+  - `brief` is the angle given to the writer ("an animal story").
 - **Per-show casts:**
   - `Show.cast` and `Show.cast_for(type)` say who may speak.
   - `models.script_schema(type, cast)` narrows the JSON speaker enum to that cast.
@@ -51,6 +75,28 @@ least four pieces of coverage), which they lead with briefly.
   - The interview set seats whoever is in `View.people`, and the close shots crop round the speaker.
   - Outside pieces open at the big-picture wall with the presenter who introduces them, tagged LIVE, REPORT or VOX POP.
   - The sofa uses a LIVE inset box instead.
+- **Breaking news and the tip-line** (`tipline.py`, `breaking.py`):
+  - Tips are lines in `data/tipline.txt`, added with `python -m newsroom.tipline "..."` (`--list`
+    shows the state).
+  - The worker reads new complete lines before each job. The byte offset, pending tips and last
+    breaking time live in `data/tipline.state.json`.
+  - A plain tip is offered to the next bulletins as VIEWER TIPS. The bulletin schema's `tip_used`
+    spends the one it used; unused tips expire after six hours.
+  - A `BREAKING:` line becomes a segment outside the rundown: slot numbers from 2,000,000, at the
+    front of the job queue, `show="news"`.
+  - It is scripted with Dana at the desk (Miles may phone in), opens a thread marked `breaking`
+    with phase `peak`, is voiced, and gets the sting (`assets/breaking_sting.wav`) as a silent
+    first line.
+  - The player sets the segment on air aside at the next line boundary and airs the breaking news:
+    a red BREAKING NEWS card over the sting, then red captions. Then it resumes from the next line,
+    with cues back-dated.
+  - The test card is cut at once, a replay is dropped, and a bumper plays out.
+  - Breaking news doesn't move the rundown, so a special can still follow the bumper before it.
+  - A second `BREAKING:` within `[breaking] cooldown_s`, or one already old when first read (a
+    restart), becomes a plain tip.
+- **Specials across restarts:** `special.resume_ready` puts finished, unaired specials from the
+  last 48 hours back in the side pocket. The player marks an aired special with an empty
+  `data/cache/<hash>.aired`.
 - **Overnight:**
   - Repeats come from the last 48 hours of `data/cache/`, with no model calls.
   - The story desk and editor keep working.
@@ -70,11 +116,14 @@ uv run python -m newsroom.schedule                          # the day's table
 uv run python -m newsroom.llm vox_pop --show magazine --dry-run   # a prompt and its schema
 uv run python -m newsroom.workers interview --show news     # one real segment end to end
 uv run python -m newsroom.backdrops --sheet sheet.png       # every backdrop, day/dusk/night
+uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # interrupt whatever is on
+uv run python -m newsroom.llm interview --show late --part cont --brief "..." --dry-run
 ```
 
 **Soak hygiene:** a run with `NEWSROOM_LLM=off` writes template headlines and threads
 into `data/world.json`. Back it up first and restore it afterwards. Delete the cache
-files the run made, or overnight may repeat them.
+files the run made, or overnight may repeat them. A tip-line test also leaves
+`data/tipline.txt` and `data/tipline.state.json`; delete both for a clean start.
 
 ## State of the town
 
@@ -88,19 +137,25 @@ back the file up and delete it, and the town re-seeds.
 
 **"Who Gets the Quay?" never aired.** The special finished during a magazine test run.
 It is recorded in `world.specials`, but its audio was removed by a test-cache cleanup.
-This hides a real gap. A finished special waiting for a news bumper is saved to the cache,
-but `resume_partials` only re-queues unfinished checkpoints, so after a restart it never
-airs (now in TODO).
+The gap that hid (finished specials lost on restart) is now fixed. The three specials from
+2026-10-24 have `.aired` markers so they don't air again.
 
 ## Known gaps (details in TODO)
 
 - **Art:**
-  - **Dusk:** dusk on the art is a flat grey multiply, which also hits breakfast's first hour.
+  - **Dusk:** a sunset tint for art without its own `_dusk.png` (purple sky, orange horizon,
+    violet water). Horizons per location are in `backdrops.HORIZON`.
   - **Night:** there are no lit windows at night.
   - **Positions:** some are still set for the old placeholder pictures.
   - ***The Last Ferry*** borrows the interview set.
   - **People:** they are blocks drawn in code.
-- **Format repetition:** the magazine and talk show loop every 6–8 minutes, so an hour repeats its shape.
+- **Format repetition:**
+  - Breakfast still loops a 6-item pattern for three hours.
+  - The magazine's and talk show's hour orders wrap once, after about 33 minutes.
+- **Breaking news** comes only from the tip-line: the story desk can't raise it, and there is no
+  follow-up report from Miles yet.
+- **Special archive timing:** `record_aired` for a special runs when it is finished, not when it
+  airs.
 - **Length caps:** Kimi overruns some caps once per run and recovers on the retry (Miles over 900 characters, `thread_status` over 160, the desk's `note` over 200).
 - **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
 - **Not yet observed:**
@@ -110,11 +165,14 @@ airs (now in TODO).
 
 ## Good next steps
 
-1. **Re-queue finished specials on restart.** Small, and it protects the editor's work.
-2. **A planned running order per hour** for the magazine and talk show, instead of a short loop.
-3. **The dusk grade** (a gradient for exteriors). It helps every show at the edges of the day.
-4. **Breaking news and the tip-line**, which the schedule was built to make room for.
-5. **Art session:** *The Last Ferry*'s own set, night variants, sprites for the eight presenters.
+1. **A long real-Kimi run** across 19:00–20:00 and 22:00–23:00 to see the hour orders, the
+   two-part guests and the sign-offs with real scripts. Add a breaking tip mid-show.
+2. **Art session:** *The Last Ferry*'s own set, night variants, sprites for the eight presenters.
+3. **Breakfast's hour order**, the same way as the magazine's.
+4. **Breaking follow-ups:** Miles reporting from the scene in the next bulletin; the story desk
+   raising breaking news itself.
+5. **The world-state lock**, which would allow more than one worker and moving world writes
+   (like a special's `record_aired`) to the main thread.
 
 ## Working notes
 

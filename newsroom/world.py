@@ -80,6 +80,7 @@ class Thread:
     next_development: str = ""      # what should happen next (the story desk plans this)
     people: list[str] = field(default_factory=list)      # person ids
     beats: list[dict] = field(default_factory=list)      # {date, day, headline, status}
+    breaking: str = ""              # ISO date it broke as breaking news (the light shows lead with it)
 
 
 @dataclass
@@ -260,6 +261,11 @@ class World:
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
         self.threads = self.threads[-40:]
         return new_id
+
+    def mark_breaking(self, thread_id: str | None) -> None:
+        t = self.thread(thread_id)
+        if t is not None:
+            t.phase, t.breaking = "peak", self.last_date
 
     def seed_thread(self, title: str, status: str, next_development: str, people: list[str]) -> Thread:
         """A story the desk wants to exist before anyone has covered it."""

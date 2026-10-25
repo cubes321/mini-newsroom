@@ -7,9 +7,13 @@ nominal times (and therefore job deadlines) stay honest.
 
 Which show a slot belongs to comes from the schedule at the slot's nominal
 start (`schedule.show_at(cursor_ts)`), not from the current time, because
-planning runs up to the horizon ahead. Each show loops its own pattern; when
+planning runs up to the horizon ahead. Each show runs its own pattern; when
 the show changes, the new one starts from the top of its pattern, so it
 opens on its bumper. The switch lands on a segment boundary near the hour.
+
+A show with a closing (the magazine, the talk show) plans it once when the
+time left before the hour is about the closing's length, then signs off: the
+next show starts straight after, a little early rather than after a goodbye.
 """
 from __future__ import annotations
 
@@ -31,22 +35,66 @@ class Producer:
         self._planned_until = self.cursor_ts
         self._show: str | None = None
         self._pos = 0                      # position within the current show's pattern
+        self._ends = 0.0                   # when the current show's time in the schedule is up
+        self._closing: list[schedule.Item] = []    # closing items still to plan
+        self._closed = False               # the current show has planned its closing
+
+    def _show_now(self) -> schedule.Show:
+        """The show to plan for. The producer stays with its show until that show's own end, and
+        only then asks the schedule what is next, at the later of the cursor and that end:
+        retime can pull the cursor back across the hour, and a show once left must stay left."""
+        cur = schedule.SHOWS.get(self._show or "")
+        if cur is None:
+            return schedule.show_at(self.cursor_ts)
+        if self._closing:
+            return cur
+        over = self.cursor_ts >= self._ends
+        if over and cur.closing and not self._closed and self._pos >= 2:
+            return cur                    # the hour turned during a long item: the goodbye runs a little over
+        if over or self._closed:
+            return schedule.show_at(max(self.cursor_ts, self._ends))
+        return cur
+
+    def _run_s(self, show: schedule.Show) -> float:
+        """The next item's length, with the parts that continue it: close now if less than half would fit."""
+        pos = self._pos
+        run = show.target_s[show.item(pos).type]
+        while show.item(pos + 1).part == "cont":
+            pos += 1
+            run += show.target_s[show.item(pos).type]
+        return run
+
+    def _next_item(self, show: schedule.Show) -> schedule.Item:
+        if self._closing:
+            return self._closing.pop(0)
+        if show.closing and not self._closed and self._pos >= 2 and (self.cursor_ts >= self._ends or (
+                show.item(self._pos).part != "cont"            # a guest's second part is never cut
+                and self.cursor_ts + self._run_s(show) / 2 + show.closing_s >= self._ends)):
+            log.info("schedule: %s closing from slot %d", show.id, self.next_slot)
+            self._closing = [schedule.as_item(e) for e in show.closing]
+            self._closed = True
+            return self._closing.pop(0)
+        item = show.item(self._pos)
+        self._pos += 1
+        return item
 
     def plan_one(self) -> Segment:
-        show = schedule.show_at(self.cursor_ts)
+        show = self._show_now()
         if show.id != self._show:
             if self._show is not None:
                 log.info("schedule: %s -> %s from slot %d", self._show, show.id, self.next_slot)
-            self._show, self._pos = show.id, 0
-        seg_type = show.pattern[self._pos % len(show.pattern)]
-        self._pos += 1
+            self._ends = schedule.show_end(max(self.cursor_ts, self._ends))
+            self._show, self._pos, self._closing, self._closed = show.id, 0, [], False
+        item = self._next_item(show)
         seg = Segment(
             slot_id=self.next_slot,
-            type=seg_type,
-            target_s=show.target_s[seg_type],
+            type=item.type,
+            target_s=show.target_s[item.type],
             nominal_start_ts=self.cursor_ts,
             priority=0,
             show=show.id,
+            part=item.part,
+            brief=item.brief,
         )
         self.buffer.submit(seg)
         self.next_slot += 1

@@ -2,5 +2,7 @@
 __pycache__/
 data/cache/
 data/world.json
+data/tipline.txt
+data/tipline.state.json
 *.wav
 !assets/**/*.wav

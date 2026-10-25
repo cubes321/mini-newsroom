@@ -110,6 +110,24 @@ def draw_bumper(canvas: pygame.Surface, v: View, t: float) -> None:
     text(canvas, show.title, w // 2, 102, 8, (255, 220, 190), center=True)
 
 
+def draw_breaking(canvas: pygame.Surface, v: View, t: float) -> None:
+    """The card over the breaking sting: red, flashing, with the story's caption."""
+    w, h = canvas.get_size()
+    canvas.fill((150, 10, 16))
+    for i in range(0, w + h, 24):                                 # diagonal stripes, moving
+        x = i - int(t * 40) % 24
+        pygame.draw.line(canvas, (175, 20, 26), (x, 0), (x - h, h), 8)
+    pygame.draw.rect(canvas, (20, 10, 12), (0, 52, w, 56))
+    if int(t * 3) % 2 == 0:
+        text(canvas, "BREAKING NEWS", w // 2, 70, 14, center=True)
+    else:
+        text(canvas, "BREAKING NEWS", w // 2, 70, 14, (255, 210, 80), center=True)
+    title = v.lower_third[0] if v.lower_third else ""
+    for k, ln in enumerate(wrap(title, 8, w - 40, 2)):
+        text(canvas, ln, w // 2, 90 + k * 10, 8, (240, 230, 230), center=True)
+    text(canvas, "PORT WEXLEY NEWS", w // 2, 130, 8, (255, 200, 200), center=True)
+
+
 def _studio_bg(canvas: pygame.Surface, t: float) -> None:
     backdrops.draw(canvas, "studio_wide")
     if not backdrops.has_art("studio_wide"):
@@ -256,7 +274,7 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
         pygame.draw.rect(canvas, (20, 20, 20), (190, 40, 110, 80))
         pygame.draw.rect(canvas, (60, 90, 70), (194, 44, 102, 72))
         draw_character(canvas, 245, 112, "reporter", v.mouth, t, scale=1)
-        text(canvas, "LIVE", 198, 46, 8, (255, 80, 80))
+        text(canvas, "PHONE" if v.breaking else "LIVE", 198, 46, 8, (255, 80, 80))
 
 
 def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -357,7 +375,7 @@ def draw_lower_third(canvas: pygame.Surface, v: View) -> None:
     title, sub = v.lower_third
     w = canvas.get_width()
     pygame.draw.rect(canvas, (200, 30, 30), (8, 128, 6, 26))
-    pygame.draw.rect(canvas, (20, 20, 30), (14, 128, w - 60, 16))
+    pygame.draw.rect(canvas, (170, 16, 22) if v.breaking else (20, 20, 30), (14, 128, w - 60, 16))
     pygame.draw.rect(canvas, (240, 240, 240), (14, 144, w - 60, 10))
     text(canvas, title, 18, 131, 10, maxw=w - 70)
     text(canvas, sub, 18, 145, 8, (20, 20, 30), maxw=w - 70)
@@ -367,8 +385,11 @@ def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:
     w, h = canvas.get_size()
     pygame.draw.rect(canvas, (10, 10, 16), (0, h - 14, w, 14))
     show = schedule.get(v.show)
-    pygame.draw.rect(canvas, show.colour, (0, h - 14, 44, 14))
-    text(canvas, show.ticker, 22, h - 7, 8, center=True, maxw=42)
+    if v.breaking and int(t * 2) % 2 == 0:
+        pygame.draw.rect(canvas, (230, 40, 40), (0, h - 14, 44, 14))
+    else:
+        pygame.draw.rect(canvas, show.colour, (0, h - 14, 44, 14))
+    text(canvas, "BREAKING" if v.breaking else show.ticker, 22, h - 7, 8, center=True, maxw=42)
     items = v.ticker or [f"{show.title.title()}, channel seven"]
     s = "   •   ".join(items) + "   •   "
     f = font(8)
@@ -391,7 +412,7 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
 
 
 SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
-          "field": draw_field, "special": draw_special}
+          "field": draw_field, "special": draw_special, "breaking": draw_breaking}
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
@@ -401,7 +422,7 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_clock(canvas, v)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
-        if v.mode not in ("bumper",):
+        if v.mode not in ("bumper", "breaking"):
             draw_lower_third(canvas, v)
             draw_ticker(canvas, v, t)
         draw_clock(canvas, v)

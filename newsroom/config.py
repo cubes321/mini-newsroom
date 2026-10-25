@@ -78,11 +78,21 @@ class StoryCfg:
 
 
 @dataclass(frozen=True)
+class BreakingCfg:
+    cooldown_s: float = 900.0
+    target_s: float = 60.0
+    max_age_s: float = 600.0
+    tip_ttl_s: float = 21600.0
+    max_tips: int = 3
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
     world: Path = ROOT / "data" / "world.json"
     assets: Path = ROOT / "assets"
+    tipline: Path = ROOT / "data" / "tipline.txt"
 
 
 @dataclass(frozen=True)
@@ -93,6 +103,7 @@ class Config:
     paths: PathsCfg
     special: SpecialCfg
     story: StoryCfg
+    breaking: BreakingCfg
 
 
 def load(path: Path | None = None) -> Config:
@@ -115,6 +126,7 @@ def load(path: Path | None = None) -> Config:
         paths=PathsCfg(**paths_raw),
         special=SpecialCfg(**raw.get("special", {})),
         story=StoryCfg(**raw.get("story", {})),
+        breaking=BreakingCfg(**raw.get("breaking", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

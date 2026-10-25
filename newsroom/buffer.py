@@ -7,6 +7,8 @@ Two halves:
 - Ready side: a dict keyed by slot id. The player asks "is slot N ready?"
   rather than "give me the next thing", so one slow segment never hides a
   finished one behind it.
+- Side pockets for what airs outside the rundown: specials (after a bumper)
+  and breaking news (at the next line boundary, see player.py).
 
 Everything here is thread-safe; nothing here blocks for long.
 """
@@ -37,6 +39,8 @@ class Buffer:
         self._segments: dict[int, Segment] = {}      # every slot we know about
         self._ready: dict[int, Segment] = {}         # subset in state ready
         self._specials_ready: list[Segment] = []     # side pocket: specials waiting for a bumper boundary
+        self._breaking_ready: list[Segment] = []     # side pocket: breaking news waiting for a line boundary
+        self._breaking_n = 0
         self.transitions: list[tuple[float, int, str]] = []   # (ts, slot, state) for logs/soak
 
     # ------------------------------------------------------------- intake
@@ -59,6 +63,26 @@ class Buffer:
             self.transitions.append((time.time(), seg.slot_id, seg.state))
         self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
         log.info("special commissioned: %r", seg.headline)
+
+    def submit_breaking(self, seg: Segment) -> None:
+        """Breaking news: ahead of every planned slot, even overdue ones (their deadlines are
+        timestamps, these are small counters), and in the order the tips came in."""
+        with self._lock:
+            seg.state = SegmentState.planned
+            self._segments[seg.slot_id] = seg
+            self.transitions.append((time.time(), seg.slot_id, seg.state))
+            self._breaking_n += 1
+            n = self._breaking_n
+        self._q.put(Job(float(n), -1, seg))
+        log.info("breaking news commissioned: %r", seg.work.get("tip", "")[:80])
+
+    def breaking_ready(self) -> bool:
+        with self._lock:
+            return bool(self._breaking_ready)
+
+    def pop_breaking(self) -> Segment | None:
+        with self._lock:
+            return self._breaking_ready.pop(0) if self._breaking_ready else None
 
     def requeue(self, seg: Segment) -> None:
         """Put a multi-stage job back for its next stage; live jobs get served in between."""
@@ -89,6 +113,8 @@ class Buffer:
             self._segments[seg.slot_id] = seg
             if state is SegmentState.ready and seg.type is SegmentType.documentary:
                 self._specials_ready.append(seg)
+            elif state is SegmentState.ready and seg.type is SegmentType.breaking:
+                self._breaking_ready.append(seg)
             elif state is SegmentState.ready:
                 self._ready[seg.slot_id] = seg
             elif seg.slot_id in self._ready and state not in (SegmentState.playing,):
@@ -134,7 +160,7 @@ class Buffer:
             return sum(
                 s.duration_s if s.state is SegmentState.ready else s.target_s
                 for s in self._segments.values()
-                if s.state in unplayed and s.type is not SegmentType.documentary
+                if s.state in unplayed and s.type not in (SegmentType.documentary, SegmentType.breaking)
             )
 
     def counts(self) -> dict[str, int]:
