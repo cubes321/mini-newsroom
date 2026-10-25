@@ -5,8 +5,9 @@ bottom with the date.
 
 ## Art
 
-- [ ] **Night variants.** Lit windows and lamps exist only on the placeholders;
-  hand-made `<id>_night.png` for the harbour, high street and Town Hall first.
+- [ ] **Night variants** for the other exteriors (village and residential_street
+  would gain most). Harbour, high street and Town Hall are done; make the rest
+  the same way (Qwen-Image-Edit with the ref-latent fix, contact sheet first).
 - [ ] Re-fit positions set for the placeholders to the art: the lighthouse
   beam origin, the `WATER` shimmer rectangles (the slipway's top strip), and
   the crane and drill tower behind the clock box.
@@ -69,6 +70,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-25 Night art for the harbour, high street and Town Hall
+  (`<id>_night.png`): lit windows, shop fronts, lamps, the clock face and boat
+  lights, from Qwen-Image-Edit 2511 with the reference latent at the output size
+  (the stock graph zoomed by 1-4 px). MOSS Edit HQ v4 kept the layout too, but
+  went saturated blue and left the clock and shop fronts dark.
 - 2026-10-25 Breaking news and the viewer tip-line: lines in `data/tipline.txt`
   (`python -m newsroom.tipline "..."`) go to the next bulletins as viewer tips;
   `BREAKING:` lines interrupt whatever is on at the next sentence, with a sting
