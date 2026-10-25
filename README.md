@@ -15,12 +15,17 @@ town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
 
 | | |
 |---|---|
-| ![Weather](docs/screenshots/weather.png) | ![Studio bulletin](docs/screenshots/studio.png) |
-| Gordon Pell and the weather map | Dana Ferris reads the bulletin |
-| ![Field report](docs/screenshots/field.png) | ![Special report title card](docs/screenshots/special_title_card.png) |
-| Miles Okafor live from the cannery | A special report opens |
-| ![Special report guest](docs/screenshots/special_guest.png) | ![Filler](docs/screenshots/filler.png) |
-| The harbourmaster, interviewed on location | Filler card while the buffer refills |
+| ![Studio bulletin](docs/screenshots/studio.png) | ![Close-up](docs/screenshots/closeup.png) |
+| Dana Ferris reads the bulletin | …and the close-up on the next line |
+| ![Big-picture wall](docs/screenshots/wall.png) | ![Field report](docs/screenshots/field.png) |
+| Handing over to a live report at the loading dock | Miles Okafor live from the old cannery at dusk |
+| ![Night in the rain](docs/screenshots/night.png) | ![Weather](docs/screenshots/weather.png) |
+| Town Hall at night, graded for the last weather report | Gordon Pell and the weather map |
+| ![Special report title card](docs/screenshots/special_title_card.png) | ![Special report guest](docs/screenshots/special_guest.png) |
+| A special report opens | The harbourmaster, interviewed at the lifeboat station |
+
+![Six of the 26 locations](docs/screenshots/locations.png)
+*Six of the 26 locations, at the time of day and in the weather the broadcast is having.*
 
 ## How it works
 
@@ -46,8 +51,13 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
   development; the editor occasionally commissions a special, which is written
   in resumable stages that interleave with live work.
 - **Scenes** are drawn on a 320×180 canvas and scaled up with nearest
-  neighbour, which is where the pixel look comes from. The sprites are
-  placeholders drawn in code.
+  neighbour, which is where the pixel look comes from. Writers choose from 24
+  locations (Port Wexley and its countryside) and the studio has its own sets.
+  Each is hand-checked pixel art (`assets/backdrops/`, made with ComfyUI),
+  graded in code for day, dusk or night and for the last weather report, with
+  rain, snow, fog and water animated on top. Bulletins cut between a wide shot
+  and a close-up, and the anchor hands over to reports from a big-picture
+  wall. The people are still placeholders drawn in code.
 
 Model routing is config-driven. Any OpenAI-compatible endpoint works (LM
 Studio and llama.cpp locally, Moonshot's Kimi in the cloud), plus the Anthropic
@@ -59,7 +69,8 @@ editor, the story desk and specials.
 Early and working. The longest run so far is a ten-minute soak with zero
 filler and frame times under 7 ms; it has not yet been left on overnight.
 Things that exist: the four live segment types, special reports, the story
-bible and desk, provider switching, caching, failure recovery. Things that
+bible and desk, provider switching, caching, failure recovery, and backdrop art
+for every location. Things that
 don't yet: a 24-hour schedule with day-parts, breaking-news interrupts, local
 adverts and tides, real sprite art, and the 30-minute documentary that
 specials are the template for.
@@ -154,6 +165,8 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 | `producer.py` | plans slots ahead, retimes when real durations land |
 | `workers.py` | generation thread, content cache, watchdog, idle editorial work |
 | `player.py` | consumes the buffer, drives audio, applies timed cues, builds the `View` |
+| `locations.py` | the places a picture can be set, and where people stand on the studio sets |
+| `backdrops.py` | backdrop art or placeholder, time-of-day and weather grading, animated touches |
 | `scenes.py` / `sprites.py` | draws the `View` on a 320×180 canvas scaled up |
 
 ## Dev commands
@@ -165,6 +178,7 @@ uv run python -m newsroom.llm weather                  # live call to the routed
 uv run python -m newsroom.world                        # print the writers' briefing
 uv run python -m newsroom.workers field_report         # one segment end to end
 uv run python -m newsroom --no-window --minutes 3      # headless soak
+uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
 ```
 
 Generated audio and segment JSON live in `data/cache/`, keyed by (type, date,
