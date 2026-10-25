@@ -11,9 +11,9 @@ bottom with the date.
   ComfyUI with a pixel-art model once the GPU is free (img2img from
   `--bake` templates), then hand clean-up. Night variants (`<id>_night.png`)
   are worth doing by hand for the busiest places.
-- [ ] Studio shots: an anchor close-up with a cutting rule (e.g. alternate
-  lines in bulletins), the interview two-shot, a sports corner; bumper and
-  filler cards in the same style as the new art.
+- [ ] Studio sets still to come: the interview set (with studio interviews,
+  below), a breakfast sofa set, a sports corner; bumper and filler cards in
+  the same style as the new art.
 - [ ] Optional parallax: two layers per backdrop.
 - [ ] Real character sprites for the three presenters and a guest set,
   keeping the `draw_character` signature (idle / talking / gesture states).
@@ -25,6 +25,12 @@ bottom with the date.
 - [ ] Vox pops and studio interviews using the guest mechanism.
 - [ ] Day-parts and a schedule table: morning show, evening news, late
   bulletin, overnight test card with repeats.
+  - **Breakfast show**: two new presenters on a sofa set (characters, voices,
+    sprites), a lighter, chattier tone, tides, adverts and the weather.
+  - **Early-evening magazine** in the spirit of the BBC's *Nationwide*:
+    after the evening news, with features rather than headlines. Quirky local
+    items, a consumer slot, a resident in the studio, and a filmed piece
+    introduced at the big-picture wall.
 - [ ] Breaking news: pre-empt at a line boundary with a sting; driven by the
   editor or the tip-line.
 - [ ] Viewer tip-line: a text file the producer reads and hands to the next bulletin.
@@ -57,6 +63,8 @@ bottom with the date.
 - 2026-10-24 Special reports, resumable stages, editor.
 - 2026-10-24 Story bible: cast, thread arcs, archive, story desk.
 - 2026-10-24 Public GitHub repo with README and screenshots.
+- 2026-10-25 Studio shots: an anchor close-up cut into bulletins, and a big-picture
+  wall (the weather wall showing the location) for field-report and special handovers.
 - 2026-10-25 Backdrop system: 24 writer-selectable locations (town and
   countryside) plus studio sets, PNG-or-placeholder loading, day/dusk/night
   and weather grading, animated water and weather, contact sheet and bake tools.

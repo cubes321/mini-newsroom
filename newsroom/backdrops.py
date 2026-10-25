@@ -811,6 +811,26 @@ def surface(backdrop_id: str | None, tod: str = "day", wx: str | None = None) ->
     return s
 
 
+_pictures: OrderedDict[tuple, pygame.Surface] = OrderedDict()
+
+
+def picture(backdrop_id: str | None, tod: str, wx: str | None, size: tuple[int, int]) -> pygame.Surface:
+    """A backdrop as a picture on a studio screen: centre-cropped to the screen's
+    shape and smooth-scaled, which reads as a monitor rather than the set."""
+    key = (locations.get(backdrop_id).id, tod, wx, size)
+    pic = _pictures.get(key)
+    if pic is None:
+        src = surface(backdrop_id, tod, wx)
+        w, h = size
+        cw = min(W, H * w // h)
+        ch = min(H, cw * h // w)
+        crop = src.subsurface(((W - cw) // 2, (H - ch) // 2, cw, ch))
+        pic = _pictures[key] = pygame.transform.smoothscale(crop, size)
+        if len(_pictures) > 8:
+            _pictures.popitem(last=False)
+    return pic
+
+
 def has_art(backdrop_id: str) -> bool:
     """True when real art exists, so scenes can skip placeholder-only touches."""
     if backdrop_id not in _art:

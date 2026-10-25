@@ -11,7 +11,7 @@ import math
 
 import pygame
 
-from . import backdrops
+from . import backdrops, locations
 from .player import View
 from .sprites import draw_character, draw_mic, guest_palette
 
@@ -110,7 +110,43 @@ def _studio_bg(canvas: pygame.Surface, t: float) -> None:
             pygame.draw.rect(canvas, (70, 110, 180), (16 + i * 50, 34 + int(math.sin(t + i) * 2), 32, 20))
 
 
+CLOSE_CROP = pygame.Rect(50, 45, 160, 90)      # a 2x zoom on the anchor's end of the desk
+WALL_SCREEN = pygame.Rect(40, 20, 180, 120)    # the weather wall's big screen
+WALL_PANEL = pygame.Rect(234, 20, 76, 124)
+_studio_buf: pygame.Surface | None = None
+
+
+def _studio_close(canvas: pygame.Surface, v: View, t: float) -> None:
+    """The desk shot again through a tighter lens: paint wide, crop, scale 2x."""
+    global _studio_buf
+    if _studio_buf is None:
+        _studio_buf = pygame.Surface(CANVAS)
+    _studio_bg(_studio_buf, t)
+    pygame.transform.scale(_studio_buf.subsurface(CLOSE_CROP), CANVAS, canvas)
+    draw_character(canvas, (110 - CLOSE_CROP.x) * 2, (134 - CLOSE_CROP.y) * 2, "anchor", v.mouth, t, scale=4)
+
+
+def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
+    """The anchor at the big wall, the story's location up on the screen."""
+    backdrops.draw(canvas, "weather_wall")
+    canvas.blit(backdrops.picture(v.backdrop, v.tod, v.weather, WALL_SCREEN.size), WALL_SCREEN)
+    pygame.draw.rect(canvas, (20, 20, 30), WALL_PANEL)
+    tag = (200, 30, 30) if v.wall_label == "LIVE" else (200, 170, 60)
+    pygame.draw.rect(canvas, tag, (WALL_PANEL.x + 4, WALL_PANEL.y + 6, WALL_PANEL.w - 8, 12))
+    text(canvas, v.wall_label, WALL_PANEL.centerx, WALL_PANEL.y + 12, 8, center=True, maxw=WALL_PANEL.w - 10)
+    y = WALL_PANEL.y + 24
+    name = locations.get(v.backdrop).name
+    for ln in wrap(name[:1].upper() + name[1:], 8, WALL_PANEL.w - 8, 3):
+        text(canvas, ln, WALL_PANEL.x + 4, y, 8, (220, 220, 230))
+        y += 10
+    draw_character(canvas, 270, 152, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
+
+
 def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
+    if v.shot == "close":
+        return _studio_close(canvas, v, t)
+    if v.shot == "wall":
+        return _studio_wall(canvas, v, t)
     _studio_bg(canvas, t)
     draw_character(canvas, 110, 134, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
     if v.speaker == "reporter":                                   # anchor hands to the reporter box

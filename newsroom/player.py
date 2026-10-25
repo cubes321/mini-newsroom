@@ -49,6 +49,8 @@ class View:
     backdrop: str | None = None
     tod: str = "day"                     # day | dusk | night, from the broadcast clock
     weather: str | None = None           # last weather report's map_state; grades exteriors
+    shot: str = "wide"                   # studio framing: wide | close | wall
+    wall_label: str = ""                 # caption on the big-picture wall's side panel
     chapter: dict | None = None          # {number, total, heading, title, standfirst}
     chapter_age_s: float = 0.0
     clock: str = ""
@@ -210,6 +212,24 @@ class Player:
                     chapter_at = c.at_s
         return active, elapsed - chapter_at
 
+    def _studio_shot(self, seg: Segment, v: View) -> None:
+        """Pick the studio framing for the current line.
+
+        - Handing over to a field report: the anchor stands at the big wall with
+          the location on it, until the reporter first speaks.
+        - Introducing a special: the same, showing its first location.
+        - Bulletins cut between the wide desk shot and a close-up, line by line.
+        """
+        handing_over = all(l.speaker == "anchor" for l in seg.lines[:self.line_idx])
+        if seg.type is SegmentType.field_report and handing_over and v.backdrop:
+            v.shot, v.wall_label = "wall", "LIVE"
+        elif seg.type is SegmentType.documentary and self.line_idx == 0:
+            first = next((c.payload.get("backdrop") for c in seg.cues if c.kind == "backdrop"), None)
+            if first:
+                v.shot, v.wall_label, v.backdrop = "wall", "SPECIAL REPORT", first
+        elif seg.type is SegmentType.bulletin and self.line_idx % 2 == 1:
+            v.shot = "close"
+
     def view(self, now: float | None = None) -> View:
         now = now or time.time()
         local = time.localtime(now)
@@ -251,6 +271,8 @@ class Player:
                 SegmentType.bulletin: "studio",
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
             }.get(seg.type, "studio")
+        if v.mode == "studio":
+            self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
         v.status = f"{'SPECIAL' if seg.type is SegmentType.documentary else 'slot ' + str(seg.slot_id)} " \
                    f"{seg.type.value} line {self.line_idx + 1}/{len(seg.lines)}"
