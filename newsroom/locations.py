@@ -93,7 +93,21 @@ LOCATIONS: tuple[Location, ...] = (
     # ---- studio (scenes only)
     Location("studio_wide", "the studio", "the main news desk, wide shot", "studio", (28, 34, 60), (80, 60, 50)),
     Location("weather_wall", "the weather wall", "the weather presenter's wall", "studio", (36, 42, 70), (40, 40, 50)),
+    Location("studio_interview", "the interview set", "two armchairs and a low table for a studio guest",
+             "studio", (34, 40, 66), (60, 50, 48)),
+    Location("studio_sofa", "the breakfast sofa", "the breakfast show's sofa by a window onto the harbour",
+             "studio", (225, 210, 185), (150, 120, 95)),
 )
+
+# Where people go on the studio sets: (x, baseline y, sprite scale, facing).
+# The art is drawn around these marks, so a scene that uses a set puts its
+# characters exactly here. Both sets are built ahead of the shows that will
+# use them (studio interviews, the breakfast and magazine shows).
+Mark = tuple[int, int, int, int]
+MARKS: dict[str, dict[str, Mark]] = {
+    "studio_interview": {"host": (92, 150, 2, 1), "guest": (228, 150, 2, -1)},
+    "studio_sofa": {"host_a": (122, 146, 2, 1), "host_b": (186, 146, 2, -1), "guest": (272, 150, 2, -1)},
+}
 
 BY_ID: dict[str, Location] = {loc.id: loc for loc in LOCATIONS}
 BACKDROP_IDS: tuple[str, ...] = tuple(loc.id for loc in LOCATIONS if loc.kind != "studio")

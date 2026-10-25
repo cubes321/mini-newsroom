@@ -31,7 +31,7 @@ import pygame
 
 from . import locations
 from .config import CONFIG
-from .locations import Location
+from .locations import MARKS, Location
 
 W, H = 320, 180
 HZ = 120                                   # default ground line
@@ -676,6 +676,80 @@ def _weather_wall(p: _Paint) -> None:
     p.rect((18, 18, 24), 36, 16, 188, 128)                       # map screen bezel
     p.rect((18, 18, 24), 230, 16, 84, 128)                       # side panel bezel
     p.rect((40, 40, 50), 0, 150, W, 30)
+
+
+def _armchair(p: _Paint, x: int, base: int, c, w: int = 56) -> None:
+    """An armchair whose sitter's mark is (x, base): back behind the shoulders, arms either side."""
+    p.ellipse(c, x - w // 2, base - 56, w, 20)
+    p.rect(c, x - w // 2, base - 46, w, 46)
+    p.rect(_shade(c, 0.8), x - w // 2 - 6, base - 30, 10, 34)
+    p.rect(_shade(c, 0.8), x + w // 2 - 4, base - 30, 10, 34)
+    p.rect(_shade(c, 0.65), x - w // 2 - 6, base + 2, w + 12, 6)
+
+
+@_painter("studio_interview")
+def _studio_interview(p: _Paint) -> None:
+    p.rect(p.loc.sky, 0, 0, W, H)
+    for x in range(0, W, 32):
+        p.rect((42, 50, 80), x, 0, 1, 128)
+    for x in range(30, W, 60):                                   # ceiling spots
+        p.rect((90, 90, 100), x, 0, 6, 4)
+    p.rect(p.loc.ground, 0, 128, W, H - 128)
+    p.rect((80, 68, 64), 0, 128, W, 2)
+    p.rect((18, 18, 24), 124, 24, 72, 52)                        # screen between the chairs
+    p.rect((40, 70, 130), 128, 28, 64, 44)
+    p.circle((200, 40, 40), 160, 50, 12)                         # the channel 7 ident
+    p.rect((240, 240, 240), 154, 43, 12, 3)
+    p.poly((240, 240, 240), [(163, 46), (166, 46), (160, 58), (157, 58)])
+    host, guest = (MARKS["studio_interview"][k] for k in ("host", "guest"))
+    _armchair(p, host[0], host[1], (120, 40, 45))
+    _armchair(p, guest[0], guest[1], (120, 40, 45))
+    p.rect((90, 70, 55), 140, 140, 40, 4)                        # low table
+    p.rect((70, 55, 45), 144, 144, 3, 12)
+    p.rect((70, 55, 45), 173, 144, 3, 12)
+    for x in (148, 166):
+        p.rect((170, 200, 225), x, 134, 4, 6)
+    p.rect((90, 70, 55), 14, 110, 14, 18)                        # plant
+    for dx, dy in ((-6, -16), (0, -24), (6, -18), (-2, -10)):
+        p.circle((60, 120, 60), 21 + dx, 110 + dy, 7)
+    p.rect((50, 50, 55), 304, 60, 2, 68)                         # floor lamp
+    p.poly((235, 200, 140), [(296, 60), (312, 60), (308, 48), (300, 48)])
+
+
+@_painter("studio_sofa")
+def _studio_sofa(p: _Paint) -> None:
+    p.rect(p.loc.sky, 0, 0, W, H)
+    p.rect(p.loc.ground, 0, 140, W, H - 140)
+    for y in range(144, H, 6):
+        p.rect(_shade(p.loc.ground, 0.85), 0, y, W, 1)
+    p.rect((200, 185, 160), 0, 136, W, 4)                        # skirting
+    p.rect((240, 238, 230), 58, 12, 204, 86)                     # window onto the harbour
+    p.s.blit(picture("harbour", "day", None, (196, 78)), (62, 16))
+    for x in (126, 194):
+        p.rect((240, 238, 230), x, 16, 3, 78)
+    p.rect((240, 238, 230), 62, 54, 196, 3)
+    p.rect((150, 110, 80), 6, 30, 44, 4)                         # shelves
+    p.rect((150, 110, 80), 6, 60, 44, 4)
+    for i, c in enumerate(((180, 60, 50), (60, 100, 150), (200, 170, 70), (80, 130, 90))):
+        p.rect(c, 10 + i * 9, 20 + (i % 2) * 2, 6, 10 - (i % 2) * 2)
+        p.rect(c, 12 + i * 9, 50, 5, 10)
+    teal = (60, 120, 130)
+    a, b = MARKS["studio_sofa"]["host_a"], MARKS["studio_sofa"]["host_b"]
+    p.rect(teal, a[0] - 40, a[1] - 42, b[0] - a[0] + 80, 36)     # sofa back, behind both hosts
+    for x in (a[0] - 36, (a[0] + b[0]) // 2 - 2):
+        p.rect(_shade(teal, 1.12), x, a[1] - 38, 34, 28)         # back cushions
+    p.rect(_shade(teal, 0.8), a[0] - 50, a[1] - 26, 14, 34)       # arms
+    p.rect(_shade(teal, 0.8), b[0] + 36, a[1] - 26, 14, 34)
+    p.rect(_shade(teal, 0.7), a[0] - 50, a[1] + 2, b[0] - a[0] + 100, 8)
+    g = MARKS["studio_sofa"]["guest"]
+    _armchair(p, g[0], g[1], (200, 140, 70), w=48)
+    p.rect((120, 85, 60), 132, 156, 50, 4)                       # coffee table
+    for x, c in ((140, (230, 230, 225)), (152, (200, 60, 50)), (166, (230, 230, 225))):
+        p.rect(c, x, 150, 5, 6)
+    p.rect((120, 85, 60), 20, 118, 26, 4)                        # side table and lamp
+    p.rect((120, 85, 60), 31, 122, 3, 16)
+    p.rect((60, 60, 60), 32, 100, 1, 18)
+    p.poly((245, 215, 150), [(24, 100), (42, 100), (38, 88), (28, 88)])
 
 
 def _generic(p: _Paint) -> None:

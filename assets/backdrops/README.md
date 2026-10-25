@@ -27,8 +27,27 @@ Lookup order is the time-of-day file, then `<id>.png`, then the placeholder.
   Keep water in roughly the same place, or update those rectangles.
 - **No people, no text.** Captions are drawn live, and signs would need to change
   with the story.
-- **Studio backdrops** (`studio_wide`, `weather_wall`) are never tinted. The weather
-  scene draws its map at (40, 20, 180, 120) and its side panel at (234, 20, 76, 124).
+- **Studio backdrops** (`studio_wide`, `weather_wall`, `studio_interview`, `studio_sofa`)
+  are never tinted. The weather scene draws its map at (40, 20, 180, 120) and its side
+  panel at (234, 20, 76, 124); the same screen shows a location for the big-picture
+  wall shot.
+
+## Studio sets: who goes where
+
+People are drawn by code on top of the art, so the furniture has to be where
+they sit. Marks are in `MARKS` in `newsroom/locations.py` as
+(x, baseline y, scale, facing). At scale 2 a person is about 52 px wide and
+reaches about 74 px above their baseline.
+
+| Set | Marks | The art needs |
+|---|---|---|
+| `studio_interview` | host (92, 150), guest (228, 150) | an armchair behind each mark, angled towards each other; a low table between them; a screen or the station ident on the wall between their heads |
+| `studio_sofa` | host_a (122, 146), host_b (186, 146), guest (272, 150) | a two-seat sofa behind both hosts; an armchair at the guest's mark; a window onto the harbour above and behind the sofa; warm morning light |
+| `studio_wide` | anchor (110, 134) | the desk top at about y 130, across the frame |
+| `weather_wall` | presenter (270, 152) | the two screens at the rectangles above |
+
+The placeholder painters in `backdrops.py` draw the furniture on these marks;
+`--bake studio_interview studio_sofa` gives you templates with them in place.
 
 ## Tools
 
