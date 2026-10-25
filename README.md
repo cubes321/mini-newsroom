@@ -47,11 +47,13 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
                               (idle time only)
 ```
 
-- **Producer** keeps about ten minutes of unplayed content planned. The
-  schedule (`schedule.py`) decides which show each slot belongs to, by the
-  slot's planned start time. The news and breakfast loop a short pattern;
-  *Coastwide* and *The Last Ferry* run a written-out hour with a brief per item
-  and sign off before the next show.
+- **Producer** keeps about ten minutes of unplayed content planned, working out
+  when each slot will start from what is really queued. The schedule
+  (`schedule.py`) decides which show each slot belongs to. The news loops a
+  short pattern; breakfast does too, but hands every sofa chat and report a
+  different angle; *Coastwide* and *The Last Ferry* run a written-out hour
+  with a brief per item. The shows with an order sign off just before the
+  next one starts.
 - **Worker** scripts each slot with the LLM (strict JSON, validated with
   pydantic, one retry, canned template as a last resort), voices every line
   with Kokoro, and stores a mouth envelope for lip-sync.
@@ -70,8 +72,9 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
   neighbour, which is where the pixel look comes from. Writers choose from 24
   locations (Port Wexley and its countryside) and the studio has its own sets.
   Each is hand-checked pixel art (`assets/backdrops/`, made with ComfyUI),
-  graded in code for day, dusk or night and for the last weather report, with
-  rain, snow, fog and water animated on top. Bulletins cut between a wide shot
+  graded in code for the time of day (a sunset tint at dusk; hand-made night
+  pictures for the harbour, high street and Town Hall) and for the last
+  weather report, with rain, snow, fog and water animated on top. Bulletins cut between a wide shot
   and a close-up, and the anchor hands over to reports from a big-picture
   wall. The people are still placeholders drawn in code.
 
@@ -82,13 +85,16 @@ editor, the story desk and specials.
 
 ## Status
 
-Early and working. The longest run so far is a ten-minute soak with zero
-filler and frame times under 7 ms; it has not yet been left on overnight.
-Things that exist: the four live segment types, special reports, the story
-bible and desk, provider switching, caching, failure recovery, and backdrop art
-for every location. It now has a daily schedule with breakfast, a magazine and a talk show,
-and breaking news from a viewer tip-line. Things that don't yet: local adverts and tides,
-real sprite art, and the 30-minute documentary that specials are the template for.
+Early and working. The longest runs so far are hour-long runs with real Kimi
+scripts across *Coastwide* and *The Last Ferry*, with no failed segments,
+almost no filler, and each show signing off within seconds of the hour; it has
+not yet been left on overnight. Things that exist: a daily schedule with
+breakfast, the news, a magazine and a talk show; studio interviews, filmed
+features, vox pops and specials; breaking news from a viewer tip-line; the
+story bible and desk; provider switching, caching, failure recovery, and
+backdrop art for every location. Things that don't yet: local adverts and
+tides, real sprite art, and the 30-minute documentary that specials are the
+template for.
 
 ## A normal day
 
@@ -97,7 +103,7 @@ Unless breaking news cuts in, the station runs this schedule:
 | from | show | what's on |
 |---|---|---|
 | 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight waits for the news |
-| 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats, Gordon's weather, Miles's reports |
+| 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats (the papers, a viewer's question, on this day in town history…), Gordon's weather, Miles's reports, and a goodbye before the news |
 | 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
 | 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: an hour of links and banter, filmed features from Miles, studio guests, vox pops, the consumer slot and Gordon's weather, each item with its own angle |
 | 20:00 | the news | |
@@ -106,7 +112,14 @@ Unless breaking news cuts in, the station runs this schedule:
 
 Breakfast, the magazine and the talk show are **lighter** than the news: warm,
 everyday local stories and what's on. The exception is one big running story
-(the most-covered thread at its peak), which they lead with briefly.
+(a story that broke as breaking news today, or else the most-covered thread at
+its peak): the headlines lead with it briefly, and in the magazine and the
+talk show only the opening item does, so it isn't in every item of the hour.
+
+**Breaking news** can cut into any of them. A line starting `BREAKING:` in the
+tip-line interrupts at the next sentence: a sting, Dana at the news desk
+(Miles may phone in), then back to the programme where it left off. For two
+hours afterwards the bulletins lead with it.
 
 **Studio guests** are public figures, residents we have met, or new residents
 the writer invents, who then join the recurring cast with a stable voice and
@@ -182,7 +195,8 @@ low-priority job: outline, then one section per stage, then voicing, then
 finish. After each stage it re-queues itself, so live slots are served in
 between and the longest uninterruptible unit is one model call. Progress is
 checkpointed to `data/cache/*.partial.json` and resumed on startup. A finished
-special waits for the next bumper. Knobs live under `[special]` and `[story]`
+special waits for the next news bumper, and survives a restart until it has
+aired. Knobs live under `[special]` and `[story]`
 in `config.toml`.
 
 ```bash
@@ -201,11 +215,13 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 | `writers.py` | prompts per show and segment type, studio guests, template fallbacks |
 | `special.py` | the editor decision and the resumable special-report stages |
 | `desk.py` | the story desk: phases, next developments, new threads |
+| `tipline.py` | the viewer tip-line file: new lines, pending tips, the CLI |
+| `breaking.py` | breaking news: sorting tip-line lines, scripting and stinging the interrupt |
 | `tts.py` | Kokoro on CPU → 24 kHz WAV + mouth envelope |
-| `assets.py` | bakes the placeholder bumper and music bed on first run |
-| `buffer.py` | priority intake queue + ready-by-slot dictionary + specials pocket |
+| `assets.py` | bakes the placeholder bumpers, breaking sting and music bed on first run |
+| `buffer.py` | priority intake queue + ready-by-slot dictionary + pockets for specials and breaking news |
 | `schedule.py` | the shows, the daily schedule and the broadcast clock |
-| `producer.py` | plans slots ahead from the schedule, retimes when real durations land |
+| `producer.py` | plans slots ahead from the schedule and the show's running order; closings and hand-overs |
 | `workers.py` | generation thread, content cache, watchdog, idle editorial work |
 | `player.py` | consumes the buffer, drives audio, applies timed cues, builds the `View` |
 | `locations.py` | the places a picture can be set, and where people stand on the studio sets |
@@ -218,6 +234,7 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 uv run python -m newsroom.tts "Good evening"          # synth one line and play it
 uv run python -m newsroom.llm weather --dry-run        # show prompt + schema, no call
 uv run python -m newsroom.llm sofa --show breakfast --dry-run   # a breakfast prompt
+uv run python -m newsroom.llm interview --show late --part cont --dry-run   # a guest's second part
 uv run python -m newsroom.schedule                     # the day's schedule
 uv run python -m newsroom --clock 06:00 --debug        # watch breakfast at any hour
 uv run python -m newsroom.llm weather                  # live call to the routed provider
@@ -230,7 +247,7 @@ uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a t
 ```
 
 Generated audio and segment JSON live in `data/cache/`, keyed by (type, date,
-slot, town, day, provider, show). Delete the folder to force regeneration.
+slot, town, day, provider, show, and the running order's part and brief). Delete the folder to force regeneration.
 Overnight repeats are drawn from the last two days of this cache.
 
 ## Notes
