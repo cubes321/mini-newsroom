@@ -81,6 +81,7 @@ class Thread:
     people: list[str] = field(default_factory=list)      # person ids
     beats: list[dict] = field(default_factory=list)      # {date, day, headline, status}
     breaking: str = ""              # ISO date it broke as breaking news (the light shows lead with it)
+    breaking_ts: float = 0.0        # when it broke, on the broadcast clock (bulletins lead with it for a while)
 
 
 @dataclass
@@ -256,20 +257,26 @@ class World:
                     if t.phase == "emerging":
                         t.phase = "developing"
                     return t.id
-        new_id = f"t{len(self.threads) + 1:03d}"
+        new_id = self._new_thread_id()
         self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1,
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
         self.threads = self.threads[-40:]
         return new_id
 
-    def mark_breaking(self, thread_id: str | None) -> None:
+    def _new_thread_id(self) -> str:
+        """One past the highest id ever used. Not the list's length: the list is capped at 40,
+        so once full every new thread got the same id, and follow-ups landed on the wrong story."""
+        used = [t.id for t in self.threads] + [a.get("thread_id") or "" for a in self.archive]
+        return f"t{max((int(i[1:]) for i in used if i[1:].isdigit()), default=0) + 1:03d}"
+
+    def mark_breaking(self, thread_id: str | None, ts: float) -> None:
         t = self.thread(thread_id)
         if t is not None:
-            t.phase, t.breaking = "peak", self.last_date
+            t.phase, t.breaking, t.breaking_ts = "peak", self.last_date, ts
 
     def seed_thread(self, title: str, status: str, next_development: str, people: list[str]) -> Thread:
         """A story the desk wants to exist before anyone has covered it."""
-        t = Thread(f"t{len(self.threads) + 1:03d}", title[:80], status[:160], self.last_date, self.last_date, 0,
+        t = Thread(self._new_thread_id(), title[:80], status[:160], self.last_date, self.last_date, 0,
                    phase="emerging", next_development=next_development[:200], people=people)
         self.threads.append(t)
         self.threads = self.threads[-40:]

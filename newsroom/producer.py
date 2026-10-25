@@ -1,9 +1,12 @@
 """The producer plans the rundown ahead of the clock.
 
-It keeps a cursor of nominal start times and, on every tick, submits enough
-upcoming slots to the buffer to cover `horizon_s` of broadcast. When the
-player reports a slot's real duration, the cursor is corrected so later
-nominal times (and therefore job deadlines) stay honest.
+It keeps a cursor: when the next slot it plans is expected to start. On every
+tick the cursor is worked out afresh from what is really queued (what is left
+of the segment on air, plus the unplayed slots: real lengths once voiced,
+targets before), then enough slots are submitted to cover `horizon_s`.
+Segments often run shorter or longer than their targets, so a cursor that
+only ever added targets would drift away from the clock; one that "corrected"
+by each slot's drift double-counted it, and ran an hour ahead in a real run.
 
 Which show a slot belongs to comes from the schedule at the slot's nominal
 start (`schedule.show_at(cursor_ts)`), not from the current time, because
@@ -18,6 +21,8 @@ next show starts straight after, a little early rather than after a goodbye.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from dataclasses import replace
 
 from . import schedule
 from .buffer import Buffer
@@ -32,17 +37,20 @@ class Producer:
         self.horizon_s = horizon_s
         self.next_slot = 0
         self.cursor_ts = start_ts or schedule.now()
+        self.on_air_left: Callable[[float], float] | None = None   # the player: seconds left on air
         self._planned_until = self.cursor_ts
         self._show: str | None = None
         self._pos = 0                      # position within the current show's pattern
         self._ends = 0.0                   # when the current show's time in the schedule is up
         self._closing: list[schedule.Item] = []    # closing items still to plan
         self._closed = False               # the current show has planned its closing
+        self._briefs_given: dict = {}      # per type: how many of the show's briefs were handed out
 
     def _show_now(self) -> schedule.Show:
         """The show to plan for. The producer stays with its show until that show's own end, and
         only then asks the schedule what is next, at the later of the cursor and that end:
-        retime can pull the cursor back across the hour, and a show once left must stay left."""
+        the cursor is an estimate that can move back across the hour (a segment ran short), and a
+        show once left must stay left."""
         cur = schedule.SHOWS.get(self._show or "")
         if cur is None:
             return schedule.show_at(self.cursor_ts)
@@ -76,6 +84,11 @@ class Producer:
             return self._closing.pop(0)
         item = show.item(self._pos)
         self._pos += 1
+        angles = show.briefs.get(item.type)
+        if angles and not item.brief:
+            n = self._briefs_given.get(item.type, 0)
+            self._briefs_given[item.type] = n + 1
+            item = replace(item, brief=angles[n % len(angles)])
         return item
 
     def plan_one(self) -> Segment:
@@ -85,6 +98,7 @@ class Producer:
                 log.info("schedule: %s -> %s from slot %d", self._show, show.id, self.next_slot)
             self._ends = schedule.show_end(max(self.cursor_ts, self._ends))
             self._show, self._pos, self._closing, self._closed = show.id, 0, [], False
+            self._briefs_given = {}
         item = self._next_item(show)
         seg = Segment(
             slot_id=self.next_slot,
@@ -109,7 +123,8 @@ class Producer:
         # Plan against seconds of unplayed content, not nominal clock time:
         # segments often run shorter than their targets, and a clock-based
         # horizon would over-plan in a burst after a run of early finishes.
-        self.cursor_ts = max(self.cursor_ts, now)
+        on_air = self.on_air_left(now) if self.on_air_left else 0.0
+        self.cursor_ts = now + on_air + self.buffer.pending_depth_s()
         while self.buffer.pending_depth_s() < self.horizon_s and added < 20:
             self.plan_one()
             added += 1
@@ -117,18 +132,3 @@ class Producer:
             log.debug("producer planned %d slot(s); next=%d planned_until=+%.0fs",
                       added, self.next_slot, self._planned_until - now)
         return added
-
-    def retime(self, slot_id: int, actual_start_ts: float, actual_duration_s: float) -> None:
-        """Shift the cursor by the drift between planned and real timing of a played slot."""
-        seg = self.buffer.segment(slot_id)
-        if seg is None:
-            return
-        planned_end = seg.nominal_start_ts + seg.target_s
-        real_end = actual_start_ts + actual_duration_s
-        drift = real_end - planned_end
-        if abs(drift) > 1.0:
-            # Nominal times only order the job queue; never let the cursor fall
-            # into the past, or deadlines stop meaning anything.
-            self.cursor_ts = max(schedule.now(), self.cursor_ts + drift)
-            self._planned_until = self.cursor_ts
-            log.debug("retime after slot %d: drift %+.1fs", slot_id, drift)

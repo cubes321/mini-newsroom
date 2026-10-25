@@ -42,8 +42,11 @@ def content_hash(seg: Segment, world: World) -> str:
     # evening restart must not replay a breakfast script. News keeps the old key
     # so the existing cache stays valid.
     show = "" if seg.show == "news" else f"|{seg.show}"
+    # A running order's part and brief too: a slot planned differently must not replay
+    # another plan's script (a "cont" picking up an interview with someone else).
+    plan = f"|{seg.part}|{seg.brief}" if seg.part or seg.brief else ""
     key = (f"{seg.type.value}|{date.today().isoformat()}|{seg.slot_id}|{world.town}|"
-           f"{world.broadcast_day}|{provider_for(seg.type.value)}{show}")
+           f"{world.broadcast_day}|{provider_for(seg.type.value)}{show}{plan}")
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 

@@ -14,7 +14,7 @@ Rules:
   breaking segment plays, then the programme resumes from the next line. A
   replay is dropped rather than resumed. Breaking news, like a special, uses
   no slot number and doesn't move the rundown on.
-- A failed slot is skipped; the producer's retime keeps deadlines honest.
+- A failed slot is skipped.
 - Cues are applied by elapsed time within the segment, so a five-minute
   special can change backdrop and captions as it goes.
 - With audio=False (headless) line ends are simulated from durations so the
@@ -168,6 +168,12 @@ class Player:
                  seg.slot_id, seg.type.value, seg.duration_s, len(seg.lines),
                  f" — {seg.headline!r}" if seg.headline else "")
 
+    def time_left(self, now: float) -> float:
+        """Seconds left of the segment on air (the producer plans from the end of it)."""
+        if self.current is None or self.replaying:
+            return 0.0
+        return max(0.0, self.seg_start + self.current.duration_s - now)
+
     def _breaking_due(self) -> bool:
         """At a line boundary: cut in now? Not into a bumper or another breaking segment, and not
         when only a tag is left ("Thanks, Miles"): that finishes first, then breaking news airs."""
@@ -203,7 +209,7 @@ class Player:
     def _finish(self, now: float) -> None:
         seg = self.current
         if seg.type is SegmentType.breaking:
-            # Outside the rundown: no retime, no slot advance, and last_type stays as it was,
+            # Outside the rundown: no slot advance, and last_type stays as it was,
             # so a special can still follow the bumper before it.
             self.buffer.mark(seg, SegmentState.done)
             self.buffer.forget(seg.slot_id)
@@ -220,7 +226,6 @@ class Player:
                 mark_aired(seg)
                 self.buffer.forget(seg.slot_id)
             else:
-                self.producer.retime(seg.slot_id, self.seg_start, now - self.seg_start)
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)
                 self.next_slot = seg.slot_id + 1
                 self.played += 1

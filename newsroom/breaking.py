@@ -82,7 +82,7 @@ def make(seg: Segment, world: World, buffer=None) -> Segment:
         seg = cached
     else:
         writers.script_segment(seg, world)
-        world.mark_breaking(seg.thread_id)
+        world.mark_breaking(seg.thread_id, schedule.now())
         world_mod.save(world)
         if buffer:
             buffer.mark(seg, SegmentState.scripted)

@@ -26,8 +26,7 @@ bottom with the date.
   ComfyUI with a contact sheet) to replace the interview set with the lights
   down; perhaps a house band sting and a second, shorter guest.
 - [ ] Breakfast extras: tides and adverts on *Morning Tide*; a guest in the
-  sofa armchair (the `guest` mark is free). Breakfast still loops a 6-item
-  pattern for three hours; an hour order like the magazine's would help.
+  sofa armchair (the `guest` mark is free).
 - [ ] Breaking news from the story desk or the editor (now tip-line only),
   and a follow-up field report from Miles once a breaking story is confirmed.
 - [ ] A model-planned running order for the magazine and the talk show (a
@@ -44,6 +43,9 @@ bottom with the date.
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
 - [ ] Lock around world state so more than one worker is safe.
+- [ ] `world.threads` is capped at 40 by dropping the oldest, even if it is
+  still open; with many new threads a day (every guest feature opens one)
+  that can drop a live story. Drop closed threads first.
 - [ ] Give section writers the thread's dates and beats (the editor already
   sees them) to keep timelines straight.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
@@ -54,12 +56,12 @@ bottom with the date.
   thread (wait for the world-state lock).
 - [ ] Leave it on overnight and read the stats (now with the overnight
   test card, repeats and the editor working through the night).
-- [ ] Kimi overruns string caps and fails validation once (the retry
-  usually works): Miles's lines over 900 characters, `thread_status` over
-  160, the story desk's `note` over 200. Truncate on parse instead, or raise
-  the caps. (Kimi doesn't get the JSON schema enforced; `writers._keys_hint`
-  spells out the keys, and the schemas accept `speaker_id`, per-line guest
-  details and "female"/"male".)
+- [ ] Kimi sometimes writes a spoken line over 900 characters (Miles) and the
+  script fails validation once; the retry usually works. Status notes are now
+  clipped on parse (`models._clip`); spoken lines aren't, since cutting speech
+  mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
+  enforced; `writers._keys_hint` spells out the keys, and the schemas accept
+  `speaker_id`, per-line guest details and "female"/"male".)
 - [ ] A presenter booked as a guest (Gordon on his ghost tours) is captioned
   with their presenter role; use the script's `guest_role` instead.
 
@@ -69,6 +71,22 @@ bottom with the date.
 - [ ] Decide whether the baked placeholder WAVs should stay in the repo.
 
 ## Done
+
+- 2026-10-25 Breakfast runs a pattern with briefs handed out in turn (twelve
+  sofa angles, six report angles), headlines that always lead with the big
+  story, and a goodbye before the news.
+- 2026-10-25 The producer's planning clock is worked out each tick from what is
+  really queued; the old per-slot retime double-counted drift and ran an hour
+  ahead in a real run, signing the magazine off at 19:32.
+- 2026-10-25 Bulletins lead with a story for two hours after it broke as
+  breaking news (as the follow-up of its own thread); breaking news always
+  opens a new thread; status notes are clipped instead of failing validation.
+- 2026-10-25 Thread ids count on from the highest used: with the list capped at
+  40, every new thread had been getting `t041`, and follow-ups landed on the
+  wrong story. The ten duplicates in `data/world.json` were renumbered
+  `t042`–`t050`.
+- 2026-10-25 The cache key includes a slot's running-order part and brief, so a
+  restart can't replay a slot planned another way.
 
 - 2026-10-25 Night art for the harbour, high street and Town Hall
   (`<id>_night.png`): lit windows, shop fronts, lamps, the clock face and boat

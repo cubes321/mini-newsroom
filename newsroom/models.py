@@ -130,6 +130,15 @@ def _gender(v):
 
 
 Gender = Annotated[Literal["f", "m"] | None, BeforeValidator(_gender)]
+
+
+def _clip(n: int) -> BeforeValidator:
+    """Status notes are bookkeeping, not speech: cut an overlong one (Kimi overruns them)
+    instead of failing the whole script and paying for a retry."""
+    return BeforeValidator(lambda v: v[: n - 1].rstrip() + "…" if isinstance(v, str) and len(v) > n else v)
+
+
+Status = Annotated[str | None, _clip(160)]
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
 SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
 
@@ -162,7 +171,7 @@ class BulletinScript(BaseModel):
     thread_id: str | None = Field(
         default=None, description="id of an existing thread this follows up, or null"
     )
-    thread_status: str | None = Field(
+    thread_status: Status = Field(
         default=None, max_length=160,
         description="if following up: one plain sentence saying what is new, e.g. 'Repair crew now due Tuesday'",
     )
@@ -175,7 +184,7 @@ class FieldReportScript(BaseModel):
     backdrop: Backdrop
     lower_third: str = Field(max_length=60)
     thread_id: str | None = None
-    thread_status: str | None = Field(default=None, max_length=160)
+    thread_status: Status = Field(default=None, max_length=160)
 
 
 # ---------------------------------------------------- studio guests and vox pops
@@ -215,7 +224,7 @@ class InterviewScript(BaseModel):
     guest_role: str | None = Field(default=None, max_length=80, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Gender = Field(default=None, description="for casting the guest's voice: 'f' or 'm'")
     thread_id: str | None = None
-    thread_status: str | None = Field(default=None, max_length=160)
+    thread_status: Status = Field(default=None, max_length=160)
 
     _lift = model_validator(mode="before")(_lift_guest)
 
@@ -235,7 +244,7 @@ class FeatureScript(BaseModel):
     guest_role: str | None = Field(default=None, max_length=80)
     guest_gender: Gender = None
     thread_id: str | None = None
-    thread_status: str | None = Field(default=None, max_length=160)
+    thread_status: Status = Field(default=None, max_length=160)
 
     _lift = model_validator(mode="before")(_lift_guest)
 
@@ -296,7 +305,7 @@ class SpecialOutline(BaseModel):
 
 
 class SpecialSection(BaseModel):
-    lines: list[ScriptLine] = Field(min_length=2, max_length=10)
+    lines: list[ScriptLine] = Field(min_length=1, max_length=10)
 
 
 # ----------------------------------------------------------- story desk
@@ -314,15 +323,15 @@ class ThreadUpdate(BaseModel):
 
 class NewThread(BaseModel):
     title: str = Field(max_length=80)
-    status: str = Field(max_length=200, description="what is known so far, one sentence")
+    status: Annotated[str, _clip(200)] = Field(max_length=200, description="what is known so far, one sentence")
     next_development: str = Field(max_length=300, description="one sentence")
     people: list[str] = Field(default_factory=list, max_length=3)
 
 
 class StoryPlan(BaseModel):
-    updates: list[ThreadUpdate] = Field(default_factory=list, max_length=10)
+    updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # the desk may touch every open thread
     new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
-    note: str = Field(default="", max_length=200, description="one line on the editorial thinking")
+    note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 
 class TipBulletinScript(BulletinScript):

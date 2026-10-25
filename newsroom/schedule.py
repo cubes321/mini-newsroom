@@ -12,7 +12,10 @@ have a written-out order for the hour instead: an opening, a long middle the
 order wraps back to if it runs out (never to the bumper), and a closing the
 producer plans once as the hour runs out. Entries can be an `Item` with a
 part ("open", "cont" for the same guest after the break, "close") and a brief,
-so the third feature of the hour isn't the first one again.
+so the third feature of the hour isn't the first one again. A show can also
+list `briefs` per type, handed out in turn to entries without their own:
+breakfast runs three hours on a short pattern, and its sofa chats and reports
+still each get a different angle.
 
 The broadcast clock is `now()`, which is `time.time()` plus an offset that
 `set_clock("HH:MM")` sets, so any show can be tested at any hour.
@@ -52,6 +55,7 @@ class Show:
     cast_by_type: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # narrower casts
     loop_from: int = 0               # where the order wraps when it runs out
     closing: tuple[T | Item, ...] = ()   # planned once as the show's time runs out
+    briefs: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # angles, in turn, per type
 
     def cast_for(self, seg_type: T) -> tuple[str, ...]:
         return self.cast_by_type.get(seg_type, self.cast)
@@ -96,7 +100,36 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "breakfast", "MORNING TIDE", "MORNING", (230, 140, 40),
-        pattern=(T.bumper, T.bulletin, T.sofa, T.weather, T.field_report, T.sofa),
+        # Headlines, sofa, weather and a report, round and round for three hours; the briefs
+        # below give every sofa chat and report its own angle.
+        pattern=(T.bumper, I(T.bulletin, "open"), T.sofa, T.weather, T.field_report, T.sofa,
+                 T.bulletin, T.sofa, T.weather, T.field_report, T.sofa, T.sofa),
+        loop_from=6,
+        closing=(I(T.sofa, "close"),),
+        briefs={
+            T.sofa: (
+                "the morning papers: two or three local stories the hosts have opinions about",
+                "something cheering from the town",
+                "a viewer's question or a small local mystery",
+                "a pet, a garden or an animal story",
+                "on this day in the town's history",
+                "what's on in town this week",
+                "the hosts' own week: a hobby, a small disaster in the kitchen",
+                "food: a recipe, a cafe or the market's best buy this week",
+                "a birthday, an anniversary or a long-serving local worth a mention",
+                "the weekend ahead: walks, the tide, the sport",
+                "a quick quiz between the hosts about the town",
+                "a bit of good news from a school or a club",
+            ),
+            T.field_report: (
+                "somewhere waking up: the fish market, the first ferry, a bakery",
+                "the morning commute: the buses, the quay, the school run",
+                "a business opening up for the day",
+                "volunteers or a club out early",
+                "a follow-up on an open story, from where it is happening",
+                "the harbour at first light",
+            ),
+        },
         target_s={T.bumper: 8.0, T.bulletin: 60.0, T.sofa: 75.0, T.weather: 45.0, T.field_report: 75.0},
         cast=("host_a", "host_b", "weather", "reporter"), lead="host_a",
         station="Morning Tide, Port Wexley's breakfast show on channel 7",

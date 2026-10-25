@@ -79,6 +79,7 @@ def build(cfg, *, audio: bool, workers: int):
     pool = WorkerPool(buffer, w, n=workers)
     pool.start()
     player = Player(buffer, w, producer, audio=audio)
+    producer.on_air_left = player.time_left
     return w, buffer, producer, pool, player
 
 

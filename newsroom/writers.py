@@ -231,6 +231,7 @@ BIG RUNNING STORY, which the headlines lead with briefly (what is new), then mov
 
 
 BIG_STORY_MIN_MENTIONS = 4      # a peak the desk planned but nobody has covered yet doesn't count
+BREAKING_LEAD_S = 2 * 3600      # bulletins lead with a story this long after it broke
 
 _CONT = """PART TWO: you are CONTINUING the conversation with {name} ({role}) after the break. Use the
 same guest_name, guest_role and guest_gender. One line welcoming viewers back, no long reintroduction,
@@ -239,8 +240,8 @@ Part one, for continuity: keep every fact the same, and do NOT ask these questio
 the answers:
 {asked}"""
 
-_CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on tonight, a thank-you
-to the guests, a goodnight; {next_title} follows at {next_at}. No new stories."""
+_CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on, thanks to anyone
+who joined you, a {goodbye}; {next_title} follows at {next_at}. No new stories."""
 
 # The last interview per show, so a "cont" part keeps the same guest (see schedule.py).
 _last_interview: dict[str, dict] = {}
@@ -285,7 +286,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     )
     if show.light:
         big = big_story(world)
-        if big and show.opens and part != "open":
+        if big and show.opens and part != "open" and seg_type is not SegmentType.bulletin:
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
                      "a passing mention at most, and nothing about it unless it fits this item.")
         else:
@@ -300,13 +301,23 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     if seg_type is SegmentType.breaking:
         user += f"\n\nTHE TIP (from a viewer, unconfirmed): {work.get('tip', '')}"
+    if seg_type is SegmentType.bulletin:
+        now = at_ts or schedule.now()
+        broke = [t for t in world.open_threads() if t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S]
+        if broke:
+            t = max(broke, key=lambda t: t.breaking_ts)
+            user += (f"\n\nSTORY THAT BROKE {int((now - t.breaking_ts) // 60)} MINUTES AGO: [{t.id}] {t.title}. "
+                     f"Known so far: {t.status}. Lead with it, as the follow-up of this thread: thread_id \"{t.id}\" and "
+                     "a thread_status saying what is new, or plainly what is still not confirmed. "
+                     "Do not invent casualties.")
     if tips:
         user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
                  "tip_used to its number; otherwise tip_used is null):\n"
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
-        user += "\n\n" + _CLOSE.format(next_title=schedule.show_at(end).title.title(),
+        user += "\n\n" + _CLOSE.format(goodbye="goodbye" if _part(show) == "morning" else "goodnight",
+                                        next_title=schedule.show_at(end).title.title(),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
@@ -355,6 +366,15 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             ],
             headline=tip[:80],
             lower_third="Breaking: reports from a viewer",
+        )
+    if seg_type is SegmentType.sofa and part_ == "close":
+        return BulletinScript(
+            lines=[
+                LiveLine(speaker="host_a", text="That's all from us this morning. Thank you for having us on with your breakfast."),
+                LiveLine(speaker="host_b", text="Have a good day, Port Wexley. The news is next."),
+            ],
+            headline="Goodbye from Morning Tide",
+            lower_third="Morning Tide, channel seven",
         )
     if seg_type is SegmentType.sofa:
         lm = rng.choice(world.landmarks)
@@ -603,7 +623,9 @@ def _apply_to_world(seg: Segment, script, world: World) -> None:
     if isinstance(script, WeatherScript):
         world.record_weather(script.map_state, script.temp_c, script.headline)
     else:
-        tid = getattr(script, "thread_id", None)
+        # Breaking news always opens its own thread, even when the model names a related one
+        # (an aground boat is not a follow-up of the lifeboat's old logbooks).
+        tid = None if seg.type is SegmentType.breaking else getattr(script, "thread_id", None)
         status = getattr(script, "thread_status", None)
         known = {t.id for t in world.threads}
         if tid in known or seg.type in THREAD_OPENERS:

@@ -35,9 +35,13 @@ the opening item leads with it; later items mention it in passing at most.
 - **The pipeline:**
   - `schedule.show_at(ts)` picks the show for each slot by its *planned* start time.
   - The producer restarts the pattern at each show change, so every show opens on its bumper.
+  - The producer's cursor (when the next planned slot will start) is worked out on every tick:
+    now, plus what is left on air (`player.time_left`), plus the unplayed queue (real lengths
+    once voiced, targets before). There is no per-slot retime any more; it double-counted drift,
+    and in a real run the cursor got an hour ahead.
   - The producer keeps its show until that show's own end (`schedule.show_end`), and only then asks
-    the schedule what is next. Retime can pull the planning cursor back across the hour, and a show
-    once left must stay left.
+    the schedule what is next. The cursor is an estimate that can move back across the hour, and a
+    show once left must stay left.
   - Workers script each slot with the LLM, voice it with Kokoro, and cache it.
   - The player plays it on the clock.
 - **Running orders:**
@@ -54,7 +58,11 @@ the opening item leads with it; later items mention it in passing at most.
       "recently booked" check. It falls back to a fresh interview if part one wasn't the slot
       just before, e.g. after a restart.
     - `close`: the sign-off.
-  - `brief` is the angle given to the writer ("an animal story").
+  - `brief` is the angle given to the writer ("an animal story"). A show can also list `briefs`
+    per type, handed out in turn to entries without their own. Breakfast uses this: a short
+    pattern for three hours, but every sofa chat and report gets a different angle.
+  - Bulletins (headlines) always lead with the big story briefly; only the other items are told
+    to keep it to a passing mention.
 - **Per-show casts:**
   - `Show.cast` and `Show.cast_for(type)` say who may speak.
   - `models.script_schema(type, cast)` narrows the JSON speaker enum to that cast.
@@ -149,14 +157,13 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
   - **Positions:** some are still set for the old placeholder pictures.
   - ***The Last Ferry*** borrows the interview set.
   - **People:** they are blocks drawn in code.
-- **Format repetition:**
-  - Breakfast still loops a 6-item pattern for three hours.
-  - The magazine's and talk show's hour orders wrap once, after about 33 minutes.
+- **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
+  minutes. Breakfast repeats a 6-item shape, with a different angle every time.
 - **Breaking news** comes only from the tip-line: the story desk can't raise it, and there is no
   follow-up report from Miles yet.
 - **Special archive timing:** `record_aired` for a special runs when it is finished, not when it
   airs.
-- **Length caps:** Kimi overruns some caps once per run and recovers on the retry (Miles over 900 characters, `thread_status` over 160, the desk's `note` over 200).
+- **Length caps:** status notes are clipped on parse now; a spoken line over 900 characters (Miles) still fails once and recovers on the retry.
 - **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
 - **Not yet observed:**
   - an overnight special airing at the first news bumper;
@@ -165,14 +172,29 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 
 ## Good next steps
 
-1. **A long real-Kimi run** across 19:00–20:00 and 22:00–23:00 to see the hour orders, the
-   two-part guests and the sign-offs with real scripts. Add a breaking tip mid-show.
+1. **Leave it on overnight** and read the stats: the test card and repeats, the desk and editor
+   through the night, then breakfast at 06:00 with real scripts.
 2. **Art session:** *The Last Ferry*'s own set, night variants, sprites for the eight presenters.
-3. **Breakfast's hour order**, the same way as the magazine's.
-4. **Breaking follow-ups:** Miles reporting from the scene in the next bulletin; the story desk
+3. **Breaking follow-ups:** bulletins now lead with a story for two hours after it breaks; next
+   would be Miles reporting from the scene, and the story desk
    raising breaking news itself.
-5. **The world-state lock**, which would allow more than one worker and moving world writes
+4. **The world-state lock**, which would allow more than one worker and moving world writes
    (like a special's `record_aired`) to the main thread.
+
+## Verified with real Kimi scripts (2026-10-25 evening)
+
+- *Coastwide*'s hour: every item had its own angle. The goodbye aired at 19:59:49 and the news
+  started at 19:59:55.
+- *The Last Ferry*'s hour: one monologue and seven guests in two parts each, with the same guest
+  and consistent facts across the break. There were night-owl vox pops and Vincent's letters,
+  the goodnight aired at 22:57, and the news followed 30 s later.
+- Breaking news cut into an interview and a vox pop at line boundaries and both resumed. A
+  bulletin 15 minutes later led with it as the follow-up of its own thread.
+- A finished special left unaired by a stopped run came back after a restart and aired after the
+  next news bumper.
+- Breakfast with real scripts is not observed yet (only simulated and soaked with templates).
+- With canned scripts (`NEWSROOM_LLM=off`) a sign-off lands minutes early: the producer plans ten
+  minutes ahead on target lengths, and templates run at about a third of them. That is expected.
 
 ## Working notes
 
