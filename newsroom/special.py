@@ -24,7 +24,7 @@ import os
 import time
 from pathlib import Path
 
-from . import llm
+from . import llm, schedule
 from .config import CONFIG
 from . import locations
 from .locations import locations_for_prompt
@@ -134,7 +134,7 @@ def commission(world: World, decision: EditorDecision) -> Segment:
         slot_id=SPECIAL_SLOT_BASE + _special_counter,
         type=SegmentType.documentary,
         priority=9,
-        nominal_start_ts=time.time() + 6 * 3600,   # far deadline: live slots always win
+        nominal_start_ts=schedule.now() + 6 * 3600,   # far deadline on the broadcast clock: live slots always win
         target_s=CONFIG.special.target_s,
         headline=decision.working_title or None,
         thread_id=decision.thread_id,
@@ -354,6 +354,9 @@ def resume_partials(buffer) -> int:
             continue
         _special_counter = max(_special_counter, seg.slot_id - SPECIAL_SLOT_BASE)
         seg.state = SegmentState.planned
+        # Re-stamp the far deadline: the saved one may be hours stale (or from a
+        # run with --clock), and an old deadline would put it ahead of live slots.
+        seg.nominal_start_ts = schedule.now() + 6 * 3600
         buffer.submit_special(seg)
         log.info("resuming special %r from stage %s", seg.headline, seg.stage)
         n += 1

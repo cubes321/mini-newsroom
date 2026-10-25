@@ -11,7 +11,7 @@ import math
 
 import pygame
 
-from . import backdrops, locations
+from . import backdrops, locations, schedule
 from .player import View
 from .sprites import draw_character, draw_mic, guest_palette
 
@@ -67,14 +67,18 @@ def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), c
 # -------------------------------------------------------------------- scenes
 
 
-def draw_test_card(canvas: pygame.Surface, t: float) -> None:
+def draw_test_card(canvas: pygame.Surface, t: float, v: View | None = None) -> None:
+    """Start-up card, and the overnight card (with when programmes resume)."""
     w, h = canvas.get_size()
     bar_w = w / len(BARS)
     for i, c in enumerate(BARS):
         pygame.draw.rect(canvas, c, (int(i * bar_w), 0, int(bar_w) + 1, int(h * 0.7)))
     pygame.draw.rect(canvas, (20, 20, 24), (0, int(h * 0.7), w, h - int(h * 0.7)))
-    text(canvas, "MINI NEWSROOM", w // 2, int(h * 0.8), 14, center=True)
-    if int(t * 2) % 2 == 0:
+    overnight = v is not None and v.resume_at
+    text(canvas, "CHANNEL 7" if overnight else "MINI NEWSROOM", w // 2, int(h * 0.8), 14, center=True)
+    if overnight:
+        text(canvas, f"PROGRAMMES RESUME AT {v.resume_at}", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
+    elif int(t * 2) % 2 == 0:
         text(canvas, "STAND BY", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
     cx = int(w / 2 + math.cos(t) * w * 0.3)
     pygame.draw.circle(canvas, (255, 255, 255), (cx, int(h * 0.35)), 5, 1)
@@ -86,7 +90,7 @@ def draw_filler(canvas: pygame.Surface, v: View, t: float) -> None:
     for i in range(0, w, 8):
         y = int(h * 0.55 + math.sin(t * 0.8 + i * 0.05) * 6)
         pygame.draw.rect(canvas, (24, 36, 70), (i, y, 8, h - y))
-    text(canvas, "PORT WEXLEY NEWS", w // 2, 50, 14, center=True)
+    text(canvas, schedule.get(v.show).title, w // 2, 50, 14, center=True)
     text(canvas, "we'll be right back", w // 2, 72, 8, (180, 190, 220), center=True)
     if v.map_state:
         text(canvas, f"{v.map_state} · {v.temp_c}°C", w // 2, 92, 8, (220, 220, 160), center=True)
@@ -95,12 +99,15 @@ def draw_filler(canvas: pygame.Surface, v: View, t: float) -> None:
 
 def draw_bumper(canvas: pygame.Surface, v: View, t: float) -> None:
     w, h = canvas.get_size()
-    canvas.fill((200, 40, 40))
+    show = schedule.get(v.show)
+    canvas.fill(show.colour)
+    if show.id == "breakfast":                                   # the sun coming up behind the card
+        pygame.draw.circle(canvas, (255, 220, 120), (w // 2, int(150 - min(t % 12, 4) * 12)), 34)
     k = int((t * 60) % (w + 40)) - 40
     pygame.draw.rect(canvas, (240, 240, 240), (k, 0, 16, h))
     pygame.draw.rect(canvas, (30, 30, 40), (40, 60, w - 80, 60))
     text(canvas, "CHANNEL 7", w // 2, 78, 14, center=True)
-    text(canvas, "PORT WEXLEY NEWS", w // 2, 102, 8, (255, 200, 200), center=True)
+    text(canvas, show.title, w // 2, 102, 8, (255, 220, 190), center=True)
 
 
 def _studio_bg(canvas: pygame.Surface, t: float) -> None:
@@ -142,7 +149,43 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
     draw_character(canvas, 270, 152, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
 
 
+SOFA = locations.MARKS["studio_sofa"]
+SOFA_INSET = pygame.Rect(214, 22, 98, 58)       # the handover box, top right, clear of the clock
+_sofa_buf: pygame.Surface | None = None
+
+
+def _sofa_wide(canvas: pygame.Surface, v: View, t: float) -> None:
+    backdrops.draw(canvas, "studio_sofa")
+    for who in ("host_a", "host_b"):
+        x, y, scale, facing = SOFA[who]
+        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing)
+
+
+def draw_sofa(canvas: pygame.Surface, v: View, t: float) -> None:
+    """Morning Tide on the breakfast sofa: two-shot, a close-up on whoever is talking,
+    and a box with the location in it while they hand over to a field report."""
+    global _sofa_buf
+    if v.shot == "close" and v.speaker in SOFA:
+        if _sofa_buf is None:
+            _sofa_buf = pygame.Surface(CANVAS)
+        _sofa_wide(_sofa_buf, v, t)
+        x, y = SOFA[v.speaker][:2]
+        crop = pygame.Rect(0, 0, 160, 90)
+        crop.midbottom = (x, y + 6)            # head room above, the sofa cushion below
+        crop.clamp_ip(_sofa_buf.get_rect())
+        pygame.transform.scale(_sofa_buf.subsurface(crop), CANVAS, canvas)
+        return
+    _sofa_wide(canvas, v, t)
+    if v.shot == "wall" and v.backdrop:
+        pygame.draw.rect(canvas, (20, 20, 30), SOFA_INSET.inflate(4, 4))
+        canvas.blit(backdrops.picture(v.backdrop, v.tod, v.weather, SOFA_INSET.size), SOFA_INSET)
+        pygame.draw.rect(canvas, (200, 30, 30), (SOFA_INSET.x + 3, SOFA_INSET.y + 3, 26, 10))
+        text(canvas, v.wall_label or "LIVE", SOFA_INSET.x + 16, SOFA_INSET.y + 8, 8, center=True)
+
+
 def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
+    if v.show == "breakfast":
+        return draw_sofa(canvas, v, t)
     if v.shot == "close":
         return _studio_close(canvas, v, t)
     if v.shot == "wall":
@@ -179,8 +222,8 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, f"{v.temp_c}°C", 271, 44, 14, center=True)
         text(canvas, (v.map_state or "").upper(), 271, 58, 8, (200, 200, 120), center=True)
     draw_character(canvas, 270, 152, "weather", v.mouth if v.speaker == "weather" else 0.0, t, scale=2)
-    if v.speaker == "anchor":
-        draw_character(canvas, 30, 160, "anchor", v.mouth, t, scale=1)
+    if v.speaker not in (None, "weather"):                       # whoever handed over, small at the left
+        draw_character(canvas, 30, 160, v.speaker, v.mouth, t, scale=1)
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -254,9 +297,10 @@ def draw_lower_third(canvas: pygame.Surface, v: View) -> None:
 def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:
     w, h = canvas.get_size()
     pygame.draw.rect(canvas, (10, 10, 16), (0, h - 14, w, 14))
-    pygame.draw.rect(canvas, (200, 30, 30), (0, h - 14, 44, 14))
-    text(canvas, "NEWS", 22, h - 7, 8, center=True)
-    items = v.ticker or ["Port Wexley News, channel seven"]
+    show = schedule.get(v.show)
+    pygame.draw.rect(canvas, show.colour, (0, h - 14, 44, 14))
+    text(canvas, show.ticker, 22, h - 7, 8, center=True, maxw=42)
+    items = v.ticker or [f"{show.title.title()}, channel seven"]
     s = "   •   ".join(items) + "   •   "
     f = font(8)
     tw = f.size(s)[0] or 1
@@ -273,8 +317,8 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
     w = canvas.get_width()
     pygame.draw.rect(canvas, (10, 10, 16), (w - 44, 4, 40, 12))
     text(canvas, v.clock, w - 24, 10, 8, center=True)
-    if v.replay:
-        text(canvas, "REPLAY", w - 24, 22, 8, (255, 200, 80), center=True)
+    if v.replay or v.repeat:
+        text(canvas, "REPEAT" if v.repeat else "REPLAY", w - 24, 22, 8, (255, 200, 80), center=True)
 
 
 SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
@@ -283,7 +327,9 @@ SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
     if v.mode == "testcard":
-        draw_test_card(canvas, t)
+        draw_test_card(canvas, t, v)
+        if v.resume_at:
+            draw_clock(canvas, v)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
         if v.mode not in ("bumper",):

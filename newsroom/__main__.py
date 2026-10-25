@@ -8,6 +8,7 @@ Flags:
   --no-window   headless soak: producer + workers + simulated player, logs only
   --minutes N   auto-exit after N minutes
   --debug       overlay slot/line/buffer status on the picture
+  --clock HH:MM  start the broadcast clock at this time (test a show at any hour)
 """
 from __future__ import annotations
 
@@ -29,6 +30,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--snap", type=str, default="", help="save a PNG of the frame to this dir every 10 s")
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
+    p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -83,7 +85,7 @@ def build(cfg, *, audio: bool, workers: int):
 def run_window(cfg, args) -> None:
     import pygame
 
-    from . import scenes
+    from . import scenes, schedule
 
     pygame.mixer.pre_init(cfg.tts.sample_rate, -16, 1, 512)
     pygame.init()
@@ -103,7 +105,7 @@ def run_window(cfg, args) -> None:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
                 running = False
-        now = time.time()
+        now = schedule.now()
         if now - last_tick > 2.0:
             producer.tick(now)
             last_tick = now
@@ -132,6 +134,8 @@ def run_window(cfg, args) -> None:
 
 
 def run_headless(cfg, args) -> None:
+    from . import schedule
+
     world, buffer, producer, pool, player = build(cfg, audio=False, workers=args.workers)
     stats = Stats(buffer)
     start = time.monotonic()
@@ -139,7 +143,7 @@ def run_headless(cfg, args) -> None:
     try:
         while True:
             t0 = time.perf_counter()
-            now = time.time()
+            now = schedule.now()
             if now - last_tick > 2.0:
                 producer.tick(now)
                 last_tick = now
@@ -167,8 +171,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "kokoro", "phonemizer"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    from . import schedule
     from .config import CONFIG
 
+    if args.clock:
+        schedule.set_clock(args.clock)
+        log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)
     if args.special_now:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
     if args.workers != 1:

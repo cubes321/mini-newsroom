@@ -16,12 +16,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from .locations import BACKDROP_IDS
 
-Speaker = Literal["anchor", "weather", "reporter", "guest"]
-SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "guest")
+Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "guest"]
+SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "guest")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
@@ -32,6 +32,9 @@ class SegmentType(StrEnum):
     bumper = "bumper"
     filler = "filler"
     documentary = "documentary"
+    sofa = "sofa"                # breakfast: the two hosts chatting
+    repeat = "repeat"            # overnight: an earlier segment from the cache
+    testcard = "testcard"        # overnight: the card, music only
 
 
 class SegmentState(StrEnum):
@@ -68,6 +71,8 @@ class Segment(BaseModel):
     type: SegmentType
     state: SegmentState = SegmentState.planned
     priority: int = 0                      # 0 = live slot, 9 = documentary
+    show: str = "news"                     # schedule.SHOWS id
+    repeat: bool = False                   # an earlier segment aired again overnight
     nominal_start_ts: float = Field(default_factory=time.time)
     target_s: float = 60.0
     lines: list[Line] = Field(default_factory=list)
@@ -99,11 +104,11 @@ class Rundown(BaseModel):
 # -------------------------------------------------------------- LLM outputs
 
 
-LiveSpeaker = Literal["anchor", "weather", "reporter"]
+LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b"]
 
 
 class LiveLine(BaseModel):
-    """A line in a live segment: only the station's own three voices."""
+    """A line in a live segment: only the station's own presenters (script_schema narrows to one show)."""
     speaker: LiveSpeaker
     text: str = Field(min_length=1, max_length=900)
 
@@ -209,4 +214,26 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.weather: WeatherScript,
     SegmentType.bulletin: BulletinScript,
     SegmentType.field_report: FieldReportScript,
+    SegmentType.sofa: BulletinScript,       # same shape: lines, headline, caption, optional follow-up
 }
+
+_NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
+
+
+def script_schema(seg_type: SegmentType, cast: tuple[str, ...]) -> type[BaseModel]:
+    """The script schema with `lines[].speaker` narrowed to one show's cast.
+
+    The JSON schema the model sees then lists only that show's presenters, the
+    same way the Backdrop enum comes from locations.py.
+    """
+    key = (seg_type, cast)
+    if key not in _NARROWED:
+        base = SCRIPT_SCHEMAS[seg_type]
+        line = create_model(f"LiveLine_{'_'.join(cast)}", __base__=LiveLine,
+                            speaker=(Literal[*cast], ...))
+        lf = base.model_fields["lines"]
+        bounds = {k: getattr(m, k) for m in lf.metadata for k in ("min_length", "max_length") if hasattr(m, k)}
+        # The class name becomes the json_schema name, which servers cap at 64 characters.
+        _NARROWED[key] = create_model(f"{base.__name__}_{'_'.join(cast)}"[:64], __base__=base,
+                                      lines=(list[line], Field(**bounds)))
+    return _NARROWED[key]

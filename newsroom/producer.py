@@ -5,32 +5,21 @@ upcoming slots to the buffer to cover `horizon_s` of broadcast. When the
 player reports a slot's real duration, the cursor is corrected so later
 nominal times (and therefore job deadlines) stay honest.
 
-Milestone 1 pattern loops forever: bumper, weather, bulletin, field report,
-bumper. A later version reads a schedule table and inserts specials.
+Which show a slot belongs to comes from the schedule at the slot's nominal
+start (`schedule.show_at(cursor_ts)`), not from the current time, because
+planning runs up to the horizon ahead. Each show loops its own pattern; when
+the show changes, the new one starts from the top of its pattern, so it
+opens on its bumper. The switch lands on a segment boundary near the hour.
 """
 from __future__ import annotations
 
 import logging
-import time
 
+from . import schedule
 from .buffer import Buffer
-from .models import Segment, SegmentType
+from .models import Segment
 
 log = logging.getLogger(__name__)
-
-PATTERN: list[SegmentType] = [
-    SegmentType.bumper,
-    SegmentType.weather,
-    SegmentType.bulletin,
-    SegmentType.field_report,
-]
-
-TARGET_S: dict[SegmentType, float] = {
-    SegmentType.bumper: 8.0,
-    SegmentType.weather: 60.0,
-    SegmentType.bulletin: 75.0,
-    SegmentType.field_report: 90.0,
-}
 
 
 class Producer:
@@ -38,17 +27,26 @@ class Producer:
         self.buffer = buffer
         self.horizon_s = horizon_s
         self.next_slot = 0
-        self.cursor_ts = start_ts or time.time()
+        self.cursor_ts = start_ts or schedule.now()
         self._planned_until = self.cursor_ts
+        self._show: str | None = None
+        self._pos = 0                      # position within the current show's pattern
 
     def plan_one(self) -> Segment:
-        seg_type = PATTERN[self.next_slot % len(PATTERN)]
+        show = schedule.show_at(self.cursor_ts)
+        if show.id != self._show:
+            if self._show is not None:
+                log.info("schedule: %s -> %s from slot %d", self._show, show.id, self.next_slot)
+            self._show, self._pos = show.id, 0
+        seg_type = show.pattern[self._pos % len(show.pattern)]
+        self._pos += 1
         seg = Segment(
             slot_id=self.next_slot,
             type=seg_type,
-            target_s=TARGET_S[seg_type],
+            target_s=show.target_s[seg_type],
             nominal_start_ts=self.cursor_ts,
             priority=0,
+            show=show.id,
         )
         self.buffer.submit(seg)
         self.next_slot += 1
@@ -58,7 +56,7 @@ class Producer:
 
     def tick(self, now: float | None = None) -> int:
         """Submit slots until the plan covers now + horizon. Returns how many were added."""
-        now = now or time.time()
+        now = now or schedule.now()
         added = 0
         # Plan against seconds of unplayed content, not nominal clock time:
         # segments often run shorter than their targets, and a clock-based
@@ -83,6 +81,6 @@ class Producer:
         if abs(drift) > 1.0:
             # Nominal times only order the job queue; never let the cursor fall
             # into the past, or deadlines stop meaning anything.
-            self.cursor_ts = max(time.time(), self.cursor_ts + drift)
+            self.cursor_ts = max(schedule.now(), self.cursor_ts + drift)
             self._planned_until = self.cursor_ts
             log.debug("retime after slot %d: drift %+.1fs", slot_id, drift)

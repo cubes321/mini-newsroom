@@ -2,7 +2,8 @@
 
 Nothing here is art. It exists so the pipeline can be proven before any real
 jingle or music exists:
-- bumper.wav: a four-note synth sting followed by a Kokoro station ident.
+- bumper.wav: a four-note synth sting followed by a Kokoro station ident;
+  bumper_<show>.wav is the same for another show (Morning Tide's is brighter).
 - music_bed.wav: a slow, quiet chord loop used under filler.
 
 Both are 24 kHz mono PCM_16 like everything else. Drop real files with the
@@ -26,6 +27,12 @@ SR = CONFIG.tts.sample_rate
 BUMPER = CONFIG.paths.assets / "bumper.wav"
 MUSIC_BED = CONFIG.paths.assets / "music_bed.wav"
 IDENT_TEXT = "You're watching Port Wexley News, on channel seven."
+# Per-show idents: (file, text). The show's lead voices it. News keeps the original file.
+IDENTS: dict[str, tuple[Path, str]] = {
+    "news": (BUMPER, IDENT_TEXT),
+    "breakfast": (CONFIG.paths.assets / "bumper_breakfast.wav",
+                  "Good morning! You're watching Morning Tide, on channel seven."),
+}
 
 
 def _tone(freq: float, dur: float, vol: float = 0.3, harmonics: int = 3) -> np.ndarray:
@@ -42,19 +49,25 @@ def _write(path: Path, audio: np.ndarray) -> None:
     os.replace(tmp, path)
 
 
-def ensure_bumper() -> Path:
-    if BUMPER.exists():
-        return BUMPER
+def ensure_bumper(show: str = "news") -> Path:
+    from . import schedule
+
+    path, text = IDENTS.get(show, IDENTS["news"])
+    if path.exists():
+        return path
     from . import tts
 
-    log.info("baking placeholder bumper -> %s", BUMPER.name)
+    log.info("baking placeholder bumper -> %s", path.name)
     notes = [392.0, 523.25, 659.25, 783.99]        # G4 C5 E5 G5
-    sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(783.99, 0.9, 0.25)])
-    ident = tts.synthesize(IDENT_TEXT, CONFIG.tts.voices.get("anchor", "af_heart"), CONFIG.paths.cache / "_ident.wav")
+    if show == "breakfast":
+        notes = [523.25, 659.25, 783.99, 1046.5]   # C5 E5 G5 C6: up an octave, for the morning
+    sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
+    lead = schedule.get(show).lead
+    ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{show}.wav")
     voice, _ = sf.read(str(ident.wav_path), dtype="float32")
     gap = np.zeros(int(SR * 0.25), dtype=np.float32)
-    _write(BUMPER, np.concatenate([sting, gap, voice, gap]))
-    return BUMPER
+    _write(path, np.concatenate([sting, gap, voice, gap]))
+    return path
 
 
 def ensure_music_bed(seconds: float = 24.0) -> Path:
@@ -80,12 +93,28 @@ def ensure_all() -> None:
 
 def bumper_segment(seg: Segment) -> Segment:
     """Turn a planned bumper slot into a ready one backed by the baked asset."""
-    from . import tts
+    from . import schedule, tts
 
-    path = ensure_bumper()
+    path = ensure_bumper(seg.show)
+    text = IDENTS.get(seg.show, IDENTS["news"])[1]
     audio, sr = sf.read(str(path), dtype="float32")
-    seg.lines = [Line(speaker="anchor", text=IDENT_TEXT, wav_path=path,
+    seg.lines = [Line(speaker=schedule.get(seg.show).lead, text=text, wav_path=path,
                       duration_s=len(audio) / sr, mouth_env=tts.mouth_envelope(audio, sr))]
+    seg.headline = None
+    seg.state = SegmentState.ready
+    return seg
+
+
+def testcard_segment(seg: Segment) -> Segment:
+    """The overnight card: one silent line of `target_s`, so playout timing works as usual.
+
+    The music bed plays under it (player.py turns it up for test cards).
+    """
+    secs = max(5, int(round(seg.target_s)))
+    path = CONFIG.paths.cache / f"_silence_{secs}s.wav"
+    if not path.exists():
+        _write(path, np.zeros(SR * secs, dtype=np.float32))
+    seg.lines = [Line(speaker="anchor", text="", wav_path=path, duration_s=float(secs), mouth_env=[])]
     seg.headline = None
     seg.state = SegmentState.ready
     return seg

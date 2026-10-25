@@ -14,8 +14,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import random
 import threading
 import time
+from collections import deque
 from datetime import date
 from pathlib import Path
 
@@ -36,8 +38,12 @@ def content_hash(seg: Segment, world: World) -> str:
     # NEWSROOM_LLM=off never replays once a real model is available.
     from .llm import provider_for
 
+    # The show is in the key too: slot numbers restart at 0 on every run, so an
+    # evening restart must not replay a breakfast script. News keeps the old key
+    # so the existing cache stays valid.
+    show = "" if seg.show == "news" else f"|{seg.show}"
     key = (f"{seg.type.value}|{date.today().isoformat()}|{seg.slot_id}|{world.town}|"
-           f"{world.broadcast_day}|{provider_for(seg.type.value)}")
+           f"{world.broadcast_day}|{provider_for(seg.type.value)}{show}")
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
@@ -70,6 +76,48 @@ def _save_cached(seg: Segment, h: str) -> None:
     tmp.replace(meta)
 
 
+# ----------------------------------------------------------------- repeats
+
+REPEATABLE = (SegmentType.weather, SegmentType.bulletin, SegmentType.field_report, SegmentType.sofa)
+REPEAT_WINDOW_S = 48 * 3600         # repeat from today and yesterday
+_recent_repeats: deque[str] = deque(maxlen=12)
+
+
+def repeat_segment(seg: Segment) -> Segment:
+    """Overnight: fill the slot with an earlier segment from the cache, aired again.
+
+    No model call, no world update, nothing written back to the cache. The
+    copy keeps its original show so it is drawn on its own set. With nothing
+    to repeat, the slot becomes the test card.
+    """
+    from .assets import testcard_segment
+
+    cutoff = time.time() - REPEAT_WINDOW_S
+    candidates: list[tuple[str, Segment]] = []
+    for meta in CONFIG.paths.cache.glob("*.json"):
+        if meta.stat().st_mtime < cutoff:
+            continue
+        try:
+            c = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if c.type in REPEATABLE and c.lines and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines):
+            candidates.append((meta.stem, c))
+    if not candidates:
+        log.info("slot %d: nothing to repeat; test card", seg.slot_id)
+        seg.type = SegmentType.testcard
+        return testcard_segment(seg)
+    # Prefer what hasn't aired lately; with a small cache, fall back to anything.
+    fresh = [c for c in candidates if c[0] not in _recent_repeats]
+    key, rep = random.choice(fresh or candidates)
+    _recent_repeats.append(key)
+    rep.slot_id, rep.priority, rep.nominal_start_ts = seg.slot_id, seg.priority, seg.nominal_start_ts
+    rep.target_s, rep.repeat, rep.error = rep.duration_s, True, None
+    rep.state = SegmentState.ready
+    log.info("slot %d: repeating %s %r", seg.slot_id, rep.type.value, rep.headline)
+    return rep
+
+
 # --------------------------------------------------------------- pipeline
 
 
@@ -87,13 +135,16 @@ def voice_segment(seg: Segment, world: World, h: str) -> Segment:
 def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segment:
     """Full pipeline for one segment. Returns the ready Segment."""
     t0 = time.perf_counter()
+    world.roll_day_if_needed()                # an always-on station crosses midnight
     h = content_hash(seg, world)
     seg.content_hash = h
 
-    if seg.type is SegmentType.bumper:
-        from .assets import bumper_segment
+    if seg.type in (SegmentType.bumper, SegmentType.testcard, SegmentType.repeat):
+        from .assets import bumper_segment, testcard_segment
 
-        ready = bumper_segment(seg)
+        maker = {SegmentType.bumper: bumper_segment, SegmentType.testcard: testcard_segment,
+                 SegmentType.repeat: repeat_segment}[seg.type]
+        ready = maker(seg)
         if buffer:
             buffer.mark(ready, SegmentState.ready)
         return ready
@@ -220,13 +271,14 @@ def _cli(argv: list[str]) -> int:
 
     p = argparse.ArgumentParser(prog="python -m newsroom.workers")
     p.add_argument("type", choices=[t.value for t in SegmentType if t not in (SegmentType.filler, SegmentType.documentary)])
+    p.add_argument("--show", default="news", help="schedule show id (news, breakfast, overnight)")
     p.add_argument("--slot", type=int, default=0)
     p.add_argument("--target", type=float, default=45.0)
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     w = world_mod.load()
-    seg = Segment(slot_id=a.slot, type=SegmentType(a.type), target_s=a.target)
+    seg = Segment(slot_id=a.slot, type=SegmentType(a.type), target_s=a.target, show=a.show)
     out = generate(seg, w)
     print(json.dumps({
         "slot": out.slot_id, "type": out.type.value, "state": out.state.value, "hash": out.content_hash,

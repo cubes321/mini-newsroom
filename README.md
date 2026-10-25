@@ -5,9 +5,11 @@
 Port Wexley has a mayor, a stopped Town Hall clock, ghost tours at the old
 cannery and a baker who renames his treacle tart after the news. None of it is
 real. An LLM writes the scripts, Kokoro voices the presenters on the CPU, and a
-Pygame window plays it out like a small local station: bumpers, weather,
-bulletins, on-site reports and, when the editor thinks a story has earned it,
-a five-minute special report with residents interviewed on location.
+Pygame window plays it out like a small local station on a daily schedule:
+*Morning Tide* on the breakfast sofa, the news through the day with bumpers,
+weather, bulletins and on-site reports, a test card and repeats overnight and,
+when the editor thinks a story has earned it, a five-minute special report with
+residents interviewed on location.
 
 Stories develop over days. A story desk plans what happens next, public
 figures recur with their own voices, and everything that airs goes into the
@@ -17,6 +19,8 @@ town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
 |---|---|
 | ![Studio bulletin](docs/screenshots/studio.png) | ![Close-up](docs/screenshots/closeup.png) |
 | Dana Ferris reads the bulletin | …and the close-up on the next line |
+| ![Morning Tide](docs/screenshots/breakfast.png) | ![Breakfast handover](docs/screenshots/breakfast_live.png) |
+| Rosie Treloar and Jonah Pike on the *Morning Tide* sofa | Handing over to Miles at the loading dock |
 | ![Big-picture wall](docs/screenshots/wall.png) | ![Field report](docs/screenshots/field.png) |
 | Handing over to a live report at the loading dock | Miles Okafor live from the old cannery at dusk |
 | ![Night in the rain](docs/screenshots/night.png) | ![Weather](docs/screenshots/weather.png) |
@@ -39,7 +43,9 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
                               (idle time only)
 ```
 
-- **Producer** keeps about ten minutes of unplayed content planned.
+- **Producer** keeps about ten minutes of unplayed content planned. The
+  schedule (`schedule.py`) decides which show each slot belongs to, by the
+  slot's planned start time, and each show loops its own pattern.
 - **Worker** scripts each slot with the LLM (strict JSON, validated with
   pydantic, one retry, canned template as a last resort), voices every line
   with Kokoro, and stores a mouth envelope for lip-sync.
@@ -70,10 +76,28 @@ Early and working. The longest run so far is a ten-minute soak with zero
 filler and frame times under 7 ms; it has not yet been left on overnight.
 Things that exist: the four live segment types, special reports, the story
 bible and desk, provider switching, caching, failure recovery, and backdrop art
-for every location. Things that
-don't yet: a 24-hour schedule with day-parts, breaking-news interrupts, local
+for every location. It now has a daily schedule with a breakfast show. Things that
+don't yet: the evening magazine, breaking-news interrupts, local
 adverts and tides, real sprite art, and the 30-minute documentary that
 specials are the template for.
+
+## A normal day
+
+Without breaking news (not built yet), the station runs this schedule:
+
+| from | show | what's on |
+|---|---|---|
+| 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight waits for the news |
+| 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats, Gordon's weather, Miles's reports |
+| 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports and specials |
+| 19:00 | the magazine | an early-evening magazine in the spirit of *Nationwide* (to come; the news stands in) |
+| 20:00 | the news | |
+
+Breakfast is **lighter** than the news: warm, everyday local stories and
+what's on. The exception is one big running story (the most-covered thread at
+its peak), which the headlines lead with briefly. The magazine will work the
+same way. `uv run python -m newsroom.schedule` prints the table, and `--clock
+HH:MM` starts the broadcast clock at any time of day to try a show.
 
 ## Run it
 
@@ -96,7 +120,7 @@ at all, which is handy for working on the visuals.
 Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 `--no-window` runs the producer, workers and a simulated player headless,
 `--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
-a special immediately.
+a special immediately, `--clock HH:MM` pretends the local time is HH:MM.
 
 Expected cold start: filler card → bumper → short filler while Kokoro loads →
 weather → bulletin → field report → bumper → … After the first loop the buffer
@@ -107,7 +131,8 @@ stays ahead and there is no more filler.
 `data/world.json` is the town's memory and cast list:
 
 - **Presenters**: Dana Ferris (anchor), Gordon Pell (weather), Miles Okafor
-  (field reporter), with fixed voices.
+  (field reporter), and on breakfast Rosie Treloar and Jonah Pike, with fixed
+  voices. Each show's prompt and JSON schema allow only its own cast.
 - **People**: seeded public figures and worthies (the mayor, police and fire
   chiefs, the MP, the harbourmaster, a head teacher, the lifeboat coxswain,
   the historical society chair) plus residents promoted from special-report
@@ -162,7 +187,8 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 | `tts.py` | Kokoro on CPU → 24 kHz WAV + mouth envelope |
 | `assets.py` | bakes the placeholder bumper and music bed on first run |
 | `buffer.py` | priority intake queue + ready-by-slot dictionary + specials pocket |
-| `producer.py` | plans slots ahead, retimes when real durations land |
+| `schedule.py` | the shows, the daily schedule and the broadcast clock |
+| `producer.py` | plans slots ahead from the schedule, retimes when real durations land |
 | `workers.py` | generation thread, content cache, watchdog, idle editorial work |
 | `player.py` | consumes the buffer, drives audio, applies timed cues, builds the `View` |
 | `locations.py` | the places a picture can be set, and where people stand on the studio sets |
@@ -174,6 +200,9 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 ```bash
 uv run python -m newsroom.tts "Good evening"          # synth one line and play it
 uv run python -m newsroom.llm weather --dry-run        # show prompt + schema, no call
+uv run python -m newsroom.llm sofa --show breakfast --dry-run   # a breakfast prompt
+uv run python -m newsroom.schedule                     # the day's schedule
+uv run python -m newsroom --clock 06:00 --debug        # watch breakfast at any hour
 uv run python -m newsroom.llm weather                  # live call to the routed provider
 uv run python -m newsroom.world                        # print the writers' briefing
 uv run python -m newsroom.workers field_report         # one segment end to end
@@ -182,7 +211,8 @@ uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, 
 ```
 
 Generated audio and segment JSON live in `data/cache/`, keyed by (type, date,
-slot, town, day, provider). Delete the folder to force regeneration.
+slot, town, day, provider, show). Delete the folder to force regeneration.
+Overnight repeats are drawn from the last two days of this cache.
 
 ## Notes
 

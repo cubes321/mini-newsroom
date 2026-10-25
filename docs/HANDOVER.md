@@ -1,5 +1,38 @@
 # Handover: 2026-10-25
 
+## Update: day-parts, part 1 (later the same day)
+
+Item 1 of "What next" below is half done: the schedule and the breakfast show.
+
+- **`schedule.py`** holds the shows and a normal day: overnight 00–06, *Morning
+  Tide* 06–09, the news 09–19, the magazine 19–20 (not built, so the news stands
+  in, via `STAND_INS`), then the news 20–24. The producer picks each slot's show
+  from its planned start time and restarts the pattern when the show changes.
+  `--clock HH:MM` moves the broadcast clock, so any show can be tested at any hour.
+- **Breakfast:**
+  - **Presenters.** Rosie Treloar (`host_a`, voice `bf_lily`) and Jonah Pike (`host_b`, `am_eric`) on `studio_sofa`. Gordon and Miles keep their jobs.
+  - **Segment types.** New `sofa` chats, with the headlines, weather and field reports in breakfast versions.
+  - **Shots.** Close-ups crop round the speaking host. Handovers show a LIVE inset box.
+  - **Branding.** An orange *Morning Tide* bumper, with its ident voiced by Rosie.
+- **Lighter shows.** `Show.light` adds a weighting rule to the prompt. The one exception, the "big running story", is chosen in code: the most-covered thread at its `peak` (`writers.big_story`). The magazine should set `light=True` too.
+- **Casts.** `script_schema(type, cast)` narrows the speaker enum per show, and `summary_for_prompt(cast)` lists only that cast. The sofa allows only the two hosts.
+- **Overnight:**
+  - **Picture.** A test card ("programmes resume at 06:00") alternates with repeats drawn from the last two days of `data/cache/`. Repeats make no model calls and are tagged REPEAT.
+  - **Background work.** The editor and story desk keep running. Specials only air after a bumper in a show with `airs_specials`, which is the news.
+- **Smaller changes:**
+  - The show is part of the cache key. News keeps its old key, so the existing cache is still valid.
+  - The day now rolls over while running.
+  - Old `world.json` files gain the new presenters on load.
+- **Verified:**
+  - A template soak across 06:00 and a real Kimi soak across 09:00, with no failed jobs.
+  - Windowed snapshots of the sofa, close-ups, the inset and the test card.
+  - The real breakfast scripts are lighter, and led with the quay story.
+- **Not committed:** `assets/bumper_breakfast.wav`, which is baked on first run. Whether baked WAVs belong in the repo is still open in TODO.
+
+**Next:** the magazine, which needs studio interviews (item 2 below) first.
+
+---
+
 This covers where Mini Newsroom stands after the backdrop session and what to
 do next. The backlog is in [TODO.md](../TODO.md) and the project overview in
 the [README](../README.md).

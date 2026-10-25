@@ -7,7 +7,8 @@ Rules:
   while with nothing new, replay the last weather segment so the screen
   isn't dead air.
 - A ready special airs right after a bumper, between loops of the rundown,
-  without consuming a slot number.
+  without consuming a slot number, and only in a show that airs specials
+  (the news): one made overnight waits for it.
 - A failed slot is skipped; the producer's retime keeps deadlines honest.
 - Cues are applied by elapsed time within the segment, so a five-minute
   special can change backdrop and captions as it goes.
@@ -21,6 +22,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
+from . import schedule
 from .buffer import Buffer
 from .locations import time_of_day
 from .models import Segment, SegmentState, SegmentType
@@ -38,6 +40,8 @@ FORGET_BEHIND = 6          # drop finished slots this far behind the head
 class View:
     """Everything scenes.py needs to paint a frame. Plain data, no pygame."""
     mode: str = "testcard"               # testcard | filler | bumper | studio | weather | field | special
+    show: str = "news"                   # schedule.SHOWS id: picks the set and the branding
+    resume_at: str = ""                  # overnight card: when programmes start again
     speaker: str | None = None
     guest_name: str | None = None
     mouth: float = 0.0
@@ -58,6 +62,7 @@ class View:
     buffer_depth_s: float = 0.0
     status: str = ""
     replay: bool = False
+    repeat: bool = False                 # an earlier segment aired again overnight
 
 
 class Player:
@@ -113,6 +118,8 @@ class Player:
             self._voice.play(pygame.mixer.Sound(str(line.wav_path)))
         if self.current.type is SegmentType.bumper:
             self._set_music(0.0)
+        elif self.current.type is SegmentType.testcard:
+            self._set_music(0.25)       # the card's line is silence; the bed is the sound
         elif self.current.type is SegmentType.documentary:
             self._set_music(0.10)       # a bed under the special
         else:
@@ -161,7 +168,7 @@ class Player:
         self._set_music(0.25)
 
     def update(self, now: float | None = None) -> None:
-        now = now or time.time()
+        now = now or schedule.now()
         if self.current is not None:
             if not self.current.lines:
                 self._finish(now)
@@ -173,8 +180,9 @@ class Player:
                     self._finish(now)
             return
 
-        # A finished special is aired right after a bumper, between loops.
-        if self.last_type is SegmentType.bumper:
+        # A finished special is aired right after a bumper, between loops,
+        # in a show that airs specials.
+        if self.last_type is SegmentType.bumper and schedule.show_at(now).airs_specials:
             special = self.buffer.pop_special()
             if special is not None:
                 self._start(special, now)
@@ -220,7 +228,7 @@ class Player:
         - Introducing a special: the same, showing its first location.
         - Bulletins cut between the wide desk shot and a close-up, line by line.
         """
-        handing_over = all(l.speaker == "anchor" for l in seg.lines[:self.line_idx])
+        handing_over = all(l.speaker != "reporter" for l in seg.lines[:self.line_idx + 1])
         if seg.type is SegmentType.field_report and handing_over and v.backdrop:
             v.shot, v.wall_label = "wall", "LIVE"
         elif seg.type is SegmentType.documentary and self.line_idx == 0:
@@ -229,13 +237,17 @@ class Player:
                 v.shot, v.wall_label, v.backdrop = "wall", "SPECIAL REPORT", first
         elif seg.type is SegmentType.bulletin and self.line_idx % 2 == 1:
             v.shot = "close"
+        elif seg.type is SegmentType.sofa and self.line_idx % 3 == 2:
+            v.shot = "close"            # the sofa holds the two-shot longer, then cuts in
 
     def view(self, now: float | None = None) -> View:
-        now = now or time.time()
+        now = now or schedule.now()
         local = time.localtime(now)
         v = View(clock=time.strftime("%H:%M", local), ticker=list(self.ticker),
                  buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
                  tod=time_of_day(local.tm_hour), weather=self.world.last_weather.get("map_state"))
+        on_air = schedule.show_at(now)
+        v.show = on_air.id
         seg = self.current
         if seg is None:
             v.mode = "filler" if self.filler_since is not None else "testcard"
@@ -252,6 +264,8 @@ class Player:
         v.speaker = line.speaker if line else None
         v.guest_name = line.guest_name if line else None
         v.replay = self.replaying
+        v.repeat = seg.repeat
+        v.show = seg.show
         if line and line.mouth_env:
             i = int((now - self.line_start) / ENV_WINDOW_S)
             v.mouth = line.mouth_env[i] if 0 <= i < len(line.mouth_env) else 0.0
@@ -264,11 +278,15 @@ class Player:
         v.chapter = cues.get("chapter")
         if seg.type is SegmentType.documentary:
             v.mode = "studio" if v.speaker == "anchor" else "special"
+        elif seg.type is SegmentType.testcard:
+            v.mode, v.speaker = "testcard", None
+            v.show, v.resume_at = on_air.id, schedule.next_start(on_air.id)
         else:
             v.mode = {
                 SegmentType.bumper: "bumper",
                 SegmentType.weather: "weather",
                 SegmentType.bulletin: "studio",
+                SegmentType.sofa: "studio",
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
             }.get(seg.type, "studio")
         if v.mode == "studio":

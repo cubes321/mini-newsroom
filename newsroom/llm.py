@@ -243,22 +243,26 @@ def _cli(argv: list[str]) -> int:
     import sys
 
     from . import world as world_mod
-    from .models import SCRIPT_SCHEMAS, SegmentType
+    from .models import SCRIPT_SCHEMAS, SegmentType, script_schema
     from .writers import build_prompt
 
     p = argparse.ArgumentParser(prog="python -m newsroom.llm")
     p.add_argument("type", choices=[t.value for t in SCRIPT_SCHEMAS])
     p.add_argument("--dry-run", action="store_true", help="print prompt and schema, call nothing")
     p.add_argument("--target", type=float, default=60.0, help="target seconds")
+    p.add_argument("--show", default="news", help="schedule show id (news, breakfast)")
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)-5s %(name)s: %(message)s")
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
+    from . import schedule
+
     seg_type = SegmentType(a.type)
-    schema = SCRIPT_SCHEMAS[seg_type]
+    show = schedule.get(a.show)
+    schema = script_schema(seg_type, show.cast_for(seg_type))
     w = world_mod.load()
-    system, user = build_prompt(seg_type, w, target_s=a.target)
+    system, user = build_prompt(seg_type, w, target_s=a.target, show=show)
     name = provider_for(a.type)
     if a.dry_run:
         print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user)

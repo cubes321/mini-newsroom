@@ -19,6 +19,7 @@ temperature = 0.8
 weather = "moonshot"
 bulletin = "moonshot"
 field_report = "moonshot"
+sofa = "moonshot"                 # breakfast: the two hosts chatting
 editor = "moonshot_k3"            # decides whether a thread deserves a special
 special_outline = "moonshot_k3"
 special_section = "moonshot_k3"
@@ -86,6 +87,8 @@ device = "cpu"
 anchor = "af_heart"
 weather = "bm_george"
 reporter = "am_michael"
+host_a = "bf_lily"       # Morning Tide (breakfast)
+host_b = "am_eric"
 
 [paths]
 data = "data"

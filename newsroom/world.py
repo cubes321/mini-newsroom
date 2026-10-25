@@ -117,9 +117,11 @@ class World:
         extra = f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
         return f"  - [{t.id}] {t.title} — {t.phase}{extra}{last_s}; people: {people}{nxt}"
 
-    def summary_for_prompt(self) -> str:
+    def summary_for_prompt(self, cast: tuple[str, ...] | None = None) -> str:
+        """The town briefing. `cast` limits the presenters to one show's (see schedule.py)."""
         chars = "\n".join(
-            f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}" for c in self.characters
+            f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
+            for c in self.characters if cast is None or c.id in cast
         )
         threads = "\n".join(self._thread_line(t) for t in self.open_threads()[:MAX_THREADS_IN_PROMPT]) or "  (none yet)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-MAX_HEADLINES_IN_PROMPT:]) or "  (none yet)"
@@ -176,6 +178,9 @@ class World:
             if pk == key or pk.split()[-1] == key.split()[-1] and key.split()[0] in pk:
                 return p
         return None
+
+    def character(self, speaker: str) -> Character | None:
+        return next((c for c in self.characters if c.id == speaker), None)
 
     def voice_for(self, speaker: str, guest_name: str | None = None) -> str:
         if speaker == "guest":
@@ -344,16 +349,27 @@ def seed() -> World:
             "the old cannery on the harbour", "Wexley Town Hall clock",
             "the Greymouth lighthouse", "Harrow Street market", "the Tidewater Stadium",
         ],
-        characters=[
-            Character("anchor", "Dana Ferris", "evening news anchor", CONFIG.tts.voices.get("anchor", "af_heart"),
-                      ["dry", "unflappable", "fond of the town"]),
-            Character("weather", "Gordon Pell", "weather presenter", CONFIG.tts.voices.get("weather", "bm_george"),
-                      ["cheerful", "over-explains fronts", "sailing enthusiast"]),
-            Character("reporter", "Miles Okafor", "field reporter", CONFIG.tts.voices.get("reporter", "am_michael"),
-                      ["earnest", "always slightly out of breath", "talks to everyone"]),
-        ],
+        characters=seed_characters(),
         people=seed_people(),
     )
+
+
+def seed_characters() -> list[Character]:
+    """The station's presenters. Each show's cast is a subset of them (schedule.py)."""
+    return [
+        Character("anchor", "Dana Ferris", "evening news anchor", CONFIG.tts.voices.get("anchor", "af_heart"),
+                  ["dry", "unflappable", "fond of the town"]),
+        Character("weather", "Gordon Pell", "weather presenter", CONFIG.tts.voices.get("weather", "bm_george"),
+                  ["cheerful", "over-explains fronts", "sailing enthusiast"]),
+        Character("reporter", "Miles Okafor", "field reporter", CONFIG.tts.voices.get("reporter", "am_michael"),
+                  ["earnest", "always slightly out of breath", "talks to everyone"]),
+        Character("host_a", "Rosie Treloar", "breakfast presenter, Morning Tide",
+                  CONFIG.tts.voices.get("host_a", "bf_lily"),
+                  ["bright", "up since four and proud of it", "keeps the diary of what's on"]),
+        Character("host_b", "Jonah Pike", "breakfast co-presenter, Morning Tide",
+                  CONFIG.tts.voices.get("host_b", "am_eric"),
+                  ["laid-back", "a weakness for puns", "a former local-radio DJ"]),
+    ]
 
 
 def _to_dict(w: World) -> dict:
@@ -369,6 +385,11 @@ def _from_dict(d: dict) -> World:
     if not w.people:                       # migrate a world saved before the cast existed
         w.people = seed_people()
         log.info("world migrated: seeded %d public figures", len(w.people))
+    have = {c.id for c in w.characters}
+    for c in seed_characters():            # presenters added since the world was saved
+        if c.id not in have:
+            w.characters.append(c)
+            log.info("world migrated: new presenter %s (%s)", c.name, c.id)
     return w
 
 
