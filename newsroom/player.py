@@ -22,6 +22,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 from .buffer import Buffer
+from .locations import time_of_day
 from .models import Segment, SegmentState, SegmentType
 from .producer import Producer
 from .tts import ENV_WINDOW_S
@@ -46,6 +47,8 @@ class View:
     map_state: str | None = None
     temp_c: int | None = None
     backdrop: str | None = None
+    tod: str = "day"                     # day | dusk | night, from the broadcast clock
+    weather: str | None = None           # last weather report's map_state; grades exteriors
     chapter: dict | None = None          # {number, total, heading, title, standfirst}
     chapter_age_s: float = 0.0
     clock: str = ""
@@ -209,8 +212,10 @@ class Player:
 
     def view(self, now: float | None = None) -> View:
         now = now or time.time()
-        v = View(clock=time.strftime("%H:%M"), ticker=list(self.ticker),
-                 buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot)
+        local = time.localtime(now)
+        v = View(clock=time.strftime("%H:%M", local), ticker=list(self.ticker),
+                 buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
+                 tod=time_of_day(local.tm_hour), weather=self.world.last_weather.get("map_state"))
         seg = self.current
         if seg is None:
             v.mode = "filler" if self.filler_since is not None else "testcard"

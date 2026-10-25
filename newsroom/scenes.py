@@ -11,6 +11,7 @@ import math
 
 import pygame
 
+from . import backdrops
 from .player import View
 from .sprites import draw_character, draw_mic, guest_palette
 
@@ -20,12 +21,6 @@ BARS = [(192, 192, 192), (192, 192, 0), (0, 192, 192), (0, 192, 0), (192, 0, 192
 SKY = {
     "sunny": (120, 180, 240), "cloudy": (150, 160, 175), "rain": (90, 100, 120), "storm": (50, 55, 70),
     "snow": (200, 205, 215), "fog": (170, 170, 170), "wind": (140, 170, 210), None: (110, 140, 200),
-}
-BACKDROPS = {
-    "harbour": ((70, 110, 150), (40, 70, 100)), "main_street": ((160, 140, 120), (90, 80, 70)),
-    "town_hall": ((190, 180, 160), (110, 100, 90)), "park": ((110, 160, 90), (60, 100, 50)),
-    "factory": ((120, 110, 110), (70, 60, 60)), "farm": ((170, 150, 90), (100, 90, 50)),
-    "stadium": ((90, 130, 90), (50, 70, 50)), "school": ((190, 160, 130), (120, 90, 70)),
 }
 
 _fonts: dict[int, pygame.font.Font] = {}
@@ -109,13 +104,10 @@ def draw_bumper(canvas: pygame.Surface, v: View, t: float) -> None:
 
 
 def _studio_bg(canvas: pygame.Surface, t: float) -> None:
-    w, h = canvas.get_size()
-    canvas.fill((28, 34, 60))
-    for i in range(6):                                            # back-wall skyline screens
-        pygame.draw.rect(canvas, (40, 60, 110), (12 + i * 50, 30, 40, 50))
-        pygame.draw.rect(canvas, (70, 110, 180), (16 + i * 50, 34 + int(math.sin(t + i) * 2), 32, 20))
-    pygame.draw.rect(canvas, (80, 60, 50), (0, 130, w, 50))         # desk
-    pygame.draw.rect(canvas, (120, 95, 80), (0, 130, w, 4))
+    backdrops.draw(canvas, "studio_wide")
+    if not backdrops.has_art("studio_wide"):
+        for i in range(6):                                        # the placeholder's back-wall screens
+            pygame.draw.rect(canvas, (70, 110, 180), (16 + i * 50, 34 + int(math.sin(t + i) * 2), 32, 20))
 
 
 def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -129,8 +121,8 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
 
 
 def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
-    w, h = canvas.get_size()
-    canvas.fill(SKY.get(v.map_state, SKY[None]))
+    backdrops.draw(canvas, "weather_wall")
+    pygame.draw.rect(canvas, SKY.get(v.map_state, SKY[None]), (234, 20, 76, 124))   # side panel
     # Coastline map
     pygame.draw.rect(canvas, (90, 130, 170), (40, 20, 180, 120))
     pygame.draw.polygon(canvas, (120, 150, 90), [(40, 140), (40, 70), (90, 60), (130, 90), (180, 80), (220, 110), (220, 140)])
@@ -150,56 +142,23 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
         pygame.draw.rect(canvas, (20, 20, 30), (236, 24, 70, 40))
         text(canvas, f"{v.temp_c}°C", 271, 44, 14, center=True)
         text(canvas, (v.map_state or "").upper(), 271, 58, 8, (200, 200, 120), center=True)
-    pygame.draw.rect(canvas, (40, 40, 50), (0, 150, w, 30))
     draw_character(canvas, 270, 152, "weather", v.mouth if v.speaker == "weather" else 0.0, t, scale=2)
     if v.speaker == "anchor":
         draw_character(canvas, 30, 160, "anchor", v.mouth, t, scale=1)
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
-    w, h = canvas.get_size()
-    sky, ground = BACKDROPS.get(v.backdrop, BACKDROPS["main_street"])
-    canvas.fill(sky)
-    pygame.draw.rect(canvas, ground, (0, 120, w, 60))
-    for i in range(5):                                            # generic buildings / shapes
-        bh = 40 + (i * 23) % 50
-        pygame.draw.rect(canvas, tuple(max(0, c - 30) for c in ground), (10 + i * 62, 120 - bh, 48, bh))
-    if v.backdrop == "harbour":
-        pygame.draw.rect(canvas, (40, 70, 110), (0, 128, w, 52))
-        for i in range(8):
-            pygame.draw.rect(canvas, (90, 130, 170), (i * 42 + int(t * 10) % 42, 140 + (i % 3) * 10, 20, 1))
+    backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
     draw_mic(canvas, 105, 118)
     pygame.draw.rect(canvas, (255, 60, 60), (8, 8, 28, 10))
     text(canvas, "LIVE", 22, 13, 8, center=True)
 
 
-def _location(canvas: pygame.Surface, backdrop: str | None, t: float) -> None:
-    """Shared exterior painter for field reports and specials."""
-    w, h = canvas.get_size()
-    sky, ground = BACKDROPS.get(backdrop, BACKDROPS["main_street"])
-    canvas.fill(sky)
-    pygame.draw.rect(canvas, ground, (0, 120, w, 60))
-    for i in range(5):
-        bh = 40 + (i * 23) % 50
-        pygame.draw.rect(canvas, tuple(max(0, c - 30) for c in ground), (10 + i * 62, 120 - bh, 48, bh))
-    if backdrop == "harbour":
-        pygame.draw.rect(canvas, (40, 70, 110), (0, 128, w, 52))
-        for i in range(8):
-            pygame.draw.rect(canvas, (90, 130, 170), (i * 42 + int(t * 10) % 42, 140 + (i % 3) * 10, 20, 1))
-    elif backdrop == "park":
-        for i in range(6):
-            pygame.draw.circle(canvas, (70, 120, 60), (20 + i * 55, 108), 16)
-            pygame.draw.rect(canvas, (80, 60, 40), (18 + i * 55, 110, 4, 14))
-    elif backdrop == "farm":
-        for i in range(0, w, 16):
-            pygame.draw.rect(canvas, (150, 130, 70), (i, 124 + (i // 16 % 2) * 3, 10, 2))
-
-
 def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     """Documentary look: letterboxed location, presenter or guest, chapter cards."""
     w, h = canvas.get_size()
-    _location(canvas, v.backdrop, t)
+    backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     # Slightly desaturated, moodier grade: a translucent dark wash.
     wash = pygame.Surface((w, h), pygame.SRCALPHA)
     wash.fill((10, 10, 30, 70))

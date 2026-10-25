@@ -1,0 +1,117 @@
+"""The places a picture can be set: Port Wexley, its countryside, the studio.
+
+Pure data, no pygame, so models.py can build the `Backdrop` literal from it
+and the prompts can describe each id to the model. backdrops.py owns the
+pixels (PNG art, or a programmatic placeholder when there is none).
+
+kind:
+- "town" / "country": exteriors writers can pick; graded for time of day
+  and the last weather report.
+- "studio": interiors the scenes use directly; never offered to writers,
+  never graded.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+Kind = Literal["town", "country", "studio"]
+TimeOfDay = Literal["day", "dusk", "night"]
+RGB = tuple[int, int, int]
+
+
+@dataclass(frozen=True)
+class Location:
+    id: str
+    name: str
+    blurb: str              # one line for the model: what you would see there
+    kind: Kind
+    sky: RGB                # daytime colours; placeholders and grading start from these
+    ground: RGB
+    water: bool = False     # animated shimmer along the bottom
+    interior: bool = False  # no sky, no weather (council chamber, market shed)
+
+    @property
+    def exterior(self) -> bool:
+        return self.kind != "studio" and not self.interior
+
+
+# Order matters only for the prompt and the contact sheet. The first eight
+# ids predate this module and keep their meaning: cached segments and special
+# partials in data/cache store them as plain strings.
+LOCATIONS: tuple[Location, ...] = (
+    # ---- town
+    Location("harbour", "Port Wexley harbour", "the harbour front: fishing boats, the harbour wall, gulls",
+             "town", (110, 160, 205), (70, 75, 80), water=True),
+    Location("main_street", "the high street", "the high street: shopfronts, the bus stop, the post office",
+             "town", (150, 185, 220), (95, 90, 85)),
+    Location("town_hall", "Wexley Town Hall", "outside Wexley Town Hall: the clock tower and the steps",
+             "town", (140, 180, 225), (120, 115, 105)),
+    Location("park", "Wexley Park", "Wexley Park: lawns, the bandstand, the duck pond",
+             "town", (130, 185, 235), (90, 150, 70)),
+    Location("factory", "the industrial estate", "the industrial estate on the edge of town: units, a chimney, a yard",
+             "town", (160, 170, 180), (90, 85, 80)),
+    Location("farm", "a farm outside town", "farmland outside town: fields, a barn, a tractor track",
+             "country", (140, 190, 235), (150, 140, 80)),
+    Location("stadium", "Tidewater Stadium", "Tidewater Stadium, home of the town's football club: stand, floodlights, pitch",
+             "town", (135, 180, 230), (70, 140, 70)),
+    Location("school", "Greymouth Academy", "Greymouth Academy, the secondary school: the main block, gates, playground",
+             "town", (145, 185, 230), (110, 105, 100)),
+    Location("council_chamber", "the council chamber", "inside the council chamber: the horseshoe of desks, the mayor's chair",
+             "town", (120, 85, 60), (90, 60, 45), interior=True),
+    Location("market", "Harrow Street market", "Harrow Street market: striped stalls along the street",
+             "town", (150, 190, 230), (120, 110, 100)),
+    Location("market_shed", "the winter market shed", "inside the market's winter shed: stalls under a long timber roof",
+             "town", (95, 80, 65), (110, 95, 75), interior=True),
+    Location("cannery", "the old cannery", "the old cannery on the harbour: brick sheds, a rusting sign, broken windows",
+             "town", (125, 155, 185), (80, 75, 70), water=True),
+    Location("slipway", "the cannery slipway", "the slipway by the cannery: a stone ramp into the water, small boats",
+             "town", (125, 170, 210), (100, 95, 85), water=True),
+    Location("loading_dock", "the loading dock", "the harbour loading dock: a crane, containers, pallets",
+             "town", (130, 165, 200), (85, 85, 90), water=True),
+    Location("lighthouse", "the Greymouth lighthouse", "the Greymouth lighthouse on the point: rocks, the tower",
+             "town", (120, 170, 220), (95, 100, 90), water=True),
+    Location("lifeboat_station", "the lifeboat station", "the lifeboat station: the boathouse, the launch ramp",
+             "town", (125, 170, 215), (95, 95, 95), water=True),
+    Location("seafront", "the seafront", "the seafront promenade: railings, benches, the beach and the sea",
+             "town", (135, 185, 235), (170, 165, 155), water=True),
+    Location("fire_station", "Port Wexley fire station", "the fire station: red engine-bay doors, the drill tower",
+             "town", (145, 185, 225), (105, 100, 95)),
+    Location("police_station", "Port Wexley police station", "the police station: the blue lamp, the front desk entrance",
+             "town", (145, 180, 220), (100, 100, 105)),
+    Location("residential_street", "a residential street", "a residential street: terraced houses, parked cars, front gardens",
+             "town", (150, 190, 230), (100, 95, 90)),
+    # ---- country
+    Location("coast_road", "the coast road", "the coast road along the cliffs: a stone wall, the sea far below",
+             "country", (130, 180, 230), (110, 140, 80), water=True),
+    Location("woods", "Wexley Woods", "Wexley Woods: a footpath under tall trees",
+             "country", (150, 190, 220), (70, 100, 55)),
+    Location("estuary", "the Grey estuary", "the estuary: mudflats, reeds, wading birds",
+             "country", (155, 185, 215), (120, 115, 85), water=True),
+    Location("village", "Saltby village", "Saltby, the neighbouring village: a green, the church spire, a pub",
+             "country", (140, 185, 230), (95, 140, 75)),
+    # ---- studio (scenes only)
+    Location("studio_wide", "the studio", "the main news desk, wide shot", "studio", (28, 34, 60), (80, 60, 50)),
+    Location("weather_wall", "the weather wall", "the weather presenter's wall", "studio", (36, 42, 70), (40, 40, 50)),
+)
+
+BY_ID: dict[str, Location] = {loc.id: loc for loc in LOCATIONS}
+BACKDROP_IDS: tuple[str, ...] = tuple(loc.id for loc in LOCATIONS if loc.kind != "studio")
+DEFAULT_BACKDROP = "main_street"
+
+
+def get(backdrop_id: str | None) -> Location:
+    """Unknown or missing ids fall back to the high street, as they always have."""
+    return BY_ID.get(backdrop_id or "", BY_ID[DEFAULT_BACKDROP])
+
+
+def locations_for_prompt() -> str:
+    return "\n".join(f"  - {loc.id}: {loc.blurb}" for loc in LOCATIONS if loc.kind != "studio")
+
+
+def time_of_day(hour: int) -> TimeOfDay:
+    if 7 <= hour < 17:
+        return "day"
+    if 17 <= hour < 20 or hour == 6:
+        return "dusk"
+    return "night"

@@ -16,6 +16,7 @@ import random
 from datetime import date
 
 from . import llm
+from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
     BulletinScript,
@@ -68,7 +69,8 @@ This is an ON-SITE FIELD REPORT. Structure:
 1. "anchor" introduces the story and hands to the reporter (one or two lines).
 2. "reporter" reports from the location, includes what people there told them.
 3. "anchor" thanks the reporter and adds a one-line tag.
-Choose a backdrop from the allowed list and a specific location name.
+Choose a backdrop id from the LOCATIONS list for the picture. Separately, location is the
+place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
 """,
 }
@@ -85,6 +87,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float) -> tup
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.today():%A %d %B}."
     )
+    if seg_type is SegmentType.field_report:
+        user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     return system, user
 
 

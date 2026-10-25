@@ -5,26 +5,16 @@ bottom with the date.
 
 ## Art
 
-- [ ] **Backgrounds.** Redo the newsroom background and build a proper library
-  of standard backdrops to replace the programmatic placeholders in
-  `scenes.py`:
-  - **Studio set**: main desk wide shot, anchor close-up, weather wall,
-    interview two-shot, a corner for a future sports desk, plus the
-    bumper/ident and filler cards in the same style.
-  - **Port Wexley locations**: Town Hall (exterior with the clock, council
-    chamber), Harrow Street market and the winter shed, the harbour (old
-    cannery, slipway, loading dock, lighthouse, lifeboat station), Tidewater
-    Stadium, the park, Greymouth Academy, fire and police stations, a
-    residential street, the seafront.
-  - **Surrounding countryside**: farmland, the coast road and cliffs, woods,
-    the estuary, a neighbouring village.
-  - **Variants**: day/dusk/night and weather tints so a backdrop matches the
-    broadcast clock and the last weather report.
-  - Mechanics: `assets/backdrops/<id>.png` at 320×180, a registry replacing
-    `BACKDROPS` in `scenes.py`, and the `Backdrop` literal in `models.py`
-    grown so writers can pick from the full list. Optionally two layers per
-    backdrop for a little parallax. Candidate pipeline: ComfyUI with a
-    pixel-art model once the GPU is free, then hand clean-up.
+- [ ] **Backdrop art.** The mechanics are done (see Done). Next is real art
+  for the 24 locations plus `studio_wide` and `weather_wall`, dropped into
+  `assets/backdrops/` following the rules in its README. Candidate pipeline:
+  ComfyUI with a pixel-art model once the GPU is free (img2img from
+  `--bake` templates), then hand clean-up. Night variants (`<id>_night.png`)
+  are worth doing by hand for the busiest places.
+- [ ] Studio shots: an anchor close-up with a cutting rule (e.g. alternate
+  lines in bulletins), the interview two-shot, a sports corner; bumper and
+  filler cards in the same style as the new art.
+- [ ] Optional parallax: two layers per backdrop.
 - [ ] Real character sprites for the three presenters and a guest set,
   keeping the `draw_character` signature (idle / talking / gesture states).
 
@@ -67,3 +57,6 @@ bottom with the date.
 - 2026-10-24 Special reports, resumable stages, editor.
 - 2026-10-24 Story bible: cast, thread arcs, archive, story desk.
 - 2026-10-24 Public GitHub repo with README and screenshots.
+- 2026-10-25 Backdrop system: 24 writer-selectable locations (town and
+  countryside) plus studio sets, PNG-or-placeholder loading, day/dusk/night
+  and weather grading, animated water and weather, contact sheet and bake tools.

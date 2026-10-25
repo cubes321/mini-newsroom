@@ -26,6 +26,8 @@ from pathlib import Path
 
 from . import llm
 from .config import CONFIG
+from . import locations
+from .locations import locations_for_prompt
 from .models import (
     EditorDecision,
     Line,
@@ -190,7 +192,8 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
         f"SPECIAL REPORT COMMISSION\nWorking title: {seg.headline}\n{subject}\nAngle: {angle}\n"
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
-        f"plus a short anchor intro and outro."
+        f"plus a short anchor intro and outro.\n\n"
+        f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     )
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
@@ -209,7 +212,7 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         f"SPECIAL REPORT: {outline.title}\n{outline.standfirst}\n"
         f"Section {i + 1} of {len(outline.sections)}: {sec.heading}\n"
         f"Beats to cover:\n" + "\n".join(f"  - {b}" for b in sec.beats) + "\n"
-        f"Location/backdrop: {sec.backdrop}. Previous section was: {prev}.\n{guest}\n"
+        f"Location: {locations.get(sec.backdrop).blurb}. Previous section was: {prev}.\n{guest}\n"
         f"Word budget for this section: about {words} words."
     )
     return llm.complete_json("special_section", SpecialSection, _SECTION_SYSTEM, user)

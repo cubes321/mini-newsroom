@@ -18,9 +18,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .locations import BACKDROP_IDS
+
 Speaker = Literal["anchor", "weather", "reporter", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "guest")
-Backdrop = Literal["harbour", "main_street", "town_hall", "park", "factory", "farm", "stadium", "school"]
+Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
 class SegmentType(StrEnum):
@@ -137,7 +139,7 @@ class BulletinScript(BaseModel):
 class FieldReportScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=2, max_length=12)
     headline: str = Field(max_length=90)
-    location: str = Field(max_length=60)
+    location: str = Field(max_length=60, description="the place in words, e.g. 'the slipway behind the old cannery'")
     backdrop: Backdrop
     lower_third: str = Field(max_length=60)
     thread_id: str | None = None
