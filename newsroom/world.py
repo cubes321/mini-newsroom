@@ -182,8 +182,16 @@ class World:
     def character(self, speaker: str) -> Character | None:
         return next((c for c in self.characters if c.id == speaker), None)
 
+    def presenter_named(self, name: str | None) -> Character | None:
+        """A presenter booked as a guest (Gordon on his ghost tours) is still themselves."""
+        key = (name or "").strip().lower()
+        return next((c for c in self.characters if c.name.lower() == key), None) if key else None
+
     def voice_for(self, speaker: str, guest_name: str | None = None) -> str:
         if speaker == "guest":
+            c = self.presenter_named(guest_name)
+            if c:
+                return c.voice
             p = self.person_by_name(guest_name)
             if p:
                 return p.voice
@@ -195,6 +203,8 @@ class World:
 
     def speed_for(self, speaker: str, guest_name: str | None = None) -> float:
         if speaker == "guest":
+            if self.presenter_named(guest_name):
+                return 1.0
             p = self.person_by_name(guest_name)
             if p:
                 return p.speed
@@ -369,6 +379,15 @@ def seed_characters() -> list[Character]:
         Character("host_b", "Jonah Pike", "breakfast co-presenter, Morning Tide",
                   CONFIG.tts.voices.get("host_b", "am_eric"),
                   ["laid-back", "a weakness for puns", "a former local-radio DJ"]),
+        Character("mag_a", "Pat Holloway", "presenter, Coastwide (the early-evening magazine)",
+                  CONFIG.tts.voices.get("mag_a", "bf_alice"),
+                  ["warm", "a former consumer champion", "never lets a vague answer go"]),
+        Character("mag_b", "Clive Ashdown", "presenter, Coastwide (the early-evening magazine)",
+                  CONFIG.tts.voices.get("mag_b", "am_liam"),
+                  ["excitable about local oddities", "collects facts nobody asked for", "Pat's foil"]),
+        Character("late_host", "Vincent Marr", "host, The Last Ferry (late-night talk show)",
+                  CONFIG.tts.voices.get("late_host", "am_onyx"),
+                  ["raconteur", "a former foreign correspondent who came home", "lets guests talk"]),
     ]
 
 

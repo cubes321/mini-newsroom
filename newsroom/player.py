@@ -33,6 +33,10 @@ from .world import World
 log = logging.getLogger(__name__)
 
 REPLAY_AFTER_S = 25.0      # filler this long -> replay last weather
+
+# Segments shot on the interview set, and outside pieces with their wall caption at the handover.
+INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue)
+OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
 
 
@@ -41,6 +45,10 @@ class View:
     """Everything scenes.py needs to paint a frame. Plain data, no pygame."""
     mode: str = "testcard"               # testcard | filler | bumper | studio | weather | field | special
     show: str = "news"                   # schedule.SHOWS id: picks the set and the branding
+    set: str = ""                        # "interview" when the segment is on the interview set
+    people: list = field(default_factory=list)   # who is on that set: [(speaker id, guest name or None)]
+    presenter: str = "anchor"            # who stands at the big-picture wall
+    tag: str = ""                        # field scenes: LIVE, VOX POP, or nothing for a filmed piece
     resume_at: str = ""                  # overnight card: when programmes start again
     speaker: str | None = None
     guest_name: str | None = None
@@ -82,6 +90,7 @@ class Player:
         self.specials_played = 0
         self.filler_total_s = 0.0
         self._voice = None
+        self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
         if audio:
             import pygame
 
@@ -228,9 +237,10 @@ class Player:
         - Introducing a special: the same, showing its first location.
         - Bulletins cut between the wide desk shot and a close-up, line by line.
         """
-        handing_over = all(l.speaker != "reporter" for l in seg.lines[:self.line_idx + 1])
-        if seg.type is SegmentType.field_report and handing_over and v.backdrop:
-            v.shot, v.wall_label = "wall", "LIVE"
+        handing_over = all(l.speaker not in ("reporter", "guest") for l in seg.lines[:self.line_idx + 1])
+        if seg.type in OUTSIDE and handing_over and v.backdrop:
+            v.shot, v.wall_label = "wall", OUTSIDE[seg.type]
+            v.presenter = v.speaker or v.presenter
         elif seg.type is SegmentType.documentary and self.line_idx == 0:
             first = next((c.payload.get("backdrop") for c in seg.cues if c.kind == "backdrop"), None)
             if first:
@@ -239,6 +249,24 @@ class Player:
             v.shot = "close"
         elif seg.type is SegmentType.sofa and self.line_idx % 3 == 2:
             v.shot = "close"            # the sofa holds the two-shot longer, then cuts in
+        elif seg.type in INTERVIEW_SET and self.line_idx > 0 and self.line_idx % 4 != 0:
+            v.shot = "close"            # an interview: open wide, then singles on whoever speaks
+
+    def _people(self, seg: Segment) -> list:
+        """Who sits on the interview set: the presenters who speak, then the guest."""
+        if self._cast_of[0] != seg.id:
+            hosts: list = []
+            guest = None
+            for l in seg.lines:
+                c = self.world.presenter_named(l.guest_name) if l.speaker == "guest" else None
+                if c and (c.id, None) not in hosts:
+                    hosts.append((c.id, None))       # a presenter as a guest sits in the guest chair
+                elif l.speaker == "guest" and not c:
+                    guest = guest or l.guest_name
+                elif l.speaker not in ("reporter", "weather") and (l.speaker, None) not in hosts:
+                    hosts.append((l.speaker, None))
+            self._cast_of = (seg.id, hosts[:2] + ([("guest", guest)] if guest else []))
+        return self._cast_of[1]
 
     def view(self, now: float | None = None) -> View:
         now = now or schedule.now()
@@ -263,6 +291,10 @@ class Player:
         line = seg.lines[self.line_idx] if self.line_idx < len(seg.lines) else None
         v.speaker = line.speaker if line else None
         v.guest_name = line.guest_name if line else None
+        as_presenter = self.world.presenter_named(v.guest_name) if v.speaker == "guest" else None
+        if as_presenter:                     # a presenter as a guest is drawn as themselves
+            v.speaker, v.guest_name = as_presenter.id, None
+            v.lower_third = (as_presenter.name, as_presenter.role)
         v.replay = self.replaying
         v.repeat = seg.repeat
         v.show = seg.show
@@ -271,7 +303,8 @@ class Player:
             v.mouth = line.mouth_env[i] if 0 <= i < len(line.mouth_env) else 0.0
             v.talking = v.mouth > 0.08
         lt = cues.get("lower_third")
-        v.lower_third = (lt.get("title", ""), lt.get("subtitle", "")) if lt else None
+        if not as_presenter:
+            v.lower_third = (lt.get("title", ""), lt.get("subtitle", "")) if lt else None
         mp = cues.get("map_state", {})
         v.map_state, v.temp_c = mp.get("state"), mp.get("temp_c")
         v.backdrop = cues.get("backdrop", {}).get("backdrop")
@@ -289,6 +322,17 @@ class Player:
                 SegmentType.sofa: "studio",
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
             }.get(seg.type, "studio")
+            if seg.type in (SegmentType.feature, SegmentType.vox_pop):
+                v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
+        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late")):
+            v.set, v.people = "interview", self._people(seg)
+            if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident
+                v.people = [p for p in v.people if p[0] != "guest"]
+            v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
+        v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
+        if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
+            p = self.world.person_by_name(v.guest_name)
+            v.lower_third = (v.guest_name, p.role if p else "Port Wexley")
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id

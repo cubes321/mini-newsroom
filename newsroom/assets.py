@@ -32,6 +32,10 @@ IDENTS: dict[str, tuple[Path, str]] = {
     "news": (BUMPER, IDENT_TEXT),
     "breakfast": (CONFIG.paths.assets / "bumper_breakfast.wav",
                   "Good morning! You're watching Morning Tide, on channel seven."),
+    "magazine": (CONFIG.paths.assets / "bumper_magazine.wav",
+                 "This is Coastwide, your evening on the Greymouth coast, on channel seven."),
+    "late": (CONFIG.paths.assets / "bumper_late.wav",
+             "Channel seven, late. This is The Last Ferry."),
 }
 
 
@@ -61,6 +65,10 @@ def ensure_bumper(show: str = "news") -> Path:
     notes = [392.0, 523.25, 659.25, 783.99]        # G4 C5 E5 G5
     if show == "breakfast":
         notes = [523.25, 659.25, 783.99, 1046.5]   # C5 E5 G5 C6: up an octave, for the morning
+    elif show == "magazine":
+        notes = [392.0, 493.88, 587.33, 739.99]    # G B D F#: a brighter, jauntier rise
+    elif show == "late":
+        notes = [220.0, 261.63, 329.63, 311.13]    # A C E E-flat: low, with a bluesy turn
     sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
     lead = schedule.get(show).lead
     ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{show}.wav")

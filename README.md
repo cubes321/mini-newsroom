@@ -7,9 +7,11 @@ cannery and a baker who renames his treacle tart after the news. None of it is
 real. An LLM writes the scripts, Kokoro voices the presenters on the CPU, and a
 Pygame window plays it out like a small local station on a daily schedule:
 *Morning Tide* on the breakfast sofa, the news through the day with bumpers,
-weather, bulletins and on-site reports, a test card and repeats overnight and,
-when the editor thinks a story has earned it, a five-minute special report with
-residents interviewed on location.
+weather, bulletins, on-site reports and studio interviews, *Coastwide* (an
+early-evening magazine with filmed features, a studio guest, vox pops and a
+consumer slot), *The Last Ferry* (a late-night talk show), a test card and
+repeats overnight and, when the editor thinks a story has earned it, a
+five-minute special report with residents interviewed on location.
 
 Stories develop over days. A story desk plans what happens next, public
 figures recur with their own voices, and everything that airs goes into the
@@ -21,6 +23,8 @@ town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
 | Dana Ferris reads the bulletin | …and the close-up on the next line |
 | ![Morning Tide](docs/screenshots/breakfast.png) | ![Breakfast handover](docs/screenshots/breakfast_live.png) |
 | Rosie Treloar and Jonah Pike on the *Morning Tide* sofa | Handing over to Miles at the loading dock |
+| ![Coastwide](docs/screenshots/magazine.png) | ![The Last Ferry](docs/screenshots/late.png) |
+| Pat Holloway and Clive Ashdown on *Coastwide* | Vincent Marr and his guest on *The Last Ferry* |
 | ![Big-picture wall](docs/screenshots/wall.png) | ![Field report](docs/screenshots/field.png) |
 | Handing over to a live report at the loading dock | Miles Okafor live from the old cannery at dusk |
 | ![Night in the rain](docs/screenshots/night.png) | ![Weather](docs/screenshots/weather.png) |
@@ -76,8 +80,8 @@ Early and working. The longest run so far is a ten-minute soak with zero
 filler and frame times under 7 ms; it has not yet been left on overnight.
 Things that exist: the four live segment types, special reports, the story
 bible and desk, provider switching, caching, failure recovery, and backdrop art
-for every location. It now has a daily schedule with a breakfast show. Things that
-don't yet: the evening magazine, breaking-news interrupts, local
+for every location. It now has a daily schedule with breakfast, a magazine and a talk show. Things that
+don't yet: breaking-news interrupts, local
 adverts and tides, real sprite art, and the 30-minute documentary that
 specials are the template for.
 
@@ -89,14 +93,21 @@ Without breaking news (not built yet), the station runs this schedule:
 |---|---|---|
 | 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight waits for the news |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats, Gordon's weather, Miles's reports |
-| 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports and specials |
-| 19:00 | the magazine | an early-evening magazine in the spirit of *Nationwide* (to come; the news stands in) |
+| 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
+| 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: their links and banter, a filmed feature from Miles, a studio guest, a vox pop, the consumer slot, Gordon's weather |
 | 20:00 | the news | |
+| 22:00 | *The Last Ferry* | Vincent Marr's late-night talk show on the interview set with the lights down: a monologue, then long guest chats |
+| 23:00 | the news | the late news |
 
-Breakfast is **lighter** than the news: warm, everyday local stories and
-what's on. The exception is one big running story (the most-covered thread at
-its peak), which the headlines lead with briefly. The magazine will work the
-same way. `uv run python -m newsroom.schedule` prints the table, and `--clock
+Breakfast, the magazine and the talk show are **lighter** than the news: warm,
+everyday local stories and what's on. The exception is one big running story
+(the most-covered thread at its peak), which they lead with briefly.
+
+**Studio guests** are public figures, residents we have met, or new residents
+the writer invents, who then join the recurring cast with a stable voice and
+look. A guest who was just on is not rebooked. A presenter can be a guest too
+(Gordon Pell, who runs the cannery ghost tours on the side), and appears as
+himself. `uv run python -m newsroom.schedule` prints the table, and `--clock
 HH:MM` starts the broadcast clock at any time of day to try a show.
 
 ## Run it
@@ -131,7 +142,8 @@ stays ahead and there is no more filler.
 `data/world.json` is the town's memory and cast list:
 
 - **Presenters**: Dana Ferris (anchor), Gordon Pell (weather), Miles Okafor
-  (field reporter), and on breakfast Rosie Treloar and Jonah Pike, with fixed
+  (field reporter); Rosie Treloar and Jonah Pike (breakfast); Pat Holloway and
+  Clive Ashdown (*Coastwide*); Vincent Marr (*The Last Ferry*), with fixed
   voices. Each show's prompt and JSON schema allow only its own cast.
 - **People**: seeded public figures and worthies (the mayor, police and fire
   chiefs, the MP, the harbourmaster, a head teacher, the lifeboat coxswain,
@@ -181,7 +193,7 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 | `models.py` | `Segment`, `Line`, `VisualCue`, and the per-type LLM schemas |
 | `world.py` | the story bible: presenters, people, threads, archive |
 | `llm.py` | one `complete_json()` door; OpenAI-compatible or Anthropic; strict JSON + one retry |
-| `writers.py` | prompts per live segment type and template fallbacks |
+| `writers.py` | prompts per show and segment type, studio guests, template fallbacks |
 | `special.py` | the editor decision and the resumable special-report stages |
 | `desk.py` | the story desk: phases, next developments, new threads |
 | `tts.py` | Kokoro on CPU → 24 kHz WAV + mouth envelope |

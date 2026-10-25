@@ -43,9 +43,13 @@ class Show:
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
         "news", "PORT WEXLEY NEWS", "NEWS", (200, 30, 30),
-        pattern=(T.bumper, T.weather, T.bulletin, T.field_report),
-        target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0},
+        # One loop in three swaps the field report for a studio interview.
+        pattern=(T.bumper, T.weather, T.bulletin, T.field_report,
+                 T.bumper, T.weather, T.bulletin, T.field_report,
+                 T.bumper, T.weather, T.bulletin, T.interview),
+        target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0},
         cast=("anchor", "weather", "reporter"), lead="anchor",
+        cast_by_type={T.interview: ("anchor", "guest")},
         station="Port Wexley News on channel 7",
         tone="warm, dry, local",
         airs_specials=True,
@@ -61,6 +65,34 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         light=True,
     ),
     Show(
+        "magazine", "COASTWIDE", "COASTWIDE", (40, 140, 150),
+        pattern=(T.bumper, T.links, T.feature, T.interview, T.vox_pop, T.consumer, T.weather),
+        target_s={T.bumper: 8.0, T.links: 45.0, T.feature: 90.0, T.interview: 110.0, T.vox_pop: 60.0,
+                  T.consumer: 75.0, T.weather: 40.0},
+        cast=("mag_a", "mag_b", "weather", "reporter"), lead="mag_a",
+        station="Coastwide, Port Wexley's early-evening magazine on channel 7",
+        tone="warm, curious and gently funny, in the spirit of an old-fashioned regional magazine show",
+        light=True,
+        cast_by_type={
+            T.links: ("mag_a", "mag_b"),
+            T.interview: ("mag_a", "guest"),
+            T.consumer: ("mag_b", "guest"),
+            T.feature: ("mag_a", "mag_b", "reporter", "guest"),
+            T.vox_pop: ("mag_a", "mag_b", "reporter", "guest"),
+            T.weather: ("mag_a", "mag_b", "weather"),
+        },
+    ),
+    Show(
+        "late", "THE LAST FERRY", "LATE", (90, 50, 130),
+        pattern=(T.bumper, T.monologue, T.interview, T.interview),
+        target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 150.0},
+        cast=("late_host", "guest"), lead="late_host",
+        station="The Last Ferry, Port Wexley's late-night talk show on channel 7",
+        tone="late-night, wry and unhurried; affectionate about the town, never cruel",
+        light=True,
+        cast_by_type={T.monologue: ("late_host",)},
+    ),
+    Show(
         "overnight", "PORT WEXLEY NEWS", "OVERNIGHT", (90, 90, 140),
         pattern=(T.testcard, T.repeat),
         target_s={T.testcard: 60.0, T.repeat: 75.0},
@@ -73,10 +105,12 @@ SCHEDULE: tuple[tuple[int, str], ...] = (
     (0, "overnight"),       # test card and repeats; the editor and story desk keep working
     (6, "breakfast"),       # Morning Tide on the sofa: lighter, chattier
     (9, "news"),            # the news loop through the day and the early evening
-    (19, "magazine"),       # the early-evening magazine (to come): lighter features
+    (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "news"),
+    (22, "late"),           # The Last Ferry: a monologue and long guest chats
+    (23, "news"),           # the late news
 )
-STAND_INS: dict[str, str] = {"magazine": "news"}
+STAND_INS: dict[str, str] = {}          # schedule slots whose show isn't built yet -> what airs instead
 
 
 def slot_at(ts: float) -> str:

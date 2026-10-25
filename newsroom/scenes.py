@@ -146,7 +146,65 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
     for ln in wrap(name[:1].upper() + name[1:], 8, WALL_PANEL.w - 8, 3):
         text(canvas, ln, WALL_PANEL.x + 4, y, 8, (220, 220, 230))
         y += 10
-    draw_character(canvas, 270, 152, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
+    who = v.presenter or "anchor"
+    draw_character(canvas, 270, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2)
+
+
+INTERVIEW = locations.MARKS["studio_interview"]
+_night: pygame.Surface | None = None
+
+
+def _night_look() -> pygame.Surface:
+    """The interview set after ten: lights down, the floor lamp and a pool of light on the chairs."""
+    global _night
+    if _night is None:
+        _night = pygame.Surface(CANVAS, pygame.SRCALPHA)
+        _night.fill((6, 6, 24, 150))
+        for (cx, cy), radius, floor in (((305, 60), 50, 40), ((160, 128), 100, 30)):    # lamp, then the chairs
+            for r in range(radius, 0, -2):                      # soft-edged: alpha falls towards the centre
+                alpha = int(floor + (150 - floor) * (r / radius) ** 2)
+                pygame.draw.circle(_night, (6, 6, 24, alpha), (cx, cy), r)
+    return _night
+
+
+def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:
+    """(who, guest name, mark) for each person on the interview set."""
+    if len(v.people) == 1:                                      # alone: centre stage, standing
+        who, name = v.people[0]
+        return [(who, name, (160, 156, 2, 1))]
+    slots = [INTERVIEW["host"], INTERVIEW["guest"]]
+    return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:2])]
+
+
+def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
+    backdrops.draw(canvas, "studio_interview")
+    if v.show == "late":
+        canvas.blit(_night_look(), (0, 0))
+    for who, name, (x, y, scale, facing) in _interview_marks(v):
+        palette = guest_palette(name) if who == "guest" else None
+        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t,
+                       scale=scale, facing=facing, palette=palette)
+
+
+_interview_buf: pygame.Surface | None = None
+
+
+def draw_interview(canvas: pygame.Surface, v: View, t: float) -> None:
+    """The interview set: a presenter and a guest, two presenters, or the talk-show host alone.
+    The close shot crops round whoever is speaking, like the sofa's."""
+    global _interview_buf
+    marks = {who: m for who, _, m in _interview_marks(v)}
+    if v.shot == "close" and v.speaker in marks:
+        if _interview_buf is None:
+            _interview_buf = pygame.Surface(CANVAS)
+        _interview_wide(_interview_buf, v, t)
+        x, y = marks[v.speaker][:2]
+        crop = pygame.Rect(0, 0, 160, 90)
+        crop.midbottom = (x, y + 6)
+        crop.clamp_ip(_interview_buf.get_rect())
+        pygame.transform.scale(_interview_buf.subsurface(crop), CANVAS, canvas)
+        return
+    _interview_wide(canvas, v, t)
 
 
 SOFA = locations.MARKS["studio_sofa"]
@@ -186,10 +244,12 @@ def draw_sofa(canvas: pygame.Surface, v: View, t: float) -> None:
 def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
     if v.show == "breakfast":
         return draw_sofa(canvas, v, t)
-    if v.shot == "close":
-        return _studio_close(canvas, v, t)
     if v.shot == "wall":
         return _studio_wall(canvas, v, t)
+    if v.set == "interview":
+        return draw_interview(canvas, v, t)
+    if v.shot == "close":
+        return _studio_close(canvas, v, t)
     _studio_bg(canvas, t)
     draw_character(canvas, 110, 134, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
     if v.speaker == "reporter":                                   # anchor hands to the reporter box
@@ -227,11 +287,20 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
+    """Miles on location; when a resident speaks (a filmed piece, a vox pop) they take the frame."""
     backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
-    draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
-    draw_mic(canvas, 105, 118)
-    pygame.draw.rect(canvas, (255, 60, 60), (8, 8, 28, 10))
-    text(canvas, "LIVE", 22, 13, 8, center=True)
+    if v.speaker not in (None, "reporter"):        # a resident, or a presenter interviewed as themselves
+        palette = guest_palette(v.guest_name) if v.speaker == "guest" else None
+        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, palette=palette)
+        draw_character(canvas, 62, 152, "reporter", 0.0, t, scale=1)
+        draw_mic(canvas, 190, 116)
+    else:
+        draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
+        draw_mic(canvas, 105, 118)
+    if v.tag:
+        w = font(8).size(v.tag)[0] + 8
+        pygame.draw.rect(canvas, (255, 60, 60) if v.tag == "LIVE" else (40, 140, 150), (8, 8, w, 10))
+        text(canvas, v.tag, 8 + w // 2, 13, 8, center=True)
 
 
 def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:

@@ -22,12 +22,12 @@ bottom with the date.
 
 - [ ] Local adverts (15–30 s) for the town's businesses; double as evergreen filler.
 - [ ] Tides and ferry times from a deterministic fake tide table, not the model.
-- [ ] Vox pops and studio interviews using the guest mechanism.
-- [ ] **Early-evening magazine** (19:00–20:00 in `schedule.SCHEDULE`; the
-  news stands in until it exists) in the spirit of the BBC's *Nationwide*:
-  features rather than headlines, `light=True` like breakfast. Quirky local
-  items, a consumer slot, a resident in the studio on `studio_interview`, and
-  a filmed piece introduced at the big-picture wall. Needs studio interviews.
+- [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
+  ComfyUI with a contact sheet) to replace the interview set with the lights
+  down; perhaps a house band sting and a second, shorter guest.
+- [ ] Magazine and talk-show loops repeat their format every 6–8 minutes, so
+  an hour sees the same shape (and often the same big story) several times.
+  Consider longer patterns, or the hour as one planned running order.
 - [ ] Breakfast extras: tides and adverts on *Morning Tide*; a guest in the
   sofa armchair (the `guest` mark is free).
 - [ ] Schedule: a late bulletin, and whether specials (or later documentaries)
@@ -52,8 +52,14 @@ bottom with the date.
   9B model's prompt compliance.
 - [ ] Leave it on overnight and read the stats (now with the overnight
   test card, repeats and the editor working through the night).
-- [ ] Field reports often fail validation once: Miles writes a line over the
-  900-character cap. Raise the cap or ask for shorter lines.
+- [ ] Kimi overruns string caps and fails validation once (the retry
+  usually works): Miles's lines over 900 characters, `thread_status` over
+  160, the story desk's `note` over 200. Truncate on parse instead, or raise
+  the caps. (Kimi doesn't get the JSON schema enforced; `writers._keys_hint`
+  spells out the keys, and the schemas accept `speaker_id`, per-line guest
+  details and "female"/"male".)
+- [ ] A presenter booked as a guest (Gordon on his ghost tours) is captioned
+  with their presenter role; use the script's `guest_role` instead.
 - [ ] 06:00 grades as dusk, so breakfast field reports in the first hour look
   flat grey on the art (the dusk-grade fix, under Art, would cure it).
 
@@ -64,6 +70,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-25 Day-parts, part 2: studio interviews (in the news every third
+  loop, on `studio_interview`), *Coastwide* the early-evening magazine (Pat
+  Holloway and Clive Ashdown: links, filmed features, studio guest, vox pops,
+  consumer slot) and *The Last Ferry* late-night talk show (Vincent Marr:
+  monologue and guest chats, a night look on the interview set). Guests join
+  the cast, aren't rebooked straight away, and a presenter can be a guest.
 - 2026-10-25 Day-parts, part 1: `schedule.py` with a normal day (overnight test
   card and repeats, *Morning Tide* breakfast on the sofa with Rosie Treloar and
   Jonah Pike, the news, the magazine slot), per-show casts and schemas, lighter

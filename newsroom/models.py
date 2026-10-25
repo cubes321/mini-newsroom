@@ -14,14 +14,14 @@ import uuid
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_model, model_validator
 
 from .locations import BACKDROP_IDS
 
-Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "guest"]
-SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "guest")
+Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest"]
+SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
@@ -35,6 +35,12 @@ class SegmentType(StrEnum):
     sofa = "sofa"                # breakfast: the two hosts chatting
     repeat = "repeat"            # overnight: an earlier segment from the cache
     testcard = "testcard"        # overnight: the card, music only
+    interview = "interview"      # a studio guest in the armchair (news, magazine, talk show)
+    links = "links"              # magazine: the two presenters' links and banter
+    feature = "feature"          # magazine: a filmed piece, introduced at the big-picture wall
+    vox_pop = "vox_pop"          # magazine: Miles asks passers-by one question
+    consumer = "consumer"        # magazine: the consumer slot
+    monologue = "monologue"      # talk show: the host's opening
 
 
 class SegmentState(StrEnum):
@@ -104,12 +110,30 @@ class Rundown(BaseModel):
 # -------------------------------------------------------------- LLM outputs
 
 
-LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b"]
+LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host"]
+GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest"]
+
+
+def _gender(v):
+    """Models write 'female', 'Male', 'woman'...; keep the first letter that means something."""
+    if isinstance(v, str):
+        v = v.strip().lower()
+        if v[:1] in ("f", "w") or v in ("woman", "girl"):
+            return "f"
+        if v[:1] == "m" or v in ("man", "boy"):
+            return "m"
+        return None
+    return v
+
+
+Gender = Annotated[Literal["f", "m"] | None, BeforeValidator(_gender)]
+# Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
+SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
 
 
 class LiveLine(BaseModel):
     """A line in a live segment: only the station's own presenters (script_schema narrows to one show)."""
-    speaker: LiveSpeaker
+    speaker: LiveSpeaker = Field(validation_alias=SPEAKER_KEY)
     text: str = Field(min_length=1, max_length=900)
 
 
@@ -149,6 +173,94 @@ class FieldReportScript(BaseModel):
     lower_third: str = Field(max_length=60)
     thread_id: str | None = None
     thread_status: str | None = Field(default=None, max_length=160)
+
+
+# ---------------------------------------------------- studio guests and vox pops
+
+
+def _lift_guest(data):
+    """Models often put guest_name/role/gender on each guest line; take them from the first one."""
+    if isinstance(data, dict) and not data.get("guest_name"):
+        for line in data.get("lines") or []:
+            if isinstance(line, dict) and line.get("guest_name"):
+                for k in ("guest_name", "guest_role", "guest_gender"):
+                    data.setdefault(k, line.get(k))
+                    if data[k] is None:
+                        data[k] = line.get(k)
+                break
+    return data
+
+
+def _check_guest_named(script):
+    if any(l.speaker == "guest" for l in script.lines) and not (script.guest_name or "").strip():
+        raise ValueError("the guest speaks, so guest_name is required")
+    return script
+
+
+class GuestLine(BaseModel):
+    """A line where a guest may speak; the guest is named once on the script."""
+    speaker: GuestSpeaker = Field(validation_alias=SPEAKER_KEY)
+    text: str = Field(min_length=1, max_length=900)
+
+
+class InterviewScript(BaseModel):
+    """A studio interview: a presenter and one guest in the armchair (the consumer slot may have none)."""
+    lines: list[GuestLine] = Field(min_length=2, max_length=16)
+    headline: str = Field(max_length=90)
+    lower_third: str = Field(max_length=60)
+    guest_name: str | None = Field(default=None, max_length=40, description="the guest's full name; required if 'guest' speaks")
+    guest_role: str | None = Field(default=None, max_length=80, description="e.g. 'harbourmaster', 'retired cannery worker'")
+    guest_gender: Gender = Field(default=None, description="for casting the guest's voice: 'f' or 'm'")
+    thread_id: str | None = None
+    thread_status: str | None = Field(default=None, max_length=160)
+
+    _lift = model_validator(mode="before")(_lift_guest)
+
+    @model_validator(mode="after")
+    def _guest_named(self):
+        return _check_guest_named(self)
+
+
+class FeatureScript(BaseModel):
+    """A filmed magazine piece: Miles on location, optionally with one resident."""
+    lines: list[GuestLine] = Field(min_length=3, max_length=14)
+    headline: str = Field(max_length=90)
+    location: str = Field(max_length=60, description="the place in words, never a backdrop id")
+    backdrop: Backdrop
+    lower_third: str = Field(max_length=60)
+    guest_name: str | None = Field(default=None, max_length=40)
+    guest_role: str | None = Field(default=None, max_length=80)
+    guest_gender: Gender = None
+    thread_id: str | None = None
+    thread_status: str | None = Field(default=None, max_length=160)
+
+    _lift = model_validator(mode="before")(_lift_guest)
+
+    @model_validator(mode="after")
+    def _guest_named(self):
+        return _check_guest_named(self)
+
+
+class VoxLine(BaseModel):
+    speaker: GuestSpeaker = Field(validation_alias=SPEAKER_KEY)
+    text: str = Field(min_length=1, max_length=600)
+    guest_name: str | None = Field(default=None, max_length=40, description="required when speaker is 'guest'")
+    guest_gender: Gender = None
+
+    @model_validator(mode="after")
+    def _guest_named(self):
+        if self.speaker == "guest" and not (self.guest_name or "").strip():
+            raise ValueError("a 'guest' line needs guest_name")
+        return self
+
+
+class VoxPopScript(BaseModel):
+    """Miles puts one question to several passers-by."""
+    lines: list[VoxLine] = Field(min_length=4, max_length=12)
+    question: str = Field(max_length=90, description="the question Miles asks, as a caption")
+    headline: str = Field(max_length=90)
+    location: str = Field(max_length=60)
+    backdrop: Backdrop
 
 
 # ------------------------------------------------------------- specials
@@ -215,6 +327,12 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.bulletin: BulletinScript,
     SegmentType.field_report: FieldReportScript,
     SegmentType.sofa: BulletinScript,       # same shape: lines, headline, caption, optional follow-up
+    SegmentType.links: BulletinScript,
+    SegmentType.monologue: BulletinScript,
+    SegmentType.interview: InterviewScript,
+    SegmentType.consumer: InterviewScript,
+    SegmentType.feature: FeatureScript,
+    SegmentType.vox_pop: VoxPopScript,
 }
 
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
@@ -229,9 +347,10 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...]) -> type[BaseMode
     key = (seg_type, cast)
     if key not in _NARROWED:
         base = SCRIPT_SCHEMAS[seg_type]
-        line = create_model(f"LiveLine_{'_'.join(cast)}", __base__=LiveLine,
-                            speaker=(Literal[*cast], ...))
         lf = base.model_fields["lines"]
+        line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine or VoxLine
+        line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,
+                            speaker=(Literal[*cast], Field(validation_alias=SPEAKER_KEY)))
         bounds = {k: getattr(m, k) for m in lf.metadata for k in ("min_length", "max_length") if hasattr(m, k)}
         # The class name becomes the json_schema name, which servers cap at 64 characters.
         _NARROWED[key] = create_model(f"{base.__name__}_{'_'.join(cast)}"[:64], __base__=base,

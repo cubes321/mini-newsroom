@@ -78,7 +78,8 @@ def _save_cached(seg: Segment, h: str) -> None:
 
 # ----------------------------------------------------------------- repeats
 
-REPEATABLE = (SegmentType.weather, SegmentType.bulletin, SegmentType.field_report, SegmentType.sofa)
+REPEATABLE = (SegmentType.weather, SegmentType.bulletin, SegmentType.field_report, SegmentType.sofa,
+              SegmentType.interview, SegmentType.feature, SegmentType.vox_pop, SegmentType.consumer)
 REPEAT_WINDOW_S = 48 * 3600         # repeat from today and yesterday
 _recent_repeats: deque[str] = deque(maxlen=12)
 

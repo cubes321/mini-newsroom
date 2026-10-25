@@ -31,6 +31,49 @@ Item 1 of "What next" below is half done: the schedule and the breakfast show.
 
 **Next:** the magazine, which needs studio interviews (item 2 below) first.
 
+## Update: day-parts, part 2 (later again)
+
+Items 1 and 2 of "What next" below are done.
+
+- **The full day:**
+
+  | From | Show |
+  |---|---|
+  | 00:00 | overnight |
+  | 06:00 | *Morning Tide* |
+  | 09:00 | the news |
+  | 19:00 | *Coastwide* (magazine) |
+  | 20:00 | the news |
+  | 22:00 | *The Last Ferry* (talk show) |
+  | 23:00 | the late news |
+
+  `STAND_INS` is now empty.
+- **New segment types:**
+  - `interview`, `links`, `feature`, `vox_pop`, `consumer` and `monologue`, with schemas `InterviewScript`, `FeatureScript` and `VoxPopScript` (with `GuestLine` and `VoxLine`).
+  - `script_schema` narrows whichever line type a schema uses.
+  - Prompts live per show in `writers.py`: `_SYSTEM`, `_BREAKFAST`, `_MAGAZINE` and `_LATE`.
+- **The news** swaps its field report for a studio interview with Dana every third loop.
+- **Presenters:**
+  - Pat Holloway (`mag_a`, `bf_alice`) and Clive Ashdown (`mag_b`, `am_liam`) on *Coastwide*.
+  - Vincent Marr (`late_host`, `am_onyx`) on *The Last Ferry*.
+  - The voices were downloaded once into the Kokoro cache.
+- **Interview set:**
+  - The player works out who sits there (`View.people`), and the close shots crop round the speaker.
+  - *The Last Ferry* uses the same set with the lights down (`scenes._night_look`).
+  - Outside pieces open at the big-picture wall with that presenter, tagged LIVE, REPORT or VOX POP.
+- **Guests:**
+  - Guests are promoted into the cast. Vox-pop passers-by are too, so they can recur as residents.
+  - A guest who was just on triggers one retry for someone else.
+  - A presenter can be a guest and is voiced and drawn as themselves. The story desk has made Gordon the ghost-tour operator, and the model loves booking him.
+  - Only bulletins, field reports, interviews and features may open new threads.
+- **Kimi tolerance.**
+  - **Why:** Moonshot doesn't enforce the JSON schema.
+  - **The fix:** `_keys_hint` lists the expected keys in the system prompt, and the schemas accept `speaker_id`, guest details on each line, and "female"/"male".
+  - **Result:** the last real runs scripted every *Coastwide* and *Last Ferry* item with no template fallbacks.
+- **Known:**
+  - Kimi still overruns some string caps once per run (see TODO).
+  - The magazine and talk-show loops repeat their format several times an hour.
+
 ---
 
 This covers where Mini Newsroom stands after the backdrop session and what to
