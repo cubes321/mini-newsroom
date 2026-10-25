@@ -164,7 +164,10 @@ class Player:
         if not self.replaying:
             self.buffer.mark(seg, SegmentState.done)
             if seg.type is SegmentType.documentary:
+                from .special import mark_aired
+
                 self.specials_played += 1
+                mark_aired(seg)
                 self.buffer.forget(seg.slot_id)
             else:
                 self.producer.retime(seg.slot_id, self.seg_start, now - self.seg_start)

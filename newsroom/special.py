@@ -363,6 +363,52 @@ def resume_partials(buffer) -> int:
     return n
 
 
+def _aired_path(h: str) -> Path:
+    return CONFIG.paths.cache / f"{h}.aired"
+
+
+def mark_aired(seg: Segment) -> None:
+    """Called by the player when a special finishes airing: an empty marker file next to its
+    cache entry, so a restart doesn't air it again. No world write (this is the main thread)."""
+    if seg.content_hash:
+        try:
+            _aired_path(seg.content_hash).touch()
+        except OSError as e:
+            log.warning("could not mark special %r aired: %s", seg.headline, e)
+
+
+def resume_ready(buffer) -> int:
+    """On startup, put finished specials that never aired back in the side pocket. Returns how many.
+
+    A finished special waits in memory for a news bumper; without this a restart in between
+    loses it. It goes straight to ready, not back on the queue: its stage is "finish", and
+    running that again would record it in the world twice.
+    """
+    from .workers import REPEAT_WINDOW_S
+
+    global _special_counter
+    cutoff = time.time() - REPEAT_WINDOW_S
+    n = 0
+    for meta in sorted(CONFIG.paths.cache.glob("*.json")):
+        if meta.name.endswith(".partial.json") or meta.stat().st_mtime < cutoff or _aired_path(meta.stem).exists():
+            continue
+        try:
+            seg = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if seg.type is not SegmentType.documentary or seg.state is not SegmentState.ready:
+            continue
+        if not seg.lines or not all(l.wav_path and Path(l.wav_path).exists() for l in seg.lines):
+            continue
+        _special_counter += 1                 # earlier runs reused the same slot ids
+        seg.slot_id = SPECIAL_SLOT_BASE + _special_counter
+        seg.content_hash = seg.content_hash or meta.stem
+        buffer.mark(seg, SegmentState.ready)
+        log.info("resuming finished special %r; it airs after the next news bumper", seg.headline)
+        n += 1
+    return n
+
+
 def generate_special(seg: Segment, world: World, buffer=None) -> Segment:
     """Run all stages back to back (CLI / tests). The worker uses advance()."""
     while seg.state is not SegmentState.ready:

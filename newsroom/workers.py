@@ -193,9 +193,10 @@ class WorkerPool:
         self.jobs_failed = 0
 
     def start(self) -> None:
-        from .special import resume_partials
+        from .special import resume_partials, resume_ready
 
         resume_partials(self.buffer)
+        resume_ready(self.buffer)
         for i in range(self.n):
             self._spawn(i)
         threading.Thread(target=self._watchdog, name="worker-watchdog", daemon=True).start()
