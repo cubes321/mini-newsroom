@@ -58,6 +58,15 @@ WATER: dict[str, list[tuple[int, int, int, int]]] = {
 }
 LIGHTHOUSE_LAMP = (251, 21)
 
+# Where the sky meets land or sea in the art, for the dusk grade's sunset band.
+DUSK_HZ = 105
+HORIZON: dict[str, int] = {"seafront": 80, "estuary": 62, "farm": 86, "lighthouse": 92, "coast_road": 70}
+# Dusk on art without its own <id>_dusk.png: (row fraction of the horizon, colour) stops,
+# then how hard sky/water and everything else are pulled towards them.
+DUSK_RAMP = ((0.0, (96, 72, 150)), (0.55, (220, 110, 150)), (1.0, (255, 150, 70)), (1.6, (190, 120, 95)))
+DUSK_WATER = (95, 85, 150)                 # sea and river below the horizon: violet, not the ground's warm brown
+DUSK_K_SKY, DUSK_K_REST, DUSK_DARKEN = 0.75, 0.22, 0.86
+
 TOD_MULT = {"day": (1.0, 1.0, 1.0), "dusk": (1.0, 0.82, 0.72), "night": (0.38, 0.42, 0.62)}
 TOD_K = {"day": 1.0, "dusk": 0.7, "night": 0.25}
 # weather -> (multiply, desaturate 0..1, (mix colour, amount) or None)
@@ -796,10 +805,36 @@ def _grade(surf: pygame.Surface, tod: str, wx: str | None, *, tod_grade: bool = 
         a += (a.mean(axis=2, keepdims=True) - a) * desat
     a *= np.array(mult, np.float32) * (np.array(TOD_MULT[tod], np.float32) if tod_grade else 1.0)
     if mix:
-        col, k = mix
-        a += (np.array(_shade(col, TOD_K[tod] if tod_grade else 1.0), np.float32) - a) * k
+        col, k = mix                                             # fog and snow light dim with the day, whatever the art
+        a += (np.array(_shade(col, TOD_K[tod]), np.float32) - a) * k
     rgb[...] = np.clip(a, 0, 255).astype(np.uint8)
     del rgb                                                      # unlock the surface
+
+
+def _dusk_grade(surf: pygame.Surface, horizon: int) -> None:
+    """Sunset for art made in daylight: a multiply can't turn blue sky orange, so tint instead.
+
+    Each row gets a colour from DUSK_RAMP (purple overhead, pink, orange at the horizon, a warm
+    dim on the ground), applied keeping each pixel's brightness. Sky, water and pale haze take
+    most of it; buildings and grass a little, so they stay readable.
+    """
+    rgb = pygame.surfarray.pixels3d(surf)                       # indexed [x, y, channel]
+    a = rgb.astype(np.float32)
+    ys = np.arange(a.shape[1], dtype=np.float32) / max(1, horizon)
+    stops = np.array([s for s, _ in DUSK_RAMP], np.float32)
+    ramp = np.stack([np.interp(ys, stops, [c[i] for _, c in DUSK_RAMP]) for i in range(3)], axis=1)
+    lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
+    blue = np.clip((a[..., 2] - np.maximum(a[..., 0], a[..., 1])) / 30.0, 0, 1)
+    water = blue * np.clip((ys[None, :] - 1.0) * 10, 0, 1)    # blue below the horizon
+    target = ramp[None, :, :] + (np.array(DUSK_WATER, np.float32) - ramp[None, :, :]) * water[..., None]
+    target_lum = target @ np.array([0.299, 0.587, 0.114], np.float32)
+    tint = target * (lum / target_lum)[..., None]
+    haze = np.clip((lum - 185) / 45.0, 0, 1) * (ys[None, :] < 1.05)
+    k = DUSK_K_REST + (DUSK_K_SKY - DUSK_K_REST) * np.maximum(blue, haze)
+    a = a * DUSK_DARKEN
+    a += (np.minimum(tint, 255) * DUSK_DARKEN - a) * k[..., None]
+    rgb[...] = np.clip(a, 0, 255).astype(np.uint8)
+    del rgb
 
 
 _glows: dict[tuple, pygame.Surface] = {}
@@ -851,7 +886,10 @@ def _build(loc: Location, tod: str, wx: str | None) -> pygame.Surface:
         if path.exists():
             img = _load(path)
             if loc.exterior:
-                _grade(img, tod, wx, tod_grade=not own_tod)
+                dusk = tod == "dusk" and not own_tod
+                if dusk:                                         # sunset first, so the weather sits on top of it
+                    _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ))
+                _grade(img, tod, wx, tod_grade=not own_tod and not dusk)
             return _finish(img)
     p = _paint(loc)
     if not loc.exterior:
