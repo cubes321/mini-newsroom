@@ -1,150 +1,132 @@
-# Handover: 2026-10-25
+# Handover
 
-## Update: day-parts, part 1 (later the same day)
+Where Mini Newsroom stands at the end of 2026-10-25, and how to pick it up.
+The backlog is [TODO.md](../TODO.md) and the overview is the [README](../README.md).
+Everything below is on `master` at `cubes321/mini-newsroom`, last commit `5d234ba`.
 
-Item 1 of "What next" below is half done: the schedule and the breakfast show.
+## What it is now
 
-- **`schedule.py`** holds the shows and a normal day: overnight 00–06, *Morning
-  Tide* 06–09, the news 09–19, the magazine 19–20 (not built, so the news stands
-  in, via `STAND_INS`), then the news 20–24. The producer picks each slot's show
-  from its planned start time and restarts the pattern when the show changes.
-  `--clock HH:MM` moves the broadcast clock, so any show can be tested at any hour.
-- **Breakfast:**
-  - **Presenters.** Rosie Treloar (`host_a`, voice `bf_lily`) and Jonah Pike (`host_b`, `am_eric`) on `studio_sofa`. Gordon and Miles keep their jobs.
-  - **Segment types.** New `sofa` chats, with the headlines, weather and field reports in breakfast versions.
-  - **Shots.** Close-ups crop round the speaking host. Handovers show a LIVE inset box.
-  - **Branding.** An orange *Morning Tide* bumper, with its ident voiced by Rosie.
-- **Lighter shows.** `Show.light` adds a weighting rule to the prompt. The one exception, the "big running story", is chosen in code: the most-covered thread at its `peak` (`writers.big_story`). The magazine should set `light=True` too.
-- **Casts.** `script_schema(type, cast)` narrows the speaker enum per show, and `summary_for_prompt(cast)` lists only that cast. The sofa allows only the two hosts.
-- **Overnight:**
-  - **Picture.** A test card ("programmes resume at 06:00") alternates with repeats drawn from the last two days of `data/cache/`. Repeats make no model calls and are tagged REPEAT.
-  - **Background work.** The editor and story desk keep running. Specials only air after a bumper in a show with `airs_specials`, which is the news.
-- **Smaller changes:**
-  - The show is part of the cache key. News keeps its old key, so the existing cache is still valid.
-  - The day now rolls over while running.
-  - Old `world.json` files gain the new presenters on load.
-- **Verified:**
-  - A template soak across 06:00 and a real Kimi soak across 09:00, with no failed jobs.
-  - Windowed snapshots of the sofa, close-ups, the inset and the test card.
-  - The real breakfast scripts are lighter, and led with the quay story.
-- **Not committed:** `assets/bumper_breakfast.wav`, which is baked on first run. Whether baked WAVs belong in the repo is still open in TODO.
+An always-on pixel-art TV station for the made-up town of Port Wexley. It runs a
+full day on a schedule (`newsroom/schedule.py`):
 
-**Next:** the magazine, which needs studio interviews (item 2 below) first.
+| From | Show | Presenters | Set |
+|---|---|---|---|
+| 00:00 | overnight: test card and repeats | — | test card |
+| 06:00 | *Morning Tide* (breakfast) | Rosie Treloar `host_a`, Jonah Pike `host_b` | `studio_sofa` |
+| 09:00 | the news | Dana Ferris `anchor` | `studio_wide` |
+| 19:00 | *Coastwide* (magazine) | Pat Holloway `mag_a`, Clive Ashdown `mag_b` | `studio_interview` |
+| 20:00 | the news | Dana | `studio_wide` |
+| 22:00 | *The Last Ferry* (talk show) | Vincent Marr `late_host` | `studio_interview`, lights down |
+| 23:00 | the late news | Dana | `studio_wide` |
 
-## Update: day-parts, part 2 (later again)
+Gordon Pell (`weather`) and Miles Okafor (`reporter`) work across the shows.
+Breakfast, the magazine and the talk show are `light=True`: gentler stories,
+except one big running story (the most-covered thread at its peak with at
+least four pieces of coverage), which they lead with briefly.
 
-Items 1 and 2 of "What next" below are done.
+## How it fits together
 
-- **The full day:**
-
-  | From | Show |
-  |---|---|
-  | 00:00 | overnight |
-  | 06:00 | *Morning Tide* |
-  | 09:00 | the news |
-  | 19:00 | *Coastwide* (magazine) |
-  | 20:00 | the news |
-  | 22:00 | *The Last Ferry* (talk show) |
-  | 23:00 | the late news |
-
-  `STAND_INS` is now empty.
-- **New segment types:**
-  - `interview`, `links`, `feature`, `vox_pop`, `consumer` and `monologue`, with schemas `InterviewScript`, `FeatureScript` and `VoxPopScript` (with `GuestLine` and `VoxLine`).
-  - `script_schema` narrows whichever line type a schema uses.
-  - Prompts live per show in `writers.py`: `_SYSTEM`, `_BREAKFAST`, `_MAGAZINE` and `_LATE`.
-- **The news** swaps its field report for a studio interview with Dana every third loop.
-- **Presenters:**
-  - Pat Holloway (`mag_a`, `bf_alice`) and Clive Ashdown (`mag_b`, `am_liam`) on *Coastwide*.
-  - Vincent Marr (`late_host`, `am_onyx`) on *The Last Ferry*.
-  - The voices were downloaded once into the Kokoro cache.
-- **Interview set:**
-  - The player works out who sits there (`View.people`), and the close shots crop round the speaker.
-  - *The Last Ferry* uses the same set with the lights down (`scenes._night_look`).
-  - Outside pieces open at the big-picture wall with that presenter, tagged LIVE, REPORT or VOX POP.
+- **The pipeline:**
+  - `schedule.show_at(ts)` picks the show for each slot by its *planned* start time.
+  - The producer restarts the pattern at each show change, so every show opens on its bumper.
+  - Workers script each slot with the LLM, voice it with Kokoro, and cache it.
+  - The player plays it on the clock.
+- **Per-show casts:**
+  - `Show.cast` and `Show.cast_for(type)` say who may speak.
+  - `models.script_schema(type, cast)` narrows the JSON speaker enum to that cast.
+  - `world.summary_for_prompt(cast)` lists only that cast in the briefing.
+- **Prompts:**
+  - They live in `writers.py`, as one table per show: `_SYSTEM` (news), `_BREAKFAST`, `_MAGAZINE` and `_LATE`.
+  - Each LLM-scripted type has a canned template, used when the model fails.
+- **Segment types:**
+  - Live: `bumper`, `weather`, `bulletin`, `field_report`, `sofa`, `interview`, `links`, `feature`, `vox_pop`, `consumer`, `monologue`.
+  - Overnight: `testcard`, `repeat`.
+  - Specials: `documentary`.
 - **Guests:**
-  - Guests are promoted into the cast. Vox-pop passers-by are too, so they can recur as residents.
+  - The writer books guests from the cast or invents them. Once booked, they join `world.people` with a fixed voice and look.
   - A guest who was just on triggers one retry for someone else.
-  - A presenter can be a guest and is voiced and drawn as themselves. The story desk has made Gordon the ghost-tour operator, and the model loves booking him.
-  - Only bulletins, field reports, interviews and features may open new threads.
-- **Kimi tolerance.**
-  - **Why:** Moonshot doesn't enforce the JSON schema.
-  - **The fix:** `_keys_hint` lists the expected keys in the system prompt, and the schemas accept `speaker_id`, guest details on each line, and "female"/"male".
-  - **Result:** the last real runs scripted every *Coastwide* and *Last Ferry* item with no template fallbacks.
-- **Known:**
-  - Kimi still overruns some string caps once per run (see TODO).
-  - The magazine and talk-show loops repeat their format several times an hour.
+  - A presenter can be a guest and appears as themselves. The story desk has made Gordon the cannery ghost-tour operator, and Kimi likes to book him.
+- **Story threads:** only bulletins, field reports, interviews and features may open new ones.
+- **Shots:**
+  - The interview set seats whoever is in `View.people`, and the close shots crop round the speaker.
+  - Outside pieces open at the big-picture wall with the presenter who introduces them, tagged LIVE, REPORT or VOX POP.
+  - The sofa uses a LIVE inset box instead.
+- **Overnight:**
+  - Repeats come from the last 48 hours of `data/cache/`, with no model calls.
+  - The story desk and editor keep working.
+  - Specials only air after a news bumper.
+- **Kimi** (via Moonshot) doesn't get the JSON schema enforced, so the code is tolerant:
+  - `writers._keys_hint` puts the expected keys in the system prompt.
+  - The schemas accept `speaker_id`, guest details on each line, and "female"/"male".
 
----
+## Running and testing
 
-This covers where Mini Newsroom stands after the backdrop session and what to
-do next. The backlog is in [TODO.md](../TODO.md) and the project overview in
-the [README](../README.md).
+```bash
+uv run python -m newsroom                                   # the station, at the real time
+uv run python -m newsroom --clock 19:00 --debug             # any show at any hour
+uv run python -m newsroom --no-window --clock 21:58 --minutes 6   # headless soak across a show change
+NEWSROOM_LLM=off uv run python -m newsroom --no-window ...  # canned scripts only, no model calls
+uv run python -m newsroom.schedule                          # the day's table
+uv run python -m newsroom.llm vox_pop --show magazine --dry-run   # a prompt and its schema
+uv run python -m newsroom.workers interview --show news     # one real segment end to end
+uv run python -m newsroom.backdrops --sheet sheet.png       # every backdrop, day/dusk/night
+```
 
-## What this session did
+**Soak hygiene:** a run with `NEWSROOM_LLM=off` writes template headlines and threads
+into `data/world.json`. Back it up first and restore it afterwards. Delete the cache
+files the run made, or overnight may repeat them.
 
-All of it is pushed to `cubes321/mini-newsroom`, branch `master`.
+## State of the town
 
-| Commit | What |
-|---|---|
-| `19caab0` | **Backdrop system.** `locations.py` is the registry: 24 writer-selectable locations plus studio sets. `backdrops.py` loads PNG art or falls back to a placeholder painter, grades for time of day and weather, and animates water, rain, snow, fog, wind and the lighthouse beam. Writers see a LOCATIONS list in their prompts. |
-| `f4aa387` | **Studio shots.** The player picks a framing for each line (`View.shot`): bulletins cut wide → close → wide, and field-report handovers and special intros put the anchor at the big-picture wall with the location on screen. |
-| `7976343` | **Backdrop art.** Pixel-art PNGs for every location and for `studio_wide` and `weather_wall`, made in ComfyUI from the placeholders and approved by the user on contact sheets. |
-| `c71c710` | **README screenshots** re-shot with the new art and shots, plus a strip of six locations. |
-| `e7dd1c9` | **Two new studio sets**, `studio_interview` and `studio_sofa`, with character marks (`MARKS` in `locations.py`) and art. Nothing uses them on air yet. |
+The story bible (`data/world.json`, not in git) is on broadcast day 2:
+- 25 open threads and 27 people, many of them vox-pop residents;
+- four specials made.
 
-## How the visuals fit together
+25 open threads is far above `[story] max_open_threads = 8`. Many come from today's test
+runs, and the story desk will close some as it plans. If you want a clean start,
+back the file up and delete it, and the town re-seeds.
 
-- **`locations.py`** holds data only (no pygame): id, name, the one-line description writers see, kind (town, country or studio), and colours. `BACKDROP_IDS` becomes the `Backdrop` literal in `models.py`, so the JSON schema enum and the registry can't drift apart. `MARKS` says where people sit on studio sets as (x, baseline y, scale, facing).
-- **`backdrops.py`** is the only place backdrop I/O happens.
-  - **Lookup order:** `<id>_<tod>.png`, then `<id>.png`, then a painter.
-  - **Grading:** a numpy pass for time of day and the last weather report. Exteriors only; studio sets are never tinted.
-  - **Caching:** a small LRU per (id, tod, weather).
-  - **Per frame**, `draw()` blits the cached picture and adds the animated touches.
-  - **`picture()`** gives a cropped, smooth-scaled copy for the big-picture wall screen.
-- **`player.py`** gives `View` the time of day (`tod`), the last weather report (`weather`, taken from `world.last_weather`, so it survives restarts), and the framing (`shot` and `wall_label`).
-- **`scenes.py`** stays pure. Field reports and specials call `backdrops.draw`, and the studio dispatches on `v.shot`.
-- **Art rules** are in [assets/backdrops/README.md](../assets/backdrops/README.md): 320×180, the ground line, the areas overlays cover, the water rectangles, and who sits where on each studio set.
+**"Who Gets the Quay?" never aired.** The special finished during a magazine test run.
+It is recorded in `world.specials`, but its audio was removed by a test-cache cleanup.
+This hides a real gap. A finished special waiting for a news bumper is saved to the cache,
+but `resume_partials` only re-queues unfinished checkpoints, so after a restart it never
+airs (now in TODO).
 
-## Known gaps
+## Known gaps (details in TODO)
 
-- **Dusk on PNG art looks grey.** The grade is a whole-picture multiply, so blue skies go flat grey instead of turning to sunset. The placeholders didn't have this problem because they paint their own sky. Two fixes: a vertical gradient grade (purple at the top, orange towards the horizon) for exteriors, or `<id>_dusk.png` files for the busiest places. The README screenshots avoid dusk on the art for this reason.
-- **Night on PNG art has no lit windows.** Window and lamp lights only exist for placeholders, which declare them. The fix is hand-made `<id>_night.png` variants, starting with the harbour, high street and Town Hall.
-- **Positions in the code were set for the placeholders, not the art.**
-  - The lighthouse beam comes from the fixed `LIGHTHOUSE_LAMP = (251, 21)`, while the art's lantern looks nearer (242, 16).
-  - The `WATER` shimmer rectangles need re-fitting. On `slipway`, the top strip (120, 106, 200, 10) covers the head of the ramp, so about 40 px of stone shimmers.
-  - The crane on `loading_dock` and the drill tower on `fire_station` reach up behind the clock box at (276–316, 4–16).
-- **The art scripts are gone.** They lived in the art session's scratchpad. How to rebuild them, plus the exact ComfyUI models, prompt pattern and pixelation steps, is in Claude's project memory (`backdrop-art-pipeline`). Rebuilding is about 300 lines in total.
-- **The two new studio sets aren't on air.** They're waiting for the features that use them (see below).
-- **A few older cached segments** still carry "Live from loading_dock" captions, written before the prompt was fixed to keep the spoken place name separate from the backdrop id. New scripts are fine. Delete `data/cache/` to regenerate.
-- **`docs/screenshots/filler.png`** is no longer shown in the README.
-- **Bulletins sometimes fail validation once** and succeed on the retry. This happened before the backdrop work and is unrelated to it.
+- **Art:**
+  - **Dusk:** dusk on the art is a flat grey multiply, which also hits breakfast's first hour.
+  - **Night:** there are no lit windows at night.
+  - **Positions:** some are still set for the old placeholder pictures.
+  - ***The Last Ferry*** borrows the interview set.
+  - **People:** they are blocks drawn in code.
+- **Format repetition:** the magazine and talk show loop every 6–8 minutes, so an hour repeats its shape.
+- **Length caps:** Kimi overruns some caps once per run and recovers on the retry (Miles over 900 characters, `thread_status` over 160, the desk's `note` over 200).
+- **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
+- **Not yet observed:**
+  - an overnight special airing at the first news bumper;
+  - the LM Studio provider;
+  - a full overnight run.
 
-## What next
+## Good next steps
 
-The user's ideas from this session, in the suggested order:
-
-1. **Day-parts, with a breakfast show and an early-evening magazine.** This is the next real milestone; it's in TODO under Content.
-   - **Breakfast** on the `studio_sofa` set needs two new presenters: characters in `world.py`, unused Kokoro voices, sprite palettes and traits. Gordon Pell could do the breakfast weather.
-   - **The magazine** is in the spirit of the BBC's *Nationwide*: features rather than headlines, a consumer slot, a resident in the studio on `studio_interview`, and filmed pieces introduced at the big-picture wall.
-   - **A schedule table** picks the show by the clock. `locations.time_of_day()` already gives the scenes the hour.
-2. **Studio interviews and vox pops** using the guest mechanism, which puts `studio_interview` on air.
-3. **The dusk grade fix** and a few `_night.png` variants.
-4. Everything else in TODO: adverts and tides, breaking news, the tip-line, sport, longer documentaries.
+1. **Re-queue finished specials on restart.** Small, and it protects the editor's work.
+2. **A planned running order per hour** for the magazine and talk show, instead of a short loop.
+3. **The dusk grade** (a gradient for exteriors). It helps every show at the edges of the day.
+4. **Breaking news and the tip-line**, which the schedule was built to make room for.
+5. **Art session:** *The Last Ferry*'s own set, night variants, sprites for the eight presenters.
 
 ## Working notes
 
-- **The GPU is shared** (16 GB). Check `nvidia-smi` before loading anything. After ComfyUI batches, free its VRAM with `POST http://127.0.0.1:8188/free`. Kokoro stays on CPU.
-- **Scripts come from Moonshot** (Kimi) at the moment, because the user is using up that credit. Real runs use it, which is fine.
-- **Art workflow:** generate in a separate session, show the user a contact sheet, and commit PNGs only after approval. That session shares this folder, so commit by explicit paths, never `git add -A`.
-- **Push only when the user asks.**
-
-## Checks that work
-
-```bash
-uv run python -m newsroom.backdrops --sheet sheet.png         # every backdrop at day, dusk and night, plus weather
-uv run python -m newsroom.llm field_report --dry-run          # see the LOCATIONS block and the schema enum
-uv run python -m newsroom --minutes 4 --debug --snap DIR      # real window, a frame every 10 s
-uv run python -m newsroom --no-window --minutes 2             # headless soak
-```
-
-Last measured: frame p99 1.6–5.5 ms in the window, with no failed jobs in the headless soak.
+- **The GPU is shared** (16 GB). Check `nvidia-smi` before loading anything. Kokoro runs on the CPU.
+- **Voices:**
+  - Kokoro runs offline (`HF_HUB_OFFLINE=1`), and every voice in use is already cached.
+  - A new voice needs a one-time `hf_hub_download` with offline mode off, and the user's OK.
+  - Unused English voices now include `af_sarah`, `af_nova`, `af_sky`, `am_adam` and `am_echo`.
+- **Scripts:** Kimi on Moonshot writes them (k2.6 for live segments, k3 for the editor, desk and specials). The user is happy to spend that credit.
+- **Art workflow:** generate in a separate session, show the user a contact sheet, and commit only after approval.
+- **Git:**
+  - Commit by explicit paths, never `git add -A`: other sessions share this folder.
+  - Push only when the user asks.
+  - `*.wav` is ignored except under `assets/`. The baked bumpers are tracked.
+- **Editing on Windows:** Git Bash heredocs can mangle `\n` escapes inside Python strings. Write edit scripts with the Write tool instead.

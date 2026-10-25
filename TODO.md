@@ -48,6 +48,9 @@ bottom with the date.
 
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
+- [ ] Re-queue finished specials on restart: one waiting for a news bumper is
+  saved to `data/cache/<hash>.json`, but `resume_partials` only picks up
+  unfinished `*.partial.json`, so after a restart it never airs.
 - [ ] Lock around world state so more than one worker is safe.
 - [ ] Give section writers the thread's dates and beats (the editor already
   sees them) to keep timelines straight.
