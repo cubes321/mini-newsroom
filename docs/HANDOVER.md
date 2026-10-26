@@ -154,7 +154,8 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 - **Art:**
   - **Dusk:** a sunset tint for art without its own `_dusk.png` (purple sky, orange horizon,
     violet water). Horizons per location are in `backdrops.HORIZON`.
-  - **Night:** there are no lit windows at night.
+  - **Night:** only the harbour, high street and Town Hall have lit night art; the rest are
+    tinted.
   - **Positions:** some are still set for the old placeholder pictures.
   - ***The Last Ferry*** borrows the interview set.
   - **People:** they are blocks drawn in code.
@@ -167,14 +168,14 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 - **Length caps:** status notes are clipped on parse now; a spoken line over 900 characters (Miles) still fails once and recovers on the retry.
 - **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
 - **Not yet observed:**
-  - an overnight special airing after the test card;
-  - the LM Studio provider;
-  - a full overnight run.
+  - an overnight special airing after the test card (fixed after the first overnight run);
+  - the LM Studio provider through the app's own config (benched only through a rerouting
+    script).
 
 ## Good next steps
 
-1. **Leave it on overnight** and read the stats: the test card and repeats, the desk and editor
-   through the night, then breakfast at 06:00 with real scripts.
+1. **Hybrid routing:** live segments on LM Studio, the story desk, editor and specials on Kimi
+   k3, as a route in the config.
 2. **Art session:** *The Last Ferry*'s own set, night variants, sprites for the eight presenters.
 3. **Breaking follow-ups:** bulletins now lead with a story for two hours after it breaks; next
    would be Miles reporting from the scene, and the story desk
@@ -193,7 +194,7 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
   bulletin 15 minutes later led with it as the follow-up of its own thread.
 - A finished special left unaired by a stopped run came back after a restart and aired after the
   next news bumper.
-- Breakfast with real scripts is not observed yet (only simulated and soaked with templates).
+- Breakfast with real scripts was observed in the first overnight run (06:00–07:33, 2026-10-26).
 - With canned scripts (`NEWSROOM_LLM=off`) a sign-off lands minutes early: the producer plans ten
   minutes ahead on target lengths, and templates run at about a third of them. That is expected.
 

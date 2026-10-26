@@ -265,6 +265,7 @@ uv run python -m newsroom.llm weather                  # live call to the routed
 uv run python -m newsroom.world                        # print the writers' briefing
 uv run python -m newsroom.workers field_report         # one segment end to end
 uv run python -m newsroom --no-window --minutes 3 --scratch   # headless soak on a copy of the town
+uv run pytest                                          # all tests, on a temp town (no model, no TTS)
 uv run python -m unittest tests.test_world             # thread cap and template threads (no model, no TTS)
 uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news

@@ -43,19 +43,21 @@ bottom with the date.
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
 - [ ] Lock around world state so more than one worker is safe.
-- [ ] `world.threads` is capped at 40 by dropping the oldest, even if it is
-  still open; with many new threads a day (every guest feature opens one)
-  that can drop a live story. Drop closed threads first.
 - [ ] Give section writers the thread's dates and beats (the editor already
   sees them) to keep timelines straight.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
-- [ ] LM Studio provider: verify end to end when the GPU is free; tune the
-  9B model's prompt compliance.
+- [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
+  the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
+  the fastest, qwen3.8-flash-next the best writer but about 15 s a script).
+  Still to do: an end-to-end run through the app's own provider config rather
+  than a rerouting script.
+- [ ] Hybrid routing as config: live segments on LM Studio, the story desk,
+  editor and specials on Kimi k3. A one-hour trial with a scratchpad reroute
+  ran 93 jobs cleanly; sofa chats took about 27 s on qwen3.8 (Kokoro competes
+  for the CPU), and the back office would cost about $0.9 a night on k3.
 - [ ] `record_aired` for a special runs when it is finished, not when it airs, so
   the archive says it aired early. Moving it means a world write from the main
   thread (wait for the world-state lock).
-- [ ] Leave it on overnight and read the stats (now with the overnight
-  test card, repeats and the editor working through the night).
 - [ ] Kimi sometimes writes a spoken line over 900 characters (Miles) and the
   script fails validation once; the retry usually works. Status notes are now
   clipped on parse (`models._clip`); spoken lines aren't, since cutting speech
@@ -72,12 +74,27 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 LM Studio thinking turned off with `reasoning_effort: "none"`
+  (`enable_thinking` is ignored); local models benched against Kimi.
+- 2026-10-26 The thread cap drops closed threads first and never an open one
+  (a template smoke run had evicted ten real threads); `--world`, `--cache`
+  and `--scratch` keep test runs off the real town.
+- 2026-10-26 Specials have their own cache key (a restarted slot number made
+  "Baker's Petition" replay the aired "Same Ink, Same Harbour"), honour
+  `.aired`, air after the test card overnight so the editor doesn't idle all
+  night, and retry a failed stage once.
+- 2026-10-26 Story desk in batches of 8 threads, a 240 s k3 timeout with no
+  SDK retry (each timeout had been billed twice), token counts per call and
+  LLM USAGE totals, full call logs with `--log-llm`.
+- 2026-10-26 First overnight run (22:28–07:33): 525 segments and no filler.
+  It found the story-desk timeouts, the specials bugs and breakfast repetition.
 - 2026-10-26 Breakfast variety, from the first real-Kimi morning (61 sofa chats,
   the town's 155th birthday six times, ages that changed between chats): each
   sofa chat is told this morning's sofa headlines, how the earlier chats on its
   angle began, and that an anniversary, birthday, age or date said once is
   settled. Overnight repeats skip breakfast segments (`Show.repeats_overnight`).
-  First unit tests: `python -m unittest discover -s tests`.
+  First unit tests: `uv run pytest` (bare `unittest discover` skips
+  `tests/conftest.py`, so it doesn't redirect the town to a temp dir).
 - 2026-10-25 Breakfast runs a pattern with briefs handed out in turn (twelve
   sofa angles, six report angles), headlines that always lead with the big
   story, and a goodbye before the news.
