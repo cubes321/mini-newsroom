@@ -108,7 +108,8 @@ the opening item leads with it; later items mention it in passing at most.
 - **Overnight:**
   - Repeats come from the last 48 hours of `data/cache/`, with no model calls.
   - The story desk and editor keep working.
-  - Specials only air after a news bumper.
+  - Specials air after the test card overnight and after a news bumper in the day; one finished
+    during breakfast, the magazine or the talk show waits for the news.
 - **Kimi** (via Moonshot) doesn't get the JSON schema enforced, so the code is tolerant:
   - `writers._keys_hint` puts the expected keys in the system prompt.
   - The schemas accept `speaker_id`, guest details on each line, and "female"/"male".
@@ -166,7 +167,7 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 - **Length caps:** status notes are clipped on parse now; a spoken line over 900 characters (Miles) still fails once and recovers on the retry.
 - **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
 - **Not yet observed:**
-  - an overnight special airing at the first news bumper;
+  - an overnight special airing after the test card;
   - the LM Studio provider;
   - a full overnight run.
 

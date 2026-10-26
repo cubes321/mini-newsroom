@@ -14,7 +14,11 @@ Two jobs live here, both run on the worker thread, never the main thread:
    to data/cache so a restart resumes rather than starting over.
 
 A ready special sits in the buffer's side pocket and the player airs it at
-the next bumper boundary, so it never pre-empts a live slot mid-sentence.
+the next break (a news bumper, or overnight the test card), so it never
+pre-empts a live slot mid-sentence.
+
+A special's cache key is its own `_hash()` (date, thread, title), never the
+slot-keyed hash live segments use: special slot numbers restart every run.
 """
 from __future__ import annotations
 
@@ -274,6 +278,10 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         if _load_partial(seg, h):
             return advance(seg, world, buffer)
         outline = write_outline(seg, world)
+        # A new piece under the key of one that already aired (same title, thread and day):
+        # its marker would stop a restart from resuming the new one. Only once the outline is
+        # in hand, so a retried outline still sees the old piece as aired.
+        _aired_path(h).unlink(missing_ok=True)
         seg.headline = outline.title
         seg.work.update({"outline": outline.model_dump(), "starts": [], "next_section": 0, "t0": time.time()})
         seg.lines = [Line(speaker="anchor", text=outline.intro.strip())]
@@ -285,8 +293,8 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         i = seg.work["next_section"]
         n = len(outline.sections)
         words = _word_budget(seg.target_s) // n
-        seg.work["starts"].append(len(seg.lines))
         sec = write_section(seg, world, outline, i, words)
+        seg.work["starts"].append(len(seg.lines))     # after the call: a retried stage mustn't add it twice
         plan = outline.sections[i]
         if plan.guest_name:
             world.ensure_person(plan.guest_name, plan.guest_role, gender=plan.guest_gender)

@@ -102,7 +102,7 @@ Unless breaking news cuts in, the station runs this schedule:
 
 | from | show | what's on |
 |---|---|---|
-| 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight waits for the news |
+| 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats (the papers, a viewer's question, on this day in town history…), Gordon's weather, Miles's reports, and a goodbye before the news |
 | 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
 | 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: an hour of links and banter, filmed features from Miles, studio guests, vox pops, the consumer slot and Gordon's weather, each item with its own angle |
@@ -217,9 +217,10 @@ usually the answer is no. A commissioned special is a **resumable**
 low-priority job: outline, then one section per stage, then voicing, then
 finish. After each stage it re-queues itself, so live slots are served in
 between and the longest uninterruptible unit is one model call. Progress is
-checkpointed to `data/cache/*.partial.json` and resumed on startup. A finished
-special waits for the next news bumper, and survives a restart until it has
-aired. Knobs live under `[special]` and `[story]`
+checkpointed to `data/cache/*.partial.json` and resumed on startup; a stage that
+fails (a model timeout) is tried once more before the special is dropped. A finished
+special waits for the next news bumper (overnight, the next test card), and survives
+a restart until it has aired. Knobs live under `[special]` and `[story]`
 in `config.toml`.
 
 ```bash
