@@ -70,12 +70,13 @@ bottom with the date.
   time), and with thinking off its editor re-commissioned the aired "Same Ink"
   special both times, so keep Haiku off the editor. Claude counts about twice
   Kimi's input tokens for the same prompt (the schema goes into the prompt).
-  `claude_haiku` (live) and `claude_sonnet` (desk, editor, specials) are in
-  config.toml; the routes stay on Kimi for now. Estimated 24 h: about
+  `claude_haiku` (live) and `claude_sonnet` (desk, editor, specials) are the
+  routes since 2026-10-26, with the story desk every 30 minutes
+  (`plan_every_s = 1800`, 48 plans a day), until DeepSeek is benched. Estimated 24 h: about
   $3.40–4.35 on that mix against $8–9.50 on Kimi. The story desk is the biggest
   item on both (72 plans a day at `plan_every_s = 1200`, about $2 on Sonnet);
   hourly plans would take Claude's day to about $2.10–3.00. Next: a `--log-llm`
-  day on whichever provider wins (DeepSeek first). The back office could use
+  day on Claude for real costs, then the DeepSeek bench to compare. The back office could use
   the Batch API at half price.
 - [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but

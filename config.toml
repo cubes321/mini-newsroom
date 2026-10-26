@@ -8,7 +8,7 @@ horizon_s = 600          # seconds of unplayed content the producer keeps queued
 words_per_minute = 150   # used to turn target seconds into a word budget
 
 [llm]
-default_provider = "moonshot"
+default_provider = "claude_haiku"
 timeout_s = 90
 first_call_timeout_s = 120
 max_tokens = 700
@@ -18,23 +18,25 @@ temperature = 0.8
 log_calls = false
 
 # Which provider writes which segment type. Any name under [llm.providers].
+# Claude since 2026-10-26 (Haiku live, Sonnet for the back office) until DeepSeek is benched;
+# Kimi ("moonshot" live, "moonshot_k3" back office) is still declared below to switch back.
 [llm.routes]
-weather = "moonshot"
-bulletin = "moonshot"
-field_report = "moonshot"
-sofa = "moonshot"                 # breakfast: the two hosts chatting
-interview = "moonshot"            # studio guests: news, magazine, talk show
-links = "moonshot"                # magazine
-feature = "moonshot"
-vox_pop = "moonshot"
-consumer = "moonshot"
-monologue = "moonshot"            # talk show
-editor = "moonshot_k3"            # decides whether a thread deserves a special
-special_outline = "moonshot_k3"
-special_section = "moonshot_k3"
-story_desk = "moonshot_k3"        # plans how threads develop, seeds new ones
-breaking = "moonshot"             # breaking news from the tip-line
-advert = "moonshot"               # local adverts, written in idle time
+weather = "claude_haiku"
+bulletin = "claude_haiku"
+field_report = "claude_haiku"
+sofa = "claude_haiku"             # breakfast: the two hosts chatting
+interview = "claude_haiku"        # studio guests: news, magazine, talk show
+links = "claude_haiku"            # magazine
+feature = "claude_haiku"
+vox_pop = "claude_haiku"
+consumer = "claude_haiku"
+monologue = "claude_haiku"        # talk show
+editor = "claude_sonnet"          # decides whether a thread deserves a special
+special_outline = "claude_sonnet"
+special_section = "claude_sonnet"
+story_desk = "claude_sonnet"      # plans how threads develop, seeds new ones
+breaking = "claude_haiku"         # breaking news from the tip-line
+advert = "claude_haiku"           # local adverts, written in idle time
 
 # Special reports (documentary v0). The editor runs on the worker thread when
 # it is idle; a commissioned special is a low-priority job that plays at the
@@ -49,7 +51,7 @@ min_buffer_frac = 0.8    # background work (editor, story desk) only when the li
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.
 [story]
-plan_every_s = 1200
+plan_every_s = 1800     # every 30 min: the desk is the biggest cost on any provider
 max_open_threads = 8
 batch = 8                # threads planned per desk call; the whole board in one reply overran max_tokens
 
@@ -113,7 +115,8 @@ max_retries = 0
 kind = "anthropic"
 model = "claude-opus-5-5"
 
-# Claude, benched against Kimi on 2026-10-26 (see TODO.md). The key comes from ANTHROPIC_API_KEY.
+# Claude, benched against Kimi on 2026-10-26 (see TODO.md) and the routing since. The key comes
+# from ANTHROPIC_API_KEY.
 # extra_body takes `thinking` and `effort` (low/medium/high/xhigh/max; Haiku defaults to medium,
 # Sonnet to high). No temperature: these models reject it.
 [llm.providers.claude_haiku]       # live scripts: 3.5 s, about a tenth of Kimi's price

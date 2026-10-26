@@ -11,16 +11,14 @@ guest; guest captions from the script; people lit by their location; a retry for
 plans; tides and the Saltby foot ferry; local adverts that cover the gaps; fresh README
 screenshots.
 
-## In flight (not committed, not mine to commit)
+## Routing (decided 2026-10-26)
 
-Another session sharing this folder is benchmarking Claude for the routes. Its uncommitted
-changes are in `newsroom/llm.py` (the anthropic path takes `thinking`/`effort` from
-`extra_body`, a timeout, retries and the validation retry), `newsroom/desk.py` (the prompt
-states the people limit), `config.toml` (`claude_haiku` and `claude_sonnet` providers, not yet
-routed to) and `TODO.md` (the bench results). Its finding so far: Haiku for live scripts and
-Sonnet for the desk, editor and specials would cost about $0.60 a night against about $1.30 on
-Kimi; keep Haiku off the editor. Leave these files to that session: don't commit them from
-another one, and check `git status` before any commit.
+The Claude bench was committed in `3bf3527`, and the routes now use it: `claude_haiku` (Haiku
+5.5, thinking off) writes every live segment, breaking news and adverts; `claude_sonnet`
+(Sonnet 5.5, thinking on) runs the story desk, editor and specials. Haiku stays off the editor
+(in the bench it re-commissioned an aired special). The story desk plans every 30 minutes
+(`plan_every_s = 1800`). This holds until DeepSeek is benched for comparison; the Kimi
+providers are still declared, so switching back is a change to `[llm.routes]`.
 
 ## What it is now
 
@@ -220,10 +218,9 @@ presenter, and the archive has a breakfast item "Gordon Pell turns forty with ca
 
 ## Good next steps
 
-1. **Choose the routing.** Three options are on the table: Kimi as now (about $1.30 a night);
-   live segments on LM Studio with the back office on Kimi k3 (benched and trialled for an
-   hour); or Claude, Haiku live and Sonnet for the back office (about $0.60 a night, being
-   benched in the other session). Then a `--log-llm` night on the choice.
+1. **A `--log-llm` night on Claude**, the routing chosen on 2026-10-26 (Haiku live, Sonnet
+   for the back office, desk every 30 minutes), to get real token counts and costs. Then the
+   DeepSeek bench for comparison.
 2. **A real-model evening** to see today's features in real scripts: tides and the ferry at
    breakfast and on *The Last Ferry*, guest captions, and adverts in gaps.
 3. **Small fixes:** the one-frame test-card flash, and the Gordon Pell mix-up (plus a guard so
@@ -257,8 +254,9 @@ presenter, and the archive has a breakfast item "Gordon Pell turns forty with ca
     guest pools); advert voiceovers reuse the guest voices.
   - A new voice (`af_sarah`, `af_nova`, `af_sky`, `am_adam`, `am_echo`...) needs a one-time
     `hf_hub_download` with offline mode off, and the user's OK.
-- **Scripts:** Kimi on Moonshot writes them (k2.6 for live segments and adverts, k3 for the
-  editor, desk and specials). The user is happy to spend that credit.
+- **Scripts:** Claude writes them since 2026-10-26 (Haiku 5.5 for live segments and adverts,
+  Sonnet 5.5 for the editor, desk and specials; key in `ANTHROPIC_API_KEY`). Kimi on Moonshot
+  (k2.6 live, k3 back office) wrote them before and is still declared.
 - **Art:** the user judges by eye. Show a contact sheet (and the art in the real shots) before
   committing. Generated character art was rejected in favour of the code-drawn style.
 - **Git:**
