@@ -1,7 +1,9 @@
-"""An on-screen caption can't be empty: a reply with a blank headline, location or strap fails
-validation, so it gets the validation retry instead of airing as a bare "Live from".
+"""An on-screen caption can't be empty or a placeholder: a reply with a blank or "x" headline,
+location or strap fails validation, so it gets the validation retry instead of airing as a bare
+"Live from" (and opening a thread called "x").
 
-The reply below is Haiku's from 2026-10-26 22:06 with the speech cut short.
+The reply below is Haiku's from 2026-10-26 22:06 with the speech cut short; at 22:29 it sent "x"
+for all three.
 """
 import pytest
 from pydantic import ValidationError
@@ -22,5 +24,6 @@ def test_a_filled_in_field_report_validates():
 
 @pytest.mark.parametrize("field", ["headline", "location", "lower_third"])
 def test_a_blank_caption_fails_validation(field):
-    with pytest.raises(ValidationError):
-        FieldReportScript.model_validate({**REPLY, field: ""})
+    for placeholder in ("", "x", "TBD"):
+        with pytest.raises(ValidationError):
+            FieldReportScript.model_validate({**REPLY, field: placeholder})

@@ -163,15 +163,15 @@ class ScriptLine(BaseModel):
 
 class WeatherScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=1, max_length=8)
-    headline: str = Field(min_length=1, max_length=90)
+    headline: str = Field(min_length=4, max_length=90)
     map_state: Literal["sunny", "cloudy", "rain", "storm", "snow", "fog", "wind"]
     temp_c: int = Field(ge=-40, le=50)
 
 
 class BulletinScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=1, max_length=10)
-    headline: str = Field(min_length=1, max_length=90)
-    lower_third: str = Field(min_length=1, max_length=60)
+    headline: str = Field(min_length=4, max_length=90)
+    lower_third: str = Field(min_length=4, max_length=60)
     thread_id: str | None = Field(
         default=None, description="id of an existing thread this follows up, or null"
     )
@@ -183,10 +183,10 @@ class BulletinScript(BaseModel):
 
 class FieldReportScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=2, max_length=12)
-    headline: str = Field(min_length=1, max_length=90)
-    location: str = Field(min_length=1, max_length=60, description="the place in words, e.g. 'the slipway behind the old cannery'")
+    headline: str = Field(min_length=4, max_length=90)
+    location: str = Field(min_length=4, max_length=60, description="the place in words, e.g. 'the slipway behind the old cannery'")
     backdrop: Backdrop
-    lower_third: str = Field(min_length=1, max_length=60)
+    lower_third: str = Field(min_length=4, max_length=60)
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
 
@@ -222,8 +222,8 @@ class GuestLine(BaseModel):
 class InterviewScript(BaseModel):
     """A studio interview: a presenter and one guest in the armchair (the consumer slot may have none)."""
     lines: list[GuestLine] = Field(min_length=2, max_length=16)
-    headline: str = Field(min_length=1, max_length=90)
-    lower_third: str = Field(min_length=1, max_length=60)
+    headline: str = Field(min_length=4, max_length=90)
+    lower_third: str = Field(min_length=4, max_length=60)
     guest_name: str | None = Field(default=None, max_length=40, description="the guest's full name; required if 'guest' speaks")
     guest_role: str | None = Field(default=None, max_length=80, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Gender = Field(default=None, description="for casting the guest's voice: 'f' or 'm'")
@@ -240,10 +240,10 @@ class InterviewScript(BaseModel):
 class FeatureScript(BaseModel):
     """A filmed magazine piece: Miles on location, optionally with one resident."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
-    headline: str = Field(min_length=1, max_length=90)
-    location: str = Field(min_length=1, max_length=60, description="the place in words, never a backdrop id")
+    headline: str = Field(min_length=4, max_length=90)
+    location: str = Field(min_length=4, max_length=60, description="the place in words, never a backdrop id")
     backdrop: Backdrop
-    lower_third: str = Field(min_length=1, max_length=60)
+    lower_third: str = Field(min_length=4, max_length=60)
     guest_name: str | None = Field(default=None, max_length=40)
     guest_role: str | None = Field(default=None, max_length=80)
     guest_gender: Gender = None
@@ -274,8 +274,8 @@ class VoxPopScript(BaseModel):
     """Miles puts one question to several passers-by."""
     lines: list[VoxLine] = Field(min_length=4, max_length=12)
     question: str = Field(max_length=90, description="the question Miles asks, as a caption")
-    headline: str = Field(min_length=1, max_length=90)
-    location: str = Field(min_length=1, max_length=60)
+    headline: str = Field(min_length=4, max_length=90)
+    location: str = Field(min_length=4, max_length=60)
     backdrop: Backdrop
 
 
