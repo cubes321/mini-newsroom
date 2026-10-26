@@ -558,9 +558,11 @@ def script_segment(seg: Segment, world: World) -> Segment:
         raise ValueError(f"{seg.type} is not an LLM-scripted type")
 
     show = schedule.get(seg.show)
-    # A second part continues only the interview in the slot before it; after a restart that
-    # one may have come from the cache, and then this is a fresh interview.
-    cont = seg.part == "cont" and _last_interview.get(show.id, {}).get("slot") == seg.slot_id - 1
+    # A second part continues only the interview the producer planned as its first part (the slot
+    # before, or the one before an ad break); after a restart that one may have come from the
+    # cache, and then this is a fresh interview.
+    first = seg.work.get("first_part", seg.slot_id - 1)
+    cont = seg.part == "cont" and _last_interview.get(show.id, {}).get("slot") == first
     part = "" if seg.part == "cont" and not cont else seg.part
     tips = tipline.offer() if seg.type is SegmentType.bulletin else []
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,

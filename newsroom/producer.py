@@ -47,6 +47,7 @@ class Producer:
         self._closing: list[schedule.Item] = []    # closing items still to plan
         self._closed = False               # the current show has planned its closing
         self._briefs_given: dict = {}      # per type: how many of the show's briefs were handed out
+        self._first_part = -1              # the last slot a "cont" part would carry on from
 
     def _show_now(self) -> schedule.Show:
         """The show to plan for. The producer stays with its show until that show's own end, and
@@ -118,6 +119,10 @@ class Producer:
             part=item.part,
             brief=item.brief,
         )
+        if item.part == "cont":
+            seg.work["first_part"] = self._first_part     # the guest's first part, before any break
+        elif item.type is not schedule.T.ad_break:
+            self._first_part = seg.slot_id
         self.buffer.submit(seg)
         self.next_slot += 1
         self.cursor_ts += seg.target_s

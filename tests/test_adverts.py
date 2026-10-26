@@ -232,6 +232,30 @@ def test_the_break_between_a_guests_parts_belongs_to_the_guest():
                                                    if e is SegmentType.ad_break))
 
 
+def test_a_second_part_after_a_break_still_continues_its_guest(monkeypatch, world):
+    import time
+
+    from newsroom import writers
+    lt = time.localtime()
+    buf = Buffer()
+    p = Producer(buf, 600, start_ts=time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 22, 2, 0, 0, 0, -1)))
+    segs = [p.plan_one() for _ in range(5)]                  # bumper, monologue, interview, break, cont
+    assert [s.type for s in segs[2:]] == [SegmentType.interview, SegmentType.ad_break, SegmentType.interview]
+    cont = segs[4]
+    assert cont.part == "cont" and cont.work["first_part"] == segs[2].slot_id
+
+    seen = {}
+
+    def build_prompt(*a, part="", **k):
+        seen["part"] = part
+        raise RuntimeError("stop here")
+    monkeypatch.setattr(writers, "build_prompt", build_prompt)
+    monkeypatch.setitem(writers._last_interview, "late", {"slot": segs[2].slot_id, "name": "Ivy Marchetti"})
+    with pytest.raises(RuntimeError):
+        writers.script_segment(cont, world)
+    assert seen["part"] == "cont"                            # not a fresh interview with a new guest
+
+
 def test_the_advert_scene_draws_with_and_without_an_owner(pool, world):
     from newsroom.player import View
     pygame.font.init()
