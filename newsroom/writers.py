@@ -15,9 +15,9 @@ import logging
 import random
 import time
 from collections import deque
-from datetime import date
+from datetime import date, datetime
 
-from . import llm, schedule, tipline
+from . import llm, schedule, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -320,6 +320,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
                      if big else "\n\nNo big running story today: keep it light.")
     cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
+    if seg_type is SegmentType.weather or show.id in ("breakfast", "late"):
+        today = datetime.fromtimestamp(at_ts or schedule.now()).date()
+        user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
     if brief:
         user += f"\n\nTHIS ITEM: {brief}."
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
@@ -580,7 +583,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
         script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work)
         source = "template"
 
-    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script))
+    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script),
+                      guest_role=getattr(script, "guest_role", None) if l.speaker == "guest" else None)
                  for l in script.lines if l.text.strip()]
     seg.headline = script.headline
     seg.cues = _cues_for(seg, script)

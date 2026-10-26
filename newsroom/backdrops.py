@@ -811,6 +811,18 @@ def _grade(surf: pygame.Surface, tod: str, wx: str | None, *, tod_grade: bool = 
     del rgb                                                      # unlock the surface
 
 
+PERSON_LIGHT_K = 0.5            # people on location are lit by the crew: half the backdrop's grade
+
+
+def person_light(backdrop_id: str | None, tod: str, wx: str | None) -> tuple[float, float, float]:
+    """A multiply for the people in front of an exterior, so they sit in its light: cool at
+    night, warm at dusk, greyer in rain. Studio sets and interiors are lit as they are."""
+    if not locations.get(backdrop_id).exterior:
+        return (1.0, 1.0, 1.0)
+    mult = WX_GRADE.get(wx, ((1.0, 1.0, 1.0), 0.0, None))[0]
+    return tuple(1.0 + (m * t - 1.0) * PERSON_LIGHT_K for m, t in zip(mult, TOD_MULT.get(tod, TOD_MULT["day"])))
+
+
 def _dusk_grade(surf: pygame.Surface, horizon: int) -> None:
     """Sunset for art made in daylight: a multiply can't turn blue sky orange, so tint instead.
 

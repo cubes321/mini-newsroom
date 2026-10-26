@@ -12,10 +12,10 @@ BG = (1, 2, 3)
 LOOKS_TO_CHECK = [(w, None) for w in LOOKS] + [("guest", guest_look(*g)) for g in SAMPLE_GUESTS]
 
 
-def _drawn(scale=2, facing=1, who="anchor", look=None, mouth=0.0, t=0.0, w=200, h=200):
+def _drawn(scale=2, facing=1, who="anchor", look=None, mouth=0.0, t=0.0, w=200, h=200, light=None):
     c = pygame.Surface((w, h))
     c.fill(BG)
-    draw_character(c, w // 2, h - 10, who, mouth, t, scale=scale, facing=facing, look=look)
+    draw_character(c, w // 2, h - 10, who, mouth, t, scale=scale, facing=facing, look=look, light=light)
     return c
 
 
@@ -74,6 +74,19 @@ def test_roles_dress_the_guest():
     assert guest_look("Alan Moss", "bm_fable", "Vicar of St Petroc's").extra == "collar"
     assert guest_look("Ken Hollis", "am_fenrir", "Retired fisherman").hat == "beanie"
     assert guest_look("Ken Hollis", "am_fenrir", "Retired fisherman").hair in sprites.GREYS
+
+
+def test_people_take_the_light_of_an_exterior():
+    from newsroom import backdrops
+    assert backdrops.person_light("studio_interview", "night", "rain") == (1.0, 1.0, 1.0)
+    assert backdrops.person_light("harbour", "day", None) == (1.0, 1.0, 1.0)
+    r, g, b = backdrops.person_light("harbour", "night", None)
+    assert 0.5 < r < b < 1.0                                  # dimmer, and cool
+    lit = _drawn(light=(r, g, b))
+    plain = _drawn()
+    px = _box(plain).center
+    assert sum(lit.get_at(px)[:3]) < sum(plain.get_at(px)[:3])
+    assert _box(lit) == _box(plain)                           # same shape, only darker
 
 
 def test_scenes_draw_a_guest_with_or_without_their_details():

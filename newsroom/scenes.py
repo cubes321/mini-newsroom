@@ -169,6 +169,7 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
 
 
 INTERVIEW = locations.MARKS["studio_interview"]
+LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a little dimmer and cooler
 _night: pygame.Surface | None = None
 
 
@@ -201,11 +202,12 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
 
 def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, "studio_interview")
-    if v.show == "late":
+    late = v.show == "late"
+    if late:
         canvas.blit(_night_look(), (0, 0))
     for who, name, (x, y, scale, facing) in _interview_marks(v):
-        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t,
-                       scale=scale, facing=facing, look=_guest(v, name) if who == "guest" else None)
+        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing,
+                       look=_guest(v, name) if who == "guest" else None, light=LATE_LIGHT if late else None)
 
 
 _interview_buf: pygame.Surface | None = None
@@ -311,13 +313,15 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     """Miles on location; when a resident speaks (a filmed piece, a vox pop) they take the frame."""
     backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
+    light = backdrops.person_light(v.backdrop, v.tod, v.weather)
     if v.speaker not in (None, "reporter"):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
-        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look)
-        draw_character(canvas, 62, 152, "reporter", 0.0, t, scale=1)
+        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light)
+        draw_character(canvas, 62, 152, "reporter", 0.0, t, scale=1, light=light)
         draw_mic(canvas, 190, 116)
     else:
-        draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
+        draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
+                       light=light)
         draw_mic(canvas, 105, 118)
     if v.tag:
         w = font(8).size(v.tag)[0] + 8
@@ -333,12 +337,15 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     wash = pygame.Surface((w, h), pygame.SRCALPHA)
     wash.fill((10, 10, 30, 70))
     canvas.blit(wash, (0, 0))
+    light = backdrops.person_light(v.backdrop, v.tod, v.weather)
     if v.speaker == "guest":
-        draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name))
-        draw_character(canvas, 62, 148, "reporter", 0.0, t, scale=1)
+        draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name),
+                       light=light)
+        draw_character(canvas, 62, 148, "reporter", 0.0, t, scale=1, light=light)
         draw_mic(canvas, 72, 122)
     else:
-        draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2)
+        draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
+                       light=light)
         draw_mic(canvas, 105, 110)
     # Letterbox bars
     pygame.draw.rect(canvas, (0, 0, 0), (0, 0, w, 14))

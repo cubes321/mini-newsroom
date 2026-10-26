@@ -365,9 +365,9 @@ class Player:
         v.speaker = line.speaker if line else None
         v.guest_name = line.guest_name if line else None
         as_presenter = self.world.presenter_named(v.guest_name) if v.speaker == "guest" else None
-        if as_presenter:                     # a presenter as a guest is drawn as themselves
-            v.speaker, v.guest_name = as_presenter.id, None
-            v.lower_third = (as_presenter.name, as_presenter.role)
+        if as_presenter:                     # a presenter as a guest is drawn as themselves,
+            v.speaker, v.guest_name = as_presenter.id, None             # captioned as the script has them
+            v.lower_third = (as_presenter.name, (line.guest_role if line else None) or as_presenter.role)
         v.replay = self.replaying
         v.repeat = seg.repeat
         v.show = seg.show
@@ -411,7 +411,7 @@ class Player:
             v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "")
         if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
             p = self.world.person_by_name(v.guest_name)
-            v.lower_third = (v.guest_name, p.role if p else "Port Wexley")
+            v.lower_third = (v.guest_name, line.guest_role or (p.role if p else "Port Wexley"))
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id

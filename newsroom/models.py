@@ -61,6 +61,7 @@ class Line(BaseModel):
     speaker: Speaker
     text: str
     guest_name: str | None = None          # only when speaker == "guest"
+    guest_role: str | None = None          # what the script calls them today (the caption)
     wav_path: Path | None = None
     duration_s: float | None = None
     mouth_env: list[float] = Field(default_factory=list)

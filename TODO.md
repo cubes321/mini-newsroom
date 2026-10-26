@@ -14,21 +14,17 @@ bottom with the date.
 - [ ] Studio sets still to come: a sports corner; bumper and filler cards in
   the same style as the art.
 - [ ] Optional parallax: two layers per backdrop.
-- [ ] Characters aren't lit for the time of day: Miles on the harbour at night
-  is drawn as at noon. A tint to match the backdrop's grade (and the late
-  show's lights-down look) would sit them in the scene.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the
   first match on a role word wins), and perhaps gesture states for presenters.
 
 ## Content
 
 - [ ] Local adverts (15–30 s) for the town's businesses; double as evergreen filler.
-- [ ] Tides and ferry times from a deterministic fake tide table, not the model.
 - [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
   ComfyUI with a contact sheet) to replace the interview set with the lights
   down; perhaps a house band sting and a second, shorter guest.
-- [ ] Breakfast extras: tides and adverts on *Morning Tide*; a guest in the
-  sofa armchair (the `guest` mark is free).
+- [ ] Breakfast extras: adverts on *Morning Tide*; a guest in the sofa armchair
+  (the `guest` mark is free).
 - [ ] Breaking news from the story desk or the editor (now tip-line only),
   and a follow-up field report from Miles once a breaking story is confirmed.
 - [ ] A model-planned running order for the magazine and the talk show (a
@@ -62,8 +58,6 @@ bottom with the date.
   editor and specials (240 s, `max_retries = 0`). Run the bench prompts first,
   then a `--log-llm` night. It's about 3–7× cheaper than Kimi, and half price
   off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
-- [ ] Treat a story-desk plan with zero updates as a failure and retry. Local
-  qwen3.6-35b and gemma-4-26b each returned one valid but empty plan in the bench.
 - [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
   with no token counts: the reply never arrives, yet providers bill it in full.
@@ -80,8 +74,6 @@ bottom with the date.
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
   enforced; `writers._keys_hint` spells out the keys, and the schemas accept
   `speaker_id`, per-line guest details and "female"/"male".)
-- [ ] A presenter booked as a guest (Gordon on his ghost tours) is captioned
-  with their presenter role; use the script's `guest_role` instead.
 
 ## Housekeeping
 
@@ -90,6 +82,18 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Tides and the Saltby foot ferry from arithmetic (`tides.py`,
+  `python -m newsroom.tides`): a semi-diurnal tide about 50 minutes later each
+  day with a spring-neap cycle, and a half-hourly foot ferry across the Grey
+  estuary (last one 23:15) that can't cross near low water or in a storm or
+  fog. Weather, breakfast and late-show scripts are given the day's times.
+- 2026-10-26 An empty story-desk plan (none of the round's threads) is asked
+  for once more, then left for the next round instead of being stamped done.
+- 2026-10-26 People on location take its light (`backdrops.person_light`: half
+  the backdrop's time-of-day and weather grade, as if lit by the crew), and the
+  late show's guests sit in its lights-down look.
+- 2026-10-26 A guest's caption is the role today's script gives them, also for
+  a presenter booked as a guest (Gordon on his ghost tours).
 - 2026-10-26 Refined code-drawn characters (`sprites.py`): a `Look` per
   presenter from agreed descriptions (hair, facial hair, glasses, clothes, an
   accessory), outlines, three-quarter faces that mirror with `facing`, and a

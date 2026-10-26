@@ -93,9 +93,9 @@ breakfast, the news, a magazine and a talk show; studio interviews, filmed
 features, vox pops and specials; breaking news from a viewer tip-line; the
 story bible and desk; provider switching, caching, failure recovery, and
 backdrop art for every location; code-drawn presenters, and a look of their
-own for every guest from their name, voice and role. Things that don't yet:
-local adverts and tides, and the 30-minute documentary that specials are the
-template for.
+own for every guest from their name, voice and role; tides and a foot ferry
+worked out by arithmetic. Things that don't yet: local adverts, and the
+30-minute documentary that specials are the template for.
 
 ## A normal day
 
@@ -269,6 +269,8 @@ uv run python -m newsroom --no-window --minutes 3 --scratch   # headless soak on
 uv run pytest                                          # all tests, on a temp town (no model, no TTS)
 uv run python -m unittest tests.test_world             # thread cap and template threads (no model, no TTS)
 uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
+uv run python -m newsroom.sprites --sheet people.png   # every presenter and a crowd of guests
+uv run python -m newsroom.tides 2026-11-02             # that day's tides and foot ferry
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
 ```

@@ -182,10 +182,14 @@ def guest_look(name: str | None, voice: str = "", role: str = "") -> Look:
 class _Pen:
     """Fills blocks in units from the top centre of the head, mirrored for facing left."""
 
-    def __init__(self, canvas: pygame.Surface, x: int, top: int, s: int, facing: int) -> None:
+    def __init__(self, canvas: pygame.Surface, x: int, top: int, s: int, facing: int,
+                 light: tuple[float, float, float] | None = None) -> None:
         self.c, self.x, self.top, self.s, self.f = canvas, x, top, s, 1 if facing >= 0 else -1
+        self.light = light if light and light != (1.0, 1.0, 1.0) else None
 
     def __call__(self, col: RGB, dx: int, dy: int, w: int = 1, h: int = 1) -> None:
+        if self.light:
+            col = tuple(min(255, int(c * k)) for c, k in zip(col, self.light))
         if self.f < 0:
             dx = -dx - w
         self.c.fill(col, (self.x + dx * self.s, self.top + dy * self.s, w * self.s, h * self.s))
@@ -398,12 +402,14 @@ def _blinking(who: str, look: Look | None, t: float) -> bool:
 
 
 def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: float, t: float,
-                   *, scale: int = 1, facing: int = 1, look: Look | None = None) -> None:
+                   *, scale: int = 1, facing: int = 1, look: Look | None = None,
+                   light: tuple[float, float, float] | None = None) -> None:
     """Head-and-shoulders character with the bottom at (x, y) baseline. mouth in 0..1.
-    `look` overrides the presenter's own (guests pass guest_look(...))."""
+    `look` overrides the presenter's own (guests pass guest_look(...)); `light` multiplies
+    every colour, to sit them in a location's light (backdrops.person_light)."""
     L = look or LOOKS.get(who, LOOKS["guest"])
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
-    p = _Pen(canvas, x, y - 37 * scale + bob, scale, facing)
+    p = _Pen(canvas, x, y - 37 * scale + bob, scale, facing, light)
     _hair_back(p, L)
     _body(p, L)
     _head(p, L, mouth, _blinking(who, look, t))

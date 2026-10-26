@@ -48,8 +48,15 @@ def batch(world: World) -> list[Thread]:
     return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
 
 
+def _in_turn(p: StoryPlan, todo: list[Thread]) -> int:
+    ids = {t.id for t in todo}
+    return sum(1 for u in p.updates if u.thread_id in ids)
+
+
 def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
-    """Ask the desk and apply its plan. Returns None if the model was unavailable."""
+    """Ask the desk and apply its plan. Returns None if the model was unavailable, or twice
+    planned none of this round's threads (valid JSON, but an empty plan is a failed plan:
+    local models did it in the bench). Either way the same batch comes round next time."""
     world.last_story_plan_ts = time.time()
     open_n = len(world.open_threads())
     room = max(0, CONFIG.story.max_open_threads - open_n)
@@ -64,9 +71,17 @@ def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
     )
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
+        if todo and not _in_turn(p, todo):
+            log.warning("story desk planned none of %s; asking once more", ids)
+            p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user + (
+                f"\n\nYour last reply planned none of this round's threads. Return an update (phase and "
+                f"NEXT development) for each of: {ids}."))
     except llm.LLMError as e:
         log.warning("story desk unavailable: %s", e)
         return None                                # the same batch comes round again next time
+    if todo and not _in_turn(p, todo):
+        log.warning("story desk planned none of %s again; that batch comes round next time", ids)
+        return None
     if not dry:
         apply(world, p, only={t.id for t in todo})
         now = time.time()

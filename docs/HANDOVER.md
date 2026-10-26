@@ -159,7 +159,8 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
   - **Positions:** some are still set for the old placeholder pictures.
   - ***The Last Ferry*** borrows the interview set.
   - **People:** drawn in code from a `Look` (`sprites.py`); presenters are written out, guests are
-    worked out from name, voice and role. They aren't tinted for dusk or night yet.
+    worked out from name, voice and role. On location they take half the backdrop's grade
+    (`backdrops.person_light`).
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
   minutes. Breakfast repeats a 6-item shape, with a different angle every time.
 - **Breaking news** comes only from the tip-line: the story desk can't raise it, and there is no
@@ -167,7 +168,6 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 - **Special archive timing:** `record_aired` for a special runs when it is finished, not when it
   airs.
 - **Length caps:** status notes are clipped on parse now; a spoken line over 900 characters (Miles) still fails once and recovers on the retry.
-- **Guest captions:** a presenter as a guest is captioned with their presenter role, not the role in the script.
 - **Not yet observed:**
   - an overnight special airing after the test card (fixed after the first overnight run);
   - the LM Studio provider through the app's own config (benched only through a rerouting
@@ -177,8 +177,7 @@ The gap that hid (finished specials lost on restart) is now fixed. The three spe
 
 1. **Hybrid routing:** live segments on LM Studio, the story desk, editor and specials on Kimi
    k3, as a route in the config.
-2. **Art session:** *The Last Ferry*'s own set, night variants, and lighting the characters to
-   match the backdrop's time of day.
+2. **Art session:** *The Last Ferry*'s own set and night variants for the other exteriors.
 3. **Breaking follow-ups:** bulletins now lead with a story for two hours after it breaks; next
    would be Miles reporting from the scene, and the story desk
    raising breaking news itself.
