@@ -97,6 +97,8 @@ LOCATIONS: tuple[Location, ...] = (
              "studio", (34, 40, 66), (60, 50, 48)),
     Location("studio_sofa", "the breakfast sofa", "the breakfast show's sofa by a window onto the harbour",
              "studio", (225, 210, 185), (150, 120, 95)),
+    Location("studio_late", "The Last Ferry set", "the late-night show's desk and guest couch, the harbour at night behind",
+             "studio", (22, 26, 48), (52, 40, 36)),
 )
 
 # Where people go on the studio sets: (x, baseline y, sprite scale, facing).
@@ -107,6 +109,7 @@ Mark = tuple[int, int, int, int]
 MARKS: dict[str, dict[str, Mark]] = {
     "studio_interview": {"host": (92, 150, 2, 1), "guest": (228, 150, 2, -1)},
     "studio_sofa": {"host_a": (122, 146, 2, 1), "host_b": (186, 146, 2, -1), "guest": (272, 150, 2, -1)},
+    "studio_late": {"host": (92, 136, 2, 1), "guest": (228, 150, 2, -1)},    # host just behind the desk top
 }
 
 BY_ID: dict[str, Location] = {loc.id: loc for loc in LOCATIONS}

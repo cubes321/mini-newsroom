@@ -168,9 +168,7 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
     draw_character(canvas, 270, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2)
 
 
-INTERVIEW = locations.MARKS["studio_interview"]
 LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a little dimmer and cooler
-_night: pygame.Surface | None = None
 
 
 def _guest(v: View, name: str | None):
@@ -178,33 +176,26 @@ def _guest(v: View, name: str | None):
     return guest_look(name, *v.guests.get(name or "", ("", "")))
 
 
-def _night_look() -> pygame.Surface:
-    """The interview set after ten: lights down, the floor lamp and a pool of light on the chairs."""
-    global _night
-    if _night is None:
-        _night = pygame.Surface(CANVAS, pygame.SRCALPHA)
-        _night.fill((6, 6, 24, 150))
-        for (cx, cy), radius, floor in (((305, 60), 50, 40), ((160, 128), 100, 30)):    # lamp, then the chairs
-            for r in range(radius, 0, -2):                      # soft-edged: alpha falls towards the centre
-                alpha = int(floor + (150 - floor) * (r / radius) ** 2)
-                pygame.draw.circle(_night, (6, 6, 24, alpha), (cx, cy), r)
-    return _night
+def _interview_set(v: View) -> str:
+    """The Last Ferry has its own desk-and-couch set; every other show uses the armchairs."""
+    return "studio_late" if v.show == "late" else "studio_interview"
 
 
 def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:
     """(who, guest name, mark) for each person on the interview set."""
-    if len(v.people) == 1:                                      # alone: centre stage, standing
+    marks = locations.MARKS[_interview_set(v)]
+    if len(v.people) == 1:
         who, name = v.people[0]
-        return [(who, name, (160, 156, 2, 1))]
-    slots = [INTERVIEW["host"], INTERVIEW["guest"]]
+        if v.show == "late":                                    # the monologue, from behind the desk
+            return [(who, name, marks["host"])]
+        return [(who, name, (160, 156, 2, 1))]                  # alone: centre stage, standing
+    slots = [marks["host"], marks["guest"]]
     return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:2])]
 
 
 def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
-    backdrops.draw(canvas, "studio_interview")
+    backdrops.draw(canvas, _interview_set(v))
     late = v.show == "late"
-    if late:
-        canvas.blit(_night_look(), (0, 0))
     for who, name, (x, y, scale, facing) in _interview_marks(v):
         draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing,
                        look=_guest(v, name) if who == "guest" else None, light=LATE_LIGHT if late else None)

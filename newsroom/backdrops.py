@@ -761,6 +761,45 @@ def _studio_sofa(p: _Paint) -> None:
     p.poly((245, 215, 150), [(24, 100), (42, 100), (38, 88), (28, 88)])
 
 
+@_painter("studio_late")
+def _studio_late(p: _Paint) -> None:
+    """The Last Ferry: painted with the lights already down, the harbour at night behind."""
+    p.rect(p.loc.sky, 0, 0, W, H)
+    p.rect((14, 14, 20), 34, 10, 240, 94)                        # window onto the harbour at night
+    p.s.blit(picture("harbour", "night", None, (232, 86)), (38, 14))
+    for x in (114, 192):
+        p.rect((14, 14, 20), x, 14, 3, 86)
+    for x0 in (0, 274):                                          # velvet curtains either side
+        p.rect((90, 22, 32), x0, 0, 46, 132)
+        for x in range(x0 + 4, x0 + 46, 8):
+            p.rect((62, 14, 24), x, 0, 2, 132)
+    p.rect(p.loc.ground, 0, 128, W, H - 128)
+    for y in range(134, H, 7):
+        p.rect(_shade(p.loc.ground, 0.8), 0, y, W, 1)
+    host, guest = MARKS["studio_late"]["host"], MARKS["studio_late"]["guest"]
+    leather = (72, 34, 38)
+    p.ellipse(leather, host[0] - 26, host[1] - 62, 52, 16)       # tall chair back behind the host
+    p.rect(leather, host[0] - 26, host[1] - 54, 52, 50)
+    top = host[1] - 4                                            # desk top just above the baseline, like studio_wide
+    p.rect((112, 70, 44), 40, top, 112, 4)
+    p.rect((76, 46, 32), 44, top + 4, 104, 26)
+    p.rect((92, 58, 40), 52, top + 9, 88, 16)
+    p.rect((200, 170, 120), 48, top - 14, 2, 14)                 # desk lamp and a mug, clear of the host
+    p.poly((235, 190, 110), [(42, top - 14), (56, top - 14), (52, top - 22), (46, top - 22)])
+    p.rect((220, 215, 205), 128, top - 7, 7, 7)
+    green = (46, 84, 70)
+    p.rect(green, guest[0] - 50, guest[1] - 42, 136, 36)         # couch back, behind the guest's shoulders
+    for x in range(guest[0] - 46, guest[0] + 82, 42):
+        p.rect(_shade(green, 1.15), x, guest[1] - 38, 38, 26)    # back cushions
+    p.rect(_shade(green, 0.8), guest[0] - 60, guest[1] - 26, 14, 34)   # arms
+    p.rect(_shade(green, 0.8), guest[0] + 84, guest[1] - 26, 10, 34)
+    p.rect(_shade(green, 0.65), guest[0] - 60, guest[1] + 2, 154, 8)
+    p.rect((76, 46, 32), 154, 128, 14, 3)                        # side table and lamp between desk and couch
+    p.rect((76, 46, 32), 159, 131, 4, 20)
+    p.rect((60, 60, 60), 160, 112, 2, 16)
+    p.poly((245, 205, 130), [(153, 112), (169, 112), (165, 102), (157, 102)])
+
+
 def _generic(p: _Paint) -> None:
     """Any location without its own painter: the original blocks."""
     _ground(p)

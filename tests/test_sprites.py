@@ -100,3 +100,17 @@ def test_scenes_draw_a_guest_with_or_without_their_details():
         scenes.render(c, v, 0.5)
         v = View(mode="studio", set="interview", people=[("anchor", None), ("guest", "Tom Penrose")], guests=guests)
         scenes.render(c, v, 0.5)
+
+
+def test_the_late_show_has_its_own_set_and_the_host_sits_at_the_desk(monkeypatch):
+    from newsroom import backdrops, scenes
+    from newsroom.player import View
+    drawn = []
+    monkeypatch.setattr(backdrops, "draw", lambda canvas, bid, *a, **k: drawn.append(bid))
+    pygame.font.init()
+    c = pygame.Surface(scenes.CANVAS)
+    for show in ("late", "magazine"):
+        scenes.render(c, View(mode="studio", set="interview", show=show, people=[("late_host", None)]), 0.5)
+    assert drawn == ["studio_late", "studio_interview"]
+    alone = View(mode="studio", set="interview", show="late", people=[("late_host", None)])
+    assert scenes._interview_marks(alone)[0][2] == scenes.locations.MARKS["studio_late"]["host"]
