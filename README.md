@@ -92,8 +92,9 @@ not yet been left on overnight. Things that exist: a daily schedule with
 breakfast, the news, a magazine and a talk show; studio interviews, filmed
 features, vox pops and specials; breaking news from a viewer tip-line; the
 story bible and desk; provider switching, caching, failure recovery, and
-backdrop art for every location. Things that don't yet: local adverts and
-tides, real sprite art, and the 30-minute documentary that specials are the
+backdrop art for every location; code-drawn presenters, and a look of their
+own for every guest from their name, voice and role. Things that don't yet:
+local adverts and tides, and the 30-minute documentary that specials are the
 template for.
 
 ## A normal day

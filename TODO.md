@@ -14,9 +14,11 @@ bottom with the date.
 - [ ] Studio sets still to come: a sports corner; bumper and filler cards in
   the same style as the art.
 - [ ] Optional parallax: two layers per backdrop.
-- [ ] Real character sprites for all eight presenters (Dana, Gordon, Miles,
-  Rosie, Jonah, Pat, Clive, Vincent) and a guest set, keeping the
-  `draw_character` signature (idle / talking / gesture states).
+- [ ] Characters aren't lit for the time of day: Miles on the harbour at night
+  is drawn as at noon. A tint to match the backdrop's grade (and the late
+  show's lights-down look) would sit them in the scene.
+- [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the
+  first match on a role word wins), and perhaps gesture states for presenters.
 
 ## Content
 
@@ -88,6 +90,15 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Refined code-drawn characters (`sprites.py`): a `Look` per
+  presenter from agreed descriptions (hair, facial hair, glasses, clothes, an
+  accessory), outlines, three-quarter faces that mirror with `facing`, and a
+  look for every guest from their name, voice and role (`guest_look`: the
+  voice decides whether they read as a woman or a man, and role words dress
+  them, from a firefighter's stripe to a mayor's chain).
+  `python -m newsroom.sprites --sheet out.png`. Generated PNG sprites were
+  tried first and set aside: the blocks suit the backdrops better and can be
+  varied for any guest.
 - 2026-10-26 LM Studio thinking turned off with `reasoning_effort: "none"`
   (`enable_thinking` is ignored); local models benched against Kimi.
 - 2026-10-26 The thread cap drops closed threads first and never an open one

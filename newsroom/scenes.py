@@ -13,7 +13,7 @@ import pygame
 
 from . import backdrops, locations, schedule
 from .player import View
-from .sprites import draw_character, draw_mic, guest_palette
+from .sprites import draw_character, draw_mic, guest_look
 
 CANVAS = (320, 180)
 
@@ -172,6 +172,11 @@ INTERVIEW = locations.MARKS["studio_interview"]
 _night: pygame.Surface | None = None
 
 
+def _guest(v: View, name: str | None):
+    """A guest's look from their voice and role, as the player found them; by name alone otherwise."""
+    return guest_look(name, *v.guests.get(name or "", ("", "")))
+
+
 def _night_look() -> pygame.Surface:
     """The interview set after ten: lights down, the floor lamp and a pool of light on the chairs."""
     global _night
@@ -199,9 +204,8 @@ def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     if v.show == "late":
         canvas.blit(_night_look(), (0, 0))
     for who, name, (x, y, scale, facing) in _interview_marks(v):
-        palette = guest_palette(name) if who == "guest" else None
         draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t,
-                       scale=scale, facing=facing, palette=palette)
+                       scale=scale, facing=facing, look=_guest(v, name) if who == "guest" else None)
 
 
 _interview_buf: pygame.Surface | None = None
@@ -308,8 +312,8 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     """Miles on location; when a resident speaks (a filmed piece, a vox pop) they take the frame."""
     backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     if v.speaker not in (None, "reporter"):        # a resident, or a presenter interviewed as themselves
-        palette = guest_palette(v.guest_name) if v.speaker == "guest" else None
-        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, palette=palette)
+        look = _guest(v, v.guest_name) if v.speaker == "guest" else None
+        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look)
         draw_character(canvas, 62, 152, "reporter", 0.0, t, scale=1)
         draw_mic(canvas, 190, 116)
     else:
@@ -330,7 +334,7 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     wash.fill((10, 10, 30, 70))
     canvas.blit(wash, (0, 0))
     if v.speaker == "guest":
-        draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, palette=guest_palette(v.guest_name))
+        draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name))
         draw_character(canvas, 62, 148, "reporter", 0.0, t, scale=1)
         draw_mic(canvas, 72, 122)
     else:

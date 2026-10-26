@@ -60,6 +60,7 @@ class View:
     resume_at: str = ""                  # overnight card: when programmes start again
     speaker: str | None = None
     guest_name: str | None = None
+    guests: dict = field(default_factory=dict)   # every guest in shot: name -> (voice, role), for their look
     mouth: float = 0.0
     talking: bool = False
     lower_third: tuple[str, str] | None = None
@@ -405,6 +406,9 @@ class Player:
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
         v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
+        for name in {v.guest_name, *(n for w, n in v.people if w == "guest")} - {None}:
+            p = self.world.person_by_name(name)
+            v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "")
         if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
             p = self.world.person_by_name(v.guest_name)
             v.lower_third = (v.guest_name, p.role if p else "Port Wexley")
