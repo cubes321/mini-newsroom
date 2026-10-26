@@ -55,6 +55,16 @@ bottom with the date.
   editor and specials on Kimi k3. A one-hour trial with a scratchpad reroute
   ran 93 jobs cleanly; sofa chats took about 27 s on qwen3.8 (Kokoro competes
   for the CPU), and the back office would cost about $0.9 a night on k3.
+- [ ] Try DeepSeek (needs credits and `DEEPSEEK_API_KEY`): `deepseek-flash` for
+  live with `thinking = { type = "disabled" }`, `deepseek-v4-pro` for the desk,
+  editor and specials (240 s, `max_retries = 0`). Run the bench prompts first,
+  then a `--log-llm` night. It's about 3–7× cheaper than Kimi, and half price
+  off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
+- [ ] Treat a story-desk plan with zero updates as a failure and retry. Local
+  qwen3.6-35b and gemma-4-26b each returned one valid but empty plan in the bench.
+- [ ] Log a row for every call the app abandons (timeouts). Providers bill them
+  in full, so the app's log undercounted the 2026-10-25 night: Kimi billed 77
+  k3 calls ($3.18) where the log showed 23.
 - [ ] `record_aired` for a special runs when it is finished, not when it airs, so
   the archive says it aired early. Moving it means a world write from the main
   thread (wait for the world-state lock).
