@@ -277,10 +277,11 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             return cached
         if _load_partial(seg, h):
             return advance(seg, world, buffer)
-        # A new piece under the key of one that already aired (same title, thread and day):
-        # its marker would stop a restart from resuming the new one.
-        _aired_path(h).unlink(missing_ok=True)
         outline = write_outline(seg, world)
+        # A new piece under the key of one that already aired (same title, thread and day):
+        # its marker would stop a restart from resuming the new one. Only once the outline is
+        # in hand, so a retried outline still sees the old piece as aired.
+        _aired_path(h).unlink(missing_ok=True)
         seg.headline = outline.title
         seg.work.update({"outline": outline.model_dump(), "starts": [], "next_section": 0, "t0": time.time()})
         seg.lines = [Line(speaker="anchor", text=outline.intro.strip())]

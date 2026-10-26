@@ -111,6 +111,29 @@ def test_recommissioned_title_after_airing_is_made_again(world, monkeypatch):
     assert not special._aired_path(h).exists()
 
 
+def test_retried_outline_still_skips_the_aired_special(world, monkeypatch):
+    """The outline times out and is retried: the old piece's marker must still be there."""
+    seg = _commission(world)
+    h = special._hash(seg, world)
+    _cache_finished(h, seg.headline, aired=True)
+    calls = {"n": 0}
+
+    def flaky(s, w):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise TimeoutError("timed out")
+        return _outline()
+
+    monkeypatch.setattr(special, "write_outline", flaky)
+    buffer = Buffer()
+    with pytest.raises(TimeoutError):
+        special.advance(seg, world, buffer)
+    out = special.advance(seg, world, buffer)          # the retry
+
+    assert buffer.pop_special() is None
+    assert out.stage == "sections"
+
+
 def test_unaired_special_in_its_own_cache_is_reused(world, monkeypatch):
     seg = _commission(world)
     h = special._hash(seg, world)
