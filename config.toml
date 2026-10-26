@@ -125,6 +125,10 @@ model = "claude-haiku-5-5"
 max_tokens = 2000
 timeout_s = 60
 extra_body = { thinking = { type = "disabled" } }
+# The town, presenters and public figures at the top of every briefing, with the system prompt and
+# schema, are cached for an hour: a read costs a tenth, the first write twice, and every read
+# restarts the hour, so even the editor (every 15 min) and the desk (30 min) stay cached.
+cache_ttl = "1h"
 
 [llm.providers.claude_sonnet]      # story desk, editor, specials: thinking on, 7 s for a desk plan
 kind = "anthropic"
@@ -133,6 +137,7 @@ max_tokens = 16000                 # thinking counts against it
 timeout_s = 240
 max_retries = 0                    # as for k3: a retried timeout blocks live production twice as long
 extra_body = { effort = "high" }
+cache_ttl = "1h"
 
 [tts]
 backend = "kokoro"

@@ -28,6 +28,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from .config import CONFIG
+from .llm import CACHE_BREAK
 
 log = logging.getLogger(__name__)
 
@@ -111,7 +112,10 @@ class World:
     def _people_lines(self, kinds: tuple[str, ...], limit: int) -> str:
         rows = [p for p in self.people if p.kind in kinds]
         rows.sort(key=lambda p: (-p.appearances, p.name))
-        return "\n".join(f"  - {p.name}, {p.role}" + (f"; {p.notes}" if p.notes else "") for p in rows[:limit]) or "  (none yet)"
+        # The most seen make the list, in a fixed order: re-sorting by appearances after every segment
+        # would change the cached head of the briefing (see llm.CACHE_BREAK).
+        rows = sorted(rows[:limit], key=lambda p: p.name)
+        return "\n".join(f"  - {p.name}, {p.role}" + (f"; {p.notes}" if p.notes else "") for p in rows) or "  (none yet)"
 
     def _thread_line(self, t: Thread, *, full: bool = False) -> str:
         last = t.beats[-1] if t.beats else None
@@ -141,7 +145,7 @@ class World:
             f"Use these dates; do not invent how much time has passed.\n"
             f"Presenters (the ONLY allowed speaker ids in live segments):\n{chars}\n"
             f"Public figures who may be quoted or interviewed (by name, in the text):\n"
-            f"{self._people_lines(('official', 'worthy'), 10)}\n"
+            f"{self._people_lines(('official', 'worthy'), 10)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
@@ -155,7 +159,7 @@ class World:
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
         return (
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
-            f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n"
+            f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n"
             f"Specials already made (do not repeat these subjects):\n{done}\n"
@@ -491,6 +495,7 @@ def _cli() -> int:
         return 0
     else:
         text = w.summary_for_prompt()
+    text = text.replace(CACHE_BREAK, "")
     print(text)
     print(f"\n--- {len(text)} chars, ~{len(text) // 4} tokens")
     return 0

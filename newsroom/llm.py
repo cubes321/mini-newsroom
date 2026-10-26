@@ -19,8 +19,15 @@ json_schema mode falls back to json_object mode if a server rejects it; a
 validation failure gets exactly one retry carrying the error text; the
 second failure raises so the caller can use its canned fallback.
 
+Prompt caching: a prompt builder puts CACHE_BREAK where the part that stays
+the same from call to call ends (the town, presenters and public figures at
+the top of the briefing). On an anthropic provider with `cache_ttl` set, that
+part, together with the system prompt and schema ahead of it, is cached and
+re-read at a tenth of the price; everywhere else the marker is just removed.
+
 Accounting: every call's token counts go on its log line and into running
-totals per provider (`usage_summary()`). With `[llm] log_calls = true`,
+totals per provider (`usage_summary()`). "in" is the whole prompt, cached or
+not, so providers compare; cache reads and writes are counted on the side. With `[llm] log_calls = true`,
 --log-llm or NEWSROOM_LLM_LOG=1, the full prompt and reply of each call is
 appended to data/llm_calls/<date>.jsonl.
 """
@@ -41,6 +48,10 @@ from .config import CONFIG, ProviderCfg
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
+
+# Where the stable head of a user prompt ends. A control character, so it can't turn up in a prompt
+# by accident; removed before anything is sent or logged except as the split it stands for.
+CACHE_BREAK = "\x1e"
 
 _THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
@@ -85,18 +96,22 @@ _USAGE_LOCK = threading.Lock()
 
 def _count(provider: str, usage: dict | None, *, failed: bool = False) -> None:
     with _USAGE_LOCK:
-        u = _USAGE.setdefault(provider, {"calls": 0, "failed": 0, "in": 0, "out": 0})
+        u = _USAGE.setdefault(provider, {"calls": 0, "failed": 0, "in": 0, "out": 0, "cache_read": 0, "cache_write": 0})
         u["calls"] += 1
         u["failed"] += failed
         if usage:
-            u["in"] += usage["in"]
-            u["out"] += usage["out"]
+            for k in ("in", "out", "cache_read", "cache_write"):
+                u[k] += usage.get(k, 0)
+
+
+def _cache_text(u: dict) -> str:
+    return f" ({u['cache_read']} cache read, {u['cache_write']} written)" if u.get("cache_read") or u.get("cache_write") else ""
 
 
 def usage_summary() -> str:
     """One line of per-provider totals since start, for STATS and the exit line."""
     with _USAGE_LOCK:
-        return " | ".join(f"{p}: {u['calls']} calls ({u['failed']} failed), {u['in']} in / {u['out']} out"
+        return " | ".join(f"{p}: {u['calls']} calls ({u['failed']} failed), {u['in']} in{_cache_text(u)} / {u['out']} out"
                           for p, u in sorted(_USAGE.items())) or "no llm calls"
 
 
@@ -104,7 +119,7 @@ def _usage_text(usage: dict | None) -> str:
     if not usage:
         return "no usage reported"
     extra = f", {usage['reasoning']} reasoning" if usage.get("reasoning") else ""
-    return f"{usage['in']} in / {usage['out']} out{extra}"
+    return f"{usage['in']} in{_cache_text(usage)} / {usage['out']} out{extra}"
 
 
 _CALL_LOG_LOCK = threading.Lock()
@@ -280,8 +295,24 @@ def _anthropic_raw(prov: ProviderCfg, system: str, messages: list[dict],
     if resp.stop_reason == "max_tokens":
         log.warning("%s hit max_tokens; output may be truncated", prov.name)
     text = "".join(b.text for b in resp.content if b.type == "text")
-    usage = {"in": resp.usage.input_tokens, "out": resp.usage.output_tokens} if resp.usage else None
+    usage = None
+    if u := resp.usage:
+        read, write = u.cache_read_input_tokens or 0, u.cache_creation_input_tokens or 0
+        usage = {"in": u.input_tokens + read + write, "out": u.output_tokens, "cache_read": read, "cache_write": write}
     return text, usage
+
+
+def _user_content(prov: ProviderCfg, user: str) -> str | list[dict]:
+    """The first user turn. On a caching anthropic provider the text before CACHE_BREAK is a block
+    of its own with the cache marker, so the system prompt, schema and that block are one cached
+    prefix; otherwise the marker is dropped and the prompt goes as plain text."""
+    stable, sep, rest = user.partition(CACHE_BREAK)
+    if not sep or prov.kind != "anthropic" or not prov.cache_ttl:
+        return user.replace(CACHE_BREAK, "")
+    mark = {"type": "ephemeral", "ttl": prov.cache_ttl}
+    rest = rest.replace(CACHE_BREAK, "")
+    return [{"type": "text", "text": stable, "cache_control": mark}] + (
+        [{"type": "text", "text": rest}] if rest.strip() else [])
 
 
 # -------------------------------------------------------------------- public
@@ -293,9 +324,9 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
     if name == "off":
         raise LLMUnavailable("NEWSROOM_LLM=off")
     prov = CONFIG.llm.provider(name)
-    messages: list[dict] = [{"role": "user", "content": user}]
     if prov.kind not in ("openai", "anthropic"):
         raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
+    messages: list[dict] = [{"role": "user", "content": _user_content(prov, user)}]
 
     def record(attempt: int, t0: float, *, text: str = "", usage: dict | None = None, error: str = "") -> None:
         _count(name, usage, failed=bool(error))
@@ -370,7 +401,7 @@ def _cli(argv: list[str]) -> int:
                                 work=work, tips=tips)
     name = provider_for(a.type)
     if a.dry_run:
-        print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user)
+        print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user.replace(CACHE_BREAK, "[cache break]\n"))
         print("\n=== SCHEMA ===\n" + json.dumps(schema.model_json_schema(), indent=1))
         print(f"\nprovider for {a.type!r}: {name}")
         return 0

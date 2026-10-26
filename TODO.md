@@ -102,6 +102,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Prompt caching on the Claude route: the top of every briefing (town,
+  presenters, public figures, now listed in a fixed order) is cached for an hour
+  together with the system prompt and schema (`llm.CACHE_BREAK`, `cache_ttl` per
+  provider). Live scripts read 1,800–2,300 cached tokens of about 3,600–4,600, and the
+  last four sections of a special 1,750 of 3,600. Cache reads and writes are on each
+  call's log line and in LLM USAGE; "in" stays the whole prompt.
 - 2026-10-26 Local adverts (`adverts.py`): an evergreen pool of voiced 15–30 s
   ads in `data/ads/` that the player airs when the next segment isn't ready
   (up to three in a row, then the filler card). Eight hand-written ones are

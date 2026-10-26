@@ -37,6 +37,7 @@ class ProviderCfg:
     max_tokens: int | None = None        # overrides LLMCfg.max_tokens (thinking models need more)
     timeout_s: float | None = None       # overrides LLMCfg.timeout_s (slow thinking models need more)
     max_retries: int = 1                 # SDK retries; each timed-out retry waits the full timeout again
+    cache_ttl: str = ""                  # anthropic: "5m" or "1h" caches the prompt up to llm.CACHE_BREAK
     extra_body: dict = field(default_factory=dict)
 
 
