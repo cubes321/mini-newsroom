@@ -56,7 +56,7 @@ def _cache_paths(h: str) -> tuple[Path, Path]:
 
 def _load_cached(seg: Segment, h: str) -> Segment | None:
     meta, _ = _cache_paths(h)
-    if not meta.exists():
+    if not meta.exists() or (CONFIG.paths.cache / f"{h}.aired").exists():   # a special that has aired
         return None
     try:
         cached = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
@@ -140,6 +140,20 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     """Full pipeline for one segment. Returns the ready Segment."""
     t0 = time.perf_counter()
     world.roll_day_if_needed()                # an always-on station crosses midnight
+
+    # Specials and breaking news key their own cache, before the slot-keyed hash below is
+    # stamped: their slot numbers restart every run, so a slot key would hand a new special
+    # an old one's cache entry.
+    if seg.type is SegmentType.breaking:
+        from .breaking import make
+
+        return make(seg, world, buffer)
+    if seg.type is SegmentType.documentary:
+        from .special import advance, generate_special
+
+        # On the worker, one stage per turn so live slots interleave; the CLI runs them all.
+        return advance(seg, world, buffer) if buffer is not None else generate_special(seg, world)
+
     h = content_hash(seg, world)
     seg.content_hash = h
 
@@ -152,15 +166,6 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
         if buffer:
             buffer.mark(ready, SegmentState.ready)
         return ready
-    if seg.type is SegmentType.breaking:
-        from .breaking import make
-
-        return make(seg, world, buffer)
-    if seg.type is SegmentType.documentary:
-        from .special import advance, generate_special
-
-        # On the worker, one stage per turn so live slots interleave; the CLI runs them all.
-        return advance(seg, world, buffer) if buffer is not None else generate_special(seg, world)
 
     cached = _load_cached(seg, h)
     if cached is not None:
@@ -189,6 +194,8 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
 
 
 # ----------------------------------------------------------------- threads
+
+SPECIAL_RETRIES = 1                 # a failed special stage is tried again this many times before it is dropped
 
 
 class WorkerPool:
@@ -246,7 +253,17 @@ class WorkerPool:
             except Exception as e:  # noqa: BLE001
                 self.jobs_failed += 1
                 log.exception("slot %d %s failed", seg.slot_id, seg.type.value)
-                self.buffer.mark(seg, SegmentState.failed, error=str(e)[:200])
+                self._failed(seg, e)
+
+    def _failed(self, seg: Segment, e: Exception) -> None:
+        if seg.type is SegmentType.documentary and seg.work.get("retries", 0) < SPECIAL_RETRIES:
+            # A commission is worth one more go (a model timeout, say): the failed stage runs
+            # again, from where the last one left off, once the live queue is clear.
+            seg.work["retries"] = seg.work.get("retries", 0) + 1
+            log.warning("special %r: retrying the %s stage", seg.headline, seg.stage or "outline")
+            self.buffer.requeue(seg)
+            return
+        self.buffer.mark(seg, SegmentState.failed, error=str(e)[:200])
 
     def _buffer_healthy(self) -> bool:
         need = CONFIG.special.min_buffer_frac * CONFIG.broadcast.horizon_s

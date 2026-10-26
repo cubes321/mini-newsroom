@@ -6,9 +6,10 @@ Rules:
 - If the next slot is not ready, play filler (music bed + card). After a
   while with nothing new, replay the last weather segment so the screen
   isn't dead air.
-- A ready special airs right after a bumper, between loops of the rundown,
-  without consuming a slot number, and only in a show that airs specials
-  (the news): one made overnight waits for it.
+- A ready special airs at a break, between loops of the rundown, without
+  consuming a slot number, and only in a show that airs specials: after a
+  bumper in the news, after the test card overnight. One made during
+  breakfast or the evening shows waits for the news.
 - Breaking news cuts in at the next line boundary (the overnight test card at
   once): the segment on air is set aside with its place and elapsed time, the
   breaking segment plays, then the programme resumes from the next line. A
@@ -44,6 +45,7 @@ LET_FINISH_S = 12.0        # breaking news waits for a segment with less than th
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue)
 OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
+_BREAKS = (SegmentType.bumper, SegmentType.testcard)   # a ready special may air after these
 
 
 @dataclass
@@ -259,9 +261,9 @@ class Player:
             self._resume(now)
             return
 
-        # A finished special is aired right after a bumper, between loops,
-        # in a show that airs specials.
-        if self.last_type is SegmentType.bumper and schedule.show_at(now).airs_specials:
+        # A finished special is aired at a break (a bumper, or overnight the test
+        # card), between loops, in a show that airs specials.
+        if self.last_type in _BREAKS and schedule.show_at(now).airs_specials:
             special = self.buffer.pop_special()
             if special is not None:
                 self._start(special, now)

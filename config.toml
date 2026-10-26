@@ -34,7 +34,7 @@ breaking = "moonshot"             # breaking news from the tip-line
 
 # Special reports (documentary v0). The editor runs on the worker thread when
 # it is idle; a commissioned special is a low-priority job that plays at the
-# next bumper boundary once it is ready.
+# next break (a news bumper, or the overnight test card) once it is ready.
 [special]
 check_every_s = 900      # how often the editor looks at the open threads
 cooldown_s = 3600        # minimum gap between specials
