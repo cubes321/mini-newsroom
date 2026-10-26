@@ -29,12 +29,9 @@ bottom with the date.
 - [ ] Schedule: whether specials (or later documentaries) get their own
   scheduled slots rather than only after news bumpers.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
-- [ ] The documentary, part 2: archive "footage", short clips of earlier aired
-  segments (their cached audio) played inside it with an ARCHIVE caption and date.
-  Archive entries need to record their cache hash first. Then perhaps: give the
-  writers and the story desk what documentaries established (`world.documentaries`),
-  a repeat of the night's documentary in the overnight block, and the doc's own
-  presenter for history pieces.
+- [ ] Documentary follow-ups: give the writers and the story desk what documentaries
+  established (`world.documentaries`), a repeat of the night's documentary in the
+  overnight block, and the documentary's own presenter for history pieces.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
 
 ## Engineering
@@ -93,6 +90,13 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 The documentary, part 2: archive footage. Archive entries now record their
+  cache key (older ones are matched by their text, an exact prefix of the segment's).
+  The research stage offers the outline up to eight clips (one line each: a guest's
+  quote, or else Miles in the field, 3–30 s); the outline places up to three, one per
+  section; the section is written around it, and the clip's audio is copied into the
+  documentary's own files. It airs black and white, tagged ARCHIVE, captioned with the
+  speaker and the date.
 - 2026-10-26 The nightly documentary, part 1 (`documentary.py`): fifteen minutes, *Port
   Wexley Stories*, once a day on a long-running thread or the town's history, chosen by
   the documentary editor from 18:00. A research stage writes notes from the archive (every

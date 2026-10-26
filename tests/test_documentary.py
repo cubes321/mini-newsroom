@@ -209,3 +209,82 @@ def test_it_airs_once_a_day_and_is_archived_then(world, monkeypatch):
     player._finish(_at("21:19"))
     assert world.archive[-1]["type"] == "documentary"
     assert not documentary.due(world, _at("21:30"))     # tonight's has aired
+
+
+# ------------------------------------------------------------ archive footage
+
+
+def _cached(tmp, h, lines, archive_text=None):
+    """A voiced segment in the cache under `h`, as an earlier run left it."""
+    for i, (speaker, text, name) in enumerate(lines):
+        (tmp / f"{h}_{i:02d}.wav").write_bytes(b"RIFF")
+    seg = Segment(slot_id=3, type=SegmentType.field_report, headline="Engine petition", state=SegmentState.ready,
+                  content_hash=h, lines=[Line(speaker=s, text=t, guest_name=n, guest_role="Station Officer" if n else None,
+                                              wav_path=tmp / f"{h}_{i:02d}.wav", duration_s=8.0)
+                                         for i, (s, t, n) in enumerate(lines)])
+    (tmp / f"{h}.json").write_text(seg.model_dump_json(), encoding="utf-8")
+    return seg
+
+
+QUOTE = "We cover the whole coast with one engine, and on a bad night that is not enough."
+
+
+def test_clips_are_found_by_cache_key_or_by_text(world, tmp_paths):
+    seg = _cached(tmp_paths, "aaaa1111", [("reporter", "Miles at the station tonight, with the petition.", None),
+                                           ("guest", QUOTE, "Bea Kowalczyk")])
+    _cached(tmp_paths, "bbbb2222", [("anchor", "Good evening, here is the news from the harbour tonight.", None)])
+    text = " ".join(l.text for l in seg.lines)[:400]
+    by_text = {"date": "2026-10-25", "type": "field_report", "headline": "Engine petition", "text": text}
+    by_key = {**by_text, "text": "anything", "hash": "aaaa1111"}
+    news = {"date": "2026-10-25", "type": "bulletin", "headline": "News", "hash": "bbbb2222",
+            "text": "Good evening, here is the news from the harbour tonight."}
+    for entry in (by_text, by_key):
+        clips = documentary.find_clips(world, [entry, news])
+        assert len(clips) == 1 and clips[0]["who"] == "Bea Kowalczyk" and clips[0]["text"] == QUOTE   # the quote
+    assert documentary.find_clips(world, [news]) == []                    # an anchor reading the news isn't footage
+
+
+def test_a_placed_clip_is_spliced_in_with_its_own_audio(world, tmp_paths, monkeypatch):
+    _stub_model_and_voice(monkeypatch)
+    src = _cached(tmp_paths, "aaaa1111", [("guest", QUOTE, "Bea Kowalczyk")])
+    entry = {"date": "2026-10-25", "type": "field_report", "headline": "Engine petition", "hash": "aaaa1111",
+             "text": QUOTE}
+    research = documentary.research
+
+    def research_with_clips(seg, w):
+        seg.work["clips"] = documentary.find_clips(w, [entry])
+        return research(seg, w)
+    monkeypatch.setattr(documentary, "research", research_with_clips)
+    outline = special.write_outline(None, None)
+    outline.sections[1].archive_clip = "C1"
+    outline.sections[3].archive_clip = "C9"                          # made up: dropped, not fatal
+    monkeypatch.setattr(special, "write_outline", lambda s, w: outline)
+
+    seg = documentary.commission(world, _decision(world))
+    while seg.state is not SegmentState.ready:
+        seg = special.advance(seg, world, Buffer())
+    start = seg.work["starts"][1]
+    clip = seg.lines[start + 1]                                      # after the line that leads into it
+    assert clip.archive == "Archive · Sunday 25 October" and clip.text == QUOTE
+    assert clip.wav_path != src.lines[0].wav_path and clip.wav_path.exists()   # its own copy
+    assert sum(1 for l in seg.lines if l.archive) == 1
+    caption = next(c for c in seg.cues if c.kind == "lower_third" and c.payload.get("subtitle", "").startswith("Archive"))
+    assert caption.payload["title"] == "Bea Kowalczyk"
+
+
+def test_archive_footage_draws(world):
+    import pygame
+
+    from newsroom import scenes
+    from newsroom.player import View
+    pygame.font.init()
+    c = pygame.Surface(scenes.CANVAS)
+    scenes.render(c, View(mode="special", backdrop="fire_station", speaker="guest", guest_name="Bea Kowalczyk",
+                          archive="Archive · Sunday 25 October", strand=CONFIG.documentary.title), 1.0)
+
+
+def test_a_report_clip_avoids_the_handback(world, tmp_paths):
+    seg = _cached(tmp_paths, "cccc3333", [("reporter", "Thanks, Dana. I'm at the fire station tonight.", None),
+                                           ("reporter", "The petition box goes up the steps, flour and all.", None)])
+    entry = {"date": "2026-10-26", "type": "field_report", "headline": "x", "hash": "cccc3333", "text": "x"}
+    assert documentary.find_clips(world, [entry])[0]["text"].startswith("The petition box")

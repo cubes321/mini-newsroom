@@ -67,6 +67,7 @@ class Line(BaseModel):
     wav_path: Path | None = None
     duration_s: float | None = None
     mouth_env: list[float] = Field(default_factory=list)
+    archive: str | None = None             # archive footage in a documentary: its caption ("Archive · ...")
 
 
 class VisualCue(BaseModel):
@@ -297,6 +298,9 @@ class SectionPlan(BaseModel):
     guest_name: str | None = Field(default=None, max_length=40, description="an invented resident to hear from, or null")
     guest_role: str | None = Field(default=None, max_length=50, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Literal["f", "m"] | None = Field(default=None, description="for casting the guest's voice")
+    archive_clip: str | None = Field(default=None, max_length=8,
+                                     description="the id of an ARCHIVE CLIP to play in this section (e.g. 'C1'); "
+                                                 "null unless ARCHIVE CLIPS are listed")
 
 
 class SpecialOutline(BaseModel):

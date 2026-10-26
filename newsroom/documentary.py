@@ -22,19 +22,34 @@ same way), with three differences:
    ready in time waits for tomorrow. What it established goes into
    `world.documentaries`, so its canon outlives the archive's 400 characters.
 
+Archive footage: the research stage also looks up the cached audio of the
+pieces it read (by the archive entry's cache key, or for entries older than
+that, by its text, an exact prefix of the segment's) and offers the outline up
+to MAX_CLIPS clips: one line each, a guest's quote or else Miles in the field,
+of a few seconds to three quarters of a minute. The outline may place up to three, one per
+section; the section is written around it (its first line leads in, its second
+picks up), the clip's WAV is copied into the documentary's own files, and it
+airs captioned "Archive · <date>" in black and white.
+
     python -m newsroom.special make --documentary --thread t030   # make one now (uses the model)
 """
 from __future__ import annotations
 
 import logging
 import os
+import shutil
 import time
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
 from . import llm, schedule
 from .config import CONFIG
-from .models import DocumentaryCommission, DocumentaryResearch, Segment, SegmentType
+from .models import DocumentaryCommission, DocumentaryResearch, Line, Segment, SegmentType
 from .world import World
+
+MAX_CLIPS = 8                        # offered to the outline
+PLACED_CLIPS = 3                     # placed at most, one per section
+CLIP_S = (3.0, 45.0)                 # a usable clip line's length (Miles's report lines run 30-48 s)
 
 log = logging.getLogger(__name__)
 
@@ -68,8 +83,9 @@ the people with a stake, the turning points, where things stand, and an ending t
 section has a heading, the beats it establishes, a backdrop from the allowed list (vary them), and
 optionally one person to hear from, with their role. Prefer the people in the research notes and the
 briefing (exact names); a person may come back in a later section. Keep to the research notes: their
-timeline is the record. Make it warm, local, specific, a little dry. Everything is fiction. Return
-ONLY JSON.
+timeline is the record. If ARCHIVE CLIPS are listed, you may place up to three, one per section, by
+their id in archive_clip: pick ones that move the story on, in the section they belong to. Make it
+warm, local, specific, a little dry. Everything is fiction. Return ONLY JSON.
 """
 
 SECTION_SYSTEM = """\
@@ -183,11 +199,122 @@ def research(seg: Segment, world: World) -> DocumentaryResearch:
     if past:
         user += "\n\nEARLIER DOCUMENTARIES ON THIS SUBJECT (keep to what they established):\n" + "\n".join(
             f"  - {d['date']}: {d['title']}: " + "; ".join(t["event"] for t in d.get("timeline", [])[:6]) for d in past)
+    seg.work["clips"] = find_clips(world, list(reversed(on_thread)) + found)   # the latest pieces first
     notes = llm.complete_json("documentary_research", DocumentaryResearch, _RESEARCH_SYSTEM, user)
-    log.info("documentary %r researched: %d archive pieces, %d timeline entries (%d on record)",
+    log.info("documentary %r researched: %d archive pieces, %d timeline entries (%d on record), %d clips",
              seg.headline, len(on_thread) + len(found), len(notes.timeline),
-             sum(1 for t in notes.timeline if t.on_record))
+             sum(1 for t in notes.timeline if t.on_record), len(seg.work["clips"]))
     return notes
+
+
+# ------------------------------------------------------------------ footage
+
+
+def _joined(lines) -> str:
+    return " ".join(l.text for l in lines if l.text)        # as record_aired joins them (a sting line is empty)
+
+
+def _cached_segments() -> dict[str, Segment]:
+    out: dict[str, Segment] = {}
+    for meta in CONFIG.paths.cache.glob("*.json"):
+        if meta.name.endswith(".partial.json"):
+            continue
+        try:
+            out[meta.stem] = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def _clip_line(seg: Segment) -> Line | None:
+    """The line worth replaying: a guest's quote, or else the reporter in the field. Never an anchor
+    reading the news, and never a clip of a clip."""
+    usable = [l for l in seg.lines if l.speaker in ("guest", "reporter") and l.text and not l.archive
+              and l.wav_path and Path(l.wav_path).exists() and CLIP_S[0] <= (l.duration_s or 0) <= CLIP_S[1]]
+    # A guest first; then a report line that doesn't open with a handback ("Thanks, Dana."), which
+    # sounds odd out of its bulletin.
+    usable.sort(key=lambda l: (l.speaker != "guest", l.text.lower().startswith(("thanks", "thank you"))))
+    return usable[0] if usable else None
+
+
+def caption(iso: str) -> str:
+    return f"Archive · {date.fromisoformat(iso):%A %d %B}".replace(" 0", " ")
+
+
+def find_clips(world: World, entries: list[dict], cache: dict[str, Segment] | None = None) -> list[dict]:
+    """Archive entries with replayable audio, as short-id clips for the outline (C1, C2...). An entry
+    finds its segment by its cache key, or, written before entries had one, by its text."""
+    cache = _cached_segments() if cache is None else cache
+    by_text: dict[str, Segment] | None = None
+    clips: list[dict] = []
+    seen: set[str] = set()
+    for e in entries:
+        seg = cache.get(e.get("hash") or "")
+        if seg is None and len(e.get("text", "")) >= 40:
+            if by_text is None:
+                by_text = {_joined(s.lines)[:400]: s for s in cache.values() if s.lines}
+            seg = by_text.get(e["text"][:400])
+        line = _clip_line(seg) if seg else None
+        if line is None or str(line.wav_path) in seen:
+            continue
+        seen.add(str(line.wav_path))
+        who = line.guest_name if line.speaker == "guest" else (c.name if (c := world.character(line.speaker)) else "")
+        clips.append({"id": f"C{len(clips) + 1}", "date": e["date"], "type": e["type"], "headline": e["headline"],
+                      "speaker": line.speaker, "who": who, "guest_name": line.guest_name,
+                      "guest_role": line.guest_role, "text": line.text, "wav": str(line.wav_path),
+                      "duration_s": line.duration_s, "mouth_env": line.mouth_env})
+        if len(clips) >= MAX_CLIPS:
+            break
+    return clips
+
+
+def clips_for_prompt(seg: Segment) -> str:
+    clips = seg.work.get("clips") or []
+    if not clips:
+        return ""
+    return "ARCHIVE CLIPS (footage of earlier coverage; place up to three by id):\n" + "\n".join(
+        f"  {c['id']}: {caption(c['date'])[10:]}, from a {c['type'].replace('_', ' ')} \"{c['headline']}\": "
+        f"{c['who']}" + (f" ({c['guest_role']})" if c.get("guest_role") else "") + f": \"{c['text'][:240]}\""
+        for c in clips)
+
+
+def clip(seg: Segment, clip_id: str | None) -> dict | None:
+    return next((c for c in seg.work.get("clips") or [] if c["id"] == clip_id), None) if clip_id else None
+
+
+def check_placed(seg: Segment, outline) -> None:
+    """Drop clip ids the outline made up or used twice, and any past PLACED_CLIPS."""
+    used: set[str] = set()
+    for sec in outline.sections:
+        if not sec.archive_clip:
+            continue
+        if clip(seg, sec.archive_clip) is None or sec.archive_clip in used or len(used) >= PLACED_CLIPS:
+            log.info("documentary %r: dropping archive clip %r from %r", seg.headline, sec.archive_clip, sec.heading)
+            sec.archive_clip = None
+        else:
+            used.add(sec.archive_clip)
+
+
+def clip_brief(c: dict) -> str:
+    """What the section writer is told about its clip."""
+    return (f"ARCHIVE FOOTAGE in this section: after your FIRST line, a clip from {caption(c['date'])[10:]} plays: "
+            f"{c['who']}: \"{c['text']}\". Your first line leads into it (say when it was said); your second line "
+            "picks up after it. Do not repeat the quote.")
+
+
+def clip_line(c: dict, h: str, n: int) -> Line | None:
+    """The clip as a line of the documentary, with its own copy of the audio: the source segment's
+    cache entry may not be kept as long as the documentary's."""
+    src = Path(c["wav"])
+    if not src.exists():
+        log.warning("archive clip %s: its audio %s is gone; leaving it out", c["id"], src.name)
+        return None
+    dest = CONFIG.paths.cache / f"{h}_clip{n}.wav"
+    if not dest.exists():
+        shutil.copyfile(src, dest)
+    return Line(speaker=c["speaker"], text=c["text"], guest_name=c.get("guest_name"), guest_role=c.get("guest_role"),
+                wav_path=dest, duration_s=c["duration_s"], mouth_env=c.get("mouth_env") or [],
+                archive=caption(c["date"]))
 
 
 def notes_for_prompt(seg: Segment) -> str:

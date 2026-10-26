@@ -269,7 +269,7 @@ class World:
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
-                     show: str = "", brief: str = "") -> None:
+                     show: str = "", brief: str = "", content_hash: str = "") -> None:
         """Archive entry for a scripted segment; also counts appearances of named people."""
         named = [p.id for p in self.people if p.name.split()[-1] in text and p.name.split()[0] in text]
         for pid in named:
@@ -285,7 +285,7 @@ class World:
         self.archive.append({
             "date": self.last_date, "day": self.broadcast_day, "type": seg_type,
             "headline": headline or "", "thread_id": thread_id, "people": named, "text": text[:400],
-            "show": show, "brief": brief,
+            "show": show, "brief": brief, "hash": content_hash,   # its cache entry: the documentary's footage
         })
         self.archive = self.archive[-MAX_ARCHIVE:]
 

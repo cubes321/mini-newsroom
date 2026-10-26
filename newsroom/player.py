@@ -75,6 +75,7 @@ class View:
     shot: str = "wide"                   # studio framing: wide | close | wall
     wall_label: str = ""                 # caption on the big-picture wall's side panel
     strand: str = ""                     # a documentary's strand name, for its letterbox label
+    archive: str = ""                    # archive footage on screen: its caption (black and white)
     chapter: dict | None = None          # {number, total, heading, title, standfirst}
     chapter_age_s: float = 0.0
     clock: str = ""
@@ -432,6 +433,7 @@ class Player:
         if seg.type is SegmentType.documentary:
             v.mode = "studio" if v.speaker == "anchor" else "special"
             v.strand = seg.work.get("strand", "")
+            v.archive = (line.archive or "") if line else ""
         elif v.breaking and self.line_idx == 0:
             v.mode, v.speaker = "breaking", None             # the sting, under the BREAKING NEWS card
         elif seg.type is SegmentType.testcard:

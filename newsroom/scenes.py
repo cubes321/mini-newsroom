@@ -338,9 +338,17 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
         draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
                        light=light)
         draw_mic(canvas, 105, 110)
+    if v.archive:                                    # archive footage: black and white with a warm cast
+        canvas.blit(pygame.transform.grayscale(canvas), (0, 0))
+        tint = pygame.Surface((w, h), pygame.SRCALPHA)
+        tint.fill((120, 90, 40, 40))
+        canvas.blit(tint, (0, 0))
     # Letterbox bars
     pygame.draw.rect(canvas, (0, 0, 0), (0, 0, w, 14))
     pygame.draw.rect(canvas, (0, 0, 0), (0, h - 28, w, 14))
+    if v.archive:
+        pygame.draw.rect(canvas, (230, 230, 230), (w - 52, 3, 44, 9))
+        text(canvas, "ARCHIVE", w - 30, 7, 8, (20, 20, 20), center=True)
     label = v.strand or "SPECIAL REPORT"
     lw = max(70, len(label) * 5 + 10)                 # the strand name can be longer than "SPECIAL REPORT"
     pygame.draw.rect(canvas, (200, 170, 60), (8, 3, lw, 9))

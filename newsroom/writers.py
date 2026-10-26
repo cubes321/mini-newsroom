@@ -685,4 +685,5 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
             "slot": seg.slot_id, "name": script.guest_name, "role": script.guest_role or "a guest",
             "asked": "\n".join(f"  {l.speaker}: {l.text[:220]}" for l in seg.lines)[:3000]}
     world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines),
+                       content_hash=seg.content_hash,
                        show=seg.show, brief=seg.brief)

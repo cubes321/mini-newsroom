@@ -105,8 +105,7 @@ backdrop art for every location; code-drawn presenters, and a look of their
 own for every guest from their name, voice and role; tides and a foot ferry
 worked out by arithmetic; local adverts that cover the gaps and fill ad
 breaks in the light shows; a nightly fifteen-minute documentary researched
-from the town's archive. Things that don't yet: archive footage in the
-documentaries.
+from the town's archive, with clips of earlier coverage as archive footage.
 
 ## A normal day
 
@@ -260,6 +259,14 @@ those notes. Voicing is a few lines per stage, so even fifteen minutes of
 speech never holds up the live slots. It airs at the first news bumper from
 21:00, within the hour; one not ready in time waits for tomorrow, and it never
 airs at a special's break. `--documentary-now` commissions one straight away.
+
+**Archive footage:** the research stage looks up the cached audio of the pieces
+it read and offers the outline up to eight clips (a guest's quote, or else
+Miles in the field; never an anchor reading the news). The outline places up to
+three, one per section; the section's first line leads into the clip and the
+next picks up after it. The clip airs in black and white, tagged ARCHIVE and
+captioned with who said it and when, from the documentary's own copy of the
+audio.
 
 ```bash
 uv run python -m newsroom.special make --documentary --thread t030   # make one now

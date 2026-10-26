@@ -221,6 +221,7 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
         f"plus a short anchor intro and outro.\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
+        + (documentary.clips_for_prompt(seg) + "\n\n" if doc and seg.work.get("clips") else "")
         + f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     )
     if doc:
@@ -248,12 +249,17 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         f"Location: {locations.get(sec.backdrop).blurb}. Previous section was: {prev}.\n{guest}\n"
         f"Word budget for this section: about {words} words."
     )
+    footage = documentary.clip(seg, sec.archive_clip) if doc else None
+    if footage:
+        user += "\n" + documentary.clip_brief(footage)
     system = documentary.SECTION_SYSTEM.format(strand=_strand(seg)) if doc else _SECTION_SYSTEM
     return llm.complete_json("special_section", SpecialSection, system, user)
 
 
-def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list[VisualCue]:
-    """Place cues by real line timing (call after voicing)."""
+def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int],
+               names: dict[str, str] | None = None) -> list[VisualCue]:
+    """Place cues by real line timing (call after voicing). `names`: presenter id -> name, for the
+    caption on archive footage of a presenter."""
     t = 0.0
     line_start: list[float] = []
     for l in seg.lines:
@@ -273,10 +279,13 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list
         end_idx = starts[i + 1] if i + 1 < n else len(seg.lines) - 1
         for j in range(start_idx, end_idx):
             l = seg.lines[j]
-            if l.speaker == "guest":
+            if l.archive:                         # footage from another piece: its own speaker and date
+                who = l.guest_name or (names or {}).get(l.speaker, "")
+                cues.append(VisualCue(at_s=line_start[j], kind="lower_third", payload={"title": who, "subtitle": l.archive}))
+            elif l.speaker == "guest":
                 cues.append(VisualCue(at_s=line_start[j], kind="lower_third",
                                       payload={"title": l.guest_name or "Resident", "subtitle": sec.guest_role or "Port Wexley"}))
-            elif j > start_idx and seg.lines[j - 1].speaker == "guest":
+            elif j > start_idx and (seg.lines[j - 1].speaker == "guest" or seg.lines[j - 1].archive):
                 cues.append(VisualCue(at_s=line_start[j], kind="lower_third", payload={}))
     cues.append(VisualCue(at_s=line_start[-1], kind="lower_third",
                           payload={"title": outline.title, "subtitle": strand.title() if _is_doc(seg) else "Special report"}))
@@ -318,6 +327,8 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
 
     elif stage == "outline":
         outline = write_outline(seg, world)
+        if _is_doc(seg):
+            documentary.check_placed(seg, outline)
         # A new piece under the key of one that already aired (same title, thread and day):
         # its marker would stop a restart from resuming the new one. Only once the outline is
         # in hand, so a retried outline still sees the old piece as aired.
@@ -343,6 +354,10 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
                 continue
             name = (l.guest_name or plan.guest_name) if l.speaker == "guest" else None
             seg.lines.append(Line(speaker=l.speaker, text=l.text.strip(), guest_name=name))
+        footage = documentary.clip(seg, plan.archive_clip) if _is_doc(seg) else None
+        start = seg.work["starts"][-1]
+        if footage and len(seg.lines) > start and (line := documentary.clip_line(footage, h, i)):
+            seg.lines.insert(start + 1, line)         # after the line that leads into it
         seg.work["next_section"] = i + 1
         log.info("special %r section %d/%d scripted (%d lines)", outline.title, i + 1, n, len(sec.lines))
         if i + 1 >= n:
@@ -363,7 +378,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
 
     elif stage == "finish":
         outline = _outline_of(seg)
-        seg.cues = build_cues(seg, outline, seg.work["starts"])
+        seg.cues = build_cues(seg, outline, seg.work["starts"], {c.id: c.name for c in world.characters})
         seg.state = SegmentState.ready
         workers._save_cached(seg, h)
         try:
@@ -428,11 +443,13 @@ def mark_aired(seg: Segment, world: World | None = None) -> None:
         title = (seg.work.get("outline") or {}).get("title") or seg.headline or "a special report"
         if _is_doc(seg):
             world.record_headline(f"{_strand(seg).title()}: {title}")
-            world.record_aired("documentary", title, seg.thread_id, " ".join(l.text for l in seg.lines))
+            world.record_aired("documentary", title, seg.thread_id, " ".join(l.text for l in seg.lines),
+                               content_hash=seg.content_hash)
             world.last_documentary_aired = datetime.fromtimestamp(schedule.now()).date().isoformat()
         else:
             world.record_headline(f"Special report: {title}")
-            world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines))
+            world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines),
+                               content_hash=seg.content_hash)
     if seg.content_hash:
         try:
             _aired_path(seg.content_hash).touch()

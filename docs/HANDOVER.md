@@ -248,8 +248,8 @@ agreed look is early 60s) are gone from the real town; the backup is
    exteriors (14 in all; the other 8 keep the tint on purpose).
 6. ~~The world-state lock~~, done 2026-10-26: `World.lock`; `--workers N` works; a special is
    archived when it airs. One worker is still the default.
-7. **The documentary, part 2:** archive footage (clips of earlier segments' cached audio inside
-   it); details in TODO. Part 1 (2026-10-26) is in, as "Port Wexley Stories".
+7. ~~The documentary, part 2~~, done 2026-10-26: archive footage (`documentary.find_clips`,
+   `archive_clip` on a section, `Line.archive`). Follow-ups are in TODO.
 
 ## Verified
 
