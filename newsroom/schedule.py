@@ -52,6 +52,7 @@ class Show:
     tone: str = ""
     airs_specials: bool = False      # a ready special may air after this show's bumpers
     light: bool = False              # lighter stories unless a big running story is on (writers.py)
+    repeats_overnight: bool = True   # its segments may air again in the overnight repeats (workers.py)
     cast_by_type: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # narrower casts
     loop_from: int = 0               # where the order wraps when it runs out
     closing: tuple[T | Item, ...] = ()   # planned once as the show's time runs out
@@ -136,6 +137,7 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         tone="light, warm and chatty, early-morning company; still local and specific",
         cast_by_type={T.sofa: ("host_a", "host_b")},
         light=True,
+        repeats_overnight=False,     # "good morning" from the sofa doesn't belong at three a.m.
     ),
     Show(
         "magazine", "COASTWIDE", "COASTWIDE", (40, 140, 150),

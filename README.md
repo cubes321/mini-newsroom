@@ -102,7 +102,7 @@ Unless breaking news cuts in, the station runs this schedule:
 
 | from | show | what's on |
 |---|---|---|
-| 00:00 | overnight | the test card and repeats of the day's segments; no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
+| 00:00 | overnight | the test card and repeats of the day's segments (not breakfast's); no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats (the papers, a viewer's question, on this day in town history…), Gordon's weather, Miles's reports, and a goodbye before the news |
 | 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
 | 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: an hour of links and banter, filmed features from Miles, studio guests, vox pops, the consumer slot and Gordon's weather, each item with its own angle |

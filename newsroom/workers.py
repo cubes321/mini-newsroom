@@ -21,7 +21,7 @@ from collections import deque
 from datetime import date
 from pathlib import Path
 
-from . import tts, world as world_mod, writers
+from . import schedule, tts, world as world_mod, writers
 from .buffer import Buffer
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
@@ -87,6 +87,12 @@ REPEAT_WINDOW_S = 48 * 3600         # repeat from today and yesterday
 _recent_repeats: deque[str] = deque(maxlen=12)
 
 
+def repeatable(c: Segment) -> bool:
+    """A cached segment that suits the overnight repeats: a repeatable type, from a show whose
+    scripts aren't tied to its own hours (no breakfast sofa during the test-card block)."""
+    return c.type in REPEATABLE and schedule.get(c.show).repeats_overnight
+
+
 def repeat_segment(seg: Segment) -> Segment:
     """Overnight: fill the slot with an earlier segment from the cache, aired again.
 
@@ -105,7 +111,7 @@ def repeat_segment(seg: Segment) -> Segment:
             c = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             continue
-        if c.type in REPEATABLE and c.lines and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines):
+        if repeatable(c) and c.lines and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines):
             candidates.append((meta.stem, c))
     if not candidates:
         log.info("slot %d: nothing to repeat; test card", seg.slot_id)
