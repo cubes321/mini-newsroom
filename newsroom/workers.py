@@ -320,7 +320,8 @@ def _cli(argv: list[str]) -> int:
 
     p = argparse.ArgumentParser(prog="python -m newsroom.workers")
     p.add_argument("type", choices=[t.value for t in SegmentType
-                                    if t not in (SegmentType.filler, SegmentType.documentary, SegmentType.breaking)])
+                                    if t not in (SegmentType.filler, SegmentType.documentary, SegmentType.breaking,
+                                                 SegmentType.advert)])     # python -m newsroom.adverts --make
     p.add_argument("--show", default="news", help="schedule show id (news, breakfast, overnight)")
     p.add_argument("--slot", type=int, default=0)
     p.add_argument("--target", type=float, default=45.0)
