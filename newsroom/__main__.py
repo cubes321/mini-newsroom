@@ -9,6 +9,7 @@ Flags:
   --minutes N   auto-exit after N minutes
   --debug       overlay slot/line/buffer status on the picture
   --clock HH:MM  start the broadcast clock at this time (test a show at any hour)
+  --log-llm     write every LLM prompt and reply to data/llm_calls/<date>.jsonl
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--snap", type=str, default="", help="save a PNG of the frame to this dir every 10 s")
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
+    p.add_argument("--log-llm", action="store_true", help="write every LLM prompt and reply to data/llm_calls/")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -43,6 +45,7 @@ class Stats:
         self.work: list[float] = []
         self.last_log = time.monotonic()
         self.worst_p99 = 0.0
+        self.n_logs = 0
 
     def frame(self, work_s: float) -> None:
         self.work.append(work_s)
@@ -62,6 +65,15 @@ class Stats:
             p50 = p99 = 0.0
         log.info("STATS frame p50=%.1fms p99=%.1fms | buffer %.0fs ready | states %s | played %d filler %.0fs",
                  p50, p99, self.buffer.ready_depth_s(), self.buffer.counts(), player.played, player.filler_total_s)
+        self.n_logs += 1
+        if self.n_logs % 10 == 0:
+            log_llm_usage()
+
+
+def log_llm_usage() -> None:
+    from . import llm
+
+    log.info("LLM USAGE %s", llm.usage_summary())
 
 
 def build(cfg, *, audio: bool, workers: int):
@@ -132,6 +144,7 @@ def run_window(cfg, args) -> None:
     stats.last_log = 0
     stats.maybe_log(player)
     log.info("exit: worst p99 %.1fms, %d segments played, %.0fs filler", stats.worst_p99, player.played, player.filler_total_s)
+    log_llm_usage()
 
 
 def run_headless(cfg, args) -> None:
@@ -161,6 +174,7 @@ def run_headless(cfg, args) -> None:
     stats.maybe_log(player)
     log.info("exit: %d segments played, %.0fs filler, transitions=%d, jobs ok=%d failed=%d",
              player.played, player.filler_total_s, len(buffer.transitions), pool.jobs_done, pool.jobs_failed)
+    log_llm_usage()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -180,6 +194,8 @@ def main(argv: list[str] | None = None) -> int:
         log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)
     if args.special_now:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
+    if args.log_llm:
+        os.environ["NEWSROOM_LLM_LOG"] = "1"
     if args.workers != 1:
         # world.py mutates shared state from the worker thread without a lock;
         # more than one generator is unsupported until that is added.

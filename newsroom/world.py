@@ -82,6 +82,7 @@ class Thread:
     beats: list[dict] = field(default_factory=list)      # {date, day, headline, status}
     breaking: str = ""              # ISO date it broke as breaking news (the light shows lead with it)
     breaking_ts: float = 0.0        # when it broke, on the broadcast clock (bulletins lead with it for a while)
+    planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
 
 
 @dataclass

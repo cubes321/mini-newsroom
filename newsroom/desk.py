@@ -1,7 +1,8 @@
 """The story desk: makes threads develop instead of repeating.
 
 Every `plan_every_s`, when the worker is idle and the live buffer is healthy,
-the desk reads the open threads and returns a plan: a phase for each
+the desk reads the open threads and returns a plan for a batch of them (the
+least recently planned, `[story] batch` per call): a phase for each
 (emerging, developing, peak, resolving, closed), the concrete next
 development the next follow-up should deliver, who is now involved, and
 occasionally a new thread to seed. Writers see the NEXT development in their
@@ -15,7 +16,7 @@ import time
 from . import llm
 from .config import CONFIG
 from .models import StoryPlan
-from .world import World
+from .world import Thread, World
 
 log = logging.getLogger(__name__)
 
@@ -37,25 +38,42 @@ def should_plan(world: World, now: float | None = None) -> bool:
     return now - world.last_story_plan_ts >= CONFIG.story.plan_every_s
 
 
+def batch(world: World) -> list[Thread]:
+    """The open threads to plan this call: the least recently planned first.
+
+    Planning every open thread in one reply grew past max_tokens and the timeout
+    as the town grew, so each call plans a few and the board rotates.
+    """
+    open_ = world.open_threads()                   # most recently updated first, kept for ties
+    return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
+
+
 def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
     """Ask the desk and apply its plan. Returns None if the model was unavailable."""
     world.last_story_plan_ts = time.time()
     open_n = len(world.open_threads())
     room = max(0, CONFIG.story.max_open_threads - open_n)
+    todo = batch(world)
+    ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
-        f"There are {open_n} open threads; you may seed at most {min(room, 2)} new ones. "
-        "Return phase and NEXT development for every open thread you want to change, close any that "
-        "are finished, and list people (exact names from the briefing where possible) now involved."
+        f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
+        f"their turn later; use them as context only. You may seed at most {min(room, 2)} new ones. "
+        "Return phase and NEXT development for each of this round's threads you want to change, close any "
+        "that are finished, and list people (exact names from the briefing where possible) now involved."
     )
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
     except llm.LLMError as e:
         log.warning("story desk unavailable: %s", e)
-        return None
+        return None                                # the same batch comes round again next time
     if not dry:
-        apply(world, p)
-    log.info("story desk: %d updates, %d new threads — %s", len(p.updates), len(p.new_threads), p.note)
+        apply(world, p, only={t.id for t in todo})
+        now = time.time()
+        for t in todo:
+            t.planned_ts = now
+    log.info("story desk: %d updates, %d new threads (planned %s) — %s",
+             len(p.updates), len(p.new_threads), ids, p.note)
     return p
 
 
@@ -78,11 +96,14 @@ def _resolve_people(world: World, names: list[str]) -> list[str]:
     return ids
 
 
-def apply(world: World, p: StoryPlan) -> None:
+def apply(world: World, p: StoryPlan, only: set[str] | None = None) -> None:
     for u in p.updates:
         t = world.thread(u.thread_id)
         if t is None:
             log.warning("story desk named unknown thread %r", u.thread_id)
+            continue
+        if only is not None and t.id not in only:
+            log.info("story desk planned %s out of turn; skipping", t.id)
             continue
         t.phase = u.phase
         t.next_development = u.next_development.strip()

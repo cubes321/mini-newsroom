@@ -149,7 +149,11 @@ at all, which is handy for working on the visuals.
 Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 `--no-window` runs the producer, workers and a simulated player headless,
 `--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
-a special immediately, `--clock HH:MM` pretends the local time is HH:MM.
+a special immediately, `--clock HH:MM` pretends the local time is HH:MM,
+`--log-llm` writes every model prompt and reply, with token counts, to
+`data/llm_calls/<date>.jsonl` (or set `log_calls = true` under `[llm]`).
+Token counts are always on each call's log line, and running totals per
+provider are logged every ten minutes and at exit (`LLM USAGE`).
 
 Expected cold start: filler card → bumper → short filler while Kokoro loads →
 weather → bulletin → field report → bumper → … After the first loop the buffer
@@ -177,7 +181,9 @@ stays ahead and there is no more filler.
 
 The **story desk** (`desk.py`) runs every `plan_every_s` when the worker is
 idle and the live buffer is healthy. It assigns phases, writes next
-developments, closes finished threads and occasionally seeds a new one.
+developments, closes finished threads and occasionally seeds a new one. Each
+call plans a batch of threads (`[story] batch`, the least recently planned
+first), so the reply stays small as the town grows and the board rotates.
 
 ```bash
 uv run python -m newsroom.desk plan --dry      # see what the desk would do

@@ -18,6 +18,11 @@ Robustness: Qwen-style <think> blocks are stripped before parsing; strict
 json_schema mode falls back to json_object mode if a server rejects it; a
 validation failure gets exactly one retry carrying the error text; the
 second failure raises so the caller can use its canned fallback.
+
+Accounting: every call's token counts go on its log line and into running
+totals per provider (`usage_summary()`). With `[llm] log_calls = true`,
+--log-llm or NEWSROOM_LLM_LOG=1, the full prompt and reply of each call is
+appended to data/llm_calls/<date>.jsonl.
 """
 from __future__ import annotations
 
@@ -27,6 +32,7 @@ import os
 import re
 import threading
 import time
+from datetime import datetime
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -71,6 +77,58 @@ def _parse(schema: type[T], text: str) -> T:
     return schema.model_validate_json(clean_json_text(text))
 
 
+# ------------------------------------------------------------- accounting
+
+_USAGE: dict[str, dict[str, int]] = {}    # provider -> calls, failed, tokens in / out
+_USAGE_LOCK = threading.Lock()
+
+
+def _count(provider: str, usage: dict | None, *, failed: bool = False) -> None:
+    with _USAGE_LOCK:
+        u = _USAGE.setdefault(provider, {"calls": 0, "failed": 0, "in": 0, "out": 0})
+        u["calls"] += 1
+        u["failed"] += failed
+        if usage:
+            u["in"] += usage["in"]
+            u["out"] += usage["out"]
+
+
+def usage_summary() -> str:
+    """One line of per-provider totals since start, for STATS and the exit line."""
+    with _USAGE_LOCK:
+        return " | ".join(f"{p}: {u['calls']} calls ({u['failed']} failed), {u['in']} in / {u['out']} out"
+                          for p, u in sorted(_USAGE.items())) or "no llm calls"
+
+
+def _usage_text(usage: dict | None) -> str:
+    if not usage:
+        return "no usage reported"
+    extra = f", {usage['reasoning']} reasoning" if usage.get("reasoning") else ""
+    return f"{usage['in']} in / {usage['out']} out{extra}"
+
+
+_CALL_LOG_LOCK = threading.Lock()
+
+
+def _log_calls_on() -> bool:
+    return CONFIG.llm.log_calls or os.environ.get("NEWSROOM_LLM_LOG", "") not in ("", "0")
+
+
+def _log_call(record: dict) -> None:
+    """Append one call to today's JSONL file. Never lets a disk problem break a broadcast."""
+    if not _log_calls_on():
+        return
+    try:
+        path = CONFIG.paths.llm_calls / f"{datetime.now():%Y-%m-%d}.jsonl"
+        line = json.dumps(record, ensure_ascii=False)
+        with _CALL_LOG_LOCK:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not write llm call log: %s", e)
+
+
 # ------------------------------------------------------- openai-compatible
 
 _CLIENTS: dict[str, object] = {}
@@ -93,7 +151,8 @@ def _openai_client(prov: ProviderCfg):
         if prov.name not in _CLIENTS:
             from openai import OpenAI
 
-            _CLIENTS[prov.name] = OpenAI(base_url=prov.base_url, api_key=_api_key(prov), max_retries=1)
+            _CLIENTS[prov.name] = OpenAI(base_url=prov.base_url, api_key=_api_key(prov),
+                                         max_retries=prov.max_retries)
         return _CLIENTS[prov.name]
 
 
@@ -109,11 +168,15 @@ def list_models(provider: str | None = None) -> list[str]:
         return []
 
 
-def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict], schema: type[BaseModel]) -> str:
+def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict],
+                schema: type[BaseModel]) -> tuple[str, dict | None]:
+    """The reply text and its token usage ({in, out, reasoning}) if the server reported it."""
     import openai
 
     client = _openai_client(prov)
-    timeout = CONFIG.llm.timeout_s if prov.name in _FIRST_CALL_DONE else CONFIG.llm.first_call_timeout_s
+    timeout = prov.timeout_s or CONFIG.llm.timeout_s
+    if prov.name not in _FIRST_CALL_DONE:     # a local server may still be loading the model
+        timeout = max(timeout, CONFIG.llm.first_call_timeout_s)
     temperature = CONFIG.llm.temperature if prov.temperature is None else prov.temperature
     max_tokens = prov.max_tokens or CONFIG.llm.max_tokens
     common = dict(model=prov.model, max_tokens=max_tokens, temperature=temperature,
@@ -163,9 +226,12 @@ def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict], schema: ty
     choice = resp.choices[0]
     if choice.finish_reason == "length":
         log.warning("%s hit max_tokens; output may be truncated", prov.name)
+    usage = None
     if resp.usage:
-        log.debug("%s usage: %d in / %d out", prov.name, resp.usage.prompt_tokens, resp.usage.completion_tokens)
-    return choice.message.content or ""
+        details = getattr(resp.usage, "completion_tokens_details", None)
+        usage = {"in": resp.usage.prompt_tokens or 0, "out": resp.usage.completion_tokens or 0,
+                 "reasoning": getattr(details, "reasoning_tokens", None) or 0}
+    return choice.message.content or "", usage
 
 
 # --------------------------------------------------------------- anthropic
@@ -173,7 +239,8 @@ def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict], schema: ty
 _ANTHROPIC = None
 
 
-def _anthropic_parse(prov: ProviderCfg, system: str, messages: list[dict], schema: type[T]) -> T:
+def _anthropic_parse(prov: ProviderCfg, system: str, messages: list[dict],
+                     schema: type[T]) -> tuple[T, dict | None]:
     global _ANTHROPIC
     import anthropic
 
@@ -195,7 +262,8 @@ def _anthropic_parse(prov: ProviderCfg, system: str, messages: list[dict], schem
         raise LLMError("Anthropic declined the request")
     if resp.parsed_output is None:
         raise LLMError("Anthropic returned no parsed output")
-    return resp.parsed_output
+    usage = {"in": resp.usage.input_tokens, "out": resp.usage.output_tokens} if resp.usage else None
+    return resp.parsed_output, usage
 
 
 # -------------------------------------------------------------------- public
@@ -208,24 +276,47 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
         raise LLMUnavailable("NEWSROOM_LLM=off")
     prov = CONFIG.llm.provider(name)
     messages: list[dict] = [{"role": "user", "content": user}]
+    if prov.kind not in ("openai", "anthropic"):
+        raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
+
+    def record(attempt: int, t0: float, *, text: str = "", usage: dict | None = None, error: str = "") -> None:
+        _count(name, usage, failed=bool(error))
+        _log_call({"ts": datetime.now().isoformat(timespec="seconds"), "task": task, "provider": name,
+                   "model": prov.model, "attempt": attempt + 1, "elapsed_s": round(time.perf_counter() - t0, 1),
+                   "usage": usage, "error": error or None, "system": system, "messages": messages,
+                   "reply": text})
 
     if prov.kind == "anthropic":
-        return _anthropic_parse(prov, system, messages, schema)
-    if prov.kind != "openai":
-        raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
+        t0 = time.perf_counter()
+        try:
+            out, usage = _anthropic_parse(prov, system, messages, schema)
+        except LLMError as e:
+            record(0, t0, error=str(e))
+            raise
+        record(0, t0, text=out.model_dump_json(), usage=usage)
+        log.info("llm %s via %s/%s ok in %.1fs (%s)", task, name, prov.model,
+                 time.perf_counter() - t0, _usage_text(usage))
+        return out
 
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         t0 = time.perf_counter()
-        text = _openai_raw(prov, system, messages, schema)
+        try:
+            text, usage = _openai_raw(prov, system, messages, schema)
+        except LLMError as e:
+            record(attempt, t0, error=str(e))
+            raise
         try:
             out = _parse(schema, text)
-            log.info("llm %s via %s/%s ok in %.1fs (attempt %d)", task, name, prov.model,
-                     time.perf_counter() - t0, attempt + 1)
+            record(attempt, t0, text=text, usage=usage)
+            log.info("llm %s via %s/%s ok in %.1fs (attempt %d, %s)", task, name, prov.model,
+                     time.perf_counter() - t0, attempt + 1, _usage_text(usage))
             return out
         except (ValidationError, ValueError) as e:
             last_err = e
-            log.warning("llm %s attempt %d failed validation: %s", task, attempt + 1, str(e)[:300])
+            record(attempt, t0, text=text, usage=usage, error=f"validation: {str(e)[:300]}")
+            log.warning("llm %s attempt %d failed validation (%s): %s", task, attempt + 1,
+                        _usage_text(usage), str(e)[:300])
             messages += [
                 # Some servers reject an empty assistant turn; never send one.
                 {"role": "assistant", "content": text or "(empty response)"},

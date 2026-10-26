@@ -30,6 +30,8 @@ class ProviderCfg:
     model: str = ""
     temperature: float | None = None     # overrides LLMCfg.temperature when set
     max_tokens: int | None = None        # overrides LLMCfg.max_tokens (thinking models need more)
+    timeout_s: float | None = None       # overrides LLMCfg.timeout_s (slow thinking models need more)
+    max_retries: int = 1                 # SDK retries; each timed-out retry waits the full timeout again
     extra_body: dict = field(default_factory=dict)
 
 
@@ -40,6 +42,7 @@ class LLMCfg:
     first_call_timeout_s: float = 120.0
     max_tokens: int = 700
     temperature: float = 0.8
+    log_calls: bool = False              # full prompt + reply of every call to data/llm_calls/<date>.jsonl
     routes: dict[str, str] = field(default_factory=dict)
     providers: dict[str, ProviderCfg] = field(default_factory=dict)
 
@@ -75,6 +78,7 @@ class SpecialCfg:
 class StoryCfg:
     plan_every_s: float = 1200.0
     max_open_threads: int = 8
+    batch: int = 8                       # threads the desk plans per call, least recently planned first
 
 
 @dataclass(frozen=True)
@@ -93,6 +97,7 @@ class PathsCfg:
     world: Path = ROOT / "data" / "world.json"
     assets: Path = ROOT / "assets"
     tipline: Path = ROOT / "data" / "tipline.txt"
+    llm_calls: Path = ROOT / "data" / "llm_calls"
 
 
 @dataclass(frozen=True)

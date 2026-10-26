@@ -13,6 +13,9 @@ timeout_s = 90
 first_call_timeout_s = 120
 max_tokens = 700
 temperature = 0.8
+# Write every call's prompt, reply and token counts to data/llm_calls/<date>.jsonl
+# (roughly 5 MB a day). Also switched on by --log-llm or NEWSROOM_LLM_LOG=1.
+log_calls = false
 
 # Which provider writes which segment type. Any name under [llm.providers].
 [llm.routes]
@@ -47,6 +50,7 @@ min_buffer_frac = 0.8    # background work (editor, story desk) only when the li
 [story]
 plan_every_s = 1200
 max_open_threads = 8
+batch = 8                # threads planned per desk call; the whole board in one reply overran max_tokens
 
 # The viewer tip-line: one tip per line in data/tipline.txt (python -m newsroom.tipline "...").
 # A plain tip is offered to the next bulletins; a line starting "BREAKING:" interrupts
@@ -89,6 +93,11 @@ model = "kimi-k3"
 # 1.0 and headroom for reasoning tokens
 temperature = 1.0
 max_tokens = 6000
+# A thinking k3 call regularly runs past 90s (the overnight story desk failed 23 of 28). With
+# one worker, a call blocks live production; 240s with no SDK retry stays inside the 480s of
+# buffer the background work waits for.
+timeout_s = 240
+max_retries = 0
 
 [llm.providers.anthropic]
 kind = "anthropic"

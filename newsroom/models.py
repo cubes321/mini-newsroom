@@ -329,7 +329,7 @@ class NewThread(BaseModel):
 
 
 class StoryPlan(BaseModel):
-    updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # the desk may touch every open thread
+    updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # a batch per call (desk.batch), with room for out-of-turn extras it skips
     new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
