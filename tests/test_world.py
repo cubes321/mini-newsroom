@@ -11,7 +11,8 @@ import unittest
 from pathlib import Path
 
 # Before any newsroom import: CONFIG is built from these when newsroom.config is first imported.
-_TMP = Path(tempfile.mkdtemp(prefix="newsroom-test-"))
+# Under pytest, conftest.py has already done this (for every module); reuse its directory.
+_TMP = Path(os.environ.get("NEWSROOM_TEST_DIR") or tempfile.mkdtemp(prefix="newsroom-test-"))
 os.environ["NEWSROOM_WORLD"] = str(_TMP / "world.json")
 os.environ["NEWSROOM_CACHE"] = str(_TMP / "cache")
 os.environ["NEWSROOM_TIPLINE"] = str(_TMP / "tipline.txt")
