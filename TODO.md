@@ -19,12 +19,13 @@ bottom with the date.
 
 ## Content
 
-- [ ] Local adverts (15–30 s) for the town's businesses; double as evergreen filler.
+- [ ] Ad breaks inside *Morning Tide*, *Coastwide* and *The Last Ferry* (adverts
+  air only in gaps now): an ad-break item in the running orders that the
+  producer plans around.
 - [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
   ComfyUI with a contact sheet) to replace the interview set with the lights
   down; perhaps a house band sting and a second, shorter guest.
-- [ ] Breakfast extras: adverts on *Morning Tide*; a guest in the sofa armchair
-  (the `guest` mark is free).
+- [ ] Breakfast extras: a guest in the sofa armchair (the `guest` mark is free).
 - [ ] Breaking news from the story desk or the editor (now tip-line only),
   and a follow-up field report from Miles once a breaking story is confirmed.
 - [ ] A model-planned running order for the magazine and the talk show (a
@@ -58,6 +59,14 @@ bottom with the date.
   editor and specials (240 s, `max_retries = 0`). Run the bench prompts first,
   then a `--log-llm` night. It's about 3–7× cheaper than Kimi, and half price
   off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
+- [ ] Try Claude on the existing `anthropic` route: bench Haiku 5.5 and Sonnet
+  5.5 on the bench prompts for quality first (a few cents). Priced from the
+  `--log-llm` token counts (±30% for the tokenizer), the 2026-10-25 overnight run
+  with the timeouts fixed would cost about $1.30 on Kimi, $0.10 on Haiku, $2.00
+  on Sonnet and $4.00+ on Opus. Haiku live plus Sonnet for the desk, editor and
+  specials comes to about $0.65. Thinking off: `disabled` on Haiku, `between_tools`
+  on Sonnet; Opus 5.5 can't turn it off, so its live cost is a floor. The back
+  office isn't latency-critical and could use the Batch API at half price.
 - [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
   with no token counts: the reply never arrives, yet providers bill it in full.
@@ -82,6 +91,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Local adverts (`adverts.py`): an evergreen pool of voiced 15–30 s
+  ads in `data/ads/` that the player airs when the next segment isn't ready
+  (up to three in a row, then the filler card). Eight hand-written ones are
+  always voiced; the model writes one every half hour in idle time, up to 40.
+  Owners join the cast. `python -m newsroom.adverts [--make]`.
 - 2026-10-26 Tides and the Saltby foot ferry from arithmetic (`tides.py`,
   `python -m newsroom.tides`): a semi-diurnal tide about 50 minutes later each
   day with a spring-neap cycle, and a half-hourly foot ferry across the Grey

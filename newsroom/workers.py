@@ -276,11 +276,16 @@ class WorkerPool:
         return self.buffer.ready_depth_s() >= need
 
     def _idle_work(self) -> None:
-        """Background editorial work, only when the live buffer is comfortably full:
-        the story desk plans developments; the editor may commission a special."""
-        from . import desk, special
+        """Background work. The hand-written adverts are voiced first, whatever the buffer
+        (they are what covers a gap). Then, only when the live buffer is comfortably full:
+        the story desk plans developments, the model writes a new advert now and then, and
+        the editor may commission a special."""
+        from . import adverts, desk, special
 
         try:
+            if adverts.seed_one(self.world):
+                world_mod.save(self.world)    # their owners joined the cast
+                return
             force = special.take_force()
             if not force and not self._buffer_healthy():
                 return
@@ -288,6 +293,10 @@ class WorkerPool:
                 desk.plan(self.world)
                 world_mod.save(self.world)
                 return                        # one background call per idle tick
+            if adverts.should_make():
+                adverts.make(self.world)
+                world_mod.save(self.world)
+                return
             if self.buffer.special_pending():
                 return
             if not force and not special.should_check(self.world):

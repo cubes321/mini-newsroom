@@ -105,6 +105,14 @@ the opening item leads with it; later items mention it in passing at most.
 - **Specials across restarts:** `special.resume_ready` puts finished, unaired specials from the
   last 48 hours back in the side pocket. The player marks an aired special with an empty
   `data/cache/<hash>.aired`.
+- **Adverts** (`adverts.py`, `data/ads/`, `[adverts]` in config.toml):
+  - When the next slot isn't ready the player airs one, outside the rundown (no slot, nothing
+    for the producer), up to `max_in_a_row`, then the filler card and the weather replay.
+  - Eight hand-written `SEEDS` are voiced on the worker's first idle ticks, whatever the buffer
+    and with or without a model; the model writes one every `make_every_s` in healthy idle
+    time. A model-written one voiced past 32 s is dropped; the pool keeps `pool_size`.
+  - Voiceovers use the guest voices (every Kokoro voice on disk is taken), never the owner's.
+  - `--scratch` copies the pool; tests use `NEWSROOM_ADS`.
 - **Overnight:**
   - Repeats come from the last 48 hours of `data/cache/`, with no model calls.
   - The story desk and editor keep working.

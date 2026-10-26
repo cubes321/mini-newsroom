@@ -42,6 +42,7 @@ class SegmentType(StrEnum):
     consumer = "consumer"        # magazine: the consumer slot
     monologue = "monologue"      # talk show: the host's opening
     breaking = "breaking"        # breaking news from the tip-line: interrupts whatever is on
+    advert = "advert"            # a local advert from the pool (adverts.py): covers a gap, outside the rundown
 
 
 class SegmentState(StrEnum):
@@ -58,7 +59,7 @@ class SegmentState(StrEnum):
 
 
 class Line(BaseModel):
-    speaker: Speaker
+    speaker: Literal[*SPEAKERS, "voiceover"]   # the voiceover only speaks in adverts
     text: str
     guest_name: str | None = None          # only when speaker == "guest"
     guest_role: str | None = None          # what the script calls them today (the caption)
@@ -338,6 +339,35 @@ class StoryPlan(BaseModel):
 class TipBulletinScript(BulletinScript):
     """A bulletin, plus which viewer tip (if any) it used, so the tip is spent."""
     tip_used: int | None = Field(default=None, description="number of the VIEWER TIP used, or null")
+
+
+# ------------------------------------------------------------- adverts
+
+
+class AdLine(BaseModel):
+    speaker: Literal["voiceover", "owner"] = Field(validation_alias=SPEAKER_KEY)
+    text: str = Field(min_length=1, max_length=300)
+
+
+class AdvertScript(BaseModel):
+    """A 15-30 second local TV advert: a voiceover, and perhaps the owner speaking for themselves.
+    The end-card text is clipped rather than failed when it runs long (Kimi overruns limits)."""
+    business: Annotated[str, _clip(40)] = Field(max_length=40, description="the business's name as on its sign")
+    tagline: Annotated[str, _clip(48)] = Field(max_length=48, description="the slogan on the end card")
+    where: Annotated[str, _clip(48)] = Field(max_length=48,
+                                             description="where to find it, for the end card ('Harrow Street, from seven')")
+    backdrop: Backdrop
+    owner_name: str | None = Field(default=None, max_length=40, description="required if the owner speaks")
+    owner_role: Annotated[str | None, _clip(50)] = Field(default=None, max_length=50,
+                                                         description="e.g. 'baker, Harrow Street market'")
+    owner_gender: Gender = None
+    lines: list[AdLine] = Field(min_length=2, max_length=6)
+
+    @model_validator(mode="after")
+    def _owner_named(self):
+        if any(l.speaker == "owner" for l in self.lines) and not (self.owner_name or "").strip():
+            raise ValueError("the owner speaks, so owner_name is required")
+        return self
 
 
 SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {

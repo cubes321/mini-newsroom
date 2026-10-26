@@ -12,7 +12,7 @@ Flags:
   --log-llm     write every LLM prompt and reply to data/llm_calls/<date>.jsonl
   --world PATH  read and write this world file instead of data/world.json (or NEWSROOM_WORLD)
   --cache DIR   segment cache to use instead of data/cache (or NEWSROOM_CACHE)
-  --scratch     copy the world and tip-line to a temp dir and run on the copy with an empty cache
+  --scratch     copy the world, tip-line and adverts to a temp dir and run on the copy with an empty cache
 """
 from __future__ import annotations
 
@@ -64,6 +64,10 @@ def redirect_paths(args: argparse.Namespace) -> None:
     for src, name in copies.items():
         if src.exists():
             shutil.copy2(src, scratch / name)
+    ads = Path(os.environ.get("NEWSROOM_ADS") or data / "ads")
+    if ads.exists():                         # the voiced adverts, so a gap still has one to air
+        shutil.copytree(ads, scratch / "ads")
+    os.environ["NEWSROOM_ADS"] = str(scratch / "ads")
     os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
     os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
@@ -96,8 +100,9 @@ class Stats:
             self.work.clear()
         else:
             p50 = p99 = 0.0
-        log.info("STATS frame p50=%.1fms p99=%.1fms | buffer %.0fs ready | states %s | played %d filler %.0fs",
-                 p50, p99, self.buffer.ready_depth_s(), self.buffer.counts(), player.played, player.filler_total_s)
+        log.info("STATS frame p50=%.1fms p99=%.1fms | buffer %.0fs ready | states %s | played %d adverts %d "
+                 "filler %.0fs", p50, p99, self.buffer.ready_depth_s(), self.buffer.counts(), player.played,
+                 player.ads_played, player.filler_total_s)
         self.n_logs += 1
         if self.n_logs % 10 == 0:
             log_llm_usage()
@@ -176,7 +181,8 @@ def run_window(cfg, args) -> None:
     pygame.quit()
     stats.last_log = 0
     stats.maybe_log(player)
-    log.info("exit: worst p99 %.1fms, %d segments played, %.0fs filler", stats.worst_p99, player.played, player.filler_total_s)
+    log.info("exit: worst p99 %.1fms, %d segments played, %d adverts, %.0fs filler", stats.worst_p99, player.played,
+             player.ads_played, player.filler_total_s)
     log_llm_usage()
 
 
@@ -205,8 +211,8 @@ def run_headless(cfg, args) -> None:
     pool.shutdown()
     stats.last_log = 0
     stats.maybe_log(player)
-    log.info("exit: %d segments played, %.0fs filler, transitions=%d, jobs ok=%d failed=%d",
-             player.played, player.filler_total_s, len(buffer.transitions), pool.jobs_done, pool.jobs_failed)
+    log.info("exit: %d segments played, %d adverts, %.0fs filler, transitions=%d, jobs ok=%d failed=%d",
+             player.played, player.ads_played, player.filler_total_s, len(buffer.transitions), pool.jobs_done, pool.jobs_failed)
     log_llm_usage()
 
 

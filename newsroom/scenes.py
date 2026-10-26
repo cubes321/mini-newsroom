@@ -377,6 +377,29 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
             text(canvas, ch.get("heading", ""), x + 6, 33, 8, (20, 20, 20), maxw=110)
 
 
+def draw_advert(canvas: pygame.Surface, v: View, t: float) -> None:
+    """A local advert: the business's own place, the owner if they're in it, and the end card.
+    No lower third or ticker: it's an advert, not the news."""
+    a = v.advert or {}
+    backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
+    owner = a.get("owner")
+    if owner:                                       # on screen throughout, talking on their own lines
+        who = a.get("owner_id", "guest")
+        draw_character(canvas, 250, 150, who, v.mouth if v.speaker in (who, "guest") else 0.0, t, scale=2,
+                       facing=-1, look=_guest(v, owner) if who == "guest" else None,
+                       light=backdrops.person_light(v.backdrop, v.tod, v.weather))
+    accent = tuple(a.get("colour", (200, 60, 60)))
+    card = pygame.Rect(10, 116, 196 if owner else 252, 46)
+    pygame.draw.rect(canvas, (14, 16, 26), card)
+    pygame.draw.rect(canvas, accent, (card.x, card.y, 5, card.h))
+    pygame.draw.rect(canvas, accent, (card.x, card.bottom - 13, card.w, 13))
+    text(canvas, a.get("business", ""), card.x + 11, card.y + 4, 14, maxw=card.w - 16)
+    text(canvas, a.get("tagline", ""), card.x + 11, card.y + 21, 8, (215, 215, 225), maxw=card.w - 16)
+    text(canvas, a.get("where", ""), card.x + 11, card.bottom - 12, 8, (16, 16, 22), maxw=card.w - 16)
+    pygame.draw.rect(canvas, (235, 235, 235), (8, 8, 70, 10))
+    text(canvas, "ADVERTISEMENT", 43, 13, 8, (30, 30, 36), center=True)
+
+
 # ------------------------------------------------------------------ overlays
 
 
@@ -423,7 +446,8 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
 
 
 SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
-          "field": draw_field, "special": draw_special, "breaking": draw_breaking}
+          "field": draw_field, "special": draw_special, "breaking": draw_breaking,
+          "advert": draw_advert}
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
@@ -433,7 +457,7 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_clock(canvas, v)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
-        if v.mode not in ("bumper", "breaking"):
+        if v.mode not in ("bumper", "breaking", "advert"):
             draw_lower_third(canvas, v)
             draw_ticker(canvas, v, t)
         draw_clock(canvas, v)

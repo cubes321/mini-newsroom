@@ -43,8 +43,8 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
  producer ──plans slots ahead──▶ priority queue ──▶ worker thread ──▶ buffer ──▶ player (wall clock)
                                       ▲                 │                            │
                                       │        LLM script + Kokoro voice             ▼
-                              story desk / editor                              filler when dry
-                              (idle time only)
+                              story desk / editor                     adverts, then filler, when dry
+                              local adverts (idle time only)
 ```
 
 - **Producer** keeps about ten minutes of unplayed content planned, working out
@@ -58,9 +58,14 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
   pydantic, one retry, canned template as a last resort), voices every line
   with Kokoro, and stores a mouth envelope for lip-sync.
 - **Player** consumes finished segments on the clock, never cutting audio
-  mid-sentence. When nothing is ready it plays filler and, after a while,
-  replays the last weather. Breaking news cuts in at the next sentence and
-  the programme resumes afterwards.
+  mid-sentence. When nothing is ready it airs local adverts (up to three in a
+  row), then filler and, after a while, a replay of the last weather. Breaking
+  news cuts in at the next sentence and the programme resumes afterwards.
+- **Adverts** for the town's shops and services (`adverts.py`, kept in
+  `data/ads/`) are voiced in advance, so they are there when the model is
+  slow. Eight hand-written ones are voiced on the first idle moments; the
+  model writes another every half hour in idle time, up to forty. An owner
+  who speaks in their advert joins the town's cast.
 - **Tip-line**: anyone can add a line to `data/tipline.txt`. Plain tips go to
   the next bulletins; a line starting `BREAKING:` interrupts whatever is on,
   with a sting and Dana at the news desk.
@@ -76,7 +81,8 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
   pictures for the harbour, high street and Town Hall) and for the last
   weather report, with rain, snow, fog and water animated on top. Bulletins cut between a wide shot
   and a close-up, and the anchor hands over to reports from a big-picture
-  wall. The people are still placeholders drawn in code.
+  wall. The people are drawn in code: the presenters to agreed descriptions,
+  and every guest with a look of their own from their name, voice and role.
 
 Model routing is config-driven. Any OpenAI-compatible endpoint works (LM
 Studio and llama.cpp locally, Moonshot's Kimi in the cloud), plus the Anthropic
@@ -94,8 +100,9 @@ features, vox pops and specials; breaking news from a viewer tip-line; the
 story bible and desk; provider switching, caching, failure recovery, and
 backdrop art for every location; code-drawn presenters, and a look of their
 own for every guest from their name, voice and role; tides and a foot ferry
-worked out by arithmetic. Things that don't yet: local adverts, and the
-30-minute documentary that specials are the template for.
+worked out by arithmetic; local adverts that cover the gaps. Things that
+don't yet: ad breaks inside the shows, and the 30-minute documentary that
+specials are the template for.
 
 ## A normal day
 
@@ -168,7 +175,7 @@ same overrides work as environment variables, `NEWSROOM_WORLD`,
 the world and cache it is using. For a template smoke test:
 `NEWSROOM_LLM=off uv run python -m newsroom --no-window --minutes 2 --scratch`.
 
-Expected cold start: filler card → bumper → short filler while Kokoro loads →
+Expected cold start: filler card → bumper → an advert or a short filler while Kokoro loads →
 weather → bulletin → field report → bumper → … After the first loop the buffer
 stays ahead and there is no more filler.
 
@@ -271,6 +278,7 @@ uv run python -m unittest tests.test_world             # thread cap and template
 uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
 uv run python -m newsroom.sprites --sheet people.png   # every presenter and a crowd of guests
 uv run python -m newsroom.tides 2026-11-02             # that day's tides and foot ferry
+uv run python -m newsroom.adverts                      # the advert pool (--make writes and voices one)
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
 ```

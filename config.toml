@@ -34,6 +34,7 @@ special_outline = "moonshot_k3"
 special_section = "moonshot_k3"
 story_desk = "moonshot_k3"        # plans how threads develop, seeds new ones
 breaking = "moonshot"             # breaking news from the tip-line
+advert = "moonshot"               # local adverts, written in idle time
 
 # Special reports (documentary v0). The editor runs on the worker thread when
 # it is idle; a commissioned special is a low-priority job that plays at the
@@ -61,6 +62,13 @@ target_s = 60
 max_age_s = 600          # BREAKING lines older than this when first read (a restart) become plain tips
 tip_ttl_s = 21600        # a plain tip nobody used is dropped after this
 max_tips = 3             # tips offered to one bulletin
+
+# Local adverts: an evergreen pool of voiced ads in data/ads that covers the gaps when the
+# next segment isn't ready. A hand-written set is always there; the model adds more in idle time.
+[adverts]
+pool_size = 40
+make_every_s = 1800
+max_in_a_row = 3         # then the filler card and the weather replay
 
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, Moonshot, ...). api_key_env names the env var holding the
@@ -126,4 +134,5 @@ data = "data"
 cache = "data/cache"
 world = "data/world.json"
 tipline = "data/tipline.txt"
+ads = "data/ads"
 assets = "assets"

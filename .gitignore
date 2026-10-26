@@ -7,3 +7,4 @@ data/tipline.state.json
 *.wav
 !assets/**/*.wav
 data/llm_calls/
+data/ads/

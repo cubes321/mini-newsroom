@@ -310,8 +310,8 @@ class World:
         """Return the known person, or promote a new guest to the recurring cast."""
         p = self.person_by_name(name)
         if p:
-            if role and not p.role:
-                p.role = role
+            if role and role != "resident" and p.role in ("", "resident"):
+                p.role = role                       # met in a vox pop, now we know what they do
             return p
         h = _name_hash(name)
         pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)

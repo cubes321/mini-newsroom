@@ -3,9 +3,10 @@
 Rules:
 - Slot N+1 starts when slot N's last line finishes playing, not at a hard
   nominal time; audio is never cut mid-sentence.
-- If the next slot is not ready, play filler (music bed + card). After a
-  while with nothing new, replay the last weather segment so the screen
-  isn't dead air.
+- If the next slot is not ready, a local advert from the pool covers the gap
+  (adverts.py), up to `[adverts] max_in_a_row`; then filler (music bed + card),
+  and after a while with nothing new, a replay of the last weather segment so
+  the screen isn't dead air. An advert, like a special, uses no slot number.
 - A ready special airs at a break, between loops of the rundown, without
   consuming a slot number, and only in a show that airs specials: after a
   bumper in the news, after the test card overnight. One made during
@@ -28,8 +29,9 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import schedule
+from . import adverts, schedule
 from .buffer import Buffer
+from .config import CONFIG
 from .locations import time_of_day
 from .models import Segment, SegmentState, SegmentType
 from .producer import Producer
@@ -81,11 +83,16 @@ class View:
     replay: bool = False
     repeat: bool = False                 # an earlier segment aired again overnight
     breaking: bool = False               # breaking news: red captions, and the BREAKING card over the sting
+    advert: dict | None = None           # an advert's end card: business, tagline, where, owner, colour
 
 
 class Player:
-    def __init__(self, buffer: Buffer, world: World, producer: Producer, *, audio: bool = True) -> None:
+    def __init__(self, buffer: Buffer, world: World, producer: Producer, *, audio: bool = True,
+                 ads: adverts.AdPool | None = None) -> None:
         self.buffer, self.world, self.producer, self.audio = buffer, world, producer, audio
+        self.ads = ads if ads is not None else adverts.pool()
+        self.ads_in_row = 0                  # adverts since the last real segment
+        self.ads_played = 0
         self.next_slot = 0
         self.current: Segment | None = None
         self.line_idx = 0
@@ -141,8 +148,8 @@ class Player:
             self._set_music(0.0)
         elif self.current.type is SegmentType.testcard:
             self._set_music(0.25)       # the card's line is silence; the bed is the sound
-        elif self.current.type is SegmentType.documentary:
-            self._set_music(0.10)       # a bed under the special
+        elif self.current.type in (SegmentType.documentary, SegmentType.advert):
+            self._set_music(0.10)       # a bed under the special, or the advert
         else:
             self._set_music(0.06)
 
@@ -156,7 +163,9 @@ class Player:
 
     def _start(self, seg: Segment, now: float, *, replay: bool = False) -> None:
         self.current, self.line_idx, self.seg_start, self.replaying = seg, 0, now, replay
-        if not replay:
+        if seg.type is not SegmentType.advert:
+            self.ads_in_row = 0
+        if not replay and seg.type is not SegmentType.advert:
             self.buffer.mark(seg, SegmentState.playing)
             if seg.headline:
                 self.ticker.append(seg.headline)
@@ -192,7 +201,7 @@ class Player:
             self._voice.stop()
         if seg.type is SegmentType.testcard:
             self._finish(now)                    # the card just ends early
-        elif self.replaying:
+        elif self.replaying or seg.type is SegmentType.advert:     # nothing to come back to
             self.current, self.replaying = None, False
         else:
             self.stash = (seg, self.line_idx, now - self.seg_start)
@@ -217,6 +226,13 @@ class Player:
             self.buffer.mark(seg, SegmentState.done)
             self.buffer.forget(seg.slot_id)
             self.breaking_played += 1
+            self.current = None
+            self._set_music(0.25)
+            return
+        if seg.type is SegmentType.advert:
+            # Outside the rundown too: nothing to mark in the buffer, no slot advance.
+            self.ads_in_row += 1
+            self.ads_played += 1
             self.current = None
             self._set_music(0.25)
             return
@@ -280,6 +296,15 @@ class Player:
         if seg is not None:
             self._start(seg, now)
             return
+
+        # A gap: an advert covers it, a few in a row at most, then the filler card.
+        if self.ads_in_row < CONFIG.adverts.max_in_a_row:
+            ad = self.ads.pick()
+            if ad is not None:
+                log.info("gap: slot %d is %s; advert %r", self.next_slot, state.value if state else "unknown",
+                         ad.work.get("advert", {}).get("business"))
+                self._start(ad, now)
+                return
 
         # Filler.
         if self.filler_since is None:
@@ -397,6 +422,7 @@ class Player:
                 SegmentType.bulletin: "studio",
                 SegmentType.sofa: "studio",
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
+                SegmentType.advert: "advert",
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
                 v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
@@ -406,7 +432,11 @@ class Player:
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
         v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
-        for name in {v.guest_name, *(n for w, n in v.people if w == "guest")} - {None}:
+        if seg.type is SegmentType.advert:
+            v.advert = dict(seg.work.get("advert", {}))
+            owner = self.world.presenter_named(v.advert.get("owner"))
+            v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
+        for name in {v.guest_name, (v.advert or {}).get("owner"), *(n for w, n in v.people if w == "guest")} - {None}:
             p = self.world.person_by_name(name)
             v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "")
         if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
@@ -415,7 +445,8 @@ class Player:
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
-        label = {SegmentType.documentary: "SPECIAL", SegmentType.breaking: "BREAKING"}.get(seg.type, f"slot {seg.slot_id}")
+        label = {SegmentType.documentary: "SPECIAL", SegmentType.breaking: "BREAKING",
+                 SegmentType.advert: "ADVERT"}.get(seg.type, f"slot {seg.slot_id}")
         v.status = f"{label} " \
                    f"{seg.type.value} line {self.line_idx + 1}/{len(seg.lines)}"
         return v

@@ -13,7 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # PathsCfg field -> environment variable that overrides it.
-PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE"}
+PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE",
+                  "ads": "NEWSROOM_ADS"}
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,13 @@ class BreakingCfg:
 
 
 @dataclass(frozen=True)
+class AdvertsCfg:
+    pool_size: int = 40                  # voiced ads kept; the oldest model-written ones go first
+    make_every_s: float = 1800.0         # the model writes a new one this often, in idle time
+    max_in_a_row: int = 3                # then the filler card and the weather replay take over
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
@@ -102,6 +110,7 @@ class PathsCfg:
     assets: Path = ROOT / "assets"
     tipline: Path = ROOT / "data" / "tipline.txt"
     llm_calls: Path = ROOT / "data" / "llm_calls"
+    ads: Path = ROOT / "data" / "ads"
 
 
 @dataclass(frozen=True)
@@ -113,6 +122,7 @@ class Config:
     special: SpecialCfg
     story: StoryCfg
     breaking: BreakingCfg
+    adverts: AdvertsCfg
 
 
 def load(path: Path | None = None) -> Config:
@@ -141,6 +151,7 @@ def load(path: Path | None = None) -> Config:
         special=SpecialCfg(**raw.get("special", {})),
         story=StoryCfg(**raw.get("story", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
+        adverts=AdvertsCfg(**raw.get("adverts", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

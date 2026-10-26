@@ -12,5 +12,6 @@ os.environ["NEWSROOM_TEST_DIR"] = _TMP
 os.environ["NEWSROOM_WORLD"] = os.path.join(_TMP, "world.json")
 os.environ["NEWSROOM_CACHE"] = os.path.join(_TMP, "cache")
 os.environ["NEWSROOM_TIPLINE"] = os.path.join(_TMP, "tipline.txt")
+os.environ["NEWSROOM_ADS"] = os.path.join(_TMP, "ads")
 os.environ["NEWSROOM_LLM"] = "off"
 os.environ.pop("NEWSROOM_LLM_LOG", None)
