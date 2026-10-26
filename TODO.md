@@ -93,7 +93,7 @@ bottom with the date.
 - 2026-10-26 The documentary, part 2: archive footage. Archive entries now record their
   cache key (older ones are matched by their text, an exact prefix of the segment's).
   The research stage offers the outline up to eight clips (one line each: a guest's
-  quote, or else Miles in the field, 3–30 s); the outline places up to three, one per
+  quote, or else Miles in the field, 3–45 s); the outline places up to three, one per
   section; the section is written around it, and the clip's audio is copied into the
   documentary's own files. It airs black and white, tagged ARCHIVE, captioned with the
   speaker and the date.
