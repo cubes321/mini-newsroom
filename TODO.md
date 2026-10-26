@@ -36,6 +36,9 @@ bottom with the date.
 
 ## Engineering
 
+- [ ] `--scratch` should send the `--log-llm` call log to its temp folder too: the 2026-10-26
+  documentary check wrote its 65 Claude calls into the real `data/llm_calls/2026-10-26.jsonl`, so
+  that night's costs are the rows from 22:51:18 on, plus all of `2026-10-27.jsonl`.
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
 - [ ] Give section writers the thread's dates and beats (the editor already
@@ -90,8 +93,9 @@ bottom with the date.
 
 ## Done
 
-- 2026-10-26 Fixes from the first look at Claude on screen: a headline, location or strap can't
-  be empty (Haiku once sent all three blank, and "Live from" aired bare); the news bulletin is
+- 2026-10-26 Fixes from the first look at Claude on screen: a headline, location or strap needs
+  four characters (Haiku once sent all three blank, and "Live from" aired bare; later "x" for all
+  three, which opened a thread called "x"); the news bulletin is
   cast as the anchor and Miles only, and its close-up is cut to on Dana's own lines only (Gordon's
   and Miles's voices had come out of her mouth); a headline too long for the strap drops to the
   8 px font and is cut at a word with an ellipsis (the old cut never added one); the briefing's
