@@ -206,9 +206,9 @@ agreed look is early 60s) are gone from the real town; the backup is
 
 ## Known gaps (details in TODO)
 
-- **Art:** only the harbour, high street and Town Hall have lit night art (the rest are
-  tinted); some positions are still set for the old placeholder pictures; *The Last Ferry*
-  borrows the interview set.
+- **Art:** 14 exteriors have lit night art and 8 keep the tint on purpose; some positions are
+  still set for the old placeholder pictures (lighthouse beam, slipway water, the crane and
+  drill tower behind the clock).
 - **Adverts:** a gap advert plays out even if the slot it covers becomes ready a second in, so
   a gap costs up to one advert's length. Breaks aren't seen with a real model yet.
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
@@ -229,7 +229,8 @@ agreed look is early 60s) are gone from the real town; the backup is
    breakfast and on *The Last Ferry*, guest captions, and adverts in gaps.
 3. ~~Small fixes~~: the test-card flash and the Gordon Pell mix-up, done 2026-10-26.
 4. ~~Ad breaks inside the light shows~~, done 2026-10-26.
-5. **Art session:** *The Last Ferry*'s own set and night art for the other exteriors.
+5. ~~Art session~~, done 2026-10-26: `studio_late` for *The Last Ferry*, and 11 more night
+   exteriors (14 in all; the other 8 keep the tint on purpose).
 6. ~~The world-state lock~~, done 2026-10-26: `World.lock`; `--workers N` works; a special is
    archived when it airs. One worker is still the default.
 

@@ -5,9 +5,6 @@ bottom with the date.
 
 ## Art
 
-- [ ] **Night variants** for the other exteriors (village and residential_street
-  would gain most). Harbour, high street and Town Hall are done; make the rest
-  the same way (Qwen-Image-Edit with the ref-latent fix, contact sheet first).
 - [ ] Re-fit positions set for the placeholders to the art: the lighthouse
   beam origin, the `WATER` shimmer rectangles (the slipway's top strip), and
   the crane and drill tower behind the clock box.
@@ -19,9 +16,7 @@ bottom with the date.
 
 ## Content
 
-- [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
-  ComfyUI with a contact sheet) to replace the interview set with the lights
-  down; perhaps a house band sting and a second, shorter guest.
+- [ ] *The Last Ferry*: perhaps a house band sting and a second, shorter guest.
 - [ ] Breakfast extras: a guest in the sofa armchair (the `guest` mark is free).
 - [ ] Breaking news from the story desk or the editor (now tip-line only),
   and a follow-up field report from Miles once a breaking story is confirmed.
@@ -95,6 +90,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Art: *The Last Ferry*'s own set (`studio_late`, a late-night desk and
+  couch) and night art for eleven more exteriors (village, residential_street,
+  police_station, fire_station, seafront, lighthouse, lifeboat_station, stadium,
+  market, cannery, loading_dock), approved on contact sheets; 14 exteriors now have
+  their own night art and the other 8 keep the tint on purpose.
 - 2026-10-26 A lock around world state (`World.lock`, an RLock taken by every World
   method that reads or changes shared state, and by `save()` for its snapshot), so
   `--workers N` works: one worker at a time reads the tip-line and does the idle work,
