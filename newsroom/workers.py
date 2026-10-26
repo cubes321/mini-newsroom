@@ -341,7 +341,7 @@ class WorkerPool:
                 adverts.make(self.world)
                 world_mod.save(self.world)
                 return
-            if self.buffer.special_pending():
+            if self.buffer.special_pending("special"):   # a documentary waits for 21:00 all day; not this
                 return
             if not force and not special.should_check(self.world):
                 return

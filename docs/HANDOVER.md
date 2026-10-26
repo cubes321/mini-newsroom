@@ -132,8 +132,8 @@ segment isn't ready (see below).
   news bumper in the day, and a failed stage is retried once.
 - **The nightly documentary** (`documentary.py`, `[documentary]`, 2026-10-26): a special with
   `work["format"] = "documentary"`, 900 s. `should_commission`: once per broadcast day
-  (`last_documentary_date`), from `commission_from` (09:00) until `airs_at` (21:00), never while a
-  special is in hand (and the editor waits while a documentary is). Stages: research (archive
+  (`last_documentary_date`), from `commission_from` (18:00) until `airs_at` (21:00), never while a
+  special is in hand; the editor goes on commissioning specials while a documentary is in hand. Stages: research (archive
   pieces on the thread plus `search_archive`, then `DocumentaryResearch` notes) -> outline
   (`DocumentaryOutline`, 6–10 sections) -> sections -> voice (10 lines a turn, `VOICE_LINES_PER_TURN`,
   for specials too) -> finish (`world.documentaries` gets the timeline and sections; no special
@@ -248,6 +248,8 @@ agreed look is early 60s) are gone from the real town; the backup is
    exteriors (14 in all; the other 8 keep the tint on purpose).
 6. ~~The world-state lock~~, done 2026-10-26: `World.lock`; `--workers N` works; a special is
    archived when it airs. One worker is still the default.
+7. **The documentary, part 2:** archive footage (clips of earlier segments' cached audio inside
+   it); details in TODO. Part 1 (2026-10-26) is in; its strand name is still a placeholder.
 
 ## Verified
 

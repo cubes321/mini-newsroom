@@ -3,10 +3,12 @@
 A documentary is a longer special (special.py runs its stages and airs it the
 same way), with three differences:
 
-1. Commissioning. Once per broadcast day, in idle time from `commission_from`,
-   the documentary editor picks a subject: a long-running thread, or a piece of
-   the town's history. It waits while a special is in hand, and specials wait
-   while it is, so the two never compete for the worker's spare turns.
+1. Commissioning. Once per broadcast day, in idle time from `commission_from`
+   (18:00, so it covers the day), the documentary editor picks a subject: a
+   long-running thread, or a piece of the town's history. It isn't commissioned
+   while a special is in hand; the editor goes on commissioning specials while a
+   documentary is made or waits for its slot (both are low-priority stage jobs
+   that take turns).
 2. Research. Before the outline, the researcher reads the archive (every piece
    on the thread, and a keyword search for the subject's names and places) and
    writes notes: a dated timeline, the people with a stake, telling details,

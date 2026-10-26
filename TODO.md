@@ -95,7 +95,7 @@ bottom with the date.
 
 - 2026-10-26 The nightly documentary, part 1 (`documentary.py`): fifteen minutes, *Port
   Wexley Stories*, once a day on a long-running thread or the town's history, chosen by
-  the documentary editor from 09:00. A research stage writes notes from the archive (every
+  the documentary editor from 18:00. A research stage writes notes from the archive (every
   piece on the thread plus a keyword search: a dated timeline marked on record or
   background, people, details, open questions) that the outline (6–10 sections) and each
   section keep to. Voiced ten lines a stage. It airs at the first news bumper from 21:00,

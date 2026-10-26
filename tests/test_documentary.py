@@ -68,17 +68,37 @@ def _decision(w) -> DocumentaryCommission:
 
 def test_one_a_day_between_commission_time_and_the_slot(world):
     buf = Buffer()
-    assert not documentary.should_commission(world, buf, _at("08:30"))      # before commission_from
-    assert documentary.should_commission(world, buf, _at("14:00"))
+    assert not documentary.should_commission(world, buf, _at("14:00"))      # before commission_from
+    assert documentary.should_commission(world, buf, _at("19:00"))
     assert not documentary.should_commission(world, buf, _at("21:30"))      # the slot has passed
     world.last_documentary_date = world.last_date
-    assert not documentary.should_commission(world, buf, _at("14:00"))      # already one today
+    assert not documentary.should_commission(world, buf, _at("19:00"))      # already one today
 
 
 def test_it_waits_while_a_special_is_in_hand(world):
     buf = Buffer()
     buf.submit_special(Segment(slot_id=special.SPECIAL_SLOT_BASE + 1, type=SegmentType.documentary, headline="x"))
-    assert not documentary.should_commission(world, buf, _at("14:00"))
+    assert not documentary.should_commission(world, buf, _at("19:00"))
+
+
+def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, monkeypatch):
+    from newsroom import adverts, desk
+    from newsroom.models import EditorDecision
+
+    buf = Buffer()
+    doc = documentary.commission(world, _decision(world))
+    buf.mark(doc, SegmentState.ready)                  # made, waiting for 21:00
+    pool = workers.WorkerPool(buf, world)
+    asked = []
+    monkeypatch.setattr(adverts, "seed_one", lambda w: False)
+    monkeypatch.setattr(adverts, "should_make", lambda: False)
+    monkeypatch.setattr(desk, "should_plan", lambda w: False)
+    monkeypatch.setattr(documentary, "should_commission", lambda w, b: False)
+    monkeypatch.setattr(special, "should_check", lambda w: True)
+    monkeypatch.setattr(special, "decide", lambda w, force=False: asked.append(1) or EditorDecision(commission=False))
+    monkeypatch.setattr(pool, "_buffer_healthy", lambda: True)
+    pool._idle_work()
+    assert asked == [1]
 
 
 def test_an_unknown_thread_becomes_a_history_piece(world, monkeypatch):

@@ -56,7 +56,7 @@ min_buffer_frac = 0.8    # background work (editor, story desk) only when the li
 [documentary]
 title = "PORT WEXLEY STORIES"
 target_s = 900
-commission_from = "09:00"
+commission_from = "18:00" # late enough to cover the day; making one takes minutes, not hours
 airs_at = "21:00"
 window_s = 3600          # not ready within an hour of airs_at: it waits for tomorrow's slot
 

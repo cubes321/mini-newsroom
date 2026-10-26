@@ -250,7 +250,7 @@ uv run python -m newsroom.special make --thread t002           # write one for a
 
 *Port Wexley Stories* (`documentary.py`, `[documentary]` in `config.toml`): fifteen
 minutes on one subject, every night. Once per broadcast day, in idle time from
-09:00, the documentary editor picks a long-running thread or a piece of the
+18:00, the documentary editor picks a long-running thread or a piece of the
 town's history. It is then made like a special, in stages between live slots,
 with a research stage first: the researcher reads every archive piece on the
 thread plus a keyword search, and writes notes (a dated timeline marking what is
