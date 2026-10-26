@@ -10,6 +10,10 @@ bottom with the date.
   the crane and drill tower behind the clock box.
 - [ ] Studio sets still to come: a sports corner; bumper and filler cards in
   the same style as the art.
+- [ ] Better station audio, when the user can listen: the four bumpers (a synth sting
+  and the lead's spoken ident), the breaking sting and the music bed are code-made
+  placeholders in `assets/` (`assets.py`). A file dropped in under the same name
+  replaces one; the placeholders stay in the repo until then (decided 2026-10-26).
 - [ ] Optional parallax: two layers per backdrop.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the
   first match on a role word wins), and perhaps gesture states for presenters.
@@ -82,10 +86,6 @@ bottom with the date.
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
   enforced; `writers._keys_hint` spells out the keys, and the schemas accept
   `speaker_id`, per-line guest details and "female"/"male".)
-
-## Housekeeping
-
-- [ ] Decide whether the baked placeholder WAVs should stay in the repo.
 
 ## Done
 
