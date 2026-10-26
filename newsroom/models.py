@@ -307,6 +307,46 @@ class SpecialOutline(BaseModel):
     sections: list[SectionPlan] = Field(min_length=3, max_length=6)
 
 
+class DocumentaryOutline(SpecialOutline):
+    """A fifteen-minute documentary: the special's outline with more sections."""
+    sections: list[SectionPlan] = Field(min_length=6, max_length=10)
+
+
+class DocumentaryCommission(BaseModel):
+    """The day's documentary: a long-running thread or a piece of the town's history."""
+    subject: Literal["thread", "history"] = Field(description="a story we have been covering, or the town's past")
+    thread_id: str | None = Field(default=None, description="for a thread subject: its id from the briefing")
+    working_title: str = Field(max_length=80)
+    angle: str = Field(max_length=300, description="the question the documentary answers")
+    search_terms: list[str] = Field(default_factory=list, max_length=6,
+                                    description="words to search the archive for (names, places, things)")
+    reason: str = Field(default="", max_length=300, description="why this subject today")
+
+
+class TimelineEntry(BaseModel):
+    date: str = Field(max_length=30, description="a date, or 'about 1900' for history")
+    event: str = Field(max_length=300)        # 200 was too tight: Sonnet's events run long
+    on_record: bool = Field(description="true only if the archive extracts report it; false for background")
+
+
+class Stakeholder(BaseModel):
+    name: str = Field(max_length=40)
+    role: str = Field(max_length=60)
+    stance: str = Field(max_length=240, description="what they want, or what they said")
+
+
+class DocumentaryResearch(BaseModel):
+    """The researcher's notes, written from the archive before the outline. The writers keep to them."""
+    timeline: list[TimelineEntry] = Field(min_length=1, max_length=14)
+    people: list[Stakeholder] = Field(default_factory=list, max_length=8)
+    details: list[str] = Field(default_factory=list, max_length=8,
+                               description="telling details from the coverage: a number, a quote, an object")
+    background: list[str] = Field(default_factory=list, max_length=6,
+                                  description="history not on record that the piece may establish, consistent "
+                                              "with the briefing")
+    questions: list[str] = Field(default_factory=list, max_length=5, description="what is still open")
+
+
 class SpecialSection(BaseModel):
     lines: list[ScriptLine] = Field(min_length=1, max_length=10)
 

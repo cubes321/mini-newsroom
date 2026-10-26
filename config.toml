@@ -32,6 +32,8 @@ vox_pop = "claude_haiku"
 consumer = "claude_haiku"
 monologue = "claude_haiku"        # talk show
 editor = "claude_sonnet"          # decides whether a thread deserves a special
+documentary_commission = "claude_sonnet"   # picks the day's documentary subject
+documentary_research = "claude_sonnet"     # research notes from the archive, before the outline
 special_outline = "claude_sonnet"
 special_section = "claude_sonnet"
 story_desk = "claude_sonnet"      # plans how threads develop, seeds new ones
@@ -47,6 +49,16 @@ cooldown_s = 3600        # minimum gap between specials
 target_s = 300           # length of a special
 min_mentions = 2         # a thread needs this much coverage to be considered
 min_buffer_frac = 0.8    # background work (editor, story desk) only when the live buffer is this full
+
+# The nightly documentary (documentary.py): fifteen minutes on a long-running thread or a piece of
+# town history, researched from the archive. One a day, commissioned in idle time and made in stages
+# between live slots like a special; it airs at the first news bumper from airs_at.
+[documentary]
+title = "PORT WEXLEY STORIES"
+target_s = 900
+commission_from = "09:00"
+airs_at = "21:00"
+window_s = 3600          # not ready within an hour of airs_at: it waits for tomorrow's slot
 
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.

@@ -19,6 +19,12 @@ pre-empts a live slot mid-sentence.
 
 A special's cache key is its own `_hash()` (date, thread, title), never the
 slot-keyed hash live segments use: special slot numbers restart every run.
+
+The nightly documentary (documentary.py) runs through the same stages with a
+research stage first and `work["format"] = "documentary"`; the outline class,
+prompts, cues and where it airs follow the format. Voicing is a stage per
+VOICE_LINES_PER_TURN lines, so a fifteen-minute piece doesn't hold the worker
+(and the Kokoro lock) for minutes on end.
 """
 from __future__ import annotations
 
@@ -26,9 +32,10 @@ import hashlib
 import logging
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 
-from . import llm, schedule
+from . import documentary, llm, schedule
 from .config import CONFIG
 from . import locations
 from .locations import locations_for_prompt
@@ -38,6 +45,7 @@ from .models import (
     Segment,
     SegmentState,
     SegmentType,
+    DocumentaryOutline,
     SpecialOutline,
     SpecialSection,
     VisualCue,
@@ -47,6 +55,7 @@ from .world import World
 log = logging.getLogger(__name__)
 
 SPECIAL_SLOT_BASE = 1_000_000      # specials live outside the rundown's slot numbering
+VOICE_LINES_PER_TURN = 10          # lines voiced per worker turn
 _special_counter = 0
 
 _EDITOR_SYSTEM = """\
@@ -150,8 +159,20 @@ def commission(world: World, decision: EditorDecision) -> Segment:
 # ------------------------------------------------------------------ writer
 
 
+def _is_doc(seg: Segment) -> bool:
+    return seg.work.get("format") == "documentary"
+
+
+def _outline_of(seg: Segment) -> SpecialOutline:
+    return (DocumentaryOutline if _is_doc(seg) else SpecialOutline).model_validate(seg.work["outline"])
+
+
+def _strand(seg: Segment) -> str:
+    return seg.work.get("strand") or "SPECIAL REPORT"
+
+
 def _hash(seg: Segment, world: World) -> str:
-    key = f"special|{world.last_date}|{seg.thread_id}|{seg.headline or seg.work.get('title')}|{world.town}|{llm.provider_for('special_outline')}"
+    key = f"{seg.work.get('format', 'special')}|{world.last_date}|{seg.thread_id}|{seg.headline or seg.work.get('title')}|{world.town}|{llm.provider_for('special_outline')}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
@@ -192,13 +213,19 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
                if thread else f"Subject: {seg.headline}")
     if thread and thread.beats:
         subject += "\nCoverage so far:\n" + "\n".join(f"  - {b['date']}: {b['headline']}" for b in thread.beats[-6:])
+    doc = _is_doc(seg)
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
-        f"SPECIAL REPORT COMMISSION\nWorking title: {seg.headline}\n{subject}\nAngle: {angle}\n"
+        f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'} COMMISSION\nWorking title: {seg.headline}\n{subject}\n"
+        f"Angle: {angle}\n"
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
         f"plus a short anchor intro and outro.\n\n"
-        f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
+        + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
+        + f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     )
+    if doc:
+        return llm.complete_json("special_outline", DocumentaryOutline,
+                                 documentary.OUTLINE_SYSTEM.format(strand=_strand(seg)), user)
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
 
@@ -211,15 +238,18 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
     else:
         guest = "No guest in this section."
     prev = outline.sections[i - 1].heading if i > 0 else "(this is the first section)"
+    doc = _is_doc(seg)
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
-        f"SPECIAL REPORT: {outline.title}\n{outline.standfirst}\n"
+        + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
+        + f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'}: {outline.title}\n{outline.standfirst}\n"
         f"Section {i + 1} of {len(outline.sections)}: {sec.heading}\n"
         f"Beats to cover:\n" + "\n".join(f"  - {b}" for b in sec.beats) + "\n"
         f"Location: {locations.get(sec.backdrop).blurb}. Previous section was: {prev}.\n{guest}\n"
         f"Word budget for this section: about {words} words."
     )
-    return llm.complete_json("special_section", SpecialSection, _SECTION_SYSTEM, user)
+    system = documentary.SECTION_SYSTEM.format(strand=_strand(seg)) if doc else _SECTION_SYSTEM
+    return llm.complete_json("special_section", SpecialSection, system, user)
 
 
 def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list[VisualCue]:
@@ -229,14 +259,15 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list
     for l in seg.lines:
         line_start.append(t)
         t += l.duration_s or 0.0
-    cues: list[VisualCue] = [VisualCue(at_s=0, kind="ticker", payload={"text": f"SPECIAL REPORT: {outline.title}"})]
+    strand = _strand(seg)
+    cues: list[VisualCue] = [VisualCue(at_s=0, kind="ticker", payload={"text": f"{strand}: {outline.title}"})]
     n = len(outline.sections)
     for i, start_idx in enumerate(starts):
         at = line_start[start_idx]
         sec = outline.sections[i]
         cues.append(VisualCue(at_s=at, kind="chapter", payload={
             "number": i + 1, "total": n, "heading": sec.heading,
-            "title": outline.title, "standfirst": outline.standfirst}))
+            "title": outline.title, "standfirst": outline.standfirst, "strand": strand}))
         cues.append(VisualCue(at_s=at, kind="backdrop", payload={"backdrop": sec.backdrop}))
         cues.append(VisualCue(at_s=at, kind="lower_third", payload={}))
         end_idx = starts[i + 1] if i + 1 < n else len(seg.lines) - 1
@@ -247,7 +278,8 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list
                                       payload={"title": l.guest_name or "Resident", "subtitle": sec.guest_role or "Port Wexley"}))
             elif j > start_idx and seg.lines[j - 1].speaker == "guest":
                 cues.append(VisualCue(at_s=line_start[j], kind="lower_third", payload={}))
-    cues.append(VisualCue(at_s=line_start[-1], kind="lower_third", payload={"title": outline.title, "subtitle": "Special report"}))
+    cues.append(VisualCue(at_s=line_start[-1], kind="lower_third",
+                          payload={"title": outline.title, "subtitle": strand.title() if _is_doc(seg) else "Special report"}))
     return cues
 
 
@@ -257,7 +289,8 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int]) -> list
 def advance(seg: Segment, world: World, buffer=None) -> Segment:
     """Run ONE stage of a special. Re-queues itself if more stages remain.
 
-    Stages: outline -> sections (one per call) -> voice -> finish.
+    Stages: [research, for a documentary] -> outline -> sections (one per call) -> voice (a few
+    lines per call) -> finish.
     """
     from . import workers, world as world_mod
 
@@ -265,9 +298,10 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
     # recomputing it later would scatter checkpoints under different keys.
     h = seg.content_hash or _hash(seg, world)
     seg.content_hash = h
-    stage = seg.stage or "outline"
+    first = "research" if _is_doc(seg) else "outline"
+    stage = seg.stage or first
 
-    if stage == "outline":
+    if stage == first:
         cached = workers._load_cached(seg, h)
         if cached is not None:
             cached.state = SegmentState.ready
@@ -275,8 +309,14 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             if buffer:
                 buffer.mark(cached, SegmentState.ready)
             return cached
-        if _load_partial(seg, h):
+        if _load_partial(seg, h) and seg.stage != first:
             return advance(seg, world, buffer)
+
+    if stage == "research":
+        seg.work["research"] = documentary.research(seg, world).model_dump()
+        seg.stage = "outline"
+
+    elif stage == "outline":
         outline = write_outline(seg, world)
         # A new piece under the key of one that already aired (same title, thread and day):
         # its marker would stop a restart from resuming the new one. Only once the outline is
@@ -289,7 +329,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         log.info("special %r outlined: %d sections", outline.title, len(outline.sections))
 
     elif stage == "sections":
-        outline = SpecialOutline.model_validate(seg.work["outline"])
+        outline = _outline_of(seg)
         i = seg.work["next_section"]
         n = len(outline.sections)
         words = _word_budget(seg.target_s) // n
@@ -313,13 +353,16 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
                 buffer.mark(seg, SegmentState.scripted)
 
     elif stage == "voice":
-        workers.voice_segment(seg, world, h)
-        seg.stage = "finish"
-        if buffer:
-            buffer.mark(seg, SegmentState.voiced)
+        todo = [i for i, l in enumerate(seg.lines) if not l.wav_path]
+        for i in todo[:VOICE_LINES_PER_TURN]:
+            workers.voice_line(seg.lines[i], i, world, h)
+        if len(todo) <= VOICE_LINES_PER_TURN:
+            seg.stage = "finish"
+            if buffer:
+                buffer.mark(seg, SegmentState.voiced)
 
     elif stage == "finish":
-        outline = SpecialOutline.model_validate(seg.work["outline"])
+        outline = _outline_of(seg)
         seg.cues = build_cues(seg, outline, seg.work["starts"])
         seg.state = SegmentState.ready
         workers._save_cached(seg, h)
@@ -327,7 +370,10 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             _partial_path(h).unlink()
         except OSError:
             pass
-        world.record_special(outline.title, seg.thread_id)     # made: the editor's cooldown starts now
+        if _is_doc(seg):
+            documentary.record(world, seg, outline)              # its canon, for later pieces
+        else:
+            world.record_special(outline.title, seg.thread_id)  # made: the editor's cooldown starts now
         world_mod.save(world)                  # the archive entry waits until it airs (mark_aired)
         if buffer:
             buffer.mark(seg, SegmentState.ready)
@@ -380,8 +426,13 @@ def mark_aired(seg: Segment, world: World | None = None) -> None:
     (or at exit): no disk write on the main thread beyond the marker."""
     if world is not None:
         title = (seg.work.get("outline") or {}).get("title") or seg.headline or "a special report"
-        world.record_headline(f"Special report: {title}")
-        world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines))
+        if _is_doc(seg):
+            world.record_headline(f"{_strand(seg).title()}: {title}")
+            world.record_aired("documentary", title, seg.thread_id, " ".join(l.text for l in seg.lines))
+            world.last_documentary_aired = datetime.fromtimestamp(schedule.now()).date().isoformat()
+        else:
+            world.record_headline(f"Special report: {title}")
+            world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines))
     if seg.content_hash:
         try:
             _aired_path(seg.content_hash).touch()
@@ -416,7 +467,8 @@ def resume_ready(buffer) -> int:
         seg.slot_id = SPECIAL_SLOT_BASE + _special_counter
         seg.content_hash = seg.content_hash or meta.stem
         buffer.mark(seg, SegmentState.ready)
-        log.info("resuming finished special %r; it airs after the next news bumper", seg.headline)
+        log.info("resuming finished %s %r; it airs %s", seg.work.get("format", "special"), seg.headline,
+                 "in its nightly slot" if _is_doc(seg) else "after the next news bumper")
         n += 1
     return n
 
@@ -443,6 +495,7 @@ def _cli(argv: list[str]) -> int:
     p.add_argument("--title", help="working title (make, when no thread)")
     p.add_argument("--angle", default="", help="the question the piece answers")
     p.add_argument("--target", type=float, default=None, help="seconds (default from config)")
+    p.add_argument("--documentary", action="store_true", help="make the nightly documentary instead (make)")
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s: %(message)s", datefmt="%H:%M:%S")
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3"):
@@ -461,7 +514,14 @@ def _cli(argv: list[str]) -> int:
     if not title:
         print("need --thread or --title")
         return 2
-    seg = commission(w, EditorDecision(commission=True, thread_id=a.thread, working_title=title, angle=a.angle))
+    if a.documentary:
+        from .models import DocumentaryCommission
+
+        seg = documentary.commission(w, DocumentaryCommission(
+            subject="thread" if thread else "history", thread_id=a.thread, working_title=title, angle=a.angle,
+            search_terms=title.split()[:6]))
+    else:
+        seg = commission(w, EditorDecision(commission=True, thread_id=a.thread, working_title=title, angle=a.angle))
     if a.target:
         seg.target_s = a.target
     out = generate_special(seg, w)

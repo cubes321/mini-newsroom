@@ -29,8 +29,12 @@ bottom with the date.
 - [ ] Schedule: whether specials (or later documentaries) get their own
   scheduled slots rather than only after news bumpers.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
-- [ ] The 15–30 minute documentary: specials plus a research step over the
-  town's own archive (`world.search_archive`), more sections, archive "footage".
+- [ ] The documentary, part 2: archive "footage", short clips of earlier aired
+  segments (their cached audio) played inside it with an ARCHIVE caption and date.
+  Archive entries need to record their cache hash first. Then perhaps: give the
+  writers and the story desk what documentaries established (`world.documentaries`),
+  a repeat of the night's documentary in the overnight block, and the doc's own
+  presenter for history pieces.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
 
 ## Engineering
@@ -89,6 +93,13 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 The nightly documentary, part 1 (`documentary.py`): fifteen minutes, *Port
+  Wexley Stories*, once a day on a long-running thread or the town's history, chosen by
+  the documentary editor from 09:00. A research stage writes notes from the archive (every
+  piece on the thread plus a keyword search: a dated timeline marked on record or
+  background, people, details, open questions) that the outline (6–10 sections) and each
+  section keep to. Voiced ten lines a stage. It airs at the first news bumper from 21:00,
+  within the hour, never at a special's break; its canon goes into `world.documentaries`.
 - 2026-10-26 MIT licence (`LICENSE`, `pyproject.toml`, README).
 - 2026-10-26 Art: *The Last Ferry*'s own set (`studio_late`, a late-night desk and
   couch) and night art for eleven more exteriors (village, residential_street,

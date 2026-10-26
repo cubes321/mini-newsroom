@@ -29,7 +29,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, schedule
+from . import adverts, documentary, schedule
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -74,6 +74,7 @@ class View:
     weather: str | None = None           # last weather report's map_state; grades exteriors
     shot: str = "wide"                   # studio framing: wide | close | wall
     wall_label: str = ""                 # caption on the big-picture wall's side panel
+    strand: str = ""                     # a documentary's strand name, for its letterbox label
     chapter: dict | None = None          # {number, total, heading, title, standfirst}
     chapter_age_s: float = 0.0
     clock: str = ""
@@ -285,10 +286,18 @@ class Player:
             self._resume(now)
             return
 
+        # The documentary has its own slot: the first news bumper from airs_at, within the window.
+        if (self.last_type is SegmentType.bumper and schedule.show_at(now).airs_specials
+                and documentary.due(self.world, now)):
+            doc = self.buffer.pop_special("documentary")
+            if doc is not None:
+                self._start(doc, now)
+                return
+
         # A finished special is aired at a break (a bumper, or overnight the test
         # card), between loops, in a show that airs specials.
         if self.last_type in _BREAKS and schedule.show_at(now).airs_specials:
-            special = self.buffer.pop_special()
+            special = self.buffer.pop_special("special")
             if special is not None:
                 self._start(special, now)
                 return
@@ -354,7 +363,7 @@ class Player:
         elif seg.type is SegmentType.documentary and self.line_idx == 0:
             first = next((c.payload.get("backdrop") for c in seg.cues if c.kind == "backdrop"), None)
             if first:
-                v.shot, v.wall_label, v.backdrop = "wall", "SPECIAL REPORT", first
+                v.shot, v.wall_label, v.backdrop = "wall", seg.work.get("strand") or "SPECIAL REPORT", first
         elif seg.type is SegmentType.bulletin and self.line_idx % 2 == 1:
             v.shot = "close"
         elif seg.type is SegmentType.sofa and self.line_idx % 3 == 2:
@@ -422,6 +431,7 @@ class Player:
         v.chapter = cues.get("chapter")
         if seg.type is SegmentType.documentary:
             v.mode = "studio" if v.speaker == "anchor" else "special"
+            v.strand = seg.work.get("strand", "")
         elif v.breaking and self.line_idx == 0:
             v.mode, v.speaker = "breaking", None             # the sting, under the BREAKING NEWS card
         elif seg.type is SegmentType.testcard:
@@ -458,7 +468,8 @@ class Player:
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
-        label = {SegmentType.documentary: "SPECIAL", SegmentType.breaking: "BREAKING",
+        label = {SegmentType.documentary: "DOCUMENTARY" if documentary.is_documentary(seg) else "SPECIAL",
+                 SegmentType.breaking: "BREAKING",
                  SegmentType.advert: "ADVERT", SegmentType.ad_break: f"BREAK slot {seg.slot_id}"}.get(
                      seg.type, f"slot {seg.slot_id}")
         v.status = f"{label} " \

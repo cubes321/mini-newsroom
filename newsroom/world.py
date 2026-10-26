@@ -123,6 +123,11 @@ class World:
     people: list[Person] = field(default_factory=list)
     archive: list[dict] = field(default_factory=list)      # {date, day, type, headline, thread_id, people, text}
     last_story_plan_ts: float = 0.0
+    # The nightly documentary: what each one established (its research timeline and sections), so the
+    # canon it invents outlives the 400 characters the archive keeps; and the day markers.
+    documentaries: list[dict] = field(default_factory=list)
+    last_documentary_date: str = ""          # the broadcast day one was last commissioned
+    last_documentary_aired: str = ""         # the day one last aired
 
     def __post_init__(self) -> None:
         self.lock = threading.RLock()        # not a field: asdict() and the JSON leave it out
@@ -389,10 +394,18 @@ class World:
         return p
 
     @_locked
-    def record_special(self, title: str, thread_id: str | None) -> None:
+    def record_special(self, title: str, thread_id: str | None, *, cooldown: bool = True) -> None:
+        """A finished special or documentary: neither repeats the other's subject. Only a special
+        starts the editor's cooldown; the documentary has its own slot."""
         self.specials.append({"title": title, "thread_id": thread_id, "date": self.last_date})
         self.specials = self.specials[-30:]
-        self.last_special_ts = time.time()
+        if cooldown:
+            self.last_special_ts = time.time()
+
+    @_locked
+    def record_documentary(self, entry: dict) -> None:
+        self.documentaries.append(entry)
+        self.documentaries = self.documentaries[-30:]
 
     @_locked
     def roll_day_if_needed(self) -> None:

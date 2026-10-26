@@ -341,8 +341,10 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     # Letterbox bars
     pygame.draw.rect(canvas, (0, 0, 0), (0, 0, w, 14))
     pygame.draw.rect(canvas, (0, 0, 0), (0, h - 28, w, 14))
-    pygame.draw.rect(canvas, (200, 170, 60), (8, 3, 70, 9))
-    text(canvas, "SPECIAL REPORT", 43, 7, 8, (20, 20, 20), center=True)
+    label = v.strand or "SPECIAL REPORT"
+    lw = max(70, len(label) * 5 + 10)                 # the strand name can be longer than "SPECIAL REPORT"
+    pygame.draw.rect(canvas, (200, 170, 60), (8, 3, lw, 9))
+    text(canvas, label, 8 + lw // 2, 7, 8, (20, 20, 20), center=True)
 
     ch = v.chapter
     if ch:

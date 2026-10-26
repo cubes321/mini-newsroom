@@ -32,6 +32,11 @@ class Job:
     segment: Segment = field(compare=False)
 
 
+def seg_format(seg: Segment) -> str:
+    """'special' (five minutes, at a break) or 'documentary' (fifteen, in the nightly slot)."""
+    return seg.work.get("format", "special")
+
+
 class Buffer:
     def __init__(self) -> None:
         self._q: queue.PriorityQueue[Job] = queue.PriorityQueue()
@@ -88,15 +93,19 @@ class Buffer:
         """Put a multi-stage job back for its next stage; live jobs get served in between."""
         self._q.put(Job(seg.nominal_start_ts, seg.priority, seg))
 
-    def special_pending(self) -> bool:
-        """True while a special is being made or waiting to air."""
+    def special_pending(self, fmt: str | None = None) -> bool:
+        """True while a special or documentary (or only one `fmt`) is being made or waiting to air."""
         with self._lock:
             return any(s.type is SegmentType.documentary and s.state not in (SegmentState.done, SegmentState.failed)
-                       for s in self._segments.values())
+                       and (fmt is None or seg_format(s) == fmt) for s in self._segments.values())
 
-    def pop_special(self) -> Segment | None:
+    def pop_special(self, fmt: str = "special") -> Segment | None:
+        """The first ready piece of one format: specials air at breaks, documentaries in their slot."""
         with self._lock:
-            return self._specials_ready.pop(0) if self._specials_ready else None
+            for i, s in enumerate(self._specials_ready):
+                if seg_format(s) == fmt:
+                    return self._specials_ready.pop(i)
+            return None
 
     def next_job(self, timeout: float = 0.5) -> Segment | None:
         try:

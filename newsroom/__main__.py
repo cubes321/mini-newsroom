@@ -13,6 +13,7 @@ Flags:
   --world PATH  read and write this world file instead of data/world.json (or NEWSROOM_WORLD)
   --cache DIR   segment cache to use instead of data/cache (or NEWSROOM_CACHE)
   --scratch     copy the world, tip-line and adverts to a temp dir and run on the copy with an empty cache
+  --documentary-now  commission today's documentary at the first idle moment (it still airs in its slot)
 """
 from __future__ import annotations
 
@@ -37,6 +38,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=1)
     p.add_argument("--snap", type=str, default="", help="save a PNG of the frame to this dir every 10 s")
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
+    p.add_argument("--documentary-now", action="store_true",
+                   help="commission today's documentary at the first idle moment, whatever the hour")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
     p.add_argument("--log-llm", action="store_true", help="write every LLM prompt and reply to data/llm_calls/")
     p.add_argument("--world", type=str, default="", help="world file to use instead of data/world.json")
@@ -242,6 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)
     if args.special_now:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
+    if args.documentary_now:
+        os.environ["NEWSROOM_DOCUMENTARY_NOW"] = "1"
     if args.log_llm:
         os.environ["NEWSROOM_LLM_LOG"] = "1"
 

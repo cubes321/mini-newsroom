@@ -136,13 +136,18 @@ def repeat_segment(seg: Segment) -> Segment:
 # --------------------------------------------------------------- pipeline
 
 
+def voice_line(line: Line, i: int, world: World, h: str) -> None:
+    """Synthesize one line to `<hash>_<i>.wav`; fill its duration and mouth envelope."""
+    out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
+    res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out,
+                         speed=world.speed_for(line.speaker, line.guest_name))
+    line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
+
+
 def voice_segment(seg: Segment, world: World, h: str) -> Segment:
     """Synthesize every line to its own WAV; fill duration and mouth envelope."""
     for i, line in enumerate(seg.lines):
-        out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
-        res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out,
-                             speed=world.speed_for(line.speaker, line.guest_name))
-        line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
+        voice_line(line, i, world, h)
     seg.state = SegmentState.voiced
     return seg
 
@@ -311,9 +316,9 @@ class WorkerPool:
     def _idle_work(self) -> None:
         """Background work. The hand-written adverts are voiced first, whatever the buffer
         (they are what covers a gap). Then, only when the live buffer is comfortably full:
-        the story desk plans developments, the model writes a new advert now and then, and
-        the editor may commission a special."""
-        from . import adverts, desk, special
+        the story desk plans developments, the day's documentary is commissioned, the model
+        writes a new advert now and then, and the editor may commission a special."""
+        from . import adverts, desk, documentary, special
 
         try:
             if adverts.seed_one(self.world):
@@ -326,6 +331,12 @@ class WorkerPool:
                 desk.plan(self.world)
                 world_mod.save(self.world)
                 return                        # one background call per idle tick
+            if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
+                d = documentary.decide(self.world)
+                world_mod.save(self.world)
+                if d is not None:
+                    self.buffer.submit_special(documentary.commission(self.world, d))
+                return
             if adverts.should_make():
                 adverts.make(self.world)
                 world_mod.save(self.world)

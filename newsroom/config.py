@@ -81,6 +81,15 @@ class SpecialCfg:
 
 
 @dataclass(frozen=True)
+class DocumentaryCfg:
+    title: str = "PORT WEXLEY STORIES"   # the strand: title cards, the ticker, the studio wall
+    target_s: float = 900.0              # fifteen minutes of speech
+    commission_from: str = "09:00"       # the day's documentary is commissioned in idle time from here
+    airs_at: str = "21:00"               # and airs at the first news bumper from here
+    window_s: float = 3600.0             # not ready within this: it waits for tomorrow's slot
+
+
+@dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
     max_open_threads: int = 8
@@ -121,6 +130,7 @@ class Config:
     tts: TTSCfg
     paths: PathsCfg
     special: SpecialCfg
+    documentary: DocumentaryCfg
     story: StoryCfg
     breaking: BreakingCfg
     adverts: AdvertsCfg
@@ -150,6 +160,7 @@ def load(path: Path | None = None) -> Config:
         tts=TTSCfg(voices=voices, **tts_raw),
         paths=PathsCfg(**paths_raw),
         special=SpecialCfg(**raw.get("special", {})),
+        documentary=DocumentaryCfg(**raw.get("documentary", {})),
         story=StoryCfg(**raw.get("story", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),

@@ -104,8 +104,9 @@ story bible and desk; provider switching, caching, failure recovery, and
 backdrop art for every location; code-drawn presenters, and a look of their
 own for every guest from their name, voice and role; tides and a foot ferry
 worked out by arithmetic; local adverts that cover the gaps and fill ad
-breaks in the light shows. Things that don't yet: the 30-minute documentary
-that specials are the template for.
+breaks in the light shows; a nightly fifteen-minute documentary researched
+from the town's archive. Things that don't yet: archive footage in the
+documentaries.
 
 ## A normal day
 
@@ -163,7 +164,8 @@ Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 `--no-window` runs the producer, workers and a simulated player headless,
 `--workers N` runs N generation workers (model calls in parallel; TTS still
 one line at a time), `--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
-a special immediately, `--clock HH:MM` pretends the local time is HH:MM,
+a special immediately, `--documentary-now` commissions today's documentary at
+once (it still airs in its slot), `--clock HH:MM` pretends the local time is HH:MM,
 `--log-llm` writes every model prompt and reply, with token counts, to
 `data/llm_calls/<date>.jsonl` (or set `log_calls = true` under `[llm]`).
 Token counts are always on each call's log line, and running totals per
@@ -207,8 +209,10 @@ nothing backs it up, so test runs should use `--scratch` (above):
   never an open one (with all 40 open it grows and logs a warning). Template
   scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads,
   except breaking news, whose tip is real.
-- **Archive**: every segment aired, searchable, for callbacks now and for
-  documentary research later.
+- **Archive**: every segment aired, searchable, for callbacks and for the
+  documentary's research. What each documentary established (its timeline and
+  sections) is kept apart in `documentaries`, since the archive keeps only 400
+  characters of a piece.
 
 The **story desk** (`desk.py`) runs every `plan_every_s` when the worker is
 idle and the live buffer is healthy. It assigns phases, writes next
@@ -240,6 +244,25 @@ in `config.toml`.
 ```bash
 uv run python -m newsroom.special decide                       # ask the editor now
 uv run python -m newsroom.special make --thread t002           # write one for a thread
+```
+
+## The nightly documentary
+
+*Port Wexley Stories* (`documentary.py`, `[documentary]` in `config.toml`): fifteen
+minutes on one subject, every night. Once per broadcast day, in idle time from
+09:00, the documentary editor picks a long-running thread or a piece of the
+town's history. It is then made like a special, in stages between live slots,
+with a research stage first: the researcher reads every archive piece on the
+thread plus a keyword search, and writes notes (a dated timeline marking what is
+on record and what is background, the people with a stake, telling details,
+open questions). The outline (6–10 sections) and every section are written from
+those notes. Voicing is a few lines per stage, so even fifteen minutes of
+speech never holds up the live slots. It airs at the first news bumper from
+21:00, within the hour; one not ready in time waits for tomorrow, and it never
+airs at a special's break. `--documentary-now` commissions one straight away.
+
+```bash
+uv run python -m newsroom.special make --documentary --thread t030   # make one now
 ```
 
 ## Layout

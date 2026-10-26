@@ -130,6 +130,21 @@ segment isn't ready (see below).
 - **Specials:** they have their own cache key, survive restarts (`special.resume_ready`), are
   marked aired with `data/cache/<hash>.aired`, air after the test card overnight and after a
   news bumper in the day, and a failed stage is retried once.
+- **The nightly documentary** (`documentary.py`, `[documentary]`, 2026-10-26): a special with
+  `work["format"] = "documentary"`, 900 s. `should_commission`: once per broadcast day
+  (`last_documentary_date`), from `commission_from` (09:00) until `airs_at` (21:00), never while a
+  special is in hand (and the editor waits while a documentary is). Stages: research (archive
+  pieces on the thread plus `search_archive`, then `DocumentaryResearch` notes) -> outline
+  (`DocumentaryOutline`, 6–10 sections) -> sections -> voice (10 lines a turn, `VOICE_LINES_PER_TURN`,
+  for specials too) -> finish (`world.documentaries` gets the timeline and sections; no special
+  cooldown). The buffer's side pocket is filtered by format (`buffer.seg_format`); the player pops a
+  documentary only at a news bumper within `window_s` of `airs_at` on a day none has aired
+  (`last_documentary_aired`). Routes: `documentary_commission` and `documentary_research` on Sonnet;
+  the outline and sections reuse the special routes. `--documentary-now` forces a commission.
+  First real run (scratch town, Claude, `--clock 20:35`): commissioned at once on t030 (59 pieces),
+  researched from 42 archive pieces (8 timeline entries, 7 on record), outlined in 9 sections and
+  made in about four minutes; 2,528 words, 838 s; aired at the 21:00 bumper and the news carried on
+  after it with no filler. About $0.30 on Sonnet. Not yet seen in the window.
 - **Adverts** (`adverts.py`, `data/ads/`, `[adverts]` in config.toml):
   - When the next slot isn't ready the player airs one, outside the rundown, up to
     `max_in_a_row` (3), then the filler card and the weather replay.
