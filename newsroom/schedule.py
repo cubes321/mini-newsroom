@@ -92,10 +92,11 @@ I = Item
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
         "news", "PORT WEXLEY NEWS", "NEWS", (200, 30, 30),
-        # One loop in three swaps the field report for a studio interview.
+        # One loop in three swaps the field report for a studio interview. The weather comes
+        # once a loop, about every ten minutes (at every bumper it was a quarter of the airtime).
         pattern=(T.bumper, T.weather, T.bulletin, T.field_report,
-                 T.bumper, T.weather, T.bulletin, T.field_report,
-                 T.bumper, T.weather, T.bulletin, T.interview),
+                 T.bumper, T.bulletin, T.field_report,
+                 T.bumper, T.bulletin, T.interview),
         target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0},
         cast=("anchor", "weather", "reporter"), lead="anchor",
         cast_by_type={T.interview: ("anchor", "guest"), T.breaking: ("anchor", "reporter"),
