@@ -159,7 +159,8 @@ Test runs write to the real town unless told otherwise: every run updates
 `data/world.json` and adds to `data/cache/`, whose last two days feed the
 overnight repeats. `--world PATH` and `--cache DIR` point a run elsewhere, and
 `--scratch` copies the world and the tip-line to a fresh temp dir and runs on
-the copy with an empty cache (the path is logged; delete it when done). The
+the copy with an empty cache (the path is logged; delete it when done;
+`--log-llm` still writes to `data/llm_calls/`). The
 same overrides work as environment variables, `NEWSROOM_WORLD`,
 `NEWSROOM_CACHE` and `NEWSROOM_TIPLINE`, and those also cover the module CLIs
 (`newsroom.world`, `newsroom.workers`, `newsroom.desk`, ...). Every run logs
@@ -190,7 +191,8 @@ nothing backs it up, so test runs should use `--scratch` (above):
   a follow-up must deliver it, so stories move instead of repeating.
   The board keeps 40 threads: a new one drops the quietest closed thread,
   never an open one (with all 40 open it grows and logs a warning). Template
-  scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads.
+  scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads,
+  except breaking news, whose tip is real.
 - **Archive**: every segment aired, searchable, for callbacks now and for
   documentary research later.
 
