@@ -1,10 +1,26 @@
 # Handover
 
-Where Mini Newsroom stands at the end of 2026-10-25, and how to pick it up.
+Where Mini Newsroom stands at the end of 2026-10-26, and how to pick it up.
 The backlog is [TODO.md](../TODO.md) and the overview is the [README](../README.md).
-Everything below is on `master` at `cubes321/mini-newsroom`. Updated at the end of the day with
-the second session's work: finished specials survive restarts, the dusk grade, hour-long running
-orders for the magazine and the talk show, and breaking news from a viewer tip-line.
+Everything below is on `master` at `cubes321/mini-newsroom` (last pushed: `41145d9`), except
+the work in progress listed under **In flight**.
+
+Today's work: the first overnight run and the fixes it led to (specials, story-desk timeouts,
+breakfast variety); a local-model bench; refined code-drawn characters with a look for every
+guest; guest captions from the script; people lit by their location; a retry for empty desk
+plans; tides and the Saltby foot ferry; local adverts that cover the gaps; fresh README
+screenshots.
+
+## In flight (not committed, not mine to commit)
+
+Another session sharing this folder is benchmarking Claude for the routes. Its uncommitted
+changes are in `newsroom/llm.py` (the anthropic path takes `thinking`/`effort` from
+`extra_body`, a timeout, retries and the validation retry), `newsroom/desk.py` (the prompt
+states the people limit), `config.toml` (`claude_haiku` and `claude_sonnet` providers, not yet
+routed to) and `TODO.md` (the bench results). Its finding so far: Haiku for live scripts and
+Sonnet for the desk, editor and specials would cost about $0.60 a night against about $1.30 on
+Kimi; keep Haiku off the editor. Leave these files to that session: don't commit them from
+another one, and check `git status` before any commit.
 
 ## What it is now
 
@@ -28,7 +44,8 @@ that broke as breaking news today, or else the most-covered thread at its peak
 with at least four pieces of coverage. In the magazine and the talk show only
 the opening item leads with it; later items mention it in passing at most.
 
-**Breaking news** can cut into any of these (see below).
+**Breaking news** can cut into any of these, and **local adverts** fill any gap when the next
+segment isn't ready (see below).
 
 ## How it fits together
 
@@ -37,11 +54,9 @@ the opening item leads with it; later items mention it in passing at most.
   - The producer restarts the pattern at each show change, so every show opens on its bumper.
   - The producer's cursor (when the next planned slot will start) is worked out on every tick:
     now, plus what is left on air (`player.time_left`), plus the unplayed queue (real lengths
-    once voiced, targets before). There is no per-slot retime any more; it double-counted drift,
-    and in a real run the cursor got an hour ahead.
+    once voiced, targets before).
   - The producer keeps its show until that show's own end (`schedule.show_end`), and only then asks
-    the schedule what is next. The cursor is an estimate that can move back across the hour, and a
-    show once left must stay left.
+    the schedule what is next.
   - Workers script each slot with the LLM, voice it with Kokoro, and cache it.
   - The player plays it on the clock.
 - **Running orders:**
@@ -50,174 +65,208 @@ the opening item leads with it; later items mention it in passing at most.
     `Item(type, part, brief)`.
   - `loop_from` is where the order wraps if it runs out; it never wraps back to the bumper.
   - `closing` is planned once when less than half of the next item would fit before the hour.
-    A guest's second part is never cut. If the hour turns mid-item, the goodbye runs a little
-    over. Then the next show starts straight away.
-  - Parts:
-    - `open`: the only item that leads with the big story.
-    - `cont`: the same guest after the break. Writers pass part one's transcript and skip the
-      "recently booked" check. It falls back to a fresh interview if part one wasn't the slot
-      just before, e.g. after a restart.
-    - `close`: the sign-off.
-  - `brief` is the angle given to the writer ("an animal story"). A show can also list `briefs`
-    per type, handed out in turn to entries without their own. Breakfast uses this: a short
-    pattern for three hours, but every sofa chat and report gets a different angle.
-  - Bulletins (headlines) always lead with the big story briefly; only the other items are told
-    to keep it to a passing mention.
-- **Per-show casts:**
-  - `Show.cast` and `Show.cast_for(type)` say who may speak.
-  - `models.script_schema(type, cast)` narrows the JSON speaker enum to that cast.
-  - `world.summary_for_prompt(cast)` lists only that cast in the briefing.
-- **Prompts:**
-  - They live in `writers.py`, as one table per show: `_SYSTEM` (news), `_BREAKFAST`, `_MAGAZINE` and `_LATE`.
-  - Each LLM-scripted type has a canned template, used when the model fails.
+    A guest's second part is never cut.
+  - Parts: `open` (the only item that leads with the big story), `cont` (the same guest after
+    the break, given part one's transcript), `close` (the sign-off).
+  - `brief` is the angle given to the writer. A show can list `briefs` per type, handed out in
+    turn; breakfast uses this so every sofa chat and report gets a different angle.
+  - Each breakfast sofa chat is told this morning's earlier chats, and that a date or age said
+    once is settled. Overnight repeats skip breakfast segments.
+- **Per-show casts:** `Show.cast` / `Show.cast_for(type)` say who may speak;
+  `models.script_schema(type, cast)` narrows the JSON speaker enum; `world.summary_for_prompt(cast)`
+  lists only that cast.
+- **Prompts** live in `writers.py`, one table per show (`_SYSTEM`, `_BREAKFAST`, `_MAGAZINE`,
+  `_LATE`). Each LLM-scripted type has a canned template for when the model fails.
 - **Segment types:**
-  - Live: `bumper`, `weather`, `bulletin`, `field_report`, `sofa`, `interview`, `links`, `feature`, `vox_pop`, `consumer`, `monologue`.
+  - Live: `bumper`, `weather`, `bulletin`, `field_report`, `sofa`, `interview`, `links`, `feature`,
+    `vox_pop`, `consumer`, `monologue`.
   - Overnight: `testcard`, `repeat`.
-  - Specials: `documentary`.
+  - Outside the rundown (no slot the producer plans): `documentary` (specials), `breaking`,
+    `advert`.
 - **Guests:**
-  - The writer books guests from the cast or invents them. Once booked, they join `world.people` with a fixed voice and look.
+  - The writer books guests from the cast or invents them. Once booked, they join `world.people`
+    with a fixed voice. `ensure_person` upgrades a generic "resident" role when a later script
+    (or an advert) names what they do.
   - A guest who was just on triggers one retry for someone else.
-  - A presenter can be a guest and appears as themselves. The story desk has made Gordon the cannery ghost-tour operator, and Kimi likes to book him.
+  - A presenter can be a guest and appears as themselves (Gordon runs the cannery ghost tours).
+  - **Captions** use the role today's script gives them (`Line.guest_role`), also for a
+    presenter booked as a guest.
+- **Characters** (`sprites.py`):
+  - Drawn in code, chunky on purpose: the user preferred this to generated PNG sprites (tried
+    and set aside), because it suits the backdrops and varies for any guest.
+  - A `Look` is skin, hair style and colour, facial hair, glasses, top style, tie, one accessory
+    and a resting mouth. The eight presenters are in `LOOKS`, from agreed descriptions.
+  - `guest_look(name, voice, role)` gives each guest a stable look: the voice decides whether
+    they read as a woman or a man; role words dress them (`COSTUMES`: fire, police, lifeboat,
+    harbour, chef, mayor, vicar, farmer, GP, councillor, teacher, celebrity, student).
+  - The player puts every guest in shot on `View.guests` (name -> voice, role).
+  - Three-quarter faces mirror with `facing`; the footprint is 26×37 units, as the sets expect.
+  - On location people take half the backdrop's time-of-day and weather grade
+    (`backdrops.person_light`); the late show's guests sit in its lights-down look.
+  - `python -m newsroom.sprites --sheet out.png` draws every presenter and a crowd of guests.
 - **Story threads:** only bulletins, field reports, interviews and features may open new ones.
+  The thread cap drops closed threads first and never an open one.
+- **Story desk** (`desk.py`): plans a batch of 8 threads per call on k3 (240 s, no SDK retry).
+  A plan that updates none of the round's threads is asked for once more, then left for the
+  next round.
+- **Tides and the foot ferry** (`tides.py`): arithmetic from a fixed epoch, not the model. A
+  semi-diurnal tide about 50 minutes later each day with a spring-neap cycle; the Saltby foot
+  ferry across the Grey estuary every half hour from 07:00, the last at 23:15, none near low
+  water or in a storm or fog. Weather, breakfast and late-show prompts get the day's times.
+  `python -m newsroom.tides 2026-11-02`.
 - **Shots:**
-  - The interview set seats whoever is in `View.people`, and the close shots crop round the speaker.
-  - Outside pieces open at the big-picture wall with the presenter who introduces them, tagged LIVE, REPORT or VOX POP.
+  - The interview set seats whoever is in `View.people`; close shots crop round the speaker.
+  - Outside pieces open at the big-picture wall with the presenter who introduces them.
   - The sofa uses a LIVE inset box instead.
+  - A resident on location faces Miles.
 - **Breaking news and the tip-line** (`tipline.py`, `breaking.py`):
-  - Tips are lines in `data/tipline.txt`, added with `python -m newsroom.tipline "..."` (`--list`
-    shows the state).
-  - The worker reads new complete lines before each job. The byte offset, pending tips and last
-    breaking time live in `data/tipline.state.json`.
-  - A plain tip is offered to the next bulletins as VIEWER TIPS. The bulletin schema's `tip_used`
-    spends the one it used; unused tips expire after six hours.
-  - A `BREAKING:` line becomes a segment outside the rundown: slot numbers from 2,000,000, at the
-    front of the job queue, `show="news"`.
-  - It is scripted with Dana at the desk (Miles may phone in), opens a thread marked `breaking`
-    with phase `peak`, is voiced, and gets the sting (`assets/breaking_sting.wav`) as a silent
-    first line.
-  - The player sets the segment on air aside at the next line boundary and airs the breaking news:
-    a red BREAKING NEWS card over the sting, then red captions. Then it resumes from the next line,
-    with cues back-dated.
-  - The test card is cut at once, a replay is dropped, and a bumper plays out.
-  - Breaking news doesn't move the rundown, so a special can still follow the bumper before it.
-  - A second `BREAKING:` within `[breaking] cooldown_s`, or one already old when first read (a
-    restart), becomes a plain tip.
-- **Specials across restarts:** `special.resume_ready` puts finished, unaired specials from the
-  last 48 hours back in the side pocket. The player marks an aired special with an empty
-  `data/cache/<hash>.aired`.
+  - Tips are lines in `data/tipline.txt` (`python -m newsroom.tipline "..."`, `--list`).
+  - A plain tip is offered to the next bulletins as VIEWER TIPS; `tip_used` spends it; unused
+    tips expire after six hours.
+  - A `BREAKING:` line becomes a segment outside the rundown, scripted with Dana at the desk,
+    with the sting as a silent first line. The player sets the segment on air aside at the next
+    line boundary, airs the breaking news, then resumes. A replay or an advert is dropped
+    rather than resumed.
+  - A second `BREAKING:` within `[breaking] cooldown_s`, or an old one at a restart, becomes a
+    plain tip.
+- **Specials:** they have their own cache key, survive restarts (`special.resume_ready`), are
+  marked aired with `data/cache/<hash>.aired`, air after the test card overnight and after a
+  news bumper in the day, and a failed stage is retried once.
 - **Adverts** (`adverts.py`, `data/ads/`, `[adverts]` in config.toml):
-  - When the next slot isn't ready the player airs one, outside the rundown (no slot, nothing
-    for the producer), up to `max_in_a_row`, then the filler card and the weather replay.
+  - When the next slot isn't ready the player airs one, outside the rundown, up to
+    `max_in_a_row` (3), then the filler card and the weather replay.
   - Eight hand-written `SEEDS` are voiced on the worker's first idle ticks, whatever the buffer
-    and with or without a model; the model writes one every `make_every_s` in healthy idle
-    time. A model-written one voiced past 32 s is dropped; the pool keeps `pool_size`.
-  - Voiceovers use the guest voices (every Kokoro voice on disk is taken), never the owner's.
-  - `--scratch` copies the pool; tests use `NEWSROOM_ADS`.
-- **Overnight:**
-  - Repeats come from the last 48 hours of `data/cache/`, with no model calls.
-  - The story desk and editor keep working.
-  - Specials air after the test card overnight and after a news bumper in the day; one finished
-    during breakfast, the magazine or the talk show waits for the news.
+    and with or without a model; the model writes one every `make_every_s` (30 min) in healthy
+    idle time, up to `pool_size` (40). A model-written one voiced past 32 s is dropped.
+  - An owner who speaks joins the cast. Voiceovers use the guest voices, never the owner's.
+  - The scene: the business's place, the owner on screen, an end card, no lower third or ticker.
+  - `python -m newsroom.adverts` lists the pool; `--make` writes and voices one.
+- **Overnight:** repeats come from the last 48 hours of `data/cache/`, with no model calls; the
+  story desk and editor keep working.
 - **Kimi** (via Moonshot) doesn't get the JSON schema enforced, so the code is tolerant:
-  - `writers._keys_hint` puts the expected keys in the system prompt.
-  - The schemas accept `speaker_id`, guest details on each line, and "female"/"male".
+  `writers._keys_hint` puts the keys in the system prompt; the schemas accept `speaker_id`,
+  guest details on each line and "female"/"male"; short card and status text is clipped on
+  parse instead of failing.
+- **LM Studio:** thinking is turned off with `extra_body = { reasoning_effort = "none" }`
+  (`enable_thinking` is ignored).
 
 ## Running and testing
 
 ```bash
 uv run python -m newsroom                                   # the station, at the real time
 uv run python -m newsroom --clock 19:00 --debug             # any show at any hour
-uv run python -m newsroom --no-window --clock 21:58 --minutes 6   # headless soak across a show change
-NEWSROOM_LLM=off uv run python -m newsroom --no-window ...  # canned scripts only, no model calls
+uv run python -m newsroom --scratch --clock 22:10 --minutes 3   # on a temp copy of the town
+uv run python -m newsroom --log-llm                         # every prompt and reply to data/llm_calls/
+NEWSROOM_LLM=off uv run python -m newsroom --scratch ...    # canned scripts only, no model calls
+uv run pytest                                               # 73 tests on a temp town, no model, no TTS
 uv run python -m newsroom.schedule                          # the day's table
 uv run python -m newsroom.llm vox_pop --show magazine --dry-run   # a prompt and its schema
 uv run python -m newsroom.workers interview --show news     # one real segment end to end
 uv run python -m newsroom.backdrops --sheet sheet.png       # every backdrop, day/dusk/night
+uv run python -m newsroom.sprites --sheet people.png        # every presenter and a crowd of guests
+uv run python -m newsroom.tides                             # today's tides and ferry
+uv run python -m newsroom.adverts                           # the advert pool
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # interrupt whatever is on
-uv run python -m newsroom.llm interview --show late --part cont --brief "..." --dry-run
 ```
 
-**Soak hygiene:** a run with `NEWSROOM_LLM=off` writes template headlines and threads
-into `data/world.json`. Back it up first and restore it afterwards. Delete the cache
-files the run made, or overnight may repeat them. A tip-line test also leaves
-`data/tipline.txt` and `data/tipline.state.json`; delete both for a clean start.
+**Off-screen runs:** `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy` runs the windowed loop
+without a window or sound, with `--snap DIR` saving a frame every 10 s. The `--no-window` mode
+doesn't build views, so it doesn't exercise the scenes or the player's view code.
+
+**Soak hygiene:** use `--scratch`. It copies the world, the tip-line and the advert pool to a
+temp folder and runs on the copies with an empty cache, so a test run can't touch the town's
+canon or feed the overnight repeats. Without it, a run writes to `data/world.json` and
+`data/cache/`. `pytest` uses temp paths through `tests/conftest.py`; bare
+`unittest discover` doesn't, so don't use it.
 
 ## State of the town
 
-The story bible (`data/world.json`, not in git) is on broadcast day 2:
-- 25 open threads and 27 people, many of them vox-pop residents;
-- four specials made.
+The story bible (`data/world.json`, not in git) is on broadcast day 3 (2026-10-26):
+- 32 threads, 27 of them open (far above `[story] max_open_threads = 8`; the desk closes them
+  slowly);
+- 59 people, many of them vox-pop residents;
+- 8 specials made, 411 items in the archive.
 
-25 open threads is far above `[story] max_open_threads = 8`. Many come from today's test
-runs, and the story desk will close some as it plans. If you want a clean start,
-back the file up and delete it, and the town re-seeds.
+**`data/ads/` doesn't exist yet.** The next real run voices the eight seed adverts in its first
+idle moments (about 20 s of CPU), and writes the town into them: Jasper Fowle (hardware),
+Kenji Okonkwo (taxis) and Nuala Brennan (the Lighthouse Café) get those roles, Gordon's ghost
+tours become "Pell's Cannery Ghost Tours", and Dev's treacle tart is "the Thirteen O'Clock
+Tart". Then one Kimi k2.6 call every 30 minutes adds a new advert.
 
-**"Who Gets the Quay?" never aired.** The special finished during a magazine test run.
-It is recorded in `world.specials`, but its audio was removed by a test-cache cleanup.
-The gap that hid (finished specials lost on restart) is now fixed. The three specials from
-2026-10-24 have `.aired` markers so they don't air again.
+**A Gordon Pell mix-up:** there is a "Gordon Pell, resident" person entry alongside the
+presenter, and the archive has a breakfast item "Gordon Pell turns forty with cannery cake"
+(he is in his early 60s). Not yet cleaned up.
 
 ## Known gaps (details in TODO)
 
-- **Art:**
-  - **Dusk:** a sunset tint for art without its own `_dusk.png` (purple sky, orange horizon,
-    violet water). Horizons per location are in `backdrops.HORIZON`.
-  - **Night:** only the harbour, high street and Town Hall have lit night art; the rest are
-    tinted.
-  - **Positions:** some are still set for the old placeholder pictures.
-  - ***The Last Ferry*** borrows the interview set.
-  - **People:** drawn in code from a `Look` (`sprites.py`); presenters are written out, guests are
-    worked out from name, voice and role. On location they take half the backdrop's grade
-    (`backdrops.person_light`).
+- **Art:** only the harbour, high street and Town Hall have lit night art (the rest are
+  tinted); some positions are still set for the old placeholder pictures; *The Last Ferry*
+  borrows the interview set.
+- **Adverts:** they air only in gaps, not in planned breaks. An advert plays out even if the
+  slot it covers becomes ready a second in, so a gap now costs up to one advert's length.
+- **One frame of test card at every transition:** when a segment ends, the player has nothing
+  on air for one frame, and `view()` shows the test card. It predates the adverts; back-to-back
+  adverts add more transitions. A small fix in `Player.update`.
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
-  minutes. Breakfast repeats a 6-item shape, with a different angle every time.
-- **Breaking news** comes only from the tip-line: the story desk can't raise it, and there is no
-  follow-up report from Miles yet.
+  minutes.
+- **Breaking news** comes only from the tip-line; there is no follow-up report from Miles yet.
 - **Special archive timing:** `record_aired` for a special runs when it is finished, not when it
-  airs.
-- **Length caps:** status notes are clipped on parse now; a spoken line over 900 characters (Miles) still fails once and recovers on the retry.
-- **Not yet observed:**
-  - an overnight special airing after the test card (fixed after the first overnight run);
-  - the LM Studio provider through the app's own config (benched only through a rerouting
-    script).
+  airs (waits for the world-state lock).
+- **Length caps:** a spoken line over 900 characters (Miles) still fails once and recovers on
+  the retry.
+- **Not yet seen with a real model:** tides in the scripts, the new guest captions, adverts
+  written in a live run (one was written by hand with `--make`), and the LM Studio provider
+  through the app's own config.
 
 ## Good next steps
 
-1. **Hybrid routing:** live segments on LM Studio, the story desk, editor and specials on Kimi
-   k3, as a route in the config.
-2. **Art session:** *The Last Ferry*'s own set and night variants for the other exteriors.
-3. **Breaking follow-ups:** bulletins now lead with a story for two hours after it breaks; next
-   would be Miles reporting from the scene, and the story desk
-   raising breaking news itself.
-4. **The world-state lock**, which would allow more than one worker and moving world writes
-   (like a special's `record_aired`) to the main thread.
+1. **Choose the routing.** Three options are on the table: Kimi as now (about $1.30 a night);
+   live segments on LM Studio with the back office on Kimi k3 (benched and trialled for an
+   hour); or Claude, Haiku live and Sonnet for the back office (about $0.60 a night, being
+   benched in the other session). Then a `--log-llm` night on the choice.
+2. **A real-model evening** to see today's features in real scripts: tides and the ferry at
+   breakfast and on *The Last Ferry*, guest captions, and adverts in gaps.
+3. **Small fixes:** the one-frame test-card flash, and the Gordon Pell mix-up (plus a guard so
+   a presenter isn't also added as a resident).
+4. **Ad breaks inside the light shows**, as items the producer plans around.
+5. **Art session:** *The Last Ferry*'s own set and night art for the other exteriors.
+6. **The world-state lock**, for more than one worker and for moving `record_aired`.
 
-## Verified with real Kimi scripts (2026-10-25 evening)
+## Verified
 
-- *Coastwide*'s hour: every item had its own angle. The goodbye aired at 19:59:49 and the news
-  started at 19:59:55.
-- *The Last Ferry*'s hour: one monologue and seven guests in two parts each, with the same guest
-  and consistent facts across the break. There were night-owl vox pops and Vincent's letters,
-  the goodnight aired at 22:57, and the news followed 30 s later.
-- Breaking news cut into an interview and a vox pop at line boundaries and both resumed. A
-  bulletin 15 minutes later led with it as the follow-up of its own thread.
-- A finished special left unaired by a stopped run came back after a restart and aired after the
-  next news bumper.
-- Breakfast with real scripts was observed in the first overnight run (06:00–07:33, 2026-10-26).
-- With canned scripts (`NEWSROOM_LLM=off`) a sign-off lands minutes early: the producer plans ten
-  minutes ahead on target lengths, and templates run at about a third of them. That is expected.
+- **The first overnight run** (2026-10-25 22:28 to 2026-10-26 07:33): 525 segments, no filler;
+  k2.6 made 179 calls, all fine. It found the story-desk timeouts (now 240 s with no retry), the
+  specials bugs (now fixed) and breakfast repetition (now fixed).
+- **Real Kimi scripts, 2026-10-25 evening:** *Coastwide*'s and *The Last Ferry*'s hours signed
+  off within seconds of the hour; breaking news cut in at line boundaries and the programme
+  resumed; breakfast was seen with real scripts in the overnight run.
+- **2026-10-26, template runs on a scratch town** (`--scratch`, `NEWSROOM_LLM=off`, off-screen):
+  three-minute runs in *The Last Ferry*, *Coastwide* and *Morning Tide* with no errors; guests in
+  costume (a baker in chef's whites); the startup gap covered by an advert, with 0 s of filler.
+- **One real advert from Kimi** ("Buchanan's Boatyard Chandlery", with Tam Buchanan), valid on
+  the second attempt; it ran 36 s, which led to the 40–55 word brief and the 32 s cut.
+- **Costs** from the Kimi console for the overnight night: 77 k3 calls ($3.18) where the app
+  logged 23, because of the old timeout and SDK retry; now fixed.
 
 ## Working notes
 
-- **The GPU is shared** (16 GB). Check `nvidia-smi` before loading anything. Kokoro runs on the CPU.
+- **The GPU is shared** (16 GB). Check `nvidia-smi` before loading anything. Kokoro runs on the
+  CPU. After a ComfyUI batch, `POST /free` with `unload_models` (it under-reports what it holds).
 - **Voices:**
-  - Kokoro runs offline (`HF_HUB_OFFLINE=1`), and every voice in use is already cached.
-  - A new voice needs a one-time `hf_hub_download` with offline mode off, and the user's OK.
-  - Unused English voices now include `af_sarah`, `af_nova`, `af_sky`, `am_adam` and `am_echo`.
-- **Scripts:** Kimi on Moonshot writes them (k2.6 for live segments, k3 for the editor, desk and specials). The user is happy to spend that credit.
-- **Art workflow:** generate in a separate session, show the user a contact sheet, and commit only after approval.
+  - Kokoro runs offline (`HF_HUB_OFFLINE=1`). Every voice on disk is in use (presenters and the
+    guest pools); advert voiceovers reuse the guest voices.
+  - A new voice (`af_sarah`, `af_nova`, `af_sky`, `am_adam`, `am_echo`...) needs a one-time
+    `hf_hub_download` with offline mode off, and the user's OK.
+- **Scripts:** Kimi on Moonshot writes them (k2.6 for live segments and adverts, k3 for the
+  editor, desk and specials). The user is happy to spend that credit.
+- **Art:** the user judges by eye. Show a contact sheet (and the art in the real shots) before
+  committing. Generated character art was rejected in favour of the code-drawn style.
 - **Git:**
-  - Commit by explicit paths, never `git add -A`: other sessions share this folder.
+  - Commit by explicit paths, never `git add -A`: other sessions share this folder (one has
+    uncommitted work in it now).
   - Push only when the user asks.
-  - `*.wav` is ignored except under `assets/`. The baked bumpers are tracked.
-- **Editing on Windows:** Git Bash heredocs can mangle `\n` escapes inside Python strings. Write edit scripts with the Write tool instead.
+  - `*.wav` is ignored except under `assets/`, and so is everything the app writes under `data/`
+    (the world, cache, tip-line, call logs and adverts).
+- **Editing on Windows:** most files are CRLF. A Python edit script that reads bytes, edits with
+  `\n` and writes CRLF back keeps diffs small; Git Bash heredocs can mangle `\n` escapes inside
+  Python strings, so use the Write tool for scripts with escapes.
