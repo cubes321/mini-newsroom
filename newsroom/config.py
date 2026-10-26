@@ -5,11 +5,15 @@ voices and buffer horizon can be changed without touching code.
 """
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# PathsCfg field -> environment variable that overrides it.
+PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE"}
 
 
 @dataclass(frozen=True)
@@ -123,6 +127,11 @@ def load(path: Path | None = None) -> Config:
     tts_raw = dict(raw.get("tts", {}))
     voices = tts_raw.pop("voices", {})
     paths_raw = {k: ROOT / v for k, v in raw.get("paths", {}).items()}
+    # Test runs point at another world and cache so they can't touch the town's canon
+    # (python -m newsroom --world / --cache / --scratch set these). Relative to the cwd.
+    for key, env in PATH_OVERRIDES.items():
+        if os.environ.get(env):
+            paths_raw[key] = Path(os.environ[env]).expanduser().absolute()
 
     cfg = Config(
         broadcast=BroadcastCfg(**raw.get("broadcast", {})),

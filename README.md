@@ -155,13 +155,25 @@ a special immediately, `--clock HH:MM` pretends the local time is HH:MM,
 Token counts are always on each call's log line, and running totals per
 provider are logged every ten minutes and at exit (`LLM USAGE`).
 
+Test runs write to the real town unless told otherwise: every run updates
+`data/world.json` and adds to `data/cache/`, whose last two days feed the
+overnight repeats. `--world PATH` and `--cache DIR` point a run elsewhere, and
+`--scratch` copies the world and the tip-line to a fresh temp dir and runs on
+the copy with an empty cache (the path is logged; delete it when done). The
+same overrides work as environment variables, `NEWSROOM_WORLD`,
+`NEWSROOM_CACHE` and `NEWSROOM_TIPLINE`, and those also cover the module CLIs
+(`newsroom.world`, `newsroom.workers`, `newsroom.desk`, ...). Every run logs
+the world and cache it is using. For a template smoke test:
+`NEWSROOM_LLM=off uv run python -m newsroom --no-window --minutes 2 --scratch`.
+
 Expected cold start: filler card → bumper → short filler while Kokoro loads →
 weather → bulletin → field report → bumper → … After the first loop the buffer
 stays ahead and there is no more filler.
 
 ## The story bible
 
-`data/world.json` is the town's memory and cast list:
+`data/world.json` is the town's memory and cast list. It is not in git and
+nothing backs it up, so test runs should use `--scratch` (above):
 
 - **Presenters**: Dana Ferris (anchor), Gordon Pell (weather), Miles Okafor
   (field reporter); Rosie Treloar and Jonah Pike (breakfast); Pat Holloway and
@@ -176,6 +188,9 @@ stays ahead and there is no more filler.
   resolving → closed), the beats aired so far, the people involved and a
   planned NEXT development. Writers see the NEXT in their briefing and are told
   a follow-up must deliver it, so stories move instead of repeating.
+  The board keeps 40 threads: a new one drops the quietest closed thread,
+  never an open one (with all 40 open it grows and logs a warning). Template
+  scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads.
 - **Archive**: every segment aired, searchable, for callbacks now and for
   documentary research later.
 
@@ -246,7 +261,8 @@ uv run python -m newsroom --clock 06:00 --debug        # watch breakfast at any 
 uv run python -m newsroom.llm weather                  # live call to the routed provider
 uv run python -m newsroom.world                        # print the writers' briefing
 uv run python -m newsroom.workers field_report         # one segment end to end
-uv run python -m newsroom --no-window --minutes 3      # headless soak
+uv run python -m newsroom --no-window --minutes 3 --scratch   # headless soak on a copy of the town
+uv run python -m unittest tests.test_world             # thread cap and template threads (no model, no TTS)
 uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, dusk and night
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins

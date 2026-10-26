@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 MAX_THREADS_IN_PROMPT = 5
 MAX_HEADLINES_IN_PROMPT = 10
 MAX_ARCHIVE = 1000
+MAX_THREADS = 40                # closed threads beyond this are dropped; open ones never are
 
 PHASES = ("emerging", "developing", "peak", "resolving", "closed")
 
@@ -261,8 +262,22 @@ class World:
         new_id = self._new_thread_id()
         self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1,
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
-        self.threads = self.threads[-40:]
+        self._cap_threads()
         return new_id
+
+    def _cap_threads(self) -> None:
+        """Keep at most MAX_THREADS: drop closed threads first, the least recently updated
+        first. Never drop an open thread (a plain [-40:] once evicted live stories); if
+        every thread is open the list grows past the cap."""
+        excess = len(self.threads) - MAX_THREADS
+        if excess <= 0:
+            return
+        closed = sorted((t for t in self.threads if t.phase == "closed"), key=lambda t: t.updated)
+        drop = {t.id for t in closed[:excess]}
+        self.threads = [t for t in self.threads if t.id not in drop]
+        if len(self.threads) > MAX_THREADS:
+            log.warning("%d threads, all open; keeping them all past the cap of %d",
+                        len(self.threads), MAX_THREADS)
 
     def _new_thread_id(self) -> str:
         """One past the highest id ever used. Not the list's length: the list is capped at 40,
@@ -280,7 +295,7 @@ class World:
         t = Thread(self._new_thread_id(), title[:80], status[:160], self.last_date, self.last_date, 0,
                    phase="emerging", next_development=next_development[:200], people=people)
         self.threads.append(t)
-        self.threads = self.threads[-40:]
+        self._cap_threads()
         return t
 
     def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None) -> Person:

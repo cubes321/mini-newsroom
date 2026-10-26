@@ -554,7 +554,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
                  for l in script.lines if l.text.strip()]
     seg.headline = script.headline
     seg.cues = _cues_for(seg, script)
-    _apply_to_world(seg, script, world)
+    _apply_to_world(seg, script, world, template=source == "template")
     seg.state = SegmentState.scripted
     log.info("scripted %s slot %d via %s: %r (%d lines)", seg.type.value, seg.slot_id, source,
              seg.headline, len(seg.lines))
@@ -618,10 +618,17 @@ THREAD_OPENERS = (SegmentType.bulletin, SegmentType.field_report, SegmentType.in
 _recent_guests: deque[str] = deque(maxlen=8)
 
 
-def _apply_to_world(seg: Segment, script, world: World) -> None:
+def _apply_to_world(seg: Segment, script, world: World, *, template: bool = False) -> None:
     world.record_headline(script.headline)
     if isinstance(script, WeatherScript):
         world.record_weather(script.map_state, script.temp_c, script.headline)
+    elif template and seg.type is not SegmentType.breaking:
+        # A canned script is the same story every time: it may follow up the thread it
+        # already has, but never opens one (NEWSROOM_LLM=off once opened five cannery
+        # slipways in 72 seconds). Breaking news still does; its tip is real.
+        same = next((t for t in world.open_threads() if t.title == script.headline[:80]), None)
+        if same:
+            seg.thread_id = world.update_thread(same.id, script.headline, None)
     else:
         # Breaking news always opens its own thread, even when the model names a related one
         # (an aground boat is not a follow-up of the lifeboat's old logbooks).

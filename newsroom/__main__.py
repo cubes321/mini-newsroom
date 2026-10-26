@@ -10,14 +10,20 @@ Flags:
   --debug       overlay slot/line/buffer status on the picture
   --clock HH:MM  start the broadcast clock at this time (test a show at any hour)
   --log-llm     write every LLM prompt and reply to data/llm_calls/<date>.jsonl
+  --world PATH  read and write this world file instead of data/world.json (or NEWSROOM_WORLD)
+  --cache DIR   segment cache to use instead of data/cache (or NEWSROOM_CACHE)
+  --scratch     copy the world and tip-line to a temp dir and run on the copy with an empty cache
 """
 from __future__ import annotations
 
 import argparse
 import logging
 import os
+import shutil
 import sys
+import tempfile
 import time
+from pathlib import Path
 
 log = logging.getLogger("newsroom")
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
@@ -33,8 +39,35 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
     p.add_argument("--log-llm", action="store_true", help="write every LLM prompt and reply to data/llm_calls/")
+    p.add_argument("--world", type=str, default="", help="world file to use instead of data/world.json")
+    p.add_argument("--cache", type=str, default="", help="segment cache dir to use instead of data/cache")
+    p.add_argument("--scratch", action="store_true",
+                   help="run on a temp copy of the world and tip-line, with an empty cache")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
+
+
+def redirect_paths(args: argparse.Namespace) -> None:
+    """Point the world, cache and tip-line elsewhere. Must run before newsroom.config is
+    imported: CONFIG is built at import time from these environment variables."""
+    if args.world:
+        os.environ["NEWSROOM_WORLD"] = args.world
+    if args.cache:
+        os.environ["NEWSROOM_CACHE"] = args.cache
+    if not args.scratch:
+        return
+    data = Path(__file__).resolve().parent.parent / "data"
+    scratch = Path(tempfile.mkdtemp(prefix="newsroom-scratch-"))
+    world = Path(os.environ.get("NEWSROOM_WORLD") or data / "world.json")
+    tipline = Path(os.environ.get("NEWSROOM_TIPLINE") or data / "tipline.txt")
+    copies = {world: "world.json", tipline: "tipline.txt", tipline.with_suffix(".state.json"): "tipline.state.json"}
+    for src, name in copies.items():
+        if src.exists():
+            shutil.copy2(src, scratch / name)
+    os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
+    os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
+    os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
+    log.info("scratch run in %s (copied from %s)", scratch, world)
 
 
 class Stats:
@@ -186,8 +219,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "kokoro", "phonemizer"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    redirect_paths(args)
     from . import schedule
     from .config import CONFIG
+
+    log.info("world %s | cache %s", CONFIG.paths.world, CONFIG.paths.cache)
 
     if args.clock:
         schedule.set_clock(args.clock)
