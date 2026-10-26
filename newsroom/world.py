@@ -224,7 +224,8 @@ class World:
     def record_weather(self, map_state: str, temp_c: int, headline: str) -> None:
         self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline}
 
-    def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str) -> None:
+    def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
+                     show: str = "", brief: str = "") -> None:
         """Archive entry for a scripted segment; also counts appearances of named people."""
         named = [p.id for p in self.people if p.name.split()[-1] in text and p.name.split()[0] in text]
         for pid in named:
@@ -240,8 +241,15 @@ class World:
         self.archive.append({
             "date": self.last_date, "day": self.broadcast_day, "type": seg_type,
             "headline": headline or "", "thread_id": thread_id, "people": named, "text": text[:400],
+            "show": show, "brief": brief,
         })
         self.archive = self.archive[-MAX_ARCHIVE:]
+
+    def aired_today(self, seg_type: str, show: str) -> list[dict]:
+        """Today's archive entries of one type on one show, oldest first (entries from before
+        the show was recorded don't count)."""
+        return [e for e in self.archive
+                if e["date"] == self.last_date and e["type"] == seg_type and e.get("show") == show]
 
     def update_thread(self, thread_id: str | None, title: str, status: str | None) -> str:
         """Follow up an existing thread or open a new one. Returns the thread id."""

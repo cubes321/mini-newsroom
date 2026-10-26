@@ -72,6 +72,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Breakfast variety, from the first real-Kimi morning (61 sofa chats,
+  the town's 155th birthday six times, ages that changed between chats): each
+  sofa chat is told this morning's sofa headlines, how the earlier chats on its
+  angle began, and that an anniversary, birthday, age or date said once is
+  settled. Overnight repeats skip breakfast segments (`Show.repeats_overnight`).
+  First unit tests: `python -m unittest discover -s tests`.
 - 2026-10-25 Breakfast runs a pattern with briefs handed out in turn (twelve
   sofa angles, six report angles), headlines that always lead with the big
   story, and a goodbye before the news.

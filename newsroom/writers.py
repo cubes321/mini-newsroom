@@ -118,9 +118,10 @@ headline = the top story in under 12 words. lower_third = a short caption for it
 This is a SOFA CHAT between the two breakfast hosts, "host_a" and "host_b", taking turns in
 short lines with natural back-and-forth (a little teasing is fine; no studio guests speak).
 Spend most of it on ONE light local item in a bit more depth: a person, an event, something
-odd or cheering. Finish with a quick look at what's on in town today. It may follow up a
-lighter open thread (thread_id, thread_status); otherwise thread_id is null.
-headline = the item in under 12 words. lower_third = a short caption for it.
+odd or cheering. It may end with one thing on in town today that the sofa hasn't mentioned yet.
+It may follow up a lighter open thread (thread_id, thread_status); otherwise thread_id is null.
+headline = the item itself in under 12 words: what happened or who it's about, never the format
+("hosts chat about the papers"). lower_third = a short caption for it.
 """,
     SegmentType.weather: _COMMON_RULES + """
 This is the MORNING WEATHER. "host_a" or "host_b" hands to Gordon in one sentence, then the
@@ -240,6 +241,18 @@ Part one, for continuity: keep every fact the same, and do NOT ask these questio
 the answers:
 {asked}"""
 
+# Breakfast runs its dozen sofa angles round five times a morning; without this the same angle
+# gets the same item every lap (the town's birthday six times, ages that changed between chats).
+SOFA_MEMORY = 24                # this morning's sofa headlines shown to the writer
+SOFA_SAME_ANGLE = 4             # earlier chats on this item's angle, with an excerpt
+
+_SOFA_SO_FAR = """ON THE SOFA ALREADY THIS MORNING (do NOT retell any of these, even when the angle comes round
+again: pick a different person, place or thing, and don't build the chat round anyone, or any pet,
+already featured; a passing mention is fine):
+{heads}{same}
+Facts already given on air this morning are settled: an anniversary, a birthday, an age or a date
+said once is not announced again, and never contradicted."""
+
 _CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on, thanks to anyone
 who joined you, a {goodbye}; {next_title} follows at {next_at}. No new stories."""
 
@@ -255,6 +268,20 @@ def big_story(world: World):
         return max(broke, key=lambda t: (t.updated, t.mentions))
     peak = [t for t in world.open_threads() if t.phase == "peak" and t.mentions >= BIG_STORY_MIN_MENTIONS]
     return max(peak, key=lambda t: (t.mentions, t.updated), default=None)
+
+
+def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> str:
+    """What the sofa has already done this morning, for the next chat (or the goodbye's nod)."""
+    aired = world.aired_today(SegmentType.sofa.value, show.id)
+    if not aired:
+        return ""
+    heads = "\n".join(f"  - {e['headline']}" for e in aired[-SOFA_MEMORY:])
+    if part == "close":
+        return f"ON THE SOFA THIS MORNING (for the nod to what was on):\n{heads}"
+    same = [e for e in aired if brief and e.get("brief") == brief][-SOFA_SAME_ANGLE:]
+    same_s = ("\nEARLIER CHATS ON THIS ITEM'S ANGLE, how they began (find something else):\n"
+              + "\n".join(f"  - {e['headline']}: {e['text']}" for e in same)) if same else ""
+    return _SOFA_SO_FAR.format(heads=heads, same=same_s)
 
 
 def _part(show: schedule.Show) -> str:
@@ -295,6 +322,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
     if brief:
         user += f"\n\nTHIS ITEM: {brief}."
+    so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
+    if so_far:
+        user += "\n\n" + so_far
     if cont:
         user += "\n\n" + _CONT.format(**cont)
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
@@ -642,4 +672,5 @@ def _apply_to_world(seg: Segment, script, world: World) -> None:
         _last_interview[seg.show] = {
             "slot": seg.slot_id, "name": script.guest_name, "role": script.guest_role or "a guest",
             "asked": "\n".join(f"  {l.speaker}: {l.text[:220]}" for l in seg.lines)[:3000]}
-    world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines))
+    world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines),
+                       show=seg.show, brief=seg.brief)
