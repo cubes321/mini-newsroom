@@ -85,11 +85,11 @@ bottom with the date.
 
 ## Housekeeping
 
-- [ ] Decide on a licence (none at present; MIT is the usual choice).
 - [ ] Decide whether the baked placeholder WAVs should stay in the repo.
 
 ## Done
 
+- 2026-10-26 MIT licence (`LICENSE`, `pyproject.toml`, README).
 - 2026-10-26 Art: *The Last Ferry*'s own set (`studio_late`, a late-night desk and
   couch) and night art for eleven more exteriors (village, residential_street,
   police_station, fire_station, seafront, lighthouse, lifeboat_station, stadium,

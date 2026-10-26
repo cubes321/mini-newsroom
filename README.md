@@ -299,9 +299,14 @@ Overnight repeats are drawn from the last two days of this cache.
 - Kokoro runs on CPU on purpose so the GPU is free for a local model.
 - Kimi k2.6 is a thinking model: with thinking disabled it only accepts
   temperature 0.6; with it enabled, only 1.0 and it needs ~4000 `max_tokens`
-  to leave room for reasoning. The shipped config disables thinking for live
-  segments and enables it for the editor, desk and specials on k3.
+  to leave room for reasoning. The Kimi providers in `config.toml` disable
+  thinking for live segments and enable it for the editor, desk and specials
+  on k3.
 - `<think>` blocks are stripped defensively regardless of provider.
 - Generated content is cached per provider, so switching providers never
   replays another provider's scripts.
-- More than one worker is not supported yet: the world state has no lock.
+- `--workers N` is safe: the world state has its own lock (`World.lock`).
+
+## Licence
+
+MIT; see [LICENSE](LICENSE). Port Wexley and everyone in it are fictional.
