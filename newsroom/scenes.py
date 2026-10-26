@@ -51,13 +51,20 @@ def wrap(s: str, size: int, maxw: int, max_lines: int = 3) -> list[str]:
     return lines
 
 
+def clip(s: str, f: pygame.font.Font, maxw: int) -> str:
+    """Cut s to fit maxw with an ellipsis, at a word break when one leaves most of the line."""
+    while len(s) > 1 and f.size(s + "…")[0] > maxw:
+        s = s[:-1]
+    cut = s.rfind(" ")
+    if cut > len(s) * 0.6:
+        s = s[:cut]
+    return s.rstrip(" .,;:-") + "…"
+
+
 def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), center=False, maxw: int | None = None):
     f = font(size)
-    if maxw:
-        while len(s) > 4 and f.size(s)[0] > maxw:
-            s = s[:-2]
-        if f.size(s)[0] > maxw:
-            s = s[:-1] + "…"
+    if maxw and f.size(s)[0] > maxw:
+        s = clip(s, f, maxw)
     surf = f.render(s, False, color)
     r = surf.get_rect(center=(x, y)) if center else surf.get_rect(topleft=(x, y))
     canvas.blit(surf, r)
@@ -412,7 +419,8 @@ def draw_lower_third(canvas: pygame.Surface, v: View) -> None:
     pygame.draw.rect(canvas, (200, 30, 30), (8, 128, 6, 26))
     pygame.draw.rect(canvas, (170, 16, 22) if v.breaking else (20, 20, 30), (14, 128, w - 60, 16))
     pygame.draw.rect(canvas, (240, 240, 240), (14, 144, w - 60, 10))
-    text(canvas, title, 18, 131, 10, maxw=w - 70)
+    size = 10 if font(10).size(title)[0] <= w - 70 else 8     # a long headline drops a size first
+    text(canvas, title, 18, 131 if size == 10 else 132, size, maxw=w - 70)
     text(canvas, sub, 18, 145, 8, (20, 20, 30), maxw=w - 70)
 
 
