@@ -70,7 +70,9 @@ kind = "openai"
 base_url = "http://localhost:1234/v1"
 api_key_env = ""
 model = "qwen/qwen3.5-9b"
-extra_body = { enable_thinking = false }
+# LM Studio ignores enable_thinking; reasoning_effort "none" is what turns thinking off
+# (tested 2026-10-26 on qwen3.5/3.6, gemma 4 and glm-4.7).
+extra_body = { reasoning_effort = "none" }
 
 [llm.providers.moonshot]
 kind = "openai"
