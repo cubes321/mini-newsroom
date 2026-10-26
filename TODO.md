@@ -19,9 +19,6 @@ bottom with the date.
 
 ## Content
 
-- [ ] Ad breaks inside *Morning Tide*, *Coastwide* and *The Last Ferry* (adverts
-  air only in gaps now): an ad-break item in the running orders that the
-  producer plans around.
 - [ ] *The Last Ferry*: its own set (a late-night desk and couch, made in
   ComfyUI with a contact sheet) to replace the interview set with the lights
   down; perhaps a house band sting and a second, shorter guest.
@@ -102,6 +99,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Ad breaks in *Morning Tide*, *Coastwide* and *The Last Ferry*: `ad_break`
+  items in the running orders (before breakfast's headlines, between the magazine's
+  blocks, between a talk-show guest's two parts), filled with two adverts from the pool
+  as they air. The producer counts a guest's break as part of the guest's run and never
+  closes on it.
 - 2026-10-26 No frame of test card at a join: when a segment ends, `Player.update` starts
   what follows in the same tick. A presenter can't become one of the people
   (`ensure_person` returns None; the desk skips them), `load()` removes any that did

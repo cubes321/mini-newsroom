@@ -139,6 +139,12 @@ segment isn't ready (see below).
   - An owner who speaks joins the cast. Voiceovers use the guest voices, never the owner's.
   - The scene: the business's place, the owner on screen, an end card, no lower third or ticker.
   - `python -m newsroom.adverts` lists the pool; `--make` writes and voices one.
+  - **Ad breaks** (2026-10-26): `ad_break` items in the light shows' orders (breakfast before each
+    round of headlines, the magazine between blocks, the talk show between a guest's two parts),
+    60 s targets. The worker only marks the slot ready; the player fills it with `BREAK_ADS` (2)
+    adverts as it airs, so the pool and the "least recently aired" order are current. An empty
+    pool (the first minute of a run) means the break is passed straight over. The producer never
+    closes on a break that sits between a guest's parts.
 - **Overnight:** repeats come from the last 48 hours of `data/cache/`, with no model calls; the
   story desk and editor keep working.
 - **Kimi** (via Moonshot) doesn't get the JSON schema enforced, so the code is tolerant:
@@ -203,8 +209,8 @@ agreed look is early 60s) are gone from the real town; the backup is
 - **Art:** only the harbour, high street and Town Hall have lit night art (the rest are
   tinted); some positions are still set for the old placeholder pictures; *The Last Ferry*
   borrows the interview set.
-- **Adverts:** they air only in gaps, not in planned breaks. An advert plays out even if the
-  slot it covers becomes ready a second in, so a gap now costs up to one advert's length.
+- **Adverts:** a gap advert plays out even if the slot it covers becomes ready a second in, so
+  a gap costs up to one advert's length. Breaks aren't seen with a real model yet.
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
   minutes.
 - **Breaking news** comes only from the tip-line; there is no follow-up report from Miles yet.
@@ -224,7 +230,7 @@ agreed look is early 60s) are gone from the real town; the backup is
 2. **A real-model evening** to see today's features in real scripts: tides and the ferry at
    breakfast and on *The Last Ferry*, guest captions, and adverts in gaps.
 3. ~~Small fixes~~: the test-card flash and the Gordon Pell mix-up, done 2026-10-26.
-4. **Ad breaks inside the light shows**, as items the producer plans around.
+4. ~~Ad breaks inside the light shows~~, done 2026-10-26.
 5. **Art session:** *The Last Ferry*'s own set and night art for the other exteriors.
 6. **The world-state lock**, for more than one worker and for moving `record_aired`.
 

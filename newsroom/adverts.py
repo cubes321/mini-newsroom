@@ -2,8 +2,11 @@
 
 When the next segment isn't ready (the model is slow, a script failed and is
 being retried), the player airs an advert from this pool instead of a bare
-filler card. Adverts sit outside the rundown, like specials: no slot number,
-nothing for the producer to plan around.
+filler card. Those adverts sit outside the rundown, like specials: no slot
+number, nothing for the producer to plan around. The light shows also have
+planned breaks in their running orders (`ad_break` items): as one comes on
+air, the player fills it with BREAK_ADS adverts from the same pool, joined
+into one segment.
 
 The pool lives in data/ads (one JSON per ad, a WAV per line) and outlasts the
 day-keyed segment cache. It is never empty for long: a hand-written set of
@@ -42,6 +45,7 @@ log = logging.getLogger(__name__)
 # one per advert, as local adverts often are. Never the owner's own voice.
 VO_VOICES = ["bm_lewis", "af_nicole", "bm_daniel", "af_kore", "bf_emma", "am_puck"]
 MAX_S = 32.0                         # a model-written advert voiced longer than this is dropped
+BREAK_ADS = 2                        # adverts in a planned break (about a minute)
 COLOURS = [(200, 60, 60), (40, 130, 150), (210, 150, 40), (90, 140, 70), (130, 70, 150), (220, 110, 50),
            (50, 90, 160), (170, 60, 110)]
 
@@ -206,6 +210,25 @@ class AdPool:
             seg = ad.segment.model_copy(deep=True)
         seg.slot_id, seg.state = -1, SegmentState.ready
         return seg
+
+
+def break_segment(seg: Segment, ads_pool: AdPool | None = None) -> Segment:
+    """Fill a planned ad break: BREAK_ADS adverts from the pool, one after another, each with its
+    own backdrop and end card from where it starts. An empty pool makes an empty break, which
+    the player passes straight over."""
+    p = ads_pool or pool()
+    ads = [ad for ad in (p.pick() for _ in range(BREAK_ADS)) if ad is not None]
+    lines, cues, at = [], [], 0.0
+    for ad in ads:
+        cues += [c.model_copy(update={"at_s": c.at_s + at}) for c in ad.cues]
+        cues.append(VisualCue(at_s=at, kind="advert", payload=ad.work.get("advert", {})))
+        lines += ad.lines
+        at += ad.duration_s
+    seg.lines, seg.cues, seg.work = lines, cues, {**seg.work, "ads": len(ads)}
+    seg.state = SegmentState.ready
+    log.info("slot %d ad break: %s", seg.slot_id,
+             ", ".join(ad.work.get("advert", {}).get("business", "?") for ad in ads) or "no adverts yet")
+    return seg
 
 
 _pool: AdPool | None = None

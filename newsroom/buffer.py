@@ -158,7 +158,8 @@ class Buffer:
         unplayed = (SegmentState.planned, SegmentState.scripted, SegmentState.voiced, SegmentState.ready)
         with self._lock:
             return sum(
-                s.duration_s if s.state is SegmentState.ready else s.target_s
+                # An ad break is ready before it has lines (they are picked as it airs): its target.
+                s.duration_s if s.state is SegmentState.ready and s.lines else s.target_s
                 for s in self._segments.values()
                 if s.state in unplayed and s.type not in (SegmentType.documentary, SegmentType.breaking)
             )

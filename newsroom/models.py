@@ -43,6 +43,7 @@ class SegmentType(StrEnum):
     monologue = "monologue"      # talk show: the host's opening
     breaking = "breaking"        # breaking news from the tip-line: interrupts whatever is on
     advert = "advert"            # a local advert from the pool (adverts.py): covers a gap, outside the rundown
+    ad_break = "ad_break"        # a planned break in a light show's running order: adverts from the pool
 
 
 class SegmentState(StrEnum):
@@ -70,7 +71,7 @@ class Line(BaseModel):
 
 class VisualCue(BaseModel):
     at_s: float = 0.0
-    kind: Literal["lower_third", "backdrop", "map_state", "ticker", "gesture", "chapter"]
+    kind: Literal["lower_third", "backdrop", "map_state", "ticker", "gesture", "chapter", "advert"]
     payload: dict = Field(default_factory=dict)
 
 

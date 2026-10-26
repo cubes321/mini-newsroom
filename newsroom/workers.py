@@ -163,6 +163,15 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     h = content_hash(seg, world)
     seg.content_hash = h
 
+    if seg.type is SegmentType.ad_break:
+        # Filled from the advert pool as it airs (player.py): built now, up to the planning horizon
+        # ahead, it could find the pool still empty at startup, and the gap adverts would lose
+        # track of what aired when.
+        seg.state = SegmentState.ready
+        if buffer:
+            buffer.mark(seg, SegmentState.ready)
+        return seg
+
     if seg.type in (SegmentType.bumper, SegmentType.testcard, SegmentType.repeat):
         from .assets import bumper_segment, testcard_segment
 

@@ -174,6 +174,64 @@ def test_no_frame_of_test_card_between_two_ready_segments(pool, world):
     assert pl.current is segs[1] and pl.view(now).mode == "studio"
 
 
+def _break(slot=0):
+    return adverts.break_segment(Segment(slot_id=slot, type=SegmentType.ad_break, target_s=60.0, show="late"))
+
+
+def test_a_break_is_two_adverts_back_to_back(pool, world):
+    assert _break().lines == []                                  # nothing voiced yet: an empty break
+    while adverts.seed_one(world):
+        pass
+    seg = _break()
+    cards = [c for c in seg.cues if c.kind == "advert"]
+    assert seg.work["ads"] == len(cards) == adverts.BREAK_ADS
+    assert cards[0].payload["business"] != cards[1].payload["business"]
+    starts = [sum(l.duration_s for l in seg.lines[:k]) for k in range(1, len(seg.lines))]
+    assert cards[0].at_s == 0 and cards[1].at_s in starts      # the second card turns up with its first line
+    assert [c.at_s for c in seg.cues if c.kind == "backdrop"] == [c.at_s for c in cards]
+
+
+def test_the_player_airs_a_break_as_a_slot(pool, world):
+    while adverts.seed_one(world):
+        pass
+    pl, buf = _player(pool, world)
+    seg = Segment(slot_id=0, type=SegmentType.ad_break, target_s=60.0, show="late")   # as the worker leaves it
+    buf.submit(seg)
+    buf.mark(seg, SegmentState.ready)
+    now = 1_000_000.0
+    pl.update(now)
+    assert pl.current is seg and seg.work["ads"] == adverts.BREAK_ADS                 # filled as it airs
+    cards = [c for c in seg.cues if c.kind == "advert"]
+    assert pl.view(now).mode == "advert" and pl.view(now).advert["business"] == cards[0].payload["business"]
+    later = now + cards[1].at_s + 0.01
+    pl.seg_start = now                                           # cues follow the segment clock
+    assert pl.view(later).advert["business"] == cards[1].payload["business"]
+    _run_out(pl, now)
+    assert pl.next_slot == 1 and pl.ads_in_row == adverts.BREAK_ADS
+
+
+def test_an_empty_break_is_passed_over(pool, world):
+    pl, buf = _player(pool, world)
+    seg = _break()
+    buf.submit(seg)
+    buf.mark(seg, SegmentState.ready)
+    pl.update(1_000_000.0)
+    assert pl.next_slot == 1
+
+
+def test_the_break_between_a_guests_parts_belongs_to_the_guest():
+    from newsroom import schedule
+    late, breakfast = schedule.get("late"), schedule.get("breakfast")
+    guest = next(i for i in range(len(late.pattern)) if late.item(i + 1).type is SegmentType.ad_break)
+    assert Producer._continues(late, guest + 1) and Producer._continues(late, guest + 2)
+    assert not Producer._continues(late, guest)
+    p = Producer(Buffer(), 600)
+    p._pos = guest
+    assert p._run_s(late) == 180 + 60 + 180
+    assert not Producer._continues(breakfast, next(i for i, e in enumerate(breakfast.pattern)
+                                                   if e is SegmentType.ad_break))
+
+
 def test_the_advert_scene_draws_with_and_without_an_owner(pool, world):
     from newsroom.player import View
     pygame.font.init()

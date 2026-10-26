@@ -148,8 +148,8 @@ class Player:
             self._set_music(0.0)
         elif self.current.type is SegmentType.testcard:
             self._set_music(0.25)       # the card's line is silence; the bed is the sound
-        elif self.current.type in (SegmentType.documentary, SegmentType.advert):
-            self._set_music(0.10)       # a bed under the special, or the advert
+        elif self.current.type in (SegmentType.documentary, SegmentType.advert, SegmentType.ad_break):
+            self._set_music(0.10)       # a bed under the special, or the adverts
         else:
             self._set_music(0.06)
 
@@ -248,6 +248,10 @@ class Player:
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)
                 self.next_slot = seg.slot_id + 1
                 self.played += 1
+            if seg.type is SegmentType.ad_break:
+                # Its adverts count towards the gap limit: a slow slot after a break gets the card sooner.
+                self.ads_in_row = seg.work.get("ads", 0)
+                self.ads_played += self.ads_in_row
             self.last_type = seg.type
         self.current = None
         self.replaying = False
@@ -297,7 +301,12 @@ class Player:
             return
         seg = self.buffer.get_ready(self.next_slot)
         if seg is not None:
+            if seg.type is SegmentType.ad_break and not seg.lines:
+                seg = adverts.break_segment(seg, self.ads)     # its adverts are picked as it airs
             self._start(seg, now)
+            if not seg.lines:                    # an empty ad break (no adverts voiced yet): straight on
+                self._finish(now)
+                self.update(now)
             return
 
         # A gap: an advert covers it, a few in a row at most, then the filler card.
@@ -426,6 +435,7 @@ class Player:
                 SegmentType.sofa: "studio",
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
                 SegmentType.advert: "advert",
+                SegmentType.ad_break: "advert",
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
                 v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
@@ -435,8 +445,8 @@ class Player:
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
         v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
-        if seg.type is SegmentType.advert:
-            v.advert = dict(seg.work.get("advert", {}))
+        if seg.type in (SegmentType.advert, SegmentType.ad_break):
+            v.advert = dict(cues.get("advert") or seg.work.get("advert", {}))     # a break: the advert airing now
             owner = self.world.presenter_named(v.advert.get("owner"))
             v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
         for name in {v.guest_name, (v.advert or {}).get("owner"), *(n for w, n in v.people if w == "guest")} - {None}:
@@ -449,7 +459,8 @@ class Player:
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
         label = {SegmentType.documentary: "SPECIAL", SegmentType.breaking: "BREAKING",
-                 SegmentType.advert: "ADVERT"}.get(seg.type, f"slot {seg.slot_id}")
+                 SegmentType.advert: "ADVERT", SegmentType.ad_break: f"BREAK slot {seg.slot_id}"}.get(
+                     seg.type, f"slot {seg.slot_id}")
         v.status = f"{label} " \
                    f"{seg.type.value} line {self.line_idx + 1}/{len(seg.lines)}"
         return v

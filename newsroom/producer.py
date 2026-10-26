@@ -17,6 +17,8 @@ opens on its bumper. The switch lands on a segment boundary near the hour.
 A show with a closing (the magazine, the talk show) plans it once when the
 time left before the hour is about the closing's length, then signs off: the
 next show starts straight after, a little early rather than after a goodbye.
+An ad break between a guest's two parts belongs to the guest: the closing
+never lands on it, and it counts towards the guest's run.
 """
 from __future__ import annotations
 
@@ -63,11 +65,17 @@ class Producer:
             return schedule.show_at(max(self.cursor_ts, self._ends))
         return cur
 
+    @staticmethod
+    def _continues(show: schedule.Show, pos: int) -> bool:
+        """The item at `pos` carries on the one before: a guest's second part, or the break before it."""
+        item = show.item(pos)
+        return item.part == "cont" or (item.type is schedule.T.ad_break and show.item(pos + 1).part == "cont")
+
     def _run_s(self, show: schedule.Show) -> float:
         """The next item's length, with the parts that continue it: close now if less than half would fit."""
         pos = self._pos
         run = show.target_s[show.item(pos).type]
-        while show.item(pos + 1).part == "cont":
+        while self._continues(show, pos + 1):
             pos += 1
             run += show.target_s[show.item(pos).type]
         return run
@@ -76,7 +84,7 @@ class Producer:
         if self._closing:
             return self._closing.pop(0)
         if show.closing and not self._closed and self._pos >= 2 and (self.cursor_ts >= self._ends or (
-                show.item(self._pos).part != "cont"            # a guest's second part is never cut
+                not self._continues(show, self._pos)           # a guest's second part is never cut
                 and self.cursor_ts + self._run_s(show) / 2 + show.closing_s >= self._ends)):
             log.info("schedule: %s closing from slot %d", show.id, self.next_slot)
             self._closing = [schedule.as_item(e) for e in show.closing]

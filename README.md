@@ -65,7 +65,9 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
   `data/ads/`) are voiced in advance, so they are there when the model is
   slow. Eight hand-written ones are voiced on the first idle moments; the
   model writes another every half hour in idle time, up to forty. An owner
-  who speaks in their advert joins the town's cast.
+  who speaks in their advert joins the town's cast. *Morning Tide*,
+  *Coastwide* and *The Last Ferry* also have planned breaks of two adverts in
+  their running orders (between a talk-show guest's two parts).
 - **Tip-line**: anyone can add a line to `data/tipline.txt`. Plain tips go to
   the next bulletins; a line starting `BREAKING:` interrupts whatever is on,
   with a sting and Dana at the news desk.
@@ -101,9 +103,9 @@ features, vox pops and specials; breaking news from a viewer tip-line; the
 story bible and desk; provider switching, caching, failure recovery, and
 backdrop art for every location; code-drawn presenters, and a look of their
 own for every guest from their name, voice and role; tides and a foot ferry
-worked out by arithmetic; local adverts that cover the gaps. Things that
-don't yet: ad breaks inside the shows, and the 30-minute documentary that
-specials are the template for.
+worked out by arithmetic; local adverts that cover the gaps and fill ad
+breaks in the light shows. Things that don't yet: the 30-minute documentary
+that specials are the template for.
 
 ## A normal day
 

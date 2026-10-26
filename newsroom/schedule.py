@@ -17,6 +17,10 @@ list `briefs` per type, handed out in turn to entries without their own:
 breakfast runs three hours on a short pattern, and its sofa chats and reports
 still each get a different angle.
 
+The light shows have ad breaks in their orders (`T.ad_break`, filled from the
+advert pool by the worker): breakfast before each round of headlines, the
+magazine between its blocks, and the talk show between a guest's two parts.
+
 The broadcast clock is `now()`, which is `time.time()` plus an offset that
 `set_clock("HH:MM")` sets, so any show can be tested at any hour.
 """
@@ -103,9 +107,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         "breakfast", "MORNING TIDE", "MORNING", (230, 140, 40),
         # Headlines, sofa, weather and a report, round and round for three hours; the briefs
         # below give every sofa chat and report its own angle.
-        pattern=(T.bumper, I(T.bulletin, "open"), T.sofa, T.weather, T.field_report, T.sofa,
-                 T.bulletin, T.sofa, T.weather, T.field_report, T.sofa, T.sofa),
-        loop_from=6,
+        pattern=(T.bumper, I(T.bulletin, "open"), T.sofa, T.weather, T.field_report, T.sofa, T.ad_break,
+                 T.bulletin, T.sofa, T.weather, T.field_report, T.sofa, T.sofa, T.ad_break),
+        loop_from=7,
         closing=(I(T.sofa, "close"),),
         briefs={
             T.sofa: (
@@ -131,7 +135,8 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "the harbour at first light",
             ),
         },
-        target_s={T.bumper: 8.0, T.bulletin: 60.0, T.sofa: 75.0, T.weather: 45.0, T.field_report: 75.0},
+        target_s={T.bumper: 8.0, T.bulletin: 60.0, T.sofa: 75.0, T.weather: 45.0, T.field_report: 75.0,
+                  T.ad_break: 60.0},
         cast=("host_a", "host_b", "weather", "reporter"), lead="host_a",
         station="Morning Tide, Port Wexley's breakfast show on channel 7",
         tone="light, warm and chatty, early-morning company; still local and specific",
@@ -151,12 +156,14 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.links, brief="what viewers have been saying, and Clive's odd fact"),
             I(T.feature, brief="someone with an unusual job in town"),
             T.weather,
-            # the middle, about twenty-five minutes; the order wraps back to here
+            T.ad_break,
+            # the middle, about twenty-five minutes with two breaks; the order wraps back to here
             T.links,
             I(T.interview, brief="a public figure off duty"),
             I(T.feature, brief="out in the countryside or on the water"),
             T.vox_pop,
             I(T.consumer, brief="a warning: a scam, a rogue trader or a small-print trap"),
+            T.ad_break,
             T.links,
             I(T.feature, brief="a club, a team or a society"),
             I(T.interview, brief="someone who has lived here a very long time"),
@@ -169,11 +176,12 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.feature, brief="an animal story"),
             I(T.interview, brief="a shopkeeper or a publican"),
             T.vox_pop,
+            T.ad_break,
         ),
-        loop_from=9,
+        loop_from=10,
         closing=(T.weather, I(T.links, "close")),
         target_s={T.bumper: 8.0, T.links: 45.0, T.feature: 100.0, T.interview: 120.0, T.vox_pop: 60.0,
-                  T.consumer: 75.0, T.weather: 40.0},
+                  T.consumer: 75.0, T.weather: 40.0, T.ad_break: 60.0},
         cast=("mag_a", "mag_b", "weather", "reporter"), lead="mag_a",
         station="Coastwide, Port Wexley's early-evening magazine on channel 7",
         tone="warm, curious and gently funny, in the spirit of an old-fashioned regional magazine show",
@@ -192,20 +200,22 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         # One monologue an hour; each guest stays for two parts either side of a break.
         pattern=(
             T.bumper, I(T.monologue, "open"),
-            I(T.interview, brief="a public figure, more candid than usual"), I(T.interview, "cont"),
+            I(T.interview, brief="a public figure, more candid than usual"), T.ad_break, I(T.interview, "cont"),
             I(T.vox_pop, brief="night owls: Miles asks people out late (the taxi rank, the chip shop, the last ferry)"),
-            I(T.interview, brief="a local character with a life story"), I(T.interview, "cont"),
+            I(T.interview, brief="a local character with a life story"), T.ad_break, I(T.interview, "cont"),
             # the order wraps back to here
             I(T.links, brief="a letter from a viewer, read out and answered"),
-            I(T.interview, brief="someone who works nights: a nurse, a baker, a ferry hand"), I(T.interview, "cont"),
+            I(T.interview, brief="someone who works nights: a nurse, a baker, a ferry hand"), T.ad_break,
+            I(T.interview, "cont"),
             I(T.vox_pop, brief="Miles at the harbour or on the last ferry, asking one late-night question"),
-            I(T.interview, brief="someone with a story from the town's past"), I(T.interview, "cont"),
+            I(T.interview, brief="someone with a story from the town's past"), T.ad_break, I(T.interview, "cont"),
             I(T.links, brief="tomorrow's papers, or what's on in town tomorrow"),
-            I(T.interview, brief="a performer, a musician or an artist"), I(T.interview, "cont"),
+            I(T.interview, brief="a performer, a musician or an artist"), T.ad_break, I(T.interview, "cont"),
         ),
-        loop_from=7,
+        loop_from=9,
         closing=(I(T.links, "close"),),
-        target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 180.0, T.vox_pop: 60.0, T.links: 40.0},
+        target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 180.0, T.vox_pop: 60.0, T.links: 40.0,
+                  T.ad_break: 60.0},
         cast=("late_host", "guest"), lead="late_host",
         station="The Last Ferry, Port Wexley's late-night talk show on channel 7",
         tone="late-night, wry and unhurried; affectionate about the town, never cruel",
