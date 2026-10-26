@@ -98,7 +98,8 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                  T.bumper, T.weather, T.bulletin, T.interview),
         target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0},
         cast=("anchor", "weather", "reporter"), lead="anchor",
-        cast_by_type={T.interview: ("anchor", "guest"), T.breaking: ("anchor", "reporter")},
+        cast_by_type={T.interview: ("anchor", "guest"), T.breaking: ("anchor", "reporter"),
+                      T.bulletin: ("anchor", "reporter")},   # Gordon has no place at the desk
         station="Port Wexley News on channel 7",
         tone="warm, dry, local",
         airs_specials=True,

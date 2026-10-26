@@ -365,8 +365,8 @@ class Player:
             first = next((c.payload.get("backdrop") for c in seg.cues if c.kind == "backdrop"), None)
             if first:
                 v.shot, v.wall_label, v.backdrop = "wall", seg.work.get("strand") or "SPECIAL REPORT", first
-        elif seg.type is SegmentType.bulletin and self.line_idx % 2 == 1:
-            v.shot = "close"
+        elif seg.type is SegmentType.bulletin and self.line_idx % 2 == 1 and v.speaker == "anchor":
+            v.shot = "close"            # the close-up is of the anchor: never someone else's voice
         elif seg.type is SegmentType.sofa and self.line_idx % 3 == 2:
             v.shot = "close"            # the sofa holds the two-shot longer, then cuts in
         elif seg.type in INTERVIEW_SET and self.line_idx > 0 and self.line_idx % 4 != 0:
