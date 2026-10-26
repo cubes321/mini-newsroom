@@ -157,7 +157,11 @@ class World:
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
         )
-        threads = "\n".join(self._thread_line(t) for t in self.open_threads()[:MAX_THREADS_IN_PROMPT]) or "  (none yet)"
+        # Threads updated the same day tie on the date; the one followed up least often today goes
+        # first, so each follow-up moves a story down a place instead of keeping it on top.
+        live = sorted(self.open_threads(), reverse=True,
+                      key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
+        threads = "\n".join(self._thread_line(t) for t in live[:MAX_THREADS_IN_PROMPT]) or "  (none yet)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-MAX_HEADLINES_IN_PROMPT:]) or "  (none yet)"
         wx = self.last_weather
         wx_line = (
