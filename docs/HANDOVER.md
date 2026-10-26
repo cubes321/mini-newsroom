@@ -249,7 +249,7 @@ agreed look is early 60s) are gone from the real town; the backup is
 6. ~~The world-state lock~~, done 2026-10-26: `World.lock`; `--workers N` works; a special is
    archived when it airs. One worker is still the default.
 7. **The documentary, part 2:** archive footage (clips of earlier segments' cached audio inside
-   it); details in TODO. Part 1 (2026-10-26) is in; its strand name is still a placeholder.
+   it); details in TODO. Part 1 (2026-10-26) is in, as "Port Wexley Stories".
 
 ## Verified
 
