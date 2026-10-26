@@ -253,6 +253,15 @@ agreed look is early 60s) are gone from the real town; the backup is
 
 ## Verified
 
+- **The first real documentary**, 2026-10-26 22:05–22:50 on a scratch town (`--scratch --clock 20:30
+  --documentary-now --log-llm --minutes 45`, Claude routes): Sonnet chose t030, the baker's petition
+  for a second engine (59 pieces); research found 42 archive pieces, 9 timeline entries (6 on record)
+  and 2 clips; the outline gave 8 sections with both clips placed; the sections stayed with what is on
+  record ("reports differ on the exact time... so we say only that it happened at the fire station").
+  13 Sonnet calls, about 83k tokens in and 18k out, and ready about 4 minutes after the commission. It
+  aired at the first bumper after 21:00 (844.7 s, 61 lines); the user watched it and liked it. The same
+  evening found the four fixes listed in TODO (blank captions, voices on Dana's close-up, cut
+  headlines, a thread that led every bulletin) and the weather now comes once a news loop.
 - **The first overnight run** (2026-10-25 22:28 to 2026-10-26 07:33): 525 segments, no filler;
   k2.6 made 179 calls, all fine. It found the story-desk timeouts (now 240 s with no retry), the
   specials bugs (now fixed) and breakfast repetition (now fixed).

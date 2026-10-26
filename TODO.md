@@ -90,6 +90,14 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 Fixes from the first look at Claude on screen: a headline, location or strap can't
+  be empty (Haiku once sent all three blank, and "Live from" aired bare); the news bulletin is
+  cast as the anchor and Miles only, and its close-up is cut to on Dana's own lines only (Gordon's
+  and Miles's voices had come out of her mouth); a headline too long for the strap drops to the
+  8 px font and is cut at a word with an ellipsis (the old cut never added one); the briefing's
+  threads rotate (of the day's ties, the one followed up least today first: the cannery ghost tour
+  had led six of nine bulletins); the news has the weather once a loop (about every ten minutes);
+  t016's "Gordon Pell turns forty" beat and headline were scrubbed from the real town.
 - 2026-10-26 The documentary, part 2: archive footage. Archive entries now record their
   cache key (older ones are matched by their text, an exact prefix of the segment's).
   The research stage offers the outline up to eight clips (one line each: a guest's
