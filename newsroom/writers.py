@@ -673,8 +673,7 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
     # Guests join the recurring cast (a stable voice and look), and the writers avoid rebooking them.
     if getattr(script, "guest_name", None) and any(l.speaker == "guest" for l in seg.lines):
-        if not world.presenter_named(script.guest_name):     # presenters are cast already
-            world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender)
+        world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender)
         _recent_guests.append(script.guest_name)
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:

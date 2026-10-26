@@ -268,7 +268,10 @@ class Player:
                     self._finish(now)
             elif self.current.type is SegmentType.testcard and self._breaking_due():
                 self._interrupt(now)
-            return
+            if self.current is not None:
+                return
+            # It just ended: what follows starts in this same tick, or view() would show the test
+            # card for a frame at every join.
 
         # Breaking news first, then whatever it interrupted.
         if self.buffer.breaking_ready():

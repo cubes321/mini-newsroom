@@ -297,6 +297,23 @@ class World:
         used = [t.id for t in self.threads] + [a.get("thread_id") or "" for a in self.archive]
         return f"t{max((int(i[1:]) for i in used if i[1:].isdigit()), default=0) + 1:03d}"
 
+    def _new_person_id(self) -> str:
+        """One past the highest id used, as for threads: people can be removed (drop_presenter_people)."""
+        return f"p{max((int(p.id[1:]) for p in self.people if p.id[1:].isdigit()), default=0) + 1:03d}"
+
+    def drop_presenter_people(self) -> None:
+        """Remove person entries that duplicate a presenter, and their ids in threads and the archive."""
+        dupes = {p.id for p in self.people if self.presenter_named(p.name)}
+        if not dupes:
+            return
+        log.warning("removing people who are presenters: %s", ", ".join(
+            f"{p.id} {p.name}" for p in self.people if p.id in dupes))
+        self.people = [p for p in self.people if p.id not in dupes]
+        for t in self.threads:
+            t.people = [pid for pid in t.people if pid not in dupes]
+        for e in self.archive:
+            e["people"] = [pid for pid in e.get("people", []) if pid not in dupes]
+
     def mark_breaking(self, thread_id: str | None, ts: float) -> None:
         t = self.thread(thread_id)
         if t is not None:
@@ -310,8 +327,12 @@ class World:
         self._cap_threads()
         return t
 
-    def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None) -> Person:
-        """Return the known person, or promote a new guest to the recurring cast."""
+    def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None) -> Person | None:
+        """Return the known person, or promote a new guest to the recurring cast. None for a
+        presenter: they are cast already, and a second Gordon Pell as a resident took the credit
+        for every mention of the weatherman."""
+        if self.presenter_named(name):
+            return None
         p = self.person_by_name(name)
         if p:
             if role and role != "resident" and p.role in ("", "resident"):
@@ -320,7 +341,7 @@ class World:
         h = _name_hash(name)
         pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)
         p = Person(
-            id=f"p{len(self.people) + 1:03d}", name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
+            id=self._new_person_id(), name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
             voice=pool[h % len(pool)], speed=[0.92, 0.97, 1.0, 1.04, 1.08][h % 5],
             first_seen=self.last_date,
         )
@@ -461,6 +482,7 @@ def load(path: Path | None = None) -> World:
             path = path or CONFIG.paths.world
             if path.exists():
                 _WORLD = _from_dict(json.loads(path.read_text(encoding="utf-8")))
+                _WORLD.drop_presenter_people()
                 log.info("world loaded from %s (day %d, %d threads, %d people, %d archived)",
                          path.name, _WORLD.broadcast_day, len(_WORLD.threads), len(_WORLD.people), len(_WORLD.archive))
             else:

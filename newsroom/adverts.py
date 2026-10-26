@@ -227,7 +227,7 @@ def pool() -> AdPool:
 def build(ad_id: str, script: AdvertScript, world: World, *, seed: bool = False) -> Advert:
     """Script -> voiced Advert. The owner joins the cast first, so they are voiced as themselves."""
     owner = (script.owner_name or "").strip() or None
-    if owner and not world.presenter_named(owner):
+    if owner:
         world.ensure_person(owner, script.owner_role, gender=script.owner_gender)
     h = zlib.crc32(script.business.lower().encode("utf-8"))
     owner_voice = world.voice_for("guest", owner) if owner else ""

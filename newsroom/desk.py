@@ -108,6 +108,8 @@ def _resolve_people(world: World, names: list[str]) -> list[str]:
                 log.info("story desk named %r; not a person, skipping", name)
                 continue
             person = world.ensure_person(name, None)
+            if person is None:
+                continue                            # a presenter: on air already, not one of the people
         ids.append(person.id)
     return ids
 

@@ -191,9 +191,12 @@ Kenji Okonkwo (taxis) and Nuala Brennan (the Lighthouse Café) get those roles, 
 tours become "Pell's Cannery Ghost Tours", and Dev's treacle tart is "the Thirteen O'Clock
 Tart". Then one Kimi k2.6 call every 30 minutes adds a new advert.
 
-**A Gordon Pell mix-up:** there is a "Gordon Pell, resident" person entry alongside the
-presenter, and the archive has a breakfast item "Gordon Pell turns forty with cannery cake"
-(he is in his early 60s). Not yet cleaned up.
+**The Gordon Pell mix-up (fixed 2026-10-26):** the story desk had named him among a thread's
+people, which made a "Gordon Pell, resident" entry (p010) that took the credit for 111 mentions
+of the weatherman. `ensure_person` now refuses a presenter's name, and `load()` removes such
+entries and their ids. p010 and the archive's "Gordon Pell turns forty with cannery cake" (his
+agreed look is early 60s) are gone from the real town; the backup is
+`data/world.backup-2026-10-26-gordon.json`. Presenters' ages aren't in the prompts.
 
 ## Known gaps (details in TODO)
 
@@ -202,9 +205,6 @@ presenter, and the archive has a breakfast item "Gordon Pell turns forty with ca
   borrows the interview set.
 - **Adverts:** they air only in gaps, not in planned breaks. An advert plays out even if the
   slot it covers becomes ready a second in, so a gap now costs up to one advert's length.
-- **One frame of test card at every transition:** when a segment ends, the player has nothing
-  on air for one frame, and `view()` shows the test card. It predates the adverts; back-to-back
-  adverts add more transitions. A small fix in `Player.update`.
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
   minutes.
 - **Breaking news** comes only from the tip-line; there is no follow-up report from Miles yet.
@@ -223,8 +223,7 @@ presenter, and the archive has a breakfast item "Gordon Pell turns forty with ca
    DeepSeek bench for comparison.
 2. **A real-model evening** to see today's features in real scripts: tides and the ferry at
    breakfast and on *The Last Ferry*, guest captions, and adverts in gaps.
-3. **Small fixes:** the one-frame test-card flash, and the Gordon Pell mix-up (plus a guard so
-   a presenter isn't also added as a resident).
+3. ~~Small fixes~~: the test-card flash and the Gordon Pell mix-up, done 2026-10-26.
 4. **Ad breaks inside the light shows**, as items the producer plans around.
 5. **Art session:** *The Last Ferry*'s own set and night art for the other exteriors.
 6. **The world-state lock**, for more than one worker and for moving `record_aired`.

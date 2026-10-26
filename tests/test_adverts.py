@@ -120,8 +120,10 @@ def _player(pool, world):
 
 
 def _run_out(pl, now):
-    """Let whatever is on air finish (line ends are simulated from durations)."""
-    while pl.current is not None:
+    """Let the segment on air finish (line ends are simulated from durations); whatever follows
+    starts in the same update."""
+    seg = pl.current
+    while seg is not None and pl.current is seg:
         now += max(l.duration_s or 0 for l in pl.current.lines) + 0.01
         pl.update(now)
     return now
@@ -156,6 +158,20 @@ def test_a_ready_slot_follows_the_advert_and_resets_the_count(pool, world):
     now = _run_out(pl, now)
     pl.update(now)
     assert pl.current is seg and pl.ads_in_row == 0
+
+
+def test_no_frame_of_test_card_between_two_ready_segments(pool, world):
+    pl, buf = _player(pool, world)
+    segs = [Segment(slot_id=i, type=SegmentType.bulletin, state=SegmentState.ready, headline=f"News {i}",
+                    lines=[Line(speaker="anchor", text="Good evening.", duration_s=2.0)]) for i in range(2)]
+    for seg in segs:
+        buf.submit(seg)
+        buf.mark(seg, SegmentState.ready)
+    now = 1_000_000.0
+    pl.update(now)
+    assert pl.current is segs[0]
+    now = _run_out(pl, now)
+    assert pl.current is segs[1] and pl.view(now).mode == "studio"
 
 
 def test_the_advert_scene_draws_with_and_without_an_owner(pool, world):

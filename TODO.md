@@ -102,6 +102,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 No frame of test card at a join: when a segment ends, `Player.update` starts
+  what follows in the same tick. A presenter can't become one of the people
+  (`ensure_person` returns None; the desk skips them), `load()` removes any that did
+  (Gordon Pell as p010, credited with 111 mentions), and person ids count on from the
+  highest used.
 - 2026-10-26 Prompt caching on the Claude route: the top of every briefing (town,
   presenters, public figures, now listed in a fixed order) is cached for an hour
   together with the system prompt and schema (`llm.CACHE_BREAK`, `cache_ttl` per
