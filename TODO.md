@@ -62,9 +62,13 @@ bottom with the date.
   off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
 - [ ] Treat a story-desk plan with zero updates as a failure and retry. Local
   qwen3.6-35b and gemma-4-26b each returned one valid but empty plan in the bench.
-- [ ] Log a row for every call the app abandons (timeouts). Providers bill them
-  in full, so the app's log undercounted the 2026-10-25 night: Kimi billed 77
-  k3 calls ($3.18) where the log showed 23.
+- [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
+  in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
+  with no token counts: the reply never arrives, yet providers bill it in full.
+  On the 2026-10-25 night Kimi billed 77 k3 calls ($3.18) where the log showed 23
+  (each desk timeout was sent twice by the SDK retry; k3 now has
+  `max_retries = 0`). Left to do: an estimate for those rows (prompt size, and
+  max_tokens as the ceiling), or a check against the provider's dashboard.
 - [ ] `record_aired` for a special runs when it is finished, not when it airs, so
   the archive says it aired early. Moving it means a world write from the main
   thread (wait for the world-state lock).
