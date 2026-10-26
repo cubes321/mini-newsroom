@@ -178,6 +178,9 @@ def run_window(cfg, args) -> None:
             running = False
 
     pool.shutdown()
+    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
+
+    world_mod.save(world)                   # what the player wrote since the worker's last save
     pygame.quit()
     stats.last_log = 0
     stats.maybe_log(player)
@@ -209,6 +212,9 @@ def run_headless(cfg, args) -> None:
     except KeyboardInterrupt:
         pass
     pool.shutdown()
+    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
+
+    world_mod.save(world)                   # what the player wrote since the worker's last save
     stats.last_log = 0
     stats.maybe_log(player)
     log.info("exit: %d segments played, %d adverts, %.0fs filler, transitions=%d, jobs ok=%d failed=%d",
@@ -238,11 +244,6 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
     if args.log_llm:
         os.environ["NEWSROOM_LLM_LOG"] = "1"
-    if args.workers != 1:
-        # world.py mutates shared state from the worker thread without a lock;
-        # more than one generator is unsupported until that is added.
-        log.warning("--workers %d not supported yet (world state is unlocked); using 1", args.workers)
-        args.workers = 1
 
     if args.no_window:
         run_headless(CONFIG, args)

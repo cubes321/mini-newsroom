@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 ENV_WINDOW_S = 0.05
 _PIPELINES: dict[str, object] = {}
 _PIPE_LOCK = threading.Lock()
+_SYNTH_LOCK = threading.Lock()       # one synthesis at a time: workers share the Kokoro pipeline
 
 # Kokoro loads weights from the HF cache; never stall on a network check.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -79,16 +80,17 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0) -> Syn
 
     chunks: list[np.ndarray] = []
     gap = np.zeros(int(sr * 0.12), dtype=np.float32)
-    for result in pipe(text, voice=voice, speed=speed):
-        audio = result.audio
-        if audio is None:
-            continue
-        if hasattr(audio, "detach"):
-            arr = audio.detach().cpu().numpy().astype(np.float32)
-        else:
-            arr = np.asarray(audio, dtype=np.float32)
-        chunks.append(arr)
-        chunks.append(gap)
+    with _SYNTH_LOCK:
+        for result in pipe(text, voice=voice, speed=speed):
+            audio = result.audio
+            if audio is None:
+                continue
+            if hasattr(audio, "detach"):
+                arr = audio.detach().cpu().numpy().astype(np.float32)
+            else:
+                arr = np.asarray(audio, dtype=np.float32)
+            chunks.append(arr)
+            chunks.append(gap)
     if not chunks:
         raise RuntimeError(f"kokoro produced no audio for: {text[:60]!r}")
     audio = np.concatenate(chunks[:-1])  # drop trailing gap

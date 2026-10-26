@@ -214,8 +214,6 @@ agreed look is early 60s) are gone from the real town; the backup is
 - **Format repetition:** the magazine's and talk show's hour orders wrap once, after about 33
   minutes.
 - **Breaking news** comes only from the tip-line; there is no follow-up report from Miles yet.
-- **Special archive timing:** `record_aired` for a special runs when it is finished, not when it
-  airs (waits for the world-state lock).
 - **Length caps:** a spoken line over 900 characters (Miles) still fails once and recovers on
   the retry.
 - **Not yet seen with a real model:** tides in the scripts, the new guest captions, adverts
@@ -232,7 +230,8 @@ agreed look is early 60s) are gone from the real town; the backup is
 3. ~~Small fixes~~: the test-card flash and the Gordon Pell mix-up, done 2026-10-26.
 4. ~~Ad breaks inside the light shows~~, done 2026-10-26.
 5. **Art session:** *The Last Ferry*'s own set and night art for the other exteriors.
-6. **The world-state lock**, for more than one worker and for moving `record_aired`.
+6. ~~The world-state lock~~, done 2026-10-26: `World.lock`; `--workers N` works; a special is
+   archived when it airs. One worker is still the default.
 
 ## Verified
 

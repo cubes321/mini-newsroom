@@ -38,7 +38,6 @@ bottom with the date.
 
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
-- [ ] Lock around world state so more than one worker is safe.
 - [ ] Give section writers the thread's dates and beats (the editor already
   sees them) to keep timelines straight.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
@@ -82,9 +81,6 @@ bottom with the date.
   (each desk timeout was sent twice by the SDK retry; k3 now has
   `max_retries = 0`). Left to do: an estimate for those rows (prompt size, and
   max_tokens as the ceiling), or a check against the provider's dashboard.
-- [ ] `record_aired` for a special runs when it is finished, not when it airs, so
-  the archive says it aired early. Moving it means a world write from the main
-  thread (wait for the world-state lock).
 - [ ] Kimi sometimes writes a spoken line over 900 characters (Miles) and the
   script fails validation once; the retry usually works. Status notes are now
   clipped on parse (`models._clip`); spoken lines aren't, since cutting speech
@@ -99,6 +95,13 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-26 A lock around world state (`World.lock`, an RLock taken by every World
+  method that reads or changes shared state, and by `save()` for its snapshot), so
+  `--workers N` works: one worker at a time reads the tip-line and does the idle work,
+  TTS runs one line at a time, and a guest's second part waits for the first. A special
+  is archived when it airs (on the main thread, under the lock), not when it is finished;
+  the world is saved once more at exit. Without the lock, four threads adding people and
+  threads gave dozens of duplicate ids every time.
 - 2026-10-26 Ad breaks in *Morning Tide*, *Coastwide* and *The Last Ferry*: `ad_break`
   items in the running orders (before breakfast's headlines, between the magazine's
   blocks, between a talk-show guest's two parts), filled with two adverts from the pool

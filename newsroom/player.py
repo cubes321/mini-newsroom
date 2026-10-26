@@ -242,7 +242,7 @@ class Player:
                 from .special import mark_aired
 
                 self.specials_played += 1
-                mark_aired(seg)
+                mark_aired(seg, self.world)
                 self.buffer.forget(seg.slot_id)
             else:
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)

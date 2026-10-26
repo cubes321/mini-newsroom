@@ -15,12 +15,20 @@ What lives here:
   involved and a planned next development that follow-ups should deliver.
 - Archive: every segment aired, for "as we reported" callbacks and, later,
   for documentary research over the town's own history.
+
+Threads: the workers write the world and the player reads it every frame (and
+writes it when a special airs), so every World method that reads or changes
+shared state holds `World.lock`, an RLock, and `save()` holds it to take its
+snapshot. Code outside this module that changes a Thread or Person it was
+handed (the story desk) takes the lock itself. Model calls and TTS never run
+under it, so the player waits milliseconds at most.
 """
 from __future__ import annotations
 
 import json
 import logging
 import random
+import functools
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -87,6 +95,15 @@ class Thread:
     planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
 
 
+def _locked(method):
+    """Run a World method under the world's lock (an RLock: methods call each other)."""
+    @functools.wraps(method)
+    def run(self, *a, **k):
+        with self.lock:
+            return method(self, *a, **k)
+    return run
+
+
 @dataclass
 class World:
     town: str
@@ -107,6 +124,9 @@ class World:
     archive: list[dict] = field(default_factory=list)      # {date, day, type, headline, thread_id, people, text}
     last_story_plan_ts: float = 0.0
 
+    def __post_init__(self) -> None:
+        self.lock = threading.RLock()        # not a field: asdict() and the JSON leave it out
+
     # ------------------------------------------------------------ prompt views
 
     def _people_lines(self, kinds: tuple[str, ...], limit: int) -> str:
@@ -125,6 +145,7 @@ class World:
         extra = f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
         return f"  - [{t.id}] {t.title} — {t.phase}{extra}{last_s}; people: {people}{nxt}"
 
+    @_locked
     def summary_for_prompt(self, cast: tuple[str, ...] | None = None) -> str:
         """The town briefing. `cast` limits the presenters to one show's (see schedule.py)."""
         chars = "\n".join(
@@ -152,6 +173,7 @@ class World:
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
 
+    @_locked
     def summary_for_editor(self) -> str:
         """Fuller view for the editor and story desk."""
         threads = "\n".join(self._thread_line(t, full=True) for t in self.open_threads()) or "  (none)"
@@ -168,15 +190,19 @@ class World:
 
     # ---------------------------------------------------------------- lookups
 
+    @_locked
     def open_threads(self) -> list[Thread]:
         return sorted((t for t in self.threads if t.phase != "closed"), key=lambda t: t.updated, reverse=True)
 
+    @_locked
     def thread(self, thread_id: str | None) -> Thread | None:
         return next((t for t in self.threads if t.id == thread_id), None)
 
+    @_locked
     def person(self, person_id: str | None) -> Person | None:
         return next((p for p in self.people if p.id == person_id), None)
 
+    @_locked
     def person_by_name(self, name: str | None) -> Person | None:
         if not name:
             return None
@@ -187,14 +213,17 @@ class World:
                 return p
         return None
 
+    @_locked
     def character(self, speaker: str) -> Character | None:
         return next((c for c in self.characters if c.id == speaker), None)
 
+    @_locked
     def presenter_named(self, name: str | None) -> Character | None:
         """A presenter booked as a guest (Gordon on his ghost tours) is still themselves."""
         key = (name or "").strip().lower()
         return next((c for c in self.characters if c.name.lower() == key), None) if key else None
 
+    @_locked
     def voice_for(self, speaker: str, guest_name: str | None = None) -> str:
         if speaker == "guest":
             c = self.presenter_named(guest_name)
@@ -209,6 +238,7 @@ class World:
                 return c.voice
         return CONFIG.tts.voices.get(speaker, "af_heart")
 
+    @_locked
     def speed_for(self, speaker: str, guest_name: str | None = None) -> float:
         if speaker == "guest":
             if self.presenter_named(guest_name):
@@ -221,15 +251,18 @@ class World:
 
     # ---------------------------------------------------------------- updates
 
+    @_locked
     def record_headline(self, headline: str) -> None:
         headline = headline.strip()
         if headline and headline not in self.headlines:
             self.headlines.append(headline)
             self.headlines = self.headlines[-50:]
 
+    @_locked
     def record_weather(self, map_state: str, temp_c: int, headline: str) -> None:
         self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline}
 
+    @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
                      show: str = "", brief: str = "") -> None:
         """Archive entry for a scripted segment; also counts appearances of named people."""
@@ -251,12 +284,14 @@ class World:
         })
         self.archive = self.archive[-MAX_ARCHIVE:]
 
+    @_locked
     def aired_today(self, seg_type: str, show: str) -> list[dict]:
         """Today's archive entries of one type on one show, oldest first (entries from before
         the show was recorded don't count)."""
         return [e for e in self.archive
                 if e["date"] == self.last_date and e["type"] == seg_type and e.get("show") == show]
 
+    @_locked
     def update_thread(self, thread_id: str | None, title: str, status: str | None) -> str:
         """Follow up an existing thread or open a new one. Returns the thread id."""
         today = self.last_date
@@ -301,6 +336,7 @@ class World:
         """One past the highest id used, as for threads: people can be removed (drop_presenter_people)."""
         return f"p{max((int(p.id[1:]) for p in self.people if p.id[1:].isdigit()), default=0) + 1:03d}"
 
+    @_locked
     def drop_presenter_people(self) -> None:
         """Remove person entries that duplicate a presenter, and their ids in threads and the archive."""
         dupes = {p.id for p in self.people if self.presenter_named(p.name)}
@@ -314,11 +350,13 @@ class World:
         for e in self.archive:
             e["people"] = [pid for pid in e.get("people", []) if pid not in dupes]
 
+    @_locked
     def mark_breaking(self, thread_id: str | None, ts: float) -> None:
         t = self.thread(thread_id)
         if t is not None:
             t.phase, t.breaking, t.breaking_ts = "peak", self.last_date, ts
 
+    @_locked
     def seed_thread(self, title: str, status: str, next_development: str, people: list[str]) -> Thread:
         """A story the desk wants to exist before anyone has covered it."""
         t = Thread(self._new_thread_id(), title[:80], status[:160], self.last_date, self.last_date, 0,
@@ -327,6 +365,7 @@ class World:
         self._cap_threads()
         return t
 
+    @_locked
     def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None) -> Person | None:
         """Return the known person, or promote a new guest to the recurring cast. None for a
         presenter: they are cast already, and a second Gordon Pell as a resident took the credit
@@ -349,17 +388,20 @@ class World:
         log.info("new %s in the cast: %s, %s", kind, p.name, p.role)
         return p
 
+    @_locked
     def record_special(self, title: str, thread_id: str | None) -> None:
         self.specials.append({"title": title, "thread_id": thread_id, "date": self.last_date})
         self.specials = self.specials[-30:]
         self.last_special_ts = time.time()
 
+    @_locked
     def roll_day_if_needed(self) -> None:
         today = date.today().isoformat()
         if today != self.last_date:
             self.last_date = today
             self.broadcast_day += 1
 
+    @_locked
     def search_archive(self, query: str, limit: int = 12) -> list[dict]:
         """Keyword search over past coverage (for documentary research)."""
         words = [w for w in query.lower().split() if len(w) > 3]
@@ -380,6 +422,7 @@ def _name_hash(name: str | None) -> int:
 # ------------------------------------------------------------------- storage
 
 _LOCK = threading.Lock()
+_SAVE_LOCK = threading.Lock()
 _WORLD: World | None = None
 
 
@@ -498,10 +541,13 @@ def save(w: World | None = None, path: Path | None = None) -> None:
     if w is None:
         return
     path = path or CONFIG.paths.world
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(_to_dict(w), indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
+    with w.lock:                              # a consistent snapshot; the disk write is outside it
+        text = json.dumps(_to_dict(w), indent=2, ensure_ascii=False)
+    with _SAVE_LOCK:                          # two workers saving at once would share the .tmp file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
 
 
 def _cli() -> int:

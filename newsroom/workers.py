@@ -5,6 +5,11 @@ Every job is wrapped in try/except: a failure marks the slot `failed` and
 the thread keeps going. A silently dead worker is the number one way a
 system like this stalls, so a watchdog restarts any thread that dies.
 
+There can be more than one worker (`--workers N`): the world has its own lock
+(world.py), one worker at a time reads the tip-line and does the idle work,
+TTS runs one line at a time, and a guest's second part waits until the first
+part is written. What they gain is model calls in parallel.
+
 Caching: segment JSON and per-line WAVs are stored under data/cache keyed
 by (type, date, slot, town, broadcast day). Restarting during development
 replays the same slots without calling the LLM or TTS.
@@ -220,6 +225,8 @@ class WorkerPool:
         self._threads: list[threading.Thread] = []
         self.jobs_done = 0
         self.jobs_failed = 0
+        self._tipline_lock = threading.Lock()      # one worker reads the tip-line at a time
+        self._idle_lock = threading.Lock()         # one does the desk, the editor and the adverts
 
     def start(self) -> None:
         from .special import resume_partials, resume_ready
@@ -252,15 +259,26 @@ class WorkerPool:
         from . import breaking, tipline
 
         while not self.stop.is_set():
-            try:                              # the tip-line, read here so world writes stay on this thread
-                lines, age = tipline.poll()
-                if lines:
-                    breaking.intake(lines, age, self.buffer)
-            except Exception:  # noqa: BLE001
-                log.exception("tip-line intake failed")
+            if self._tipline_lock.acquire(blocking=False):
+                try:                          # the tip-line, read on a worker: world writes stay off the main thread
+                    lines, age = tipline.poll()
+                    if lines:
+                        breaking.intake(lines, age, self.buffer)
+                except Exception:  # noqa: BLE001
+                    log.exception("tip-line intake failed")
+                finally:
+                    self._tipline_lock.release()
             seg = self.buffer.next_job(timeout=0.5)
             if seg is None:
-                self._idle_work()
+                if self._idle_lock.acquire(blocking=False):
+                    try:
+                        self._idle_work()
+                    finally:
+                        self._idle_lock.release()
+                continue
+            if self._first_part_pending(seg):
+                self.buffer.requeue(seg)      # another worker is writing the guest's first part
+                self.stop.wait(0.2)
                 continue
             try:
                 generate(seg, self.world, self.buffer)
@@ -269,6 +287,12 @@ class WorkerPool:
                 self.jobs_failed += 1
                 log.exception("slot %d %s failed", seg.slot_id, seg.type.value)
                 self._failed(seg, e)
+
+    def _first_part_pending(self, seg: Segment) -> bool:
+        """A guest's second part carries on from the first (writers.py), so it waits while the
+        first part is still unwritten. A failed or forgotten first part doesn't hold it up."""
+        first = seg.work.get("first_part")
+        return seg.part == "cont" and first is not None and self.buffer.state_of(first) is SegmentState.planned
 
     def _failed(self, seg: Segment, e: Exception) -> None:
         if seg.type is SegmentType.documentary and seg.work.get("retries", 0) < SPECIAL_RETRIES:

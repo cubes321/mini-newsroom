@@ -327,10 +327,8 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             _partial_path(h).unlink()
         except OSError:
             pass
-        world.record_special(outline.title, seg.thread_id)
-        world.record_headline(f"Special report: {outline.title}")
-        world.record_aired("special", outline.title, seg.thread_id, " ".join(l.text for l in seg.lines))
-        world_mod.save(world)
+        world.record_special(outline.title, seg.thread_id)     # made: the editor's cooldown starts now
+        world_mod.save(world)                  # the archive entry waits until it airs (mark_aired)
         if buffer:
             buffer.mark(seg, SegmentState.ready)
         log.info("special %r ready: %d lines, %.0fs of audio, %d sections, %.0fs wall across stages",
@@ -375,9 +373,15 @@ def _aired_path(h: str) -> Path:
     return CONFIG.paths.cache / f"{h}.aired"
 
 
-def mark_aired(seg: Segment) -> None:
+def mark_aired(seg: Segment, world: World | None = None) -> None:
     """Called by the player when a special finishes airing: an empty marker file next to its
-    cache entry, so a restart doesn't air it again. No world write (this is the main thread)."""
+    cache entry, so a restart doesn't air it again, and its headline and archive entry, dated
+    when it aired. The world is written under its lock and saved by the worker's next save
+    (or at exit): no disk write on the main thread beyond the marker."""
+    if world is not None:
+        title = (seg.work.get("outline") or {}).get("title") or seg.headline or "a special report"
+        world.record_headline(f"Special report: {title}")
+        world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines))
     if seg.content_hash:
         try:
             _aired_path(seg.content_hash).touch()

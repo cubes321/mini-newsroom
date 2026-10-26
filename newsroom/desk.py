@@ -84,10 +84,11 @@ def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
         log.warning("story desk planned none of %s again; that batch comes round next time", ids)
         return None
     if not dry:
-        apply(world, p, only={t.id for t in todo})
-        now = time.time()
-        for t in todo:
-            t.planned_ts = now
+        with world.lock:                           # threads are changed in place
+            apply(world, p, only={t.id for t in todo})
+            now = time.time()
+            for t in todo:
+                t.planned_ts = now
     log.info("story desk: %d updates, %d new threads (planned %s) — %s",
              len(p.updates), len(p.new_threads), ids, p.note)
     return p
@@ -115,6 +116,11 @@ def _resolve_people(world: World, names: list[str]) -> list[str]:
 
 
 def apply(world: World, p: StoryPlan, only: set[str] | None = None) -> None:
+    with world.lock:                               # changes the threads it is handed in place
+        _apply(world, p, only)
+
+
+def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
     for u in p.updates:
         t = world.thread(u.thread_id)
         if t is None:

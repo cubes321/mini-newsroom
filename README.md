@@ -161,7 +161,8 @@ at all, which is handy for working on the visuals.
 
 Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 `--no-window` runs the producer, workers and a simulated player headless,
-`--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
+`--workers N` runs N generation workers (model calls in parallel; TTS still
+one line at a time), `--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
 a special immediately, `--clock HH:MM` pretends the local time is HH:MM,
 `--log-llm` writes every model prompt and reply, with token counts, to
 `data/llm_calls/<date>.jsonl` (or set `log_calls = true` under `[llm]`).
