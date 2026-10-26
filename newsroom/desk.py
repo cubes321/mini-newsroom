@@ -67,7 +67,8 @@ def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
         f"their turn later; use them as context only. You may seed at most {min(room, 2)} new ones. "
         "Return phase and NEXT development for each of this round's threads you want to change, close any "
-        "that are finished, and list people (exact names from the briefing where possible) now involved."
+        "that are finished, and list the people now involved (exact names from the briefing where "
+        "possible): at most four per thread, three for a new one."
     )
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)

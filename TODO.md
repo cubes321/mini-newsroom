@@ -59,14 +59,24 @@ bottom with the date.
   editor and specials (240 s, `max_retries = 0`). Run the bench prompts first,
   then a `--log-llm` night. It's about 3–7× cheaper than Kimi, and half price
   off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
-- [ ] Try Claude on the existing `anthropic` route: bench Haiku 5.5 and Sonnet
-  5.5 on the bench prompts for quality first (a few cents). Priced from the
-  `--log-llm` token counts (±30% for the tokenizer), the 2026-10-25 overnight run
-  with the timeouts fixed would cost about $1.30 on Kimi, $0.10 on Haiku, $2.00
-  on Sonnet and $4.00+ on Opus. Haiku live plus Sonnet for the desk, editor and
-  specials comes to about $0.65. Thinking off: `disabled` on Haiku, `between_tools`
-  on Sonnet; Opus 5.5 can't turn it off, so its live cost is a floor. The back
-  office isn't latency-critical and could use the Batch API at half price.
+- [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench
+  prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
+  timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
+  Kimi, with real quotes and jokes, and its story desk moves stories on instead
+  of restating the next step; 5 s live, 7 s for the desk with thinking. Haiku 5.5
+  wrote lively live scripts (12/12, 3.5 s; one empty headline), but its story
+  desk listed more than 4 `people` (now fixed: the anthropic path shares the
+  validation retry and the desk prompt states the limit, so it passes first
+  time), and with thinking off its editor re-commissioned the aired "Same Ink"
+  special both times, so keep Haiku off the editor. Claude counts about twice
+  Kimi's input tokens for the same prompt (the schema goes into the prompt).
+  `claude_haiku` (live) and `claude_sonnet` (desk, editor, specials) are in
+  config.toml; the routes stay on Kimi for now. Estimated 24 h: about
+  $3.40–4.35 on that mix against $8–9.50 on Kimi. The story desk is the biggest
+  item on both (72 plans a day at `plan_every_s = 1200`, about $2 on Sonnet);
+  hourly plans would take Claude's day to about $2.10–3.00. Next: a `--log-llm`
+  day on whichever provider wins (DeepSeek first). The back office could use
+  the Batch API at half price.
 - [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
   with no token counts: the reply never arrives, yet providers bill it in full.

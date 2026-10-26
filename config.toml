@@ -113,6 +113,24 @@ max_retries = 0
 kind = "anthropic"
 model = "claude-opus-5-5"
 
+# Claude, benched against Kimi on 2026-10-26 (see TODO.md). The key comes from ANTHROPIC_API_KEY.
+# extra_body takes `thinking` and `effort` (low/medium/high/xhigh/max; Haiku defaults to medium,
+# Sonnet to high). No temperature: these models reject it.
+[llm.providers.claude_haiku]       # live scripts: 3.5 s, about a tenth of Kimi's price
+kind = "anthropic"
+model = "claude-haiku-5-5"
+max_tokens = 2000
+timeout_s = 60
+extra_body = { thinking = { type = "disabled" } }
+
+[llm.providers.claude_sonnet]      # story desk, editor, specials: thinking on, 7 s for a desk plan
+kind = "anthropic"
+model = "claude-sonnet-5-5"
+max_tokens = 16000                 # thinking counts against it
+timeout_s = 240
+max_retries = 0                    # as for k3: a retried timeout blocks live production twice as long
+extra_body = { effort = "high" }
+
 [tts]
 backend = "kokoro"
 lang_code = "a"          # Kokoro: "a" American, "b" British

@@ -239,31 +239,49 @@ def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict],
 _ANTHROPIC = None
 
 
-def _anthropic_parse(prov: ProviderCfg, system: str, messages: list[dict],
-                     schema: type[T]) -> tuple[T, dict | None]:
+def _anthropic_raw(prov: ProviderCfg, system: str, messages: list[dict],
+                   schema: type[BaseModel]) -> tuple[str, dict | None]:
+    """The reply text and its token usage, like _openai_raw; complete_json validates and retries.
+
+    The API enforces the schema's shape but not limits such as a list's maximum length (those
+    become hints in the descriptions), so a reply can still fail validation here.
+    """
     global _ANTHROPIC
     import anthropic
 
     if _ANTHROPIC is None:
         _ANTHROPIC = anthropic.Anthropic()
+    # extra_body's "effort" (low/medium/high/xhigh/max) goes into output_config next to the schema;
+    # the rest (e.g. thinking = { type = "disabled" } on Haiku, { type = "between_tools" } on
+    # Sonnet 5.5) is sent as is.
+    extra = dict(prov.extra_body)
+    output_config: dict = {"format": {"type": "json_schema", "schema": anthropic.transform_schema(schema)}}
+    if effort := extra.pop("effort", None):
+        output_config["effort"] = effort
     try:
-        resp = _ANTHROPIC.messages.parse(
+        resp = _ANTHROPIC.with_options(
+            timeout=prov.timeout_s or CONFIG.llm.timeout_s, max_retries=prov.max_retries,
+        ).messages.create(
             model=prov.model,
-            max_tokens=max(CONFIG.llm.max_tokens * 4, 4000),
+            max_tokens=prov.max_tokens or max(CONFIG.llm.max_tokens * 4, 4000),
             system=system,
             messages=messages,
-            output_format=schema,
+            output_config=output_config,
+            extra_body=extra or None,
         )
-    except anthropic.APIConnectionError as e:
+    except anthropic.APIConnectionError as e:          # includes timeouts
         raise LLMUnavailable(f"Anthropic unreachable: {e}") from e
+    except anthropic.AuthenticationError as e:
+        raise LLMUnavailable("Anthropic: authentication failed (ANTHROPIC_API_KEY)") from e
     except anthropic.APIStatusError as e:
         raise LLMError(f"Anthropic error {e.status_code}: {e.message}") from e
     if resp.stop_reason == "refusal":
         raise LLMError("Anthropic declined the request")
-    if resp.parsed_output is None:
-        raise LLMError("Anthropic returned no parsed output")
+    if resp.stop_reason == "max_tokens":
+        log.warning("%s hit max_tokens; output may be truncated", prov.name)
+    text = "".join(b.text for b in resp.content if b.type == "text")
     usage = {"in": resp.usage.input_tokens, "out": resp.usage.output_tokens} if resp.usage else None
-    return resp.parsed_output, usage
+    return text, usage
 
 
 # -------------------------------------------------------------------- public
@@ -286,23 +304,12 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
                    "usage": usage, "error": error or None, "system": system, "messages": messages,
                    "reply": text})
 
-    if prov.kind == "anthropic":
-        t0 = time.perf_counter()
-        try:
-            out, usage = _anthropic_parse(prov, system, messages, schema)
-        except LLMError as e:
-            record(0, t0, error=str(e))
-            raise
-        record(0, t0, text=out.model_dump_json(), usage=usage)
-        log.info("llm %s via %s/%s ok in %.1fs (%s)", task, name, prov.model,
-                 time.perf_counter() - t0, _usage_text(usage))
-        return out
-
+    raw = _anthropic_raw if prov.kind == "anthropic" else _openai_raw
     last_err: Exception | None = None
     for attempt in range(retries + 1):
         t0 = time.perf_counter()
         try:
-            text, usage = _openai_raw(prov, system, messages, schema)
+            text, usage = raw(prov, system, messages, schema)
         except LLMError as e:
             record(attempt, t0, error=str(e))
             raise
