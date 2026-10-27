@@ -97,6 +97,10 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 `--clock` moves the town's day too: the day roll (`world.roll_day_if_needed`), the
+  writers' "Today is" line and the segment cache key read the broadcast clock, not the real date.
+  A run started at `--clock 18:30` at 22:50 had been due to turn Wednesday at real midnight, about
+  20:10 on air, with a fresh day's desk break and documentary. The LLM call logs keep the real date.
 - 2026-10-27 Art fits: the water shimmer only touches the art's own water pixels inside the `WATER`
   rects (`backdrops._water_mask`, from the day picture), so it keeps off the loading dock's containers,
   the slipway's ramp and boat, and the cannery's quay; the slipway and estuary rects now take in all

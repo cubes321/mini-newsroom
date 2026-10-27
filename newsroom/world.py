@@ -35,6 +35,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
+from . import schedule
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -440,7 +441,7 @@ class World:
 
     @_locked
     def roll_day_if_needed(self) -> None:
-        today = date.today().isoformat()
+        today = date.fromtimestamp(schedule.now()).isoformat()     # the broadcast clock's day (--clock)
         if today != self.last_date:
             self.last_date = today
             self.broadcast_day += 1

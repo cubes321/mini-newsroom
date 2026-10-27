@@ -385,7 +385,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type))}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
-        f"Today is {date.today():%A %d %B}; it is the {_part(show)}."
+        f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}."
     )
     if show.light:
         big = big_story(world)
