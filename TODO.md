@@ -96,8 +96,10 @@ bottom with the date.
   angle, is filed on the breaking thread, and its status says what is now confirmed.
   `--breaking-now` asks the desk at its next idle moment. Seen on a scratch town at 10:00: the desk
   broke a fryer-vent fire at Gull's Rest on the quay (tying it to the one-engine story), it aired
-  43 s later, and Miles's report from the quay 4 minutes on confirmed it: nobody hurt, cause unknown.
-  The editor stays on specials.
+  43 s later, and Miles's report from the quay aired 13½ minutes after that and confirmed it:
+  nobody hurt, cause unknown. The next field reports all went back to the fire (with bulletins
+  leading with it in between), so for the two hours the bulletins lead with a breaking story, a
+  field report after the scene report is told to cover another. The editor stays on specials.
 - 2026-10-27 `--scratch` keeps the `--log-llm` call log in its temp folder (`llm_calls/` there,
   `NEWSROOM_LLM_CALLS`; the tests use their own too): the 2026-10-26 documentary check had written
   its 65 Claude calls into the real `data/llm_calls/2026-10-26.jsonl`.
