@@ -215,3 +215,34 @@ def test_where_a_ready_special_airs(hour, last_type, airs):
     player, seg = _player_with_ready_special(last_type)
     player.update(_at(hour))
     assert (player.current is seg) is airs
+
+
+# ------------------------------------------------------------- the story so far
+
+
+def _story(world):
+    tid = world.update_thread(None, "Baker starts a petition for a second engine", "forty signatures by noon")
+    world.update_thread(tid, "Petition passes three hundred", "three hundred signatures; council to hear it Thursday")
+    world.update_thread(tid, "Petition passes three hundred", "three hundred signatures; council to hear it Thursday")
+    return tid
+
+
+def test_the_record_has_every_beat_once_with_its_date(world):
+    tid = _story(world)
+    record = special.story_so_far(world, tid)
+    assert f"opened {world.last_date}" in record and record.count("Petition passes three hundred") == 1
+    assert "forty signatures by noon" in record and "council to hear it Thursday" in record
+    assert special.story_so_far(world, None) == ""
+
+
+def test_the_outline_and_every_section_writer_get_the_record(world, monkeypatch):
+    tid = _story(world)
+    seg = special.commission(world, EditorDecision(commission=True, thread_id=tid, working_title="Three Hundred",
+                                                   angle="will the council listen"))
+    seen = []
+    monkeypatch.setattr(special.llm, "complete_json", lambda task, schema, system, user: seen.append(user) or (
+        _outline() if task == "special_outline" else
+        SpecialSection(lines=[ScriptLine(speaker="reporter", text="On the quay.")])))
+    outline = special.write_outline(seg, world)
+    special.write_section(seg, world, outline, 1, 120)
+    assert all("THE STORY SO FAR" in u and "forty signatures by noon" in u for u in seen) and len(seen) == 2

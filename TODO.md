@@ -35,8 +35,6 @@ bottom with the date.
 
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
-- [ ] Give section writers the thread's dates and beats (the editor already
-  sees them) to keep timelines straight.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
@@ -88,6 +86,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 A special's outline and every section writer get the story so far
+  (`special.story_so_far`): when the thread opened, each beat once with its date, broadcast day
+  and what was known then, the people involved, where it stands and what's planned next, with
+  "keep to its dates". Sections had only the briefing's opening date and last beat. Documentaries
+  keep their research notes instead. Sampled on the cannery ghost tour: five sections in the
+  record's order, from the unvetted tour to Friday's inspection and Saturday's Halloween run.
 - 2026-10-27 A field report sees Miles's last three on its show (`writers._field_so_far`, with
   their threads) and goes to another story and place: two in a row had taken the harbour-wall
   pupils, then the one fire engine. The scene report after breaking news is exempt. Three Haiku

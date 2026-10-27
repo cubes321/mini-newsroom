@@ -205,14 +205,33 @@ def _load_partial(seg: Segment, h: str) -> bool:
     return True
 
 
+def story_so_far(world: World, thread_id: str | None) -> str:
+    """The thread's record, for the outline and every section writer: when it opened, each
+    covered beat with its date and what was known then, and where it stands. The briefing
+    only has its opening date and the last beat, so sections guessed how long it had run."""
+    t = world.thread(thread_id)
+    if t is None:
+        return ""
+    seen: set = set()
+    beats = []
+    for b in t.beats:
+        key = (b.get("date"), b.get("headline"), b.get("status"))
+        if key in seen:                           # a beat filed twice (a restart, a repeat)
+            continue
+        seen.add(key)
+        beats.append(f"  - {b['date']} (day {b.get('day', '?')}): {b['headline']}"
+                     + (f" — {b['status']}" if b.get("status") and b["status"] != b["headline"] else ""))
+    people = ", ".join(p.name for pid in t.people if (p := world.person(pid))) or "nobody named yet"
+    return (f"THE STORY SO FAR, the record: keep to its dates and facts, and do not invent earlier events or "
+            f"how long it has been going on.\n[{t.id}] {t.title}: opened {t.opened}, covered {t.mentions} times, "
+            f"now {t.phase}. People involved: {people}.\n"
+            + ("\n".join(beats) + "\n" if beats else "")
+            + f"Where it stands: {t.status}" + (f"; planned next: {t.next_development}" if t.next_development else ""))
+
+
 def write_outline(seg: Segment, world: World) -> SpecialOutline:
     angle = seg.work.get("angle", "")
-    thread = world.thread(seg.thread_id)
-    subject = (f"Thread [{thread.id}] {thread.title} — {thread.phase}; {thread.status} "
-               f"(opened {thread.opened}, covered {thread.mentions}x)"
-               if thread else f"Subject: {seg.headline}")
-    if thread and thread.beats:
-        subject += "\nCoverage so far:\n" + "\n".join(f"  - {b['date']}: {b['headline']}" for b in thread.beats[-6:])
+    subject = story_so_far(world, seg.thread_id) or f"Subject: {seg.headline}"
     doc = _is_doc(seg)
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
@@ -240,9 +259,11 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         guest = "No guest in this section."
     prev = outline.sections[i - 1].heading if i > 0 else "(this is the first section)"
     doc = _is_doc(seg)
+    record = story_so_far(world, seg.thread_id) if not doc else ""   # a documentary has its research notes
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
+        + (record + "\n\n" if record else "")
         + f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'}: {outline.title}\n{outline.standfirst}\n"
         f"Section {i + 1} of {len(outline.sections)}: {sec.heading}\n"
         f"Beats to cover:\n" + "\n".join(f"  - {b}" for b in sec.beats) + "\n"
