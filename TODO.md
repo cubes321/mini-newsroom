@@ -9,9 +9,12 @@ bottom with the date.
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start); perhaps a new breaking sting (still the brass version, in
   minor; the user kept it for now).
-- [ ] Optional parallax: two layers per backdrop. A big job: every backdrop is one flat picture, so
-  each (24 days, 14 nights, the studio sets) needs a far layer redrawn without the foreground in
-  ComfyUI and approved by eye, and it only shows when the camera moves, which no shot does yet.
+- [ ] Parked (2026-10-27): parallax. True parallax needs the camera to move, and every backdrop is
+  exactly screen-sized, so each exterior (24 days, 14 nights) would have to be redrawn wider in
+  ComfyUI with its far layer painted separately: several sessions of art. The cheap version, about an
+  evening and no ComfyUI: drifting skies. Lift the sky out of each picture by colour, rebuild it as
+  an endless strip with the same gradient and clouds, and let the clouds drift behind the buildings.
+  It wouldn't reach the studio sets; check hazy horizons by eye; show before/after first.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins; on 2026-10-27 every role in the town had one but the sea-glass collector), and perhaps gesture
   states for presenters.
