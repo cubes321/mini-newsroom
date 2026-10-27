@@ -319,12 +319,14 @@ class WorkerPool:
         the story desk plans developments (and now and then breaks a story itself), the day's
         documentary is commissioned, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import adverts, breaking, desk, documentary, special
+        from . import adverts, breaking, continuity, desk, documentary, special
 
         try:
             if adverts.seed_one(self.world):
                 world_mod.save(self.world)    # their owners joined the cast
                 return
+            if continuity.bake_one(self.world):
+                return                        # an ident, the programme card or a notice: TTS only
             force = special.take_force()
             if not force and not self._buffer_healthy():
                 return
@@ -370,7 +372,7 @@ def _cli(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="python -m newsroom.workers")
     p.add_argument("type", choices=[t.value for t in SegmentType
                                     if t not in (SegmentType.filler, SegmentType.documentary, SegmentType.breaking,
-                                                 SegmentType.advert)])     # python -m newsroom.adverts --make
+                                                 SegmentType.advert, SegmentType.continuity)])     # python -m newsroom.adverts --make
     p.add_argument("--show", default="news", help="schedule show id (news, breakfast, overnight)")
     p.add_argument("--slot", type=int, default=0)
     p.add_argument("--target", type=float, default=45.0)

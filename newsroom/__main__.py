@@ -75,6 +75,7 @@ def redirect_paths(args: argparse.Namespace) -> None:
     if ads.exists():                         # the voiced adverts, so a gap still has one to air
         shutil.copytree(ads, scratch / "ads")
     os.environ["NEWSROOM_ADS"] = str(scratch / "ads")
+    os.environ["NEWSROOM_CONTINUITY"] = str(scratch / "continuity")   # baked afresh: idents, cards, notices
     os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
     os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")

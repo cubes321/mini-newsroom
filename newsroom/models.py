@@ -43,6 +43,7 @@ class SegmentType(StrEnum):
     monologue = "monologue"      # talk show: the host's opening
     breaking = "breaking"        # breaking news from the tip-line: interrupts whatever is on
     advert = "advert"            # a local advert from the pool (adverts.py): covers a gap, outside the rundown
+    continuity = "continuity"    # an ident, the programme card or a notice (continuity.py): covers a gap, outside the rundown
     ad_break = "ad_break"        # a planned break in a light show's running order: adverts from the pool
 
 

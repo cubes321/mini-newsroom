@@ -8,12 +8,11 @@ bottom with the date.
 - [ ] Re-fit positions set for the placeholders to the art: the lighthouse
   beam origin, the `WATER` shimmer rectangles (the slipway's top strip), and
   the crane and drill tower behind the clock box.
-- [ ] Studio sets still to come: a sports corner; bumper and filler cards in
-  the same style as the art.
-- [ ] Better station audio, when the user can listen: the four bumpers (a synth sting
-  and the lead's spoken ident), the breaking sting and the music bed are code-made
-  placeholders in `assets/` (`assets.py`). A file dropped in under the same name
-  replaces one; the placeholders stay in the repo until then (decided 2026-10-26).
+- [ ] Studio sets still to come: a sports corner.
+- [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
+  the music stems are exported that way; Kokoro would need resampling on load); a bed per show
+  (the bed is loaded once at start); perhaps a new breaking sting (still the brass version, in
+  minor; the user kept it for now).
 - [ ] Optional parallax: two layers per backdrop.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the
   first match on a role word wins), and perhaps gesture states for presenters.
@@ -33,8 +32,9 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
-  time so filler is never a bare card.
+- [ ] Model-written promos for the evergreen pool: a trail for tonight's documentary or a
+  finished special by title, and community notices from the town's threads. The programme card
+  ("Later on Channel 7") covers what's next without the model.
 - [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
@@ -86,6 +86,22 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 Channel 7's station sound and logo, for the first stream. An original five-note tune
+  (*Beacon*: C G C E, then a held G, `jingle.py`) chosen by ear from four. Every show plays it in its own
+  arrangement: news on vibes and Rhodes (the code render was preferred to the Stable Audio 3 takes),
+  breakfast glockenspiel and marimba, Coastwide strings and funk bass, The Last Ferry lounge piano, and
+  breaking news brass in minor. Stems in `assets/music/` (`python -m newsroom.station_audio`); `assets.py`
+  bakes the bumpers, sting and bed from them and rebuilds one older than its stem. The bed is a Stable
+  Audio 3 Medium take (vibraphone and Rhodes, 87 s, looped). Brass and timpani for the news were turned
+  down; SA3 restyles of the code tune changed its notes (it was checked note by note), except at low noise.
+  The logo (`logo.py`, approved on a contact sheet) builds a piece on each note in the bumper and idents,
+  sits on the filler and test cards, and a corner bug shows during programmes.
+- 2026-10-27 The evergreen pool (`continuity.py`): a gap runs ident, advert, card, advert, advert,
+  ident, card before the filler card. Idents are the logo and the show's tune with a line from a
+  continuity announcer (Kokoro bf_isabella); the card is "Later on Channel 7" (the next shows and tonight's
+  documentary, valid until the first starts) or a notice: today's tides and Saltby ferry, and five
+  hand-written town notices. All baked in idle time without the model, in `data/continuity/`. Never an
+  ident straight after a bumper. `docs/STREAMING.md` has the OBS and YouTube setup.
 - 2026-10-27 A special's outline and every section writer get the story so far
   (`special.story_so_far`): when the thread opened, each beat once with its date, broadcast day
   and what was known then, the people involved, where it stands and what's planned next, with

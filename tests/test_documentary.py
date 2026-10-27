@@ -82,7 +82,7 @@ def test_it_waits_while_a_special_is_in_hand(world):
 
 
 def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, monkeypatch):
-    from newsroom import adverts, desk
+    from newsroom import adverts, continuity, desk
     from newsroom.models import EditorDecision
 
     buf = Buffer()
@@ -91,6 +91,7 @@ def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, 
     pool = workers.WorkerPool(buf, world)
     asked = []
     monkeypatch.setattr(adverts, "seed_one", lambda w: False)
+    monkeypatch.setattr(continuity, "bake_one", lambda w: False)
     monkeypatch.setattr(adverts, "should_make", lambda: False)
     monkeypatch.setattr(desk, "should_plan", lambda w: False)
     monkeypatch.setattr(documentary, "should_commission", lambda w, b: False)

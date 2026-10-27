@@ -3,8 +3,9 @@
 Rules:
 - Slot N+1 starts when slot N's last line finishes playing, not at a hard
   nominal time; audio is never cut mid-sentence.
-- If the next slot is not ready, a local advert from the pool covers the gap
-  (adverts.py), up to `[adverts] max_in_a_row`; then filler (music bed + card),
+- If the next slot is not ready, continuity and local adverts cover the gap in turn
+  (continuity.GAP_PATTERN: an ident, an advert, the programme card or a notice...),
+  adverts up to `[adverts] max_in_a_row`; then filler (music bed + card),
   and after a while with nothing new, a replay of the last weather segment so
   the screen isn't dead air. An advert, like a special, uses no slot number.
 - A ready special airs at a break, between loops of the rundown, without
@@ -29,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, documentary, schedule
+from . import adverts, continuity, documentary, schedule
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -48,6 +49,7 @@ INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links,
 OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
 _BREAKS = (SegmentType.bumper, SegmentType.testcard)   # a ready special may air after these
+GAP = (SegmentType.advert, SegmentType.continuity)    # cover a gap: outside the rundown, nothing to resume
 
 
 @dataclass
@@ -86,14 +88,17 @@ class View:
     repeat: bool = False                 # an earlier segment aired again overnight
     breaking: bool = False               # breaking news: red captions, and the BREAKING card over the sting
     advert: dict | None = None           # an advert's end card: business, tagline, where, owner, colour
+    continuity: dict | None = None       # an ident, the programme card or a notice: kind, title, lines
 
 
 class Player:
     def __init__(self, buffer: Buffer, world: World, producer: Producer, *, audio: bool = True,
-                 ads: adverts.AdPool | None = None) -> None:
+                 ads: adverts.AdPool | None = None, cont: continuity.Pool | None = None) -> None:
         self.buffer, self.world, self.producer, self.audio = buffer, world, producer, audio
         self.ads = ads if ads is not None else adverts.pool()
+        self.cont = cont if cont is not None else continuity.pool()
         self.ads_in_row = 0                  # adverts since the last real segment
+        self.gap_n = 0                       # how far through continuity.GAP_PATTERN this gap is
         self.ads_played = 0
         self.next_slot = 0
         self.current: Segment | None = None
@@ -146,14 +151,18 @@ class Player:
             import pygame
 
             self._voice.play(pygame.mixer.Sound(str(line.wav_path)))
-        if self.current.type is SegmentType.bumper:
-            self._set_music(0.0)
+        if self.current.type is SegmentType.bumper or self._kind() == "ident":
+            self._set_music(0.0)            # the tune is the sound
         elif self.current.type is SegmentType.testcard:
             self._set_music(0.25)       # the card's line is silence; the bed is the sound
-        elif self.current.type in (SegmentType.documentary, SegmentType.advert, SegmentType.ad_break):
+        elif self.current.type in (SegmentType.documentary, SegmentType.advert, SegmentType.ad_break,
+                                   SegmentType.continuity):
             self._set_music(0.10)       # a bed under the special, or the adverts
         else:
             self._set_music(0.06)
+
+    def _kind(self) -> str:
+        return (self.current.work.get("continuity") or {}).get("kind", "") if self.current else ""
 
     def _line_done(self, now: float) -> bool:
         line = self.current.lines[self.line_idx]
@@ -165,9 +174,9 @@ class Player:
 
     def _start(self, seg: Segment, now: float, *, replay: bool = False) -> None:
         self.current, self.line_idx, self.seg_start, self.replaying = seg, 0, now, replay
-        if seg.type is not SegmentType.advert:
-            self.ads_in_row = 0
-        if not replay and seg.type is not SegmentType.advert:
+        if seg.type not in GAP:
+            self.ads_in_row = self.gap_n = 0
+        if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
             if seg.headline:
                 self.ticker.append(seg.headline)
@@ -203,7 +212,7 @@ class Player:
             self._voice.stop()
         if seg.type is SegmentType.testcard:
             self._finish(now)                    # the card just ends early
-        elif self.replaying or seg.type is SegmentType.advert:     # nothing to come back to
+        elif self.replaying or seg.type in GAP:     # nothing to come back to
             self.current, self.replaying = None, False
         else:
             self.stash = (seg, self.line_idx, now - self.seg_start)
@@ -231,10 +240,11 @@ class Player:
             self.current = None
             self._set_music(0.25)
             return
-        if seg.type is SegmentType.advert:
+        if seg.type in GAP:
             # Outside the rundown too: nothing to mark in the buffer, no slot advance.
-            self.ads_in_row += 1
-            self.ads_played += 1
+            if seg.type is SegmentType.advert:
+                self.ads_in_row += 1
+                self.ads_played += 1
             self.current = None
             self._set_music(0.25)
             return
@@ -319,14 +329,15 @@ class Player:
                 self.update(now)
             return
 
-        # A gap: an advert covers it, a few in a row at most, then the filler card.
-        if self.ads_in_row < CONFIG.adverts.max_in_a_row:
-            ad = self.ads.pick()
-            if ad is not None:
-                log.info("gap: slot %d is %s; advert %r", self.next_slot, state.value if state else "unknown",
-                         ad.work.get("advert", {}).get("business"))
-                self._start(ad, now)
-                return
+        # A gap: idents, cards and adverts in turn, then the filler card.
+        item = self._gap_item(now)
+        if item is not None:
+            what = (item.work.get("advert", {}).get("business") if item.type is SegmentType.advert
+                    else item.work.get("continuity", {}).get("kind"))
+            log.info("gap: slot %d is %s; %s %r", self.next_slot, state.value if state else "unknown",
+                     item.type.value, what)
+            self._start(item, now)
+            return
 
         # Filler.
         if self.filler_since is None:
@@ -335,6 +346,25 @@ class Player:
             log.info("filler: slot %d is %s", self.next_slot, state.value if state else "unknown")
         elif now - self.filler_since > REPLAY_AFTER_S and self.last_weather is not None:
             self._start(self.last_weather, now, replay=True)
+
+    def _gap_item(self, now: float) -> Segment | None:
+        """The next thing in continuity.GAP_PATTERN that there is one of: an advert (while under
+        max_in_a_row), an ident in this show's tune (never straight after a bumper), or a card."""
+        show = schedule.show_at(now).id
+        pattern = continuity.GAP_PATTERN
+        for k in range(self.gap_n, len(pattern)):
+            kind = pattern[k]
+            if kind == "advert":
+                seg = self.ads.pick() if self.ads_in_row < CONFIG.adverts.max_in_a_row else None
+            elif kind == "ident" and k == 0 and self.last_type is SegmentType.bumper:
+                seg = None
+            else:
+                seg = self.cont.pick(kind, show, now)
+            if seg is not None:
+                self.gap_n = k + 1
+                return seg
+        self.gap_n = len(pattern)
+        return None
 
     # --------------------------------------------------------------- view
 
@@ -448,6 +478,7 @@ class Player:
                 SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
                 SegmentType.advert: "advert",
                 SegmentType.ad_break: "advert",
+                SegmentType.continuity: "ident" if self._kind() == "ident" else "notice",
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
                 v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
@@ -457,6 +488,8 @@ class Player:
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
         v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
+        if seg.type is SegmentType.continuity:
+            v.continuity = dict(seg.work.get("continuity") or {})
         if seg.type in (SegmentType.advert, SegmentType.ad_break):
             v.advert = dict(cues.get("advert") or seg.work.get("advert", {}))     # a break: the advert airing now
             owner = self.world.presenter_named(v.advert.get("owner"))
@@ -472,7 +505,8 @@ class Player:
         v.slot_id = seg.slot_id
         label = {SegmentType.documentary: "DOCUMENTARY" if documentary.is_documentary(seg) else "SPECIAL",
                  SegmentType.breaking: "BREAKING",
-                 SegmentType.advert: "ADVERT", SegmentType.ad_break: f"BREAK slot {seg.slot_id}"}.get(
+                 SegmentType.advert: "ADVERT", SegmentType.continuity: "CONTINUITY",
+                 SegmentType.ad_break: f"BREAK slot {seg.slot_id}"}.get(
                      seg.type, f"slot {seg.slot_id}")
         v.status = f"{label} " \
                    f"{seg.type.value} line {self.line_idx + 1}/{len(seg.lines)}"

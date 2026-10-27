@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # PathsCfg field -> environment variable that overrides it.
 PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE",
-                  "ads": "NEWSROOM_ADS", "llm_calls": "NEWSROOM_LLM_CALLS"}
+                  "ads": "NEWSROOM_ADS", "llm_calls": "NEWSROOM_LLM_CALLS",
+                  "continuity": "NEWSROOM_CONTINUITY"}
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,7 @@ class PathsCfg:
     tipline: Path = ROOT / "data" / "tipline.txt"
     llm_calls: Path = ROOT / "data" / "llm_calls"
     ads: Path = ROOT / "data" / "ads"
+    continuity: Path = ROOT / "data" / "continuity"
 
 
 @dataclass(frozen=True)

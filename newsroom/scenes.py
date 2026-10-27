@@ -8,10 +8,11 @@ are drawn on top by `render()`.
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 
 import pygame
 
-from . import backdrops, locations, schedule
+from . import backdrops, locations, logo, schedule
 from .player import View
 from .sprites import draw_character, draw_mic, guest_look
 
@@ -75,18 +76,24 @@ def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), c
 
 
 def draw_test_card(canvas: pygame.Surface, t: float, v: View | None = None) -> None:
-    """Start-up card, and the overnight card (with when programmes resume)."""
+    """Start-up card, and the overnight card (with when programmes resume). The channel's
+    roundel sits in the middle of the bars, like the circle on a real test card."""
     w, h = canvas.get_size()
     bar_w = w / len(BARS)
     for i, c in enumerate(BARS):
         pygame.draw.rect(canvas, c, (int(i * bar_w), 0, int(bar_w) + 1, int(h * 0.7)))
     pygame.draw.rect(canvas, (20, 20, 24), (0, int(h * 0.7), w, h - int(h * 0.7)))
+    show = v.show if v else "news"
+    pygame.draw.circle(canvas, (20, 20, 24), (w // 2, int(h * 0.35)), 30)
+    logo.draw_mark(canvas, w // 2, int(h * 0.35), show, r=22, t=t)
     overnight = v is not None and v.resume_at
-    text(canvas, "CHANNEL 7" if overnight else "MINI NEWSROOM", w // 2, int(h * 0.8), 14, center=True)
     if overnight:
+        logo.draw_wordmark(canvas, w // 2, int(h * 0.76), show)
         text(canvas, f"PROGRAMMES RESUME AT {v.resume_at}", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
-    elif int(t * 2) % 2 == 0:
-        text(canvas, "STAND BY", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
+    else:
+        text(canvas, "MINI NEWSROOM", w // 2, int(h * 0.8), 14, center=True)
+        if int(t * 2) % 2 == 0:
+            text(canvas, "STAND BY", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
     cx = int(w / 2 + math.cos(t) * w * 0.3)
     pygame.draw.circle(canvas, (255, 255, 255), (cx, int(h * 0.35)), 5, 1)
 
@@ -95,26 +102,39 @@ def draw_filler(canvas: pygame.Surface, v: View, t: float) -> None:
     w, h = canvas.get_size()
     canvas.fill((16, 24, 48))
     for i in range(0, w, 8):
-        y = int(h * 0.55 + math.sin(t * 0.8 + i * 0.05) * 6)
+        y = int(h * 0.62 + math.sin(t * 0.8 + i * 0.05) * 6)
         pygame.draw.rect(canvas, (24, 36, 70), (i, y, 8, h - y))
-    text(canvas, schedule.get(v.show).title, w // 2, 50, 14, center=True)
-    text(canvas, "we'll be right back", w // 2, 72, 8, (180, 190, 220), center=True)
+    logo.draw_mark(canvas, w // 2, 42, v.show, r=24, t=t)
+    logo.draw_text(canvas, logo.WORDMARK, w // 2, 76, 1, gap=2, center=True)
+    text(canvas, schedule.get(v.show).title, w // 2, 98, 14, center=True)
+    text(canvas, "we'll be right back", w // 2, 116, 8, (180, 190, 220), center=True)
     if v.map_state:
-        text(canvas, f"{v.map_state} · {v.temp_c}°C", w // 2, 92, 8, (220, 220, 160), center=True)
-    pygame.draw.rect(canvas, (255, 255, 255), (w // 2 - 20 + int(math.sin(t * 3) * 18), 110, 4, 4))
+        text(canvas, f"{v.map_state} · {v.temp_c}°C", w // 2, 130, 8, (220, 220, 160), center=True)
+    pygame.draw.rect(canvas, (255, 255, 255), (w // 2 - 20 + int(math.sin(t * 3) * 18), 142, 4, 4))
+
+
+_on_since: tuple[tuple, float] = ((), 0.0)
+
+
+def _elapsed(v: View, t: float) -> float:
+    """Seconds since this segment's picture came up: the View carries no elapsed time of
+    its own, so the first frame of each (slot, mode) starts the count."""
+    global _on_since
+    key = (v.slot_id, v.mode, v.show)
+    if _on_since[0] != key:
+        _on_since = (key, t)
+    return t - _on_since[1]
+
+
+@lru_cache(maxsize=8)
+def ident_onsets(show: str) -> list[float]:
+    """The tune's note times in this show's arrangement: the ident lands a piece on each."""
+    from . import jingle
+    return jingle.onsets(voicing=show if show in jingle.VOICINGS else "news")
 
 
 def draw_bumper(canvas: pygame.Surface, v: View, t: float) -> None:
-    w, h = canvas.get_size()
-    show = schedule.get(v.show)
-    canvas.fill(show.colour)
-    if show.id == "breakfast":                                   # the sun coming up behind the card
-        pygame.draw.circle(canvas, (255, 220, 120), (w // 2, int(150 - min(t % 12, 4) * 12)), 34)
-    k = int((t * 60) % (w + 40)) - 40
-    pygame.draw.rect(canvas, (240, 240, 240), (k, 0, 16, h))
-    pygame.draw.rect(canvas, (30, 30, 40), (40, 60, w - 80, 60))
-    text(canvas, "CHANNEL 7", w // 2, 78, 14, center=True)
-    text(canvas, show.title, w // 2, 102, 8, (255, 220, 190), center=True)
+    logo.draw_ident(canvas, _elapsed(v, t), v.show, ident_onsets(v.show))
 
 
 def draw_breaking(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -339,6 +359,11 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, v.tag, 8 + w // 2, 13, 8, center=True)
 
 
+def _title_card(v: View) -> bool:
+    """A special's opening title card is up: the first chapter's first seconds."""
+    return bool(v.chapter) and v.chapter.get("number") == 1 and v.chapter_age_s < 7.0
+
+
 def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     """Documentary look: letterboxed location, presenter or guest, chapter cards."""
     w, h = canvas.get_size()
@@ -375,7 +400,7 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
 
     ch = v.chapter
     if ch:
-        if ch.get("number") == 1 and v.chapter_age_s < 7.0:
+        if _title_card(v):
             # Title card over the opening seconds
             card = pygame.Surface((w, h), pygame.SRCALPHA)
             card.fill((5, 5, 15, 225))
@@ -418,6 +443,30 @@ def draw_advert(canvas: pygame.Surface, v: View, t: float) -> None:
     text(canvas, a.get("where", ""), card.x + 11, card.bottom - 12, 8, (16, 16, 22), maxw=card.w - 16)
     pygame.draw.rect(canvas, (235, 235, 235), (8, 8, 70, 10))
     text(canvas, "ADVERTISEMENT", 43, 13, 8, (30, 30, 36), center=True)
+
+
+def draw_notice(canvas: pygame.Surface, v: View, t: float) -> None:
+    """Continuity's information slide: the programme card or a notice, read by the announcer."""
+    c = v.continuity or {}
+    w, h = canvas.get_size()
+    col = logo.colour(v.show)
+    canvas.fill((14, 18, 30))
+    for i in range(0, w, 8):                        # the slow sea along the foot of the slide
+        y = int(h - 22 + math.sin(t * 0.7 + i * 0.06) * 3)
+        pygame.draw.rect(canvas, (22, 30, 52), (i, y, 8, h - y))
+    pygame.draw.rect(canvas, col, (0, 0, w, 24))
+    logo.draw_mark(canvas, 16, 12, v.show, r=9, t=t)
+    logo.draw_text(canvas, logo.WORDMARK, 32, 8, 1, gap=1)
+    text(canvas, c.get("title", ""), w // 2, 40, 14, center=True, maxw=w - 20)
+    pygame.draw.rect(canvas, col, (w // 2 - 40, 52, 80, 2))
+    y = 62
+    for line in c.get("lines", []):
+        for row in wrap(line, 8, w - 40, 3):
+            if y > h - 30:
+                break
+            text(canvas, row, 20, y, 8, (225, 225, 235))
+            y += 11
+        y += 4
 
 
 # ------------------------------------------------------------------ overlays
@@ -468,7 +517,16 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
 
 SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
           "field": draw_field, "special": draw_special, "breaking": draw_breaking,
-          "advert": draw_advert}
+          "advert": draw_advert, "ident": draw_bumper, "notice": draw_notice}
+
+
+PROGRAMMES = ("studio", "weather", "field", "special")
+
+
+def shows_bug(v: View) -> bool:
+    """The corner logo is up during programmes: not on idents, breaking news, the test card,
+    the filler, adverts, or a special's title card."""
+    return v.mode in PROGRAMMES and not v.breaking and not (v.mode == "special" and _title_card(v))
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
@@ -478,9 +536,11 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_clock(canvas, v)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
-        if v.mode not in ("bumper", "breaking", "advert"):
+        if v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
             draw_lower_third(canvas, v)
             draw_ticker(canvas, v, t)
+        if shows_bug(v):
+            logo.draw_bug(canvas)
         draw_clock(canvas, v)
     if debug:
         # Bottom-left, between the lower third and the ticker, clear of scene tags.

@@ -8,6 +8,10 @@ jingle or music exists:
 
 Both are 24 kHz mono PCM_16 like everything else. Drop real files with the
 same names into assets/ to replace them.
+
+Station music (the Channel 7 tune, tools/station_audio.py) lives in assets/music/ as stems:
+ident_<show>.wav, breaking.wav and bed.wav. When a stem exists it is used instead of the
+placeholder tones, and a baked file older than its stem is rebuilt.
 """
 from __future__ import annotations
 
@@ -53,13 +57,71 @@ def _write(path: Path, audio: np.ndarray) -> None:
     os.replace(tmp, path)
 
 
+MUSIC = CONFIG.paths.assets / "music"
+VOICE_AFTER_S = 1.0     # the spoken ident starts this long after the tune's held note
+DUCK = 0.35             # music level under the spoken ident
+
+
+def _stem(name: str) -> Path | None:
+    path = MUSIC / f"{name}.wav"
+    return path if path.exists() else None
+
+
+def _stale(out: Path, stem: Path | None) -> bool:
+    """Bake `out` if it is missing, or older than the stem it is made from."""
+    if not out.exists():
+        return True
+    return stem is not None and stem.stat().st_mtime > out.stat().st_mtime
+
+
+def _load(path: Path) -> np.ndarray:
+    """Any WAV as mono float32 at SR (stems may come in at 44.1 kHz stereo)."""
+    audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
+    return _load_array(audio, sr)
+
+
+def _load_array(audio: np.ndarray, sr: int) -> np.ndarray:
+    mono = audio.mean(axis=1) if audio.ndim == 2 else audio
+    if sr != SR:
+        n = int(round(len(mono) * SR / sr))
+        mono = np.interp(np.arange(n) * sr / SR, np.arange(len(mono)), mono).astype(np.float32)
+    return mono
+
+
+def _ident_mix(music: np.ndarray, voice: np.ndarray, voice_at: float) -> np.ndarray:
+    """The tune, then the spoken ident over its tail with the music ducked under the voice."""
+    start = int(SR * voice_at)
+    total = max(len(music), start + len(voice) + int(SR * 0.4))
+    out = np.zeros(total, dtype=np.float32)
+    duck = np.ones(total, dtype=np.float32)
+    ramp = int(SR * 0.15)
+    duck[start:] = DUCK
+    duck[max(0, start - ramp):start] = np.linspace(1.0, DUCK, min(ramp, start))
+    out[:len(music)] = music * duck[:len(music)]
+    out[start:start + len(voice)] += voice
+    return out
+
+
 def ensure_bumper(show: str = "news") -> Path:
     from . import schedule
 
-    path, text = IDENTS.get(show, IDENTS["news"])
-    if path.exists():
+    key = show if show in IDENTS else "news"
+    path, text = IDENTS[key]
+    stem = _stem(f"ident_{key}")
+    if not _stale(path, stem):
         return path
     from . import tts
+
+    if stem is not None:
+        from . import jingle
+
+        log.info("baking bumper from %s -> %s", stem.name, path.name)
+        lead = schedule.get(show).lead
+        ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{key}.wav")
+        voice, _ = sf.read(str(ident.wav_path), dtype="float32")
+        voicing = key if key in jingle.VOICINGS else "news"
+        _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
+        return path
 
     log.info("baking placeholder bumper -> %s", path.name)
     notes = [392.0, 523.25, 659.25, 783.99]        # G4 C5 E5 G5
@@ -83,7 +145,12 @@ BREAKING_STING = CONFIG.paths.assets / "breaking_sting.wav"
 
 def ensure_breaking_sting() -> Path:
     """Urgent pulses and a low hit, about 2.5 s; tones only, so it never waits on TTS."""
-    if BREAKING_STING.exists():
+    stem = _stem("breaking")
+    if not _stale(BREAKING_STING, stem):
+        return BREAKING_STING
+    if stem is not None:
+        log.info("baking breaking sting from %s", stem.name)
+        _write(BREAKING_STING, _load(stem))
         return BREAKING_STING
     log.info("baking placeholder breaking sting -> %s", BREAKING_STING.name)
     pulses = [_tone(f, 0.12, 0.32, harmonics=4) for f in (880.0, 659.25) * 4]
@@ -101,7 +168,12 @@ def sting_line() -> Line:
 
 
 def ensure_music_bed(seconds: float = 24.0) -> Path:
-    if MUSIC_BED.exists():
+    stem = _stem("bed")
+    if not _stale(MUSIC_BED, stem):
+        return MUSIC_BED
+    if stem is not None:
+        log.info("baking music bed from %s", stem.name)
+        _write(MUSIC_BED, _load(stem))
         return MUSIC_BED
     log.info("baking placeholder music bed -> %s", MUSIC_BED.name)
     chords = [(261.63, 329.63, 392.0), (220.0, 261.63, 329.63), (174.61, 220.0, 261.63), (196.0, 246.94, 293.66)]
