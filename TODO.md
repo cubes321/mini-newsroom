@@ -19,6 +19,11 @@ bottom with the date.
 
 ## Content
 
+- [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
+  guest on air (only heard in samples), a main guest's second part that hands over to the couch
+  instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
+  their fixes (no repeated title, notices for the public, slide lines cut at a word past 190
+  characters), and a special waiting for its hour and then airing.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
