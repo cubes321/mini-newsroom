@@ -24,6 +24,10 @@ bottom with the date.
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
   their fixes (no repeated title, notices for the public, slide lines cut at a word past 190
   characters), and a special waiting for its hour and then airing.
+- [ ] Brainstorm new shows for the schedule. The news loop runs ten hours straight from 09:00 (after
+  *Morning Tide*) to 19:00 (*Coastwide*): one or more daytime shows to break it up. And something mid
+  evening: from 20:00 it is the news again until *The Last Ferry* at 22:00, apart from the 21:00
+  documentary.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
