@@ -340,7 +340,10 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
                      if big else "\n\nNo big running story today: keep it light.")
     cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
-    if seg_type is SegmentType.weather or show.id in ("breakfast", "late"):
+    # The tides are breakfast small talk, not for its guest: Rosie read Marjorie the ferry's
+    # low-water gap in the middle of her book (2026-10-27).
+    if seg_type is SegmentType.weather or show.id == "late" or (
+            show.id == "breakfast" and seg_type is not SegmentType.interview):
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
     if brief:

@@ -55,6 +55,17 @@ def test_the_writer_gets_the_breakfast_guest_prompt_and_the_sort_of_guest():
     assert "THIS ITEM: an author with a new book out" in user and "RECENT GUESTS" in user
 
 
+def test_the_guest_chat_has_no_tide_table_but_the_sofa_still_does():
+    from datetime import date
+
+    from newsroom import tides
+    tide = tides.for_prompt(date.today()).splitlines()[0]
+    w = world_mod.seed()
+    _, guest = writers.build_prompt(T.interview, w, target_s=150.0, show=BREAKFAST, brief="a chef")
+    _, sofa = writers.build_prompt(T.sofa, w, target_s=75.0, show=BREAKFAST, brief="a chef")
+    assert tide not in guest and tide in sofa
+
+
 def test_the_writer_sees_this_mornings_guests_and_so_does_the_goodbye():
     w = world_mod.seed()
     w.record_aired("interview", "Actor brings The Salt Road to Tidewater Stadium", None, "...", show="breakfast")
