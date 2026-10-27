@@ -94,6 +94,13 @@ bottom with the date.
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
   enforced; `writers._keys_hint` spells out the keys, and the schemas accept
   `speaker_id`, per-line guest details and "female"/"male".)
+- [ ] Try a better TTS than Kokoro and see whether it's viable. It has to keep up live: Kokoro on
+  the CPU voices a minute of audio in about 4–18 s, and the buffer wants about ten minutes
+  ready. It also has to fit beside the LLM and ComfyUI on the shared 16 GB card, or run on
+  the CPU. And it needs enough distinct voices for the cast (presenters, Miles, the
+  announcer, guests cast by gender, age and accent), with British voices that sound British.
+  Pick a few candidates, voice the same lines with each and compare them by ear, against
+  Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
 
