@@ -35,9 +35,6 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] `--scratch` should send the `--log-llm` call log to its temp folder too: the 2026-10-26
-  documentary check wrote its 65 Claude calls into the real `data/llm_calls/2026-10-26.jsonl`, so
-  that night's costs are the rows from 22:51:18 on, plus all of `2026-10-27.jsonl`.
 - [ ] Evergreen pool: pre-bake idents, "coming up" promos and notices in idle
   time so filler is never a bare card.
 - [ ] Give section writers the thread's dates and beats (the editor already
@@ -93,6 +90,9 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 `--scratch` keeps the `--log-llm` call log in its temp folder (`llm_calls/` there,
+  `NEWSROOM_LLM_CALLS`; the tests use their own too): the 2026-10-26 documentary check had written
+  its 65 Claude calls into the real `data/llm_calls/2026-10-26.jsonl`.
 - 2026-10-27 *Morning Tide* books a guest for the sofa armchair, about one every seventeen minutes
   (the breakfast loop is two laps, with an `interview` on the first). Each booking takes the next
   of nine breakfast-show kinds in turn: an author with a book out, an inspiring story, a funny

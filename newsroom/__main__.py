@@ -13,6 +13,7 @@ Flags:
   --world PATH  read and write this world file instead of data/world.json (or NEWSROOM_WORLD)
   --cache DIR   segment cache to use instead of data/cache (or NEWSROOM_CACHE)
   --scratch     copy the world, tip-line and adverts to a temp dir and run on the copy with an empty cache
+                (and --log-llm writes to that dir's llm_calls/)
   --documentary-now  commission today's documentary at the first idle moment (it still airs in its slot)
 """
 from __future__ import annotations
@@ -45,7 +46,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--world", type=str, default="", help="world file to use instead of data/world.json")
     p.add_argument("--cache", type=str, default="", help="segment cache dir to use instead of data/cache")
     p.add_argument("--scratch", action="store_true",
-                   help="run on a temp copy of the world and tip-line, with an empty cache")
+                   help="run on a temp copy of the world and tip-line, with an empty cache and its own call log")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -74,6 +75,8 @@ def redirect_paths(args: argparse.Namespace) -> None:
     os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
     os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
+    # --log-llm too: a test run's calls in the real data/llm_calls muddle a night's costs
+    os.environ["NEWSROOM_LLM_CALLS"] = str(scratch / "llm_calls")
     log.info("scratch run in %s (copied from %s)", scratch, world)
 
 
