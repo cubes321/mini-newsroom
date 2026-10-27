@@ -123,6 +123,7 @@ class World:
     people: list[Person] = field(default_factory=list)
     archive: list[dict] = field(default_factory=list)      # {date, day, type, headline, thread_id, people, text}
     last_story_plan_ts: float = 0.0
+    desk_breaking: list[str] = field(default_factory=list)   # dates the story desk broke a story itself
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)

@@ -375,9 +375,16 @@ class NewThread(BaseModel):
     people: list[str] = Field(default_factory=list, max_length=3)
 
 
+class DeskBreaking(BaseModel):
+    """Something sudden the desk has happen now: it airs as breaking news, like a tip-line line."""
+    tip: str = Field(min_length=12, max_length=240,
+                     description="what has just happened and where, as it would first be phoned in: one or two sentences")
+
+
 class StoryPlan(BaseModel):
     updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # a batch per call (desk.batch), with room for out-of-turn extras it skips
     new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
+    breaking: DeskBreaking | None = Field(default=None, description="rare: null on most rounds")
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 

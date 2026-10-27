@@ -21,8 +21,6 @@ bottom with the date.
 ## Content
 
 - [ ] *The Last Ferry*: perhaps a house band sting and a second, shorter guest.
-- [ ] Breaking news from the story desk or the editor (now tip-line only),
-  and a follow-up field report from Miles once a breaking story is confirmed.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Schedule: whether specials (or later documentaries) get their own
@@ -90,6 +88,16 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 The story desk can break a story itself: when `breaking.desk_may_break` allows (out of
+  the cooldown, `[breaking] desk_per_day = 1`, never overnight) its plan may carry something sudden
+  (`StoryPlan.breaking`), told it's rare; it airs like a tip-line BREAKING line, from "the
+  newsroom's own sources", as a new thread. After any breaking story, the first field report
+  scripted within `scene_window_s` (45 min) sends Miles to the scene, once: it replaces the rota's
+  angle, is filed on the breaking thread, and its status says what is now confirmed.
+  `--breaking-now` asks the desk at its next idle moment. Seen on a scratch town at 10:00: the desk
+  broke a fryer-vent fire at Gull's Rest on the quay (tying it to the one-engine story), it aired
+  43 s later, and Miles's report from the quay 4 minutes on confirmed it: nobody hurt, cause unknown.
+  The editor stays on specials.
 - 2026-10-27 `--scratch` keeps the `--log-llm` call log in its temp folder (`llm_calls/` there,
   `NEWSROOM_LLM_CALLS`; the tests use their own too): the 2026-10-26 documentary check had written
   its 65 Claude calls into the real `data/llm_calls/2026-10-26.jsonl`.

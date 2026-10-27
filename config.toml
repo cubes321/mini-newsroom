@@ -76,6 +76,8 @@ target_s = 60
 max_age_s = 600          # BREAKING lines older than this when first read (a restart) become plain tips
 tip_ttl_s = 21600        # a plain tip nobody used is dropped after this
 max_tips = 3             # tips offered to one bulletin
+desk_per_day = 1         # the story desk may also break a story itself, at most this often, never overnight
+scene_window_s = 2700    # Miles reports from the scene in the first field report this long after a break
 
 # Local adverts: an evergreen pool of voiced ads in data/ads that covers the gaps when the
 # next segment isn't ready. A hand-written set is always there; the model adds more in idle time.

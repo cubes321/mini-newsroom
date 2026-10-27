@@ -103,6 +103,8 @@ class BreakingCfg:
     max_age_s: float = 600.0
     tip_ttl_s: float = 21600.0
     max_tips: int = 3
+    desk_per_day: int = 1
+    scene_window_s: float = 2700.0
 
 
 @dataclass(frozen=True)

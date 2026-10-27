@@ -53,10 +53,24 @@ def _in_turn(p: StoryPlan, todo: list[Thread]) -> int:
     return sum(1 for u in p.updates if u.thread_id in ids)
 
 
-def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
+_BREAKING_RARE = (
+    "\n\nBREAKING NEWS is rare: most rounds leave breaking null. Only if something sudden would plausibly "
+    "happen in town right now (a fire, a boat in trouble, a burst main, storm damage, a road shut, an animal "
+    "loose), set breaking to it as it would first be phoned in. It is a NEW event, not the next step of a "
+    "thread, and not also one of new_threads. Small-town scale; nobody badly hurt unless it is essential."
+)
+_BREAKING_NOW = ("\n\nThe producer has asked for BREAKING NEWS this round: set breaking to something sudden "
+                 "that plausibly happens in town right now (not the next step of a thread, not also a new thread).")
+_BREAKING_NO = "\n\nbreaking must be null this round."
+
+
+def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan | None:
     """Ask the desk and apply its plan. Returns None if the model was unavailable, or twice
     planned none of this round's threads (valid JSON, but an empty plan is a failed plan:
-    local models did it in the bench). Either way the same batch comes round next time."""
+    local models did it in the bench). Either way the same batch comes round next time.
+
+    `breaking` is "no", "may" (the desk may break a story itself, rarely) or "now" (asked to):
+    the plan's `breaking` is left for the worker, which commissions it (`breaking.from_desk`)."""
     world.last_story_plan_ts = time.time()
     open_n = len(world.open_threads())
     room = max(0, CONFIG.story.max_open_threads - open_n)
@@ -69,7 +83,7 @@ def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
         "Return phase and NEXT development for each of this round's threads you want to change, close any "
         "that are finished, and list the people now involved (exact names from the briefing where "
         "possible): at most four per thread, three for a new one."
-    )
+    ) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
         if todo and not _in_turn(p, todo):
@@ -89,8 +103,10 @@ def plan(world: World, *, dry: bool = False) -> StoryPlan | None:
             now = time.time()
             for t in todo:
                 t.planned_ts = now
-    log.info("story desk: %d updates, %d new threads (planned %s) — %s",
-             len(p.updates), len(p.new_threads), ids, p.note)
+    if breaking == "no":
+        p.breaking = None
+    log.info("story desk: %d updates, %d new threads (planned %s)%s — %s", len(p.updates), len(p.new_threads),
+             ids, f", BREAKING {p.breaking.tip!r}" if p.breaking else "", p.note)
     return p
 
 

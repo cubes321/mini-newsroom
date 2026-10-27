@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import llm, schedule, tides, tipline
+from . import breaking, llm, schedule, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -88,8 +88,8 @@ If this follows up an open thread, set thread_id and a new thread_status.
 """,
     SegmentType.breaking: _COMMON_RULES + """
 This is BREAKING NEWS, interrupting {interrupting}. The anchor (speaker id "anchor") cuts in from
-the news desk: what has happened, where, and that it is not yet confirmed (it came in from a viewer
-on the tip-line). Keep it small-town and calm; no casualties or horrors that the tip doesn't state.
+the news desk: what has happened, where, and that it is not yet confirmed ({source}).
+Keep it small-town and calm; no casualties or horrors that the tip doesn't state.
 The reporter (speaker id "reporter") may phone in for one to three short lines if he plausibly
 could be nearby. The anchor finishes by promising more in the next bulletin and handing back to
 {interrupting}. thread_id is null: this opens a new story; thread_status is what is known so far.
@@ -247,6 +247,26 @@ BIG RUNNING STORY, which the headlines lead with briefly (what is new), then mov
 BIG_STORY_MIN_MENTIONS = 4      # a peak the desk planned but nobody has covered yet doesn't count
 BREAKING_LEAD_S = 2 * 3600      # bulletins lead with a story this long after it broke
 
+_FROM_THE_SCENE = """
+
+FROM THE SCENE: [{id}] {title} broke {mins} minutes ago as breaking news, not yet confirmed. Known so far:
+{status}. This report is Miles ("reporter") live from where it happened: what he can now confirm, or
+what turned out to be wrong; what people there saw; what happens next. Choose the backdrop for that
+place. Set thread_id "{id}" and a thread_status saying what is now confirmed. No casualties or horrors
+the story hasn't stated."""
+
+
+def scene_due(world: World, now: float) -> str | None:
+    """The story that broke most recently, if Miles hasn't reported from the scene yet and it
+    broke within the window. One field report covers it (the archive shows one, with its thread
+    id: a breaking story opens its own thread, so any field report on that thread is the one)."""
+    from .config import CONFIG
+
+    covered = {e.get("thread_id") for e in world.archive if e.get("type") == SegmentType.field_report.value}
+    due = [t for t in world.open_threads() if t.breaking_ts and t.id not in covered
+           and 0 <= now - t.breaking_ts < CONFIG.breaking.scene_window_s]
+    return max(due, key=lambda t: t.breaking_ts).id if due else None
+
 _CONT = """PART TWO: you are CONTINUING the conversation with {name} ({role}) after the break. Use the
 same guest_name, guest_role and guest_gender. One line welcoming viewers back, no long reintroduction,
 then pick up where it left off and go somewhere new: another story, a different side of them.
@@ -324,7 +344,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
-                           interrupting=work.get("interrupting", "the programme"))
+                           interrupting=work.get("interrupting", "the programme"),
+                           source=work.get("source", breaking.FROM_VIEWER))
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type))}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
@@ -346,7 +367,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             show.id == "breakfast" and seg_type is not SegmentType.interview):
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
-    if brief:
+    scene = world.thread(work.get("scene")) if seg_type is SegmentType.field_report else None
+    if scene:                             # the rota's angle ("the first ferry") would fight it
+        user += _FROM_THE_SCENE.format(id=scene.id, title=scene.title, status=scene.status,
+                                       mins=int(max(0, (at_ts or schedule.now()) - scene.breaking_ts) // 60))
+    elif brief:
         user += f"\n\nTHIS ITEM: {brief}."
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
     if so_far:
@@ -360,7 +385,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     if seg_type is SegmentType.breaking:
-        user += f"\n\nTHE TIP (from a viewer, unconfirmed): {work.get('tip', '')}"
+        user += f"\n\nWHAT HAS COME IN (unconfirmed): {work.get('tip', '')}"
     if seg_type is SegmentType.bulletin:
         now = at_ts or schedule.now()
         broke = [t for t in world.open_threads() if t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S]
@@ -592,6 +617,12 @@ def script_segment(seg: Segment, world: World) -> Segment:
     cont = seg.part == "cont" and _last_interview.get(show.id, {}).get("slot") == first
     part = "" if seg.part == "cont" and not cont else seg.part
     tips = tipline.offer() if seg.type is SegmentType.bulletin else []
+    if seg.type is SegmentType.field_report:
+        seg.work.pop("scene", None)
+        scene = scene_due(world, seg.nominal_start_ts or schedule.now())
+        if scene:
+            seg.work["scene"] = scene         # build_prompt sends Miles there; _apply_to_world files it on it
+            log.info("field_report slot %d: Miles reports from the scene of %s", seg.slot_id, scene)
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
     schema = script_schema(seg.type, show.cast_for(seg.type))
@@ -695,7 +726,7 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
     else:
         # Breaking news always opens its own thread, even when the model names a related one
         # (an aground boat is not a follow-up of the lifeboat's old logbooks).
-        tid = None if seg.type is SegmentType.breaking else getattr(script, "thread_id", None)
+        tid = None if seg.type is SegmentType.breaking else seg.work.get("scene") or getattr(script, "thread_id", None)
         status = getattr(script, "thread_status", None)
         known = {t.id for t in world.threads}
         if tid in known or seg.type in THREAD_OPENERS:

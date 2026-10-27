@@ -15,6 +15,7 @@ Flags:
   --scratch     copy the world, tip-line and adverts to a temp dir and run on the copy with an empty cache
                 (and --log-llm writes to that dir's llm_calls/)
   --documentary-now  commission today's documentary at the first idle moment (it still airs in its slot)
+  --breaking-now  have the story desk break a story at its next idle moment (Miles then goes to the scene)
 """
 from __future__ import annotations
 
@@ -41,6 +42,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
     p.add_argument("--documentary-now", action="store_true",
                    help="commission today's documentary at the first idle moment, whatever the hour")
+    p.add_argument("--breaking-now", action="store_true",
+                   help="have the story desk break a story at its next idle moment, whatever the cap and the hour")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
     p.add_argument("--log-llm", action="store_true", help="write every LLM prompt and reply to data/llm_calls/")
     p.add_argument("--world", type=str, default="", help="world file to use instead of data/world.json")
@@ -250,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
     if args.documentary_now:
         os.environ["NEWSROOM_DOCUMENTARY_NOW"] = "1"
+    if args.breaking_now:
+        os.environ["NEWSROOM_BREAKING_NOW"] = "1"
     if args.log_llm:
         os.environ["NEWSROOM_LLM_LOG"] = "1"
 
