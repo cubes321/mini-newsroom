@@ -103,6 +103,27 @@ def test_after_the_scene_report_the_other_field_reports_leave_the_story_to_the_b
     assert "already reported from the scene" not in later          # the story is no longer breaking
 
 
+def test_a_field_report_sees_the_last_ones_and_goes_elsewhere():
+    w = world_mod.seed()
+    show = schedule.get("news")
+    _, first = writers.build_prompt(T.field_report, w, target_s=90.0, show=show)
+    assert "MILES'S LAST REPORTS" not in first
+    tid = w.update_thread(None, "One engine for the whole harbour", "the chief wants a second")
+    w.record_aired("field_report", "Fire crew times the far berths", tid, "...", show="news")
+    w.record_aired("field_report", "Breakfast at the slipway", None, "...", show="breakfast")   # another show's
+    _, user = writers.build_prompt(T.field_report, w, target_s=90.0, show=show)
+    block = user.split("MILES'S LAST REPORTS")[1].split("\n\n")[0]
+    assert f"Fire crew times the far berths [{tid}]" in block and "slipway" not in block
+
+
+def test_the_scene_report_is_not_told_to_go_elsewhere():
+    w = world_mod.seed()
+    tid = _broke(w, 300)
+    w.record_aired("field_report", "Fire crew times the far berths", None, "...", show="news")
+    _, user = writers.build_prompt(T.field_report, w, target_s=90.0, show=schedule.get("news"), work={"scene": tid})
+    assert "FROM THE SCENE" in user and "MILES'S LAST REPORTS" not in user
+
+
 def test_the_scene_report_is_filed_on_the_breaking_thread(monkeypatch):
     w = world_mod.seed()
     tid = _broke(w, 300)

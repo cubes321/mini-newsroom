@@ -328,6 +328,21 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
     return _SOFA_SO_FAR.format(heads=heads, same=same_s)
 
 
+FIELD_MEMORY = 3                # the last field reports on this show the next one is shown
+
+
+def _field_so_far(world: World, show: schedule.Show) -> str:
+    """The show's last few field reports, so the next goes somewhere else: with nothing to say
+    otherwise, two in a row took the same story (the harbour-wall pupils, then the one fire
+    engine, on 2026-10-27)."""
+    last = world.aired_today(SegmentType.field_report.value, show.id)[-FIELD_MEMORY:]
+    if not last:
+        return ""
+    heads = "\n".join(f"  - {e['headline']}" + (f" [{e['thread_id']}]" if e.get("thread_id") else "") for e in last)
+    return ("MILES'S LAST REPORTS (this one goes to a different story and place: do not follow up the "
+            f"threads named here; a passing mention is fine):\n{heads}")
+
+
 def _guests_so_far(world: World, show: schedule.Show) -> str:
     """This morning's guests in the armchair, one headline each."""
     return "\n".join(f"  - {e['headline']}" for e in world.aired_today(SegmentType.interview.value, show.id))
@@ -386,6 +401,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     if done:
         user += (f"\n\nMiles has already reported from the scene of {', '.join(f'[{d}]' for d in done)}; the bulletins "
                  "carry it now. This report is about another story: do not set thread_id to it.")
+    last = _field_so_far(world, show) if seg_type is SegmentType.field_report and not scene else ""
+    if last:
+        user += "\n\n" + last
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
     if so_far:
         user += "\n\n" + so_far
