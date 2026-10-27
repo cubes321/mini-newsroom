@@ -88,6 +88,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 A field report sees Miles's last three on its show (`writers._field_so_far`, with
+  their threads) and goes to another story and place: two in a row had taken the harbour-wall
+  pupils, then the one fire engine. The scene report after breaking news is exempt. Three Haiku
+  samples after two fire-engine reports went to the coast road, the stadium and Main Street, each
+  a new story; watch a night for whether threads still get followed through.
 - 2026-10-27 The story desk can break a story itself: when `breaking.desk_may_break` allows (out of
   the cooldown, `[breaking] desk_per_day = 1`, never overnight) its plan may carry something sudden
   (`StoryPlan.breaking`), told it's rare; it airs like a tip-line BREAKING line, from "the
