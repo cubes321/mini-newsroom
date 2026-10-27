@@ -16,7 +16,7 @@ from newsroom.tts import SynthResult
 
 @pytest.fixture
 def pool(tmp_path, monkeypatch):
-    def synth(text, voice, out, speed=1.0):
+    def synth(text, voice, out, speed=1.0, lang=None):
         out.write_bytes(b"RIFF")                      # only has to exist
         return SynthResult(wav_path=out, duration_s=len(text.split()) / 2.5, mouth_env=[0.5])
     monkeypatch.setattr(adverts.tts, "synthesize", synth)

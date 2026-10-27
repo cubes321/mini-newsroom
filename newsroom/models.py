@@ -9,6 +9,7 @@ Two layers:
 """
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from datetime import date
@@ -136,6 +137,42 @@ def _gender(v):
 
 Gender = Annotated[Literal["f", "m"] | None, BeforeValidator(_gender)]
 
+_OLD = ("old", "elder", "retired", "pension", "senior", "grand", "seventy", "eighty", "ninety")
+_YOUNG = ("young", "teen", "child", "kid", "student", "pupil", "youth", "twent", "boy", "girl")
+_MIDDLE = ("middle", "adult", "grown", "thirt", "fort", "fift", "sixt")
+
+
+def _age(v):
+    """Models write 'elderly', 'in her 70s', 'mid-40s', 34...; keep young, middle or old."""
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return "young" if v < 30 else "middle" if v < 65 else "old"
+    if isinstance(v, str):
+        v = v.strip().lower()
+        if n := re.search(r"\d+", v):
+            return _age(int(n.group()))
+        for words, band in ((_MIDDLE, "middle"), (_OLD, "old"), (_YOUNG, "young")):
+            if any(w in v for w in words):
+                return band
+        return None
+    return v
+
+
+def _accent(v):
+    """'local', 'Cornish', 'Scottish' -> british; 'American', 'Canadian' -> american."""
+    if isinstance(v, str):
+        v = v.strip().lower()
+        if any(w in v for w in ("america", "canad", "yank")) or v in ("us", "usa", "u.s."):
+            return "american"
+        if any(w in v for w in ("brit", "local", "engl", "scot", "wel", "irish", "cornish", "uk", "north", "south",
+                                "west", "londo", "yorksh")):
+            return "british"
+        return None
+    return v
+
+
+Age = Annotated[Literal["young", "middle", "old"] | None, BeforeValidator(_age)]
+Accent = Annotated[Literal["british", "american"] | None, BeforeValidator(_accent)]
+
 
 def _clip(n: int) -> BeforeValidator:
     """Status notes are bookkeeping, not speech: cut an overlong one (Kimi overruns them)
@@ -200,7 +237,7 @@ def _lift_guest(data):
     if isinstance(data, dict) and not data.get("guest_name"):
         for line in data.get("lines") or []:
             if isinstance(line, dict) and line.get("guest_name"):
-                for k in ("guest_name", "guest_role", "guest_gender"):
+                for k in ("guest_name", "guest_role", "guest_gender", "guest_age", "guest_accent"):
                     data.setdefault(k, line.get(k))
                     if data[k] is None:
                         data[k] = line.get(k)
@@ -228,6 +265,8 @@ class InterviewScript(BaseModel):
     guest_name: str | None = Field(default=None, max_length=40, description="the guest's full name; required if 'guest' speaks")
     guest_role: str | None = Field(default=None, max_length=80, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Gender = Field(default=None, description="for casting the guest's voice: 'f' or 'm'")
+    guest_age: Age = Field(default=None, description="young, middle or old")
+    guest_accent: Accent = Field(default=None, description="british (a local) or american (from away)")
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
 
@@ -236,6 +275,17 @@ class InterviewScript(BaseModel):
     @model_validator(mode="after")
     def _guest_named(self):
         return _check_guest_named(self)
+
+
+class CouchLine(GuestLine):
+    guest_name: str | None = Field(default=None, max_length=40,
+                                   description="on a 'guest' line: which guest is speaking")
+
+
+class CouchScript(InterviewScript):
+    """The Last Ferry's couch: a new guest, and the one before still sitting there. guest_name,
+    guest_role and guest_gender are the new guest's; each guest line names its speaker."""
+    lines: list[CouchLine] = Field(min_length=2, max_length=16)
 
 
 class FeatureScript(BaseModel):
@@ -248,6 +298,8 @@ class FeatureScript(BaseModel):
     guest_name: str | None = Field(default=None, max_length=40)
     guest_role: str | None = Field(default=None, max_length=80)
     guest_gender: Gender = None
+    guest_age: Age = None
+    guest_accent: Accent = None
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
 
@@ -263,6 +315,8 @@ class VoxLine(BaseModel):
     text: str = Field(min_length=1, max_length=600)
     guest_name: str | None = Field(default=None, max_length=40, description="required when speaker is 'guest'")
     guest_gender: Gender = None
+    guest_age: Age = None
+    guest_accent: Accent = None
 
     @model_validator(mode="after")
     def _guest_named(self):
@@ -299,6 +353,8 @@ class SectionPlan(BaseModel):
     guest_name: str | None = Field(default=None, max_length=40, description="an invented resident to hear from, or null")
     guest_role: str | None = Field(default=None, max_length=50, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Literal["f", "m"] | None = Field(default=None, description="for casting the guest's voice")
+    guest_age: Age = None
+    guest_accent: Accent = None
     archive_clip: str | None = Field(default=None, max_length=8,
                                      description="the id of an ARCHIVE CLIP to play in this section (e.g. 'C1'); "
                                                  "null unless ARCHIVE CLIPS are listed")
@@ -414,6 +470,8 @@ class AdvertScript(BaseModel):
     owner_role: Annotated[str | None, _clip(50)] = Field(default=None, max_length=50,
                                                          description="e.g. 'baker, Harrow Street market'")
     owner_gender: Gender = None
+    owner_age: Age = None
+    owner_accent: Accent = None
     lines: list[AdLine] = Field(min_length=2, max_length=6)
 
     @model_validator(mode="after")
@@ -421,6 +479,35 @@ class AdvertScript(BaseModel):
         if any(l.speaker == "owner" for l in self.lines) and not (self.owner_name or "").strip():
             raise ValueError("the owner speaks, so owner_name is required")
         return self
+
+
+# ------------------------------------------------- continuity promos (continuity.py)
+
+
+# A slide line wraps to three rows (about 190 characters) and is read out as shown: cut at a word.
+SlideLine = Annotated[str, BeforeValidator(
+    lambda v: v[:189].rsplit(" ", 1)[0].rstrip(" ,;") + "…" if isinstance(v, str) and len(v) > 190 else v)]
+
+
+def _cut(n: int) -> BeforeValidator:
+    """A name on a slide that runs long: cut at a word, with no ellipsis."""
+    return BeforeValidator(lambda v: v[:n].rsplit(" ", 1)[0].rstrip(" &,-") if isinstance(v, str) and len(v) > n else v)
+
+
+class TrailScript(BaseModel):
+    """A trail for a finished special or tonight's documentary; the time and title are added in code."""
+    shown: list[Annotated[str, _clip(80)]] = Field(min_length=1, max_length=3,
+                                                   description="one to three short lines for the slide, under 50 characters each")
+    spoken: str = Field(min_length=10, max_length=320,
+                        description="what the announcer says after the time and title: 20 to 40 words")
+
+
+class CommunityNotice(BaseModel):
+    """A public-information slide from a local body, on the practical side of an open story."""
+    thread_id: str | None = Field(default=None, description="the open thread it comes from")
+    issuer: Annotated[str, _cut(32)] = Field(max_length=32, description="who puts it out, in capitals")
+    lines: list[SlideLine] = Field(min_length=1, max_length=2,
+                                   description="one or two plain sentences each, read out as shown")
 
 
 SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
@@ -440,15 +527,16 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 
 
-def script_schema(seg_type: SegmentType, cast: tuple[str, ...]) -> type[BaseModel]:
+def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False) -> type[BaseModel]:
     """The script schema with `lines[].speaker` narrowed to one show's cast.
 
     The JSON schema the model sees then lists only that show's presenters, the
-    same way the Backdrop enum comes from locations.py.
+    same way the Backdrop enum comes from locations.py. `couch`: an interview
+    with two guests on The Last Ferry's couch.
     """
-    key = (seg_type, cast)
+    key = (seg_type, cast, couch)
     if key not in _NARROWED:
-        base = SCRIPT_SCHEMAS[seg_type]
+        base = CouchScript if couch else SCRIPT_SCHEMAS[seg_type]
         lf = base.model_fields["lines"]
         line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine or VoxLine
         line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,

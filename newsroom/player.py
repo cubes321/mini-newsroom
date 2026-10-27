@@ -64,7 +64,7 @@ class View:
     resume_at: str = ""                  # overnight card: when programmes start again
     speaker: str | None = None
     guest_name: str | None = None
-    guests: dict = field(default_factory=dict)   # every guest in shot: name -> (voice, role), for their look
+    guests: dict = field(default_factory=dict)   # every guest in shot: name -> (voice, role, age), for their look
     mouth: float = 0.0
     talking: bool = False
     lower_third: tuple[str, str] | None = None
@@ -306,9 +306,9 @@ class Player:
                 return
 
         # A finished special is aired at a break (a bumper, or overnight the test
-        # card), between loops, in a show that airs specials.
+        # card), between loops, in a show that airs specials, from the hour it was given.
         if self.last_type in _BREAKS and schedule.show_at(now).airs_specials:
-            special = self.buffer.pop_special("special")
+            special = self.buffer.pop_special("special", now)
             if special is not None:
                 self._start(special, now)
                 return
@@ -403,19 +403,23 @@ class Player:
             v.shot = "close"            # an interview: open wide, then singles on whoever speaks
 
     def _people(self, seg: Segment) -> list:
-        """Who sits on the interview set: the presenters who speak, then the guest."""
+        """Who sits on the interview set: the presenters who speak, then the guest (on the late
+        couch, the new guest and then the one who stayed on and moved down)."""
         if self._cast_of[0] != seg.id:
             hosts: list = []
-            guest = None
+            guests: list = []
             for l in seg.lines:
                 c = self.world.presenter_named(l.guest_name) if l.speaker == "guest" else None
                 if c and (c.id, None) not in hosts:
                     hosts.append((c.id, None))       # a presenter as a guest sits in the guest chair
                 elif l.speaker == "guest" and not c:
-                    guest = guest or l.guest_name
+                    if l.guest_name not in guests:
+                        guests.append(l.guest_name)
                 elif l.speaker not in ("reporter", "weather") and (l.speaker, None) not in hosts:
                     hosts.append((l.speaker, None))
-            self._cast_of = (seg.id, hosts[:2] + ([("guest", guest)] if guest else []))
+            stayed = seg.work.get("couch")
+            guests = sorted(guests[:2], key=lambda g: g == stayed) if stayed else guests[:1]
+            self._cast_of = (seg.id, hosts[:2] + [("guest", g) for g in guests])
         return self._cast_of[1]
 
     def view(self, now: float | None = None) -> View:
@@ -496,7 +500,7 @@ class Player:
             v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
         for name in {v.guest_name, (v.advert or {}).get("owner"), *(n for w, n in v.people if w == "guest")} - {None}:
             p = self.world.person_by_name(name)
-            v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "")
+            v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "", p.age if p else "")
         if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
             p = self.world.person_by_name(v.guest_name)
             v.lower_third = (v.guest_name, line.guest_role or (p.role if p else "Port Wexley"))

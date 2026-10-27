@@ -69,6 +69,7 @@ class TTSCfg:
     lang_code: str = "a"
     sample_rate: int = 24000
     device: str = "cpu"
+    british_guests: bool = False         # guests cast with a British accent get British pronunciation
     voices: dict[str, str] = field(default_factory=dict)
 
 
@@ -116,6 +117,12 @@ class AdvertsCfg:
 
 
 @dataclass(frozen=True)
+class ContinuityCfg:
+    notice_every_s: float = 2700.0       # the model writes a community notice this often, in idle time
+    notices_per_day: int = 4             # from the day's open stories; they expire at midnight
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
@@ -138,6 +145,7 @@ class Config:
     story: StoryCfg
     breaking: BreakingCfg
     adverts: AdvertsCfg
+    continuity: ContinuityCfg
 
 
 def load(path: Path | None = None) -> Config:
@@ -168,6 +176,7 @@ def load(path: Path | None = None) -> Config:
         story=StoryCfg(**raw.get("story", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),
+        continuity=ContinuityCfg(**raw.get("continuity", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

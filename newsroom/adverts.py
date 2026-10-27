@@ -251,7 +251,8 @@ def build(ad_id: str, script: AdvertScript, world: World, *, seed: bool = False)
     """Script -> voiced Advert. The owner joins the cast first, so they are voiced as themselves."""
     owner = (script.owner_name or "").strip() or None
     if owner:
-        world.ensure_person(owner, script.owner_role, gender=script.owner_gender)
+        world.ensure_person(owner, script.owner_role, gender=script.owner_gender, age=script.owner_age,
+                            accent=script.owner_accent)
     h = zlib.crc32(script.business.lower().encode("utf-8"))
     owner_voice = world.voice_for("guest", owner) if owner else ""
     vo = next(v for v in VO_VOICES[h % len(VO_VOICES):] + VO_VOICES if v != owner_voice)
@@ -261,11 +262,11 @@ def build(ad_id: str, script: AdvertScript, world: World, *, seed: bool = False)
     for i, al in enumerate(script.lines):
         if al.speaker == "owner":
             line = Line(speaker="guest", text=al.text.strip(), guest_name=owner, guest_role=script.owner_role)
-            voice, speed = owner_voice, world.speed_for("guest", owner)
+            voice, speed, lang = owner_voice, world.speed_for("guest", owner), world.lang_for("guest", owner)
         else:
             line = Line(speaker="voiceover", text=al.text.strip())
-            voice, speed = vo, 0.97
-        res = tts.synthesize(line.text, voice, folder / f"{ad_id}_{i:02d}.wav", speed=speed)
+            voice, speed, lang = vo, 0.97, None
+        res = tts.synthesize(line.text, voice, folder / f"{ad_id}_{i:02d}.wav", speed=speed, lang=lang)
         line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
         lines.append(line)
     card = {"business": script.business, "tagline": script.tagline, "where": script.where, "owner": owner,

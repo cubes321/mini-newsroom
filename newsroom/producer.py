@@ -75,10 +75,10 @@ class Producer:
     def _run_s(self, show: schedule.Show) -> float:
         """The next item's length, with the parts that continue it: close now if less than half would fit."""
         pos = self._pos
-        run = show.target_s[show.item(pos).type]
+        run = show.target_for(show.item(pos))
         while self._continues(show, pos + 1):
             pos += 1
-            run += show.target_s[show.item(pos).type]
+            run += show.target_for(show.item(pos))
         return run
 
     def _next_item(self, show: schedule.Show) -> schedule.Item:
@@ -112,7 +112,7 @@ class Producer:
         seg = Segment(
             slot_id=self.next_slot,
             type=item.type,
-            target_s=show.target_s[item.type],
+            target_s=show.target_for(item),
             nominal_start_ts=self.cursor_ts,
             priority=0,
             show=show.id,
@@ -121,7 +121,11 @@ class Producer:
         )
         if item.part == "cont":
             seg.work["first_part"] = self._first_part     # the guest's first part, before any break
-        elif item.type is not schedule.T.ad_break:
+            if not self._closing and show.item(self._pos).part == "couch":
+                seg.work["stays_on"] = True               # no goodbye: they stay on the couch
+        elif item.part == "couch":
+            seg.work["first_part"] = seg.slot_id - 1      # the guest who stays on: their last part
+        if item.part not in ("cont", "couch") and item.type is not schedule.T.ad_break:
             self._first_part = seg.slot_id
         self.buffer.submit(seg)
         self.next_slot += 1

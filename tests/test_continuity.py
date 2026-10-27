@@ -18,7 +18,7 @@ from newsroom.tts import SynthResult
 
 @pytest.fixture
 def cont(tmp_path, monkeypatch):
-    def synth(text, voice, out, speed=1.0):
+    def synth(text, voice, out, speed=1.0, lang=None):
         out.parent.mkdir(parents=True, exist_ok=True)
         sf.write(out, np.zeros(assets.SR // 2, dtype=np.float32), assets.SR, subtype="PCM_16")
         return SynthResult(wav_path=out, duration_s=0.5, mouth_env=[0.0])
@@ -120,3 +120,66 @@ def test_no_ident_straight_after_a_bumper_and_the_count_resets_on_a_programme(co
     assert pl._gap_item(now).type is SegmentType.advert
     pl._start(Segment(slot_id=0, type=SegmentType.weather, state=SegmentState.ready), now)
     assert pl.gap_n == 0 and pl.ads_in_row == 0
+
+
+# ------------------------------------------------------------------ promos
+
+
+def _waiting(fmt: str, airs_from: float = 0.0) -> Segment:
+    work = {"format": fmt, "outline": {"title": "The Baker's Petition", "standfirst": "A second engine?",
+                                       "intro": "Tonight, a petition.", "sections": [{"heading": "The queue"}]}}
+    if airs_from:
+        work["airs_from"] = airs_from
+    return Segment(slot_id=1_000_007, type=SegmentType.documentary, headline="Petition", work=work,
+                   content_hash="abc123")
+
+
+def test_a_finished_special_gets_a_trail_with_its_time_until_it_airs(cont):
+    now = _ts("14:10")
+    buf = Buffer()
+    seg = _waiting("special", airs_from=_ts("15:00"))
+    buf.mark(seg, SegmentState.ready)
+    w = world_mod.seed()
+    assert continuity.should_make(w, buf, now)
+    it = continuity.make(w, buf, now)                             # NEWSROOM_LLM=off: the standfirst
+    card = it.segment.work["continuity"]
+    assert it.kind == "trail" and it.valid_until == _ts("15:00")
+    assert card["title"] == "THIS AFTERNOON AT 15:00" and card["lines"][0] == "The Baker's Petition"
+    assert it.segment.lines[0].text == ("This afternoon at three o'clock on Channel 7: a special report, "
+                                        "The Baker's Petition.")
+    assert continuity.trails_due(buf, now) == []                  # one trail each
+    assert cont.pick("card", "news", _ts("14:59")).work["continuity"]["kind"] == "trail"
+    assert cont.pick("card", "news", _ts("15:00")) is None
+
+
+def test_tonights_documentary_is_trailed_for_nine_but_not_something_on_in_five_minutes(cont):
+    buf = Buffer()
+    buf.mark(_waiting("documentary"), SegmentState.ready)
+    w = world_mod.seed()
+    assert continuity.trails_due(buf, _ts("20:56")) == []
+    it = continuity.make(w, buf, _ts("19:30"))
+    assert it.segment.lines[0].text.startswith("Tonight at nine o'clock on Channel 7: Port Wexley Stories")
+
+
+def test_community_notices_come_from_the_model_a_few_a_day(cont, monkeypatch):
+    from newsroom import llm
+    from newsroom.models import CommunityNotice
+
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return CommunityNotice(thread_id="t001", issuer="Harbour Office",
+                               lines=["The slipway is closed on Thursday from nine for the survey."])
+    monkeypatch.setattr(llm, "complete_json", write)
+    monkeypatch.setattr(continuity, "_tried_notice", 0.0)
+    w, buf = world_mod.seed(), Buffer()
+    now = _ts("10:00")
+    assert continuity.should_make(w, buf, now)
+    it = continuity.make(w, buf, now)
+    assert it.id == "community_20261027_0" and it.kind == "notice" and it.valid_until == _ts("00:00", date(2026, 10, 28))
+    assert it.segment.work["continuity"]["title"] == "HARBOUR OFFICE"
+    assert not continuity.should_make(w, buf, now + 60)          # notice_every_s apart
+    continuity.make(w, buf, now + 3000)
+    assert "[t001] HARBOUR OFFICE" in asked[-1]                  # told what is already up
+    assert len(continuity._community(date(2026, 10, 27))) == 2

@@ -369,7 +369,8 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         seg.work["starts"].append(len(seg.lines))     # after the call: a retried stage mustn't add it twice
         plan = outline.sections[i]
         if plan.guest_name:
-            world.ensure_person(plan.guest_name, plan.guest_role, gender=plan.guest_gender)
+            world.ensure_person(plan.guest_name, plan.guest_role, gender=plan.guest_gender, age=plan.guest_age,
+                                accent=plan.guest_accent)
         for l in sec.lines:
             if not l.text.strip():
                 continue
@@ -409,6 +410,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         if _is_doc(seg):
             documentary.record(world, seg, outline)              # its canon, for later pieces
         else:
+            seg.work["airs_from"] = schedule.special_slot(schedule.now())   # a time a trail can give
             world.record_special(outline.title, seg.thread_id)  # made: the editor's cooldown starts now
         world_mod.save(world)                  # the archive entry waits until it airs (mark_aired)
         if buffer:

@@ -363,6 +363,91 @@ def _render(name: str, voicing: str, tail_s: float, style: str) -> np.ndarray:
     return (out / peak * 0.89).astype(np.float32)
 
 
+# --- The Last Ferry's house band: a jazz trio (piano, upright bass, brushes) swinging the tune ---
+
+def brush(dur: float = 0.18, vel: float = 1.0) -> np.ndarray:
+    """A brush swept across the snare: soft noise that swells and fades."""
+    t = _t(dur + 0.15)
+    noise = _filter(RNG.standard_normal(len(t)), lo=1800, hi=8000)
+    env = np.minimum(1.0, t / (dur * 0.5)) * np.exp(-np.maximum(0.0, t - dur * 0.5) * 18)
+    return noise * env * 0.18 * vel
+
+
+def ride(vel: float = 1.0) -> np.ndarray:
+    t = _t(0.7)
+    wash = _filter(RNG.standard_normal(len(t)), lo=5000) * np.exp(-t * 9) * 0.12
+    bell = sum(np.sin(2 * np.pi * f * t) for f in (3150, 4270, 5610)) / 3 * np.exp(-t * 14) * 0.05
+    return (wash + bell) * vel
+
+
+def upright(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    """A plucked upright bass: a round low tone with a thump and a fast decay."""
+    t = _t(dur + 0.15)
+    y = np.sin(2 * np.pi * f * t) + 0.35 * np.sin(4 * np.pi * f * t) * np.exp(-t * 6)
+    thump = _filter(RNG.standard_normal(len(t)), hi=400) * np.exp(-t * 60) * 0.4
+    return (y * _env(len(t), 0.004, 0.08, dur, decay=2.5) + thump) * vel * 0.8
+
+
+BAND_STYLES = ("walkon", "button", "lounge")
+BAND_STYLE = "walkon"           # the house band's sting on The Last Ferry
+
+
+def band(style: str = BAND_STYLE, name: str = DEFAULT) -> np.ndarray:
+    """The house band's sting, 44.1 kHz stereo float32. walkon: the tune swung, about three
+    seconds, playing a guest on; button: just the end of it, a quick flourish into the chord;
+    lounge: walkon on Rhodes and vibes instead of the piano."""
+    m = MOTIFS[name]
+    transpose = VOICINGS["late"][0]
+    beat = 60.0 / (m.bpm * 1.12)
+    swing = (0.0, beat * 2 / 3)                        # long-short eighths
+    notes = [(n + transpose, b) for n, b in m.notes if n is not None]
+    if style == "button":
+        notes = notes[-3:]
+    ev, at, k = [], beat * 0.5, 0                      # a brush pickup before the first note
+    for n, b in notes:
+        ev.append((at, n, b))
+        if b == 0.5:
+            at += swing[1] if k % 2 == 0 else beat - swing[1]
+            k += 1
+        else:
+            at += b * beat
+    last_at, last_n, _ = ev[-1]
+    hold = beat * 1.5
+    mix = _Mix(last_at + hold + 1.2)
+    chord = [c + transpose for c in m.chord]
+    root = chord[0]
+    lush = chord + [chord[2] + 11, chord[2] + 14]      # the major seventh and ninth, as the late ident
+
+    mix.add(0.0, brush(beat * 0.5), 0.9, pan=-0.3)
+    for at, n, _ in ev[:-1]:
+        if style == "lounge":
+            mix.add(at, vibes(_hz(n), beat * 0.6), 0.45, pan=0.25)
+            mix.add(at, rhodes(_hz(n - 12), beat * 0.5), 0.35, pan=-0.2)
+        else:
+            mix.add(at, piano(_hz(n), beat * 0.5), 0.5, pan=0.15)
+            mix.add(at, piano(_hz(n - 12), beat * 0.5, 0.6), 0.3, pan=0.05)
+    walk = [root - 12, root - 12 + 4, root - 12 + 7, root - 12 + 9]   # a walking line up to the chord
+    b0 = ev[0][0]
+    for j in range(int((last_at - b0) / beat + 0.5)):
+        mix.add(b0 + j * beat, upright(_hz(walk[j % 4]), beat * 0.9), 0.55)
+    t, j = b0, 0
+    while t < last_at:                                 # ride on the swung eighths, brushes on two and four
+        mix.add(t, ride(1.0 if j % 2 == 0 else 0.6), 0.6, pan=0.4)
+        if j % 4 == 2:
+            mix.add(t, brush(), 0.7, pan=-0.3)
+        t += swing[1] if j % 2 == 0 else beat - swing[1]
+        j += 1
+    inst = rhodes if style == "lounge" else piano
+    for i, c in enumerate(lush):                        # the last note lands on the full chord, rolled
+        mix.add(last_at + 0.025 * i, inst(_hz(c), hold, 0.6), 0.28, pan=-0.3 + 0.12 * i)
+    mix.add(last_at, inst(_hz(last_n + 12), hold, 0.8), 0.35, pan=0.2)
+    mix.add(last_at, upright(_hz(root - 12), hold), 0.7)
+    mix.add(last_at, cymbal_swell(0.02, 0.7), 1.0, pan=0.4)
+    out = _reverb(mix.buf, 1.6, 0.22)
+    peak = np.max(np.abs(out)) or 1.0
+    return (out / peak * 0.89).astype(np.float32)
+
+
 def _write(path: Path, audio: np.ndarray, sr: int = SR) -> None:
     import soundfile as sf
 

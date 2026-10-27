@@ -6,6 +6,7 @@ Offline, run by hand; assets.py bakes the bumpers, sting and bed from whatever s
     python -m newsroom.station_audio --news take.wav         # ...or from an approved SA3 take
     python -m newsroom.station_audio --bed bed.wav           # an approved bed, looped
     python -m newsroom.station_audio --bed-takes DIR --url http://127.0.0.1:7860   # SA3 bed takes to audition
+    python -m newsroom.station_audio --band                  # The Last Ferry's house band stings
 
 The other shows' idents and the breaking sting come from their code voicings unless a file is
 given (--breakfast, --magazine, --late, --breaking). Stems are written at 24 kHz mono, the
@@ -104,6 +105,8 @@ def main() -> None:
     ap.add_argument("--styles", default="vibraphone and Rhodes;analog synthesizer;string orchestra",
                     help="bed styles for --bed-takes, separated by ;")
     ap.add_argument("--url", default="http://127.0.0.1:7860")
+    ap.add_argument("--band", action="store_true",
+                    help="The Last Ferry's house band: band_walkon and band_button from jingle.band")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -118,6 +121,9 @@ def main() -> None:
     if args.bed:
         audio, sr = sf.read(args.bed, always_2d=True)
         write("bed", to_stem(audio, sr, fade=False))
+    if args.band:                       # chosen by ear 2026-10-27: walkon for a new guest, button after a break
+        for kind in ("walkon", "button"):
+            write(f"band_{kind}", to_stem(jingle.band(kind), jingle.SR))
 
 
 if __name__ == "__main__":

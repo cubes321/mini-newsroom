@@ -1,11 +1,17 @@
 """Continuity: what Channel 7 puts out between programmes when the next one isn't ready.
 
-Three kinds, all voiced by the continuity announcer, none needing the model:
+Four kinds, all voiced by the continuity announcer:
 - ident: the logo builds to the station tune (the show's arrangement), then a line from the
   announcer ("This is Channel 7."). Rebuilt when the show's tune stem changes.
 - programmes: "Later on Channel 7": the next shows and their times, valid until the next one starts.
 - notice: a 70s information slide read out. The daily tides and the Saltby ferry from
-  tides.py (rebuilt each day), and a few hand-written ones from the town.
+  tides.py (rebuilt each day), a few hand-written ones from the town, and community notices the
+  model writes from the day's open stories (`[continuity] notice_every_s`, valid until midnight).
+- trail: a finished special or tonight's documentary, by title and time, valid until it airs.
+  The time and title are read from code; the model writes the pitch (the standfirst without one).
+
+The first two kinds and the hand-written notices are baked by `bake_one` without the model, before
+anything else in idle time; trails and community notices by `make`, when the buffer is healthy.
 
 They are segments of type `continuity` with `work["continuity"] = {"kind", "title", "lines", ...}`,
 outside the rundown like adverts. The player mixes them with adverts in a gap (`GAP_PATTERN`).
@@ -37,8 +43,9 @@ log = logging.getLogger(__name__)
 VOICE = "bf_isabella"           # the continuity announcer: nobody else on the station uses her
 SHOWS = ("news", "breakfast", "magazine", "late")
 
-# In a gap: ident, advert, a card (programmes or a notice), advert, advert, ident... then the filler card.
+# In a gap: ident, advert, a card (programmes, a trail or a notice), advert, advert, ident... then the filler card.
 GAP_PATTERN = ("ident", "advert", "card", "advert", "advert", "ident", "card")
+CARDS = ("programmes", "trail", "notice")       # a "card" in the gap, first first when none has aired
 
 IDENT_LINES = {
     "news": ["This is Channel 7.", "Channel 7, for Port Wexley and the Greymouth coast."],
@@ -131,14 +138,15 @@ class Pool:
         """The least recently aired item of `kind` that is valid now; an ident in this show's
         tune, a "card" is the programme card or a notice. A copy, ready to play."""
         now = now or schedule.now()
-        kinds = ("programmes", "notice") if kind == "card" else (kind,)
+        kinds = CARDS if kind == "card" else (kind,)
         with self._lock:
             ok = [it for it in self._items.values() if it.kind in kinds
                   and (not it.valid_from or it.valid_from <= now) and (not it.valid_until or now < it.valid_until)
                   and (it.kind != "ident" or it.show == (show if show in SHOWS else "news"))]
             if not ok:
                 return None
-            it = min(ok, key=lambda i: (self._aired.get(i.id, 0.0), i.kind != "programmes", self._rng.random()))
+            it = min(ok, key=lambda i: (self._aired.get(i.id, 0.0), CARDS.index(i.kind) if i.kind in CARDS else 0,
+                                        self._rng.random()))
             self._aired[it.id] = time.time()
             seg = it.segment.model_copy(deep=True)
         seg.slot_id, seg.state, seg.show = -1, SegmentState.ready, show
@@ -297,6 +305,152 @@ def bake_one(world=None, now: float | None = None) -> bool:
         if p.get(f"notice_{key}") is None:
             return _add(p, lambda: bake_notice(key))
     return False
+
+
+# ------------------------------------------------------- promos (the model)
+
+TRAIL_LEAD_S = 600.0            # not worth a trail for something on in less than this
+_tried_notice = 0.0             # the last community notice attempt, so a dead model isn't asked every tick
+
+_TRAIL_SYSTEM = """\
+You write continuity trails for channel seven in the FICTIONAL town in the briefing: what the
+announcer says over a slide so viewers stay for a programme later today. The time and title are
+read out just before your words, so don't repeat them. Say what the piece is about and why it
+matters to the town, from the facts given only: 20 to 40 words, warm and plain, no hype, no
+questions to the viewer. The slide lines are two or three short teasers under the title (which is
+already on the slide: don't repeat it). Return ONLY JSON.
+"""
+
+_NOTICE_SYSTEM = """\
+You write public-information slides for channel seven in the FICTIONAL town in the briefing, shown
+between programmes like an old regional TV notice board. Take ONE open story from the briefing and
+write the practical notice a local body would put out about it, addressed to the public: what people
+can go to, do, avoid or bring (a road or path closed, a meeting and where, a collection point, changed
+opening hours, a reminder, a thank-you). Never a named person's private plans. The issuer is a
+local body or group (the town council, the harbour office, a school, a club, a church), in capitals
+and under 28 characters. One or two plain sentences about that one thing, each under 130 characters,
+with definite times and places. Keep to what the story says; nothing alarming; it is a notice, not a news report.
+Return ONLY JSON.
+"""
+
+
+def _airs(seg: Segment, now: float) -> float | None:
+    """When a waiting special or documentary goes out, if that is still to come."""
+    from . import documentary
+
+    at = (documentary._today_at(CONFIG.documentary.airs_at, now) if documentary.is_documentary(seg)
+          else seg.work.get("airs_from", 0.0))
+    return at if at > now else None
+
+
+def _trail_id(seg: Segment) -> str:
+    return f"trail_{seg.content_hash or seg.id}"
+
+
+def trails_due(buffer, now: float) -> list[tuple[Segment, float]]:
+    """Finished pieces still to air, far enough off to trail, that have no trail yet."""
+    out = []
+    for seg in buffer.specials_waiting() if buffer is not None else []:
+        at = _airs(seg, now)
+        if at and at - now >= TRAIL_LEAD_S and pool().get(_trail_id(seg)) is None:
+            out.append((seg, at))
+    return out
+
+
+def _community(day: date) -> list[Item]:
+    return [it for it in pool().items() if it.id.startswith(f"community_{day:%Y%m%d}_")]
+
+
+def should_make(world, buffer, now: float | None = None) -> bool:
+    """A trail as soon as a piece is finished; a community notice every notice_every_s, a few a day."""
+    now = now or schedule.now()
+    if trails_due(buffer, now):
+        return True
+    done = _community(datetime.fromtimestamp(now).date())
+    last = max([_tried_notice] + [it.valid_from for it in done])
+    return len(done) < CONFIG.continuity.notices_per_day and now - last >= CONFIG.continuity.notice_every_s
+
+
+def make(world, buffer, now: float | None = None) -> Item | None:
+    """Write and voice one trail (first) or community notice, and add it to the pool."""
+    global _tried_notice
+    now = now or schedule.now()
+    p = pool()
+    due = trails_due(buffer, now)
+    if due:
+        seg, at = min(due, key=lambda d: d[1])
+        it = bake_trail(world, seg, at, now)
+    else:
+        _tried_notice = now
+        it = bake_community(world, now)
+        if it is None:
+            return None
+    _expire(p, now)
+    _add(p, lambda: it)
+    return it
+
+
+def _when(ts: float) -> tuple[str, str]:
+    """('Tonight at nine o'clock', 'TONIGHT AT 21:00') for a time later today."""
+    h = time.localtime(ts).tm_hour
+    day = "Tonight" if h >= 18 or h == 0 else "This afternoon" if h >= 12 else "This morning"
+    return f"{day} at {_spoken_time(ts)}", f"{day.upper()} AT {time.strftime('%H:%M', time.localtime(ts))}"
+
+
+def bake_trail(world, seg: Segment, airs: float, now: float) -> Item:
+    from . import documentary, llm
+    from .models import TrailScript
+    from .writers import _keys_hint
+
+    outline = seg.work.get("outline") or {}
+    title = outline.get("title") or seg.headline or "a special report"
+    standfirst = outline.get("standfirst", "")
+    strand = CONFIG.documentary.title.title() if documentary.is_documentary(seg) else "a special report"
+    said_when, header = _when(airs)
+    lead = f"{said_when} on Channel 7: {strand}, {title}" + ("" if title[-1:] in ".?!" else ".")
+    thread = world.thread(seg.thread_id) if seg.thread_id else None
+    facts = [f"Programme: {strand}, \"{title}\"", f"Standfirst: {standfirst}",
+             f"Introduction: {outline.get('intro', '')}",
+             "Sections: " + "; ".join(s.get("heading", "") for s in outline.get("sections", []))]
+    if thread:
+        facts.append(f"The story: {thread.title}. Where it stands: {thread.status}")
+    user = (f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\nTHE PROGRAMME\n" + "\n".join(facts)
+            + f"\n\nRead out just before your words: \"{lead}\"" + _keys_hint(TrailScript))
+    try:
+        script = llm.complete_json("promo", TrailScript, _TRAIL_SYSTEM, user)
+        shown = [s for s in script.shown if s.strip().lower() != title.lower()]   # the title is on the slide
+        pitch = script.spoken.strip()
+    except llm.LLMError as e:
+        log.info("trail for %r from its standfirst (%s)", title, e)
+        shown, pitch = [standfirst] if standfirst else [], standfirst
+    item_id = _trail_id(seg)
+    card = _read_card(item_id, "trail", header, [title] + shown, [lead] + ([pitch] if pitch else []),
+                      schedule.show_at(now).id)
+    return Item(id=item_id, kind="trail", valid_from=now, valid_until=airs, segment=card)
+
+
+def bake_community(world, now: float) -> Item | None:
+    """A notice from one of the day's open stories, or None if the model is unavailable."""
+    from . import llm
+    from .models import CommunityNotice
+    from .writers import _keys_hint
+
+    day = datetime.fromtimestamp(now).date()
+    done = _community(day)
+    up = "\n".join(f"  - [{(it.segment.work.get('continuity') or {}).get('thread_id') or '-'}] "
+                   f"{(it.segment.work.get('continuity') or {}).get('title', '')}: "
+                   + " ".join((it.segment.work.get("continuity") or {}).get("lines", [])) for it in done)
+    user = (f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\nToday is {day:%A %d %B}.\n\n"
+            f"NOTICES ALREADY UP TODAY (take another story):\n{up or '  none yet'}" + _keys_hint(CommunityNotice))
+    try:
+        n = llm.complete_json("promo", CommunityNotice, _NOTICE_SYSTEM, user)
+    except llm.LLMError as e:
+        log.info("no community notice: %s", e)
+        return None
+    item_id = f"community_{day:%Y%m%d}_{len(done)}"
+    card = _read_card(item_id, "notice", n.issuer.upper(), list(n.lines))
+    card.work["continuity"]["thread_id"] = n.thread_id
+    return Item(id=item_id, kind="notice", valid_from=now, valid_until=_at(day, 0) + 86400, segment=card)
 
 
 def _add(p: Pool, bake) -> bool:

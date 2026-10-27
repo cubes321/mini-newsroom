@@ -142,9 +142,10 @@ YOUNG_WORDS = ("student", "pupil", "teen", "young", "apprentice", "skater", "sch
 
 
 @lru_cache(maxsize=512)
-def guest_look(name: str | None, voice: str = "", role: str = "") -> Look:
+def guest_look(name: str | None, voice: str = "", role: str = "", age: str = "") -> Look:
     """A guest's look: the same name, voice and role always give the same person. The voice
-    (af_/bf_ or am_/bm_) decides whether they read as a woman or a man, so look and voice agree."""
+    (af_/bf_ or am_/bm_) decides whether they read as a woman or a man, so look and voice agree;
+    the age the script cast them at (young, middle, old) wins over the role's words."""
     key = (name or "guest").strip().lower()
     h = zlib.crc32(key.encode("utf-8"))
 
@@ -153,7 +154,8 @@ def guest_look(name: str | None, voice: str = "", role: str = "") -> Look:
 
     fem = voice[1:2] == "f" if len(voice) > 1 and voice[1] in "fm" else h % 2 == 0
     r = (role or "").lower()
-    age = 2 if any(w in r for w in OLD_WORDS) else 0 if any(w in r for w in YOUNG_WORDS) else (h >> 3) % 3
+    age = {"young": 0, "middle": 1, "old": 2}.get(age, 2 if any(w in r for w in OLD_WORDS)
+                                                  else 0 if any(w in r for w in YOUNG_WORDS) else (h >> 3) % 3)
     skin = pick(SKINS, 0)
     dark = SKINS.index(skin) >= 4                             # sandy and copper hair only with lighter skin
     hair = pick(GREYS, 5) if age == 2 else pick(HAIRS[:3] if dark else HAIRS, 5)

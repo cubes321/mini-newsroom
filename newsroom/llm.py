@@ -288,6 +288,8 @@ def _anthropic_raw(prov: ProviderCfg, system: str, messages: list[dict],
         raise LLMUnavailable(f"Anthropic unreachable: {e}") from e
     except anthropic.AuthenticationError as e:
         raise LLMUnavailable("Anthropic: authentication failed (ANTHROPIC_API_KEY)") from e
+    except TypeError as e:                              # no key at all: the SDK can't build its headers
+        raise LLMUnavailable(f"Anthropic: no ANTHROPIC_API_KEY ({e})") from e
     except anthropic.APIStatusError as e:
         raise LLMError(f"Anthropic error {e.status_code}: {e.message}") from e
     if resp.stop_reason == "refusal":

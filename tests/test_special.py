@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from newsroom import special, workers
+from newsroom import schedule, special, workers
 from newsroom import world as world_mod
 from newsroom.buffer import Buffer
 from newsroom.config import CONFIG
@@ -215,6 +215,30 @@ def test_where_a_ready_special_airs(hour, last_type, airs):
     player, seg = _player_with_ready_special(last_type)
     player.update(_at(hour))
     assert (player.current is seg) is airs
+
+
+@pytest.mark.parametrize("finished, airs", [
+    (14, 15),           # the news: after the bumper at the next top of the hour, so it can be trailed
+    (19, 20),           # Coastwide doesn't air specials: the news at eight
+    (7, 9),             # breakfast: the nine o'clock news
+    (22, 23),           # the late show: the late news
+    (1, 1),             # overnight: after the next test card, as before
+])
+def test_a_finished_special_is_given_the_next_hour_that_airs_specials(finished, airs):
+    slot = schedule.special_slot(_at(finished))
+    lt = time.localtime(slot)
+    assert (lt.tm_hour, lt.tm_min) == ((airs, 0) if airs != finished else (finished, 5))
+
+
+def test_a_special_waits_for_its_hour():
+    player, seg = _player_with_ready_special(SegmentType.bumper)
+    seg.work["airs_from"] = _at(11) - 5 * 60                      # 11:00
+    player.update(_at(10))
+    assert player.current is not seg                             # the 10:00 bumper is too early
+    player.last_type = SegmentType.bumper
+    player.current = None
+    player.update(_at(11))
+    assert player.current is seg
 
 
 # ------------------------------------------------------------- the story so far

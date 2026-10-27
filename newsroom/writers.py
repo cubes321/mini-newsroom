@@ -59,7 +59,8 @@ Tone: {tone}. Specific, concrete details (street names, prices, a quote from a r
 
 _GUEST_RULES = """\
 Studio guests: speaker id "guest". Name the guest ONCE in guest_name (first name and surname),
-with guest_role and guest_gender ("f" or "m"); their lines use speaker "guest". Prefer a listed
+with guest_role, guest_gender ("f" or "m"), guest_age ("young", "middle" or "old") and guest_accent
+("british" for a local, "american" for someone from away); their lines use speaker "guest". Prefer a listed
 public figure or a resident we have met when one fits; otherwise invent a plausible resident.
 Do not book anyone listed under RECENT GUESTS.
 """
@@ -184,7 +185,7 @@ headline = the guest and their story in under 12 words. lower_third = a short ca
     SegmentType.vox_pop: _COMMON_RULES + """
 This is the VOX POP on Coastwide. Miles ("reporter") asks ONE question in a public place, then
 three or four passers-by answer in a line or two each. Each passer-by is speaker "guest" with
-their own guest_name (first name and surname) and guest_gender; make them different ages and
+their own guest_name (first name and surname), guest_gender and guest_age; make them different ages and
 opinions, and let one be funny. Miles may add a short link between answers. Choose a light
 question tied to something in the briefing (what the town thinks of the ghost tours, the best
 chip shop, the quay ban...). question = the question as a caption. Choose a backdrop id from the
@@ -220,6 +221,7 @@ This is the GUEST INTERVIEW on The Last Ferry: a long, relaxed late-night conver
 character with a life story (a retired lighthouse keeper, the oldest member of the sea-swimming
 club, a market trader with a past). Get stories, a laugh, and one moment of something real; touch
 on what is going on in town. Vincent asks short questions; the guest talks more than he does.
+When THIS ITEM is a shorter second guest, keep it brisk: welcome them on, one story, a laugh, goodbye.
 headline = the guest and the best thing they said, under 12 words. lower_third = a short caption.
 """,
     SegmentType.links: _COMMON_RULES + """
@@ -232,7 +234,7 @@ headline = the piece in under 12 words. lower_third = "The Last Ferry" plus a sh
 This is the LATE VOX POP on The Last Ferry. Vincent ("late_host") hands over in one line; Miles
 ("reporter") is out in town late at night and asks ONE question; then three or four night owls
 answer in a line or two each. Each is speaker "guest" with their own guest_name (first name and
-surname) and guest_gender; different ages and moods, one of them funny. Vincent may add one line
+surname), guest_gender and guest_age; different ages and moods, one of them funny. Vincent may add one line
 back in the studio. question = the question as a caption. Choose a backdrop id from the LOCATIONS
 list; location is the place in words.
 """,
@@ -281,6 +283,15 @@ same guest_name, guest_role and guest_gender. One line welcoming viewers back, n
 then pick up where it left off and go somewhere new: another story, a different side of them.
 Part one, for continuity: keep every fact the same, and do NOT ask these questions again or retell
 the answers:
+{asked}"""
+
+_COUCH = """ON THE COUCH: {name} ({role}), the guest Vincent has just been talking to, stays on and moves
+down the couch for the next guest, as on the big talk shows. Book and welcome a NEW guest: guest_name,
+guest_role and guest_gender are the new guest's. Every "guest" line sets guest_name to who is speaking:
+the new guest, or "{name}". The new guest gets most of the time; {name} chips in two or three times,
+and the two guests talk to each other as well as to Vincent: they react, tease gently, find something
+in common or don't. One conversation among three, not two interviews. Earlier, {name} talked about
+this (don't go over it again; a callback is fine):
 {asked}"""
 
 # Breakfast runs its dozen sofa angles round five times a morning; without this the same angle
@@ -385,6 +396,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
                      if big else "\n\nNo big running story today: keep it light.")
     cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
+    couch = _last_interview.get(show.id) if part == "couch" and seg_type is SegmentType.interview else None
     # The tides are breakfast small talk, not for its guest: Rosie read Marjorie the ferry's
     # low-water gap in the middle of her book (2026-10-27).
     if seg_type is SegmentType.weather or show.id == "late" or (
@@ -413,8 +425,13 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                  f"they plug a title unlike these):\n{guests}")
     if cont:
         user += "\n\n" + _CONT.format(**cont)
+        if work.get("stays_on"):
+            user += ("\n\nThey stay on the couch for the next guest: no goodbye or thanks at the end. Vincent "
+                     "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
+    if couch:
+        user += "\n\n" + _COUCH.format(name=couch["name"], role=couch["role"], asked=couch["asked"][-1500:])
     if seg_type is SegmentType.breaking:
         user += f"\n\nWHAT HAS COME IN (unconfirmed): {work.get('tip', '')}"
     if seg_type is SegmentType.bulletin:
@@ -644,9 +661,12 @@ def script_segment(seg: Segment, world: World) -> Segment:
     # A second part continues only the interview the producer planned as its first part (the slot
     # before, or the one before an ad break); after a restart that one may have come from the
     # cache, and then this is a fresh interview.
+    # The late couch likewise keeps on only the guest whose part was the slot before.
     first = seg.work.get("first_part", seg.slot_id - 1)
-    cont = seg.part == "cont" and _last_interview.get(show.id, {}).get("slot") == first
-    part = "" if seg.part == "cont" and not cont else seg.part
+    follows = seg.part in ("cont", "couch") and _last_interview.get(show.id, {}).get("slot") == first
+    cont = follows and seg.part == "cont"
+    couch = _last_interview[show.id] if follows and seg.part == "couch" else None
+    part = "" if seg.part in ("cont", "couch") and not follows else seg.part
     tips = tipline.offer() if seg.type is SegmentType.bulletin else []
     if seg.type is SegmentType.field_report:
         seg.work.pop("scene", None)
@@ -656,15 +676,17 @@ def script_segment(seg: Segment, world: World) -> Segment:
             log.info("field_report slot %d: Miles reports from the scene of %s", seg.slot_id, scene)
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
-    schema = script_schema(seg.type, show.cast_for(seg.type))
+    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch))
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
         rebooked = None if cont else _rebooked(script, world)
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
-            script = llm.complete_json(seg.type.value, schema, system, user + (
-                f"\n\nNOT {rebooked}: they were a guest very recently. Book a different person."))
+            again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
+                     if couch and rebooked.lower() == couch["name"].lower()
+                     else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
+            script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
         source = "llm"
         used = getattr(script, "tip_used", None)
         if tips and isinstance(used, int) and 1 <= used <= len(tips):
@@ -674,9 +696,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
         script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work)
         source = "template"
 
-    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script),
-                      guest_role=getattr(script, "guest_role", None) if l.speaker == "guest" else None)
+    stayed = couch["name"] if couch and source == "llm" else None
+    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script, stayed),
+                      guest_role=(couch["role"] if stayed and _guest_of(l, script, stayed) == stayed
+                                  else getattr(script, "guest_role", None)) if l.speaker == "guest" else None)
                  for l in script.lines if l.text.strip()]
+    if stayed and any(l.guest_name == stayed for l in seg.lines):
+        seg.work["couch"] = stayed            # the player seats them further down the couch
     seg.headline = script.headline
     seg.cues = _cues_for(seg, script)
     _apply_to_world(seg, script, world, template=source == "template")
@@ -707,11 +733,15 @@ def _rebooked(script, world: World) -> str | None:
     return name if name.lower() in {g.lower() for g in _recent_guests} else None
 
 
-def _guest_of(line, script) -> str | None:
-    """The guest's name for a guest line: on the line (vox pops) or on the script (interviews)."""
+def _guest_of(line, script, stayed: str | None = None) -> str | None:
+    """The guest's name for a guest line: on the line (vox pops) or on the script (interviews).
+    On the late couch a line is the guest who `stayed` on, or else the new guest."""
     if line.speaker != "guest":
         return None
-    return getattr(line, "guest_name", None) or getattr(script, "guest_name", None)
+    name = getattr(line, "guest_name", None)
+    if stayed:
+        return stayed if (name or "").strip().lower() == stayed.lower() else script.guest_name
+    return name or getattr(script, "guest_name", None)
 
 
 def _cues_for(seg: Segment, script) -> list[VisualCue]:
@@ -764,11 +794,12 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
     # Guests join the recurring cast (a stable voice and look), and the writers avoid rebooking them.
     if getattr(script, "guest_name", None) and any(l.speaker == "guest" for l in seg.lines):
-        world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender)
+        world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender,
+                            age=getattr(script, "guest_age", None), accent=getattr(script, "guest_accent", None))
         _recent_guests.append(script.guest_name)
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:
-            world.ensure_person(l.guest_name, "resident", gender=l.guest_gender)
+            world.ensure_person(l.guest_name, "resident", gender=l.guest_gender, age=l.guest_age, accent=l.guest_accent)
     if seg.type is SegmentType.interview and getattr(script, "guest_name", None):
         _last_interview[seg.show] = {
             "slot": seg.slot_id, "name": script.guest_name, "role": script.guest_role or "a guest",

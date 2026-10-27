@@ -92,6 +92,7 @@ def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, 
     asked = []
     monkeypatch.setattr(adverts, "seed_one", lambda w: False)
     monkeypatch.setattr(continuity, "bake_one", lambda w: False)
+    monkeypatch.setattr(continuity, "should_make", lambda w, b: False)   # the waiting documentary's trail
     monkeypatch.setattr(adverts, "should_make", lambda: False)
     monkeypatch.setattr(desk, "should_plan", lambda w: False)
     monkeypatch.setattr(documentary, "should_commission", lambda w, b: False)
@@ -146,7 +147,7 @@ def _stub_model_and_voice(monkeypatch, n_sections=8, lines_per_section=3):
         prompts.append(documentary.notes_for_prompt(seg))
         return SpecialSection(lines=[ScriptLine(speaker="reporter", text=f"Line {k}.") for k in range(lines_per_section)])
 
-    def synth(text, voice, out, speed=1.0):
+    def synth(text, voice, out, speed=1.0, lang=None):
         out.write_bytes(b"RIFF")
         return SynthResult(wav_path=out, duration_s=2.0, mouth_env=[0.5])
 

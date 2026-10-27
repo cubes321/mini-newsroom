@@ -167,6 +167,33 @@ def sting_line() -> Line:
     return Line(speaker="anchor", text="", wav_path=path, duration_s=info.frames / info.samplerate, mouth_env=[])
 
 
+# The Last Ferry's house band (jingle.band): it plays each new guest on, and the show back from a break.
+BAND: dict[str, Path] = {kind: CONFIG.paths.assets / f"band_{kind}.wav" for kind in ("walkon", "button")}
+BAND_STYLE = {"walkon": "walkon", "button": "button"}          # the jingle.band take each one plays
+
+
+def ensure_band(kind: str) -> Path:
+    from . import jingle
+
+    path, stem = BAND[kind], _stem(f"band_{kind}")
+    if not _stale(path, stem):
+        return path
+    log.info("baking house band %s from %s", kind, stem.name if stem else "the code render")
+    audio = _load(stem) if stem else _load_array(jingle.band(BAND_STYLE[kind]), jingle.SR)
+    fade = int(SR * 0.3)
+    audio = audio.copy()
+    audio[-fade:] *= np.linspace(1, 0, fade)
+    _write(path, audio)
+    return path
+
+
+def band_line(kind: str, speaker: str = "late_host") -> Line:
+    """The house band as a silent first line: the set, nobody talking, the band playing."""
+    path = ensure_band(kind)
+    info = sf.info(str(path))
+    return Line(speaker=speaker, text="", wav_path=path, duration_s=info.frames / info.samplerate, mouth_env=[])
+
+
 def ensure_music_bed(seconds: float = 24.0) -> Path:
     stem = _stem("bed")
     if not _stale(MUSIC_BED, stem):

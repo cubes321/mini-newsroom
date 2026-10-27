@@ -99,11 +99,17 @@ class Buffer:
             return any(s.type is SegmentType.documentary and s.state not in (SegmentState.done, SegmentState.failed)
                        and (fmt is None or seg_format(s) == fmt) for s in self._segments.values())
 
-    def pop_special(self, fmt: str = "special") -> Segment | None:
-        """The first ready piece of one format: specials air at breaks, documentaries in their slot."""
+    def specials_waiting(self) -> list[Segment]:
+        """Finished specials and documentaries not yet aired (continuity trails them)."""
+        with self._lock:
+            return list(self._specials_ready)
+
+    def pop_special(self, fmt: str = "special", now: float | None = None) -> Segment | None:
+        """The first ready piece of one format: specials air at breaks from their `airs_from`
+        (schedule.special_slot), documentaries in their slot."""
         with self._lock:
             for i, s in enumerate(self._specials_ready):
-                if seg_format(s) == fmt:
+                if seg_format(s) == fmt and (now is None or s.work.get("airs_from", 0.0) <= now):
                     return self._specials_ready.pop(i)
             return None
 

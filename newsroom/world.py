@@ -49,9 +49,15 @@ PHASES = ("emerging", "developing", "peak", "resolving", "closed")
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "bf_isabella", "af_aoede"]
-GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable"]
+# bf_isabella is the continuity announcer's alone; am_santa only ever an old man.
+GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_sarah", "af_nova", "af_sky",
+                  "af_jessica", "af_river", "af_alloy"]
+GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam", "am_echo"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
+OLD_VOICES_M = ["am_santa"]
+# A guest's speaking speed: the old a little slower, the young a little quicker.
+SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
+          "": [0.92, 0.97, 1.0, 1.04, 1.08]}
 
 
 @dataclass
@@ -76,6 +82,8 @@ class Person:
     notes: str = ""                 # current stance / what they are known for
     first_seen: str = ""
     appearances: int = 0
+    age: str = ""                   # young | middle | old, from the script that booked them (their look)
+    accent: str = ""                # british | american: british may voice them with British pronunciation
 
 
 @dataclass
@@ -259,6 +267,16 @@ class World:
             return [0.92, 0.97, 1.0, 1.04, 1.08][_name_hash(guest_name) % 5]
         return 1.0
 
+    @_locked
+    def lang_for(self, speaker: str, guest_name: str | None = None) -> str | None:
+        """Kokoro's pronunciation for a line: British for a guest cast with a British accent when
+        [tts] british_guests is on; otherwise None, the station's own."""
+        if speaker == "guest" and CONFIG.tts.british_guests and not self.presenter_named(guest_name):
+            p = self.person_by_name(guest_name)
+            if p and p.accent == "british":
+                return "b"
+        return None
+
     # ---------------------------------------------------------------- updates
 
     @_locked
@@ -376,23 +394,31 @@ class World:
         return t
 
     @_locked
-    def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None) -> Person | None:
+    def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None,
+                      age: str | None = None, accent: str | None = None) -> Person | None:
         """Return the known person, or promote a new guest to the recurring cast. None for a
         presenter: they are cast already, and a second Gordon Pell as a resident took the credit
-        for every mention of the weatherman."""
+        for every mention of the weatherman. The script's hints cast them: gender and age pick
+        the voice and its speed, the accent its pronunciation (`lang_for`). Someone already
+        cast keeps their voice; a missing age is filled in, for their look."""
         if self.presenter_named(name):
             return None
         p = self.person_by_name(name)
         if p:
             if role and role != "resident" and p.role in ("", "resident"):
                 p.role = role                       # met in a vox pop, now we know what they do
+            if age and not p.age:
+                p.age = age
             return p
         h = _name_hash(name)
         pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)
+        if gender == "m" and age == "old":
+            pool = pool + OLD_VOICES_M
+        speeds = SPEEDS.get(age or "", SPEEDS[""])
         p = Person(
             id=self._new_person_id(), name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
-            voice=pool[h % len(pool)], speed=[0.92, 0.97, 1.0, 1.04, 1.08][h % 5],
-            first_seen=self.last_date,
+            voice=pool[h % len(pool)], speed=speeds[(h >> 8) % len(speeds)],
+            first_seen=self.last_date, age=age or "", accent=accent or "",
         )
         self.people.append(p)
         log.info("new %s in the cast: %s, %s", kind, p.name, p.role)

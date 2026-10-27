@@ -21,7 +21,7 @@ def music(tmp_path, monkeypatch):
     monkeypatch.setattr(assets, "BREAKING_STING", tmp_path / "breaking_sting.wav")
     monkeypatch.setattr(assets, "MUSIC_BED", tmp_path / "music_bed.wav")
 
-    def synth(text, voice, out, speed=1.0):
+    def synth(text, voice, out, speed=1.0, lang=None):
         sf.write(out, np.full(assets.SR, 0.1, dtype=np.float32), assets.SR, subtype="PCM_16")
         return SynthResult(wav_path=out, duration_s=1.0, mouth_env=[0.5])
     monkeypatch.setattr(tts, "synthesize", synth)

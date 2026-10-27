@@ -19,11 +19,8 @@ bottom with the date.
 
 ## Content
 
-- [ ] *The Last Ferry*: perhaps a house band sting and a second, shorter guest.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
-- [ ] Schedule: whether specials (or later documentaries) get their own
-  scheduled slots rather than only after news bumpers.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
 - [ ] Documentary follow-ups: give the writers and the story desk what documentaries
   established (`world.documentaries`), a repeat of the night's documentary in the
@@ -32,10 +29,6 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] Model-written promos for the evergreen pool: a trail for tonight's documentary or a
-  finished special by title, and community notices from the town's threads. The programme card
-  ("Later on Channel 7") covers what's next without the model.
-- [ ] Guest casting: gender hint is in; consider age/accent hints and a wider voice pool.
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
   the fastest, qwen3.8-flash-next the best writer but about 15 s a script).
@@ -85,6 +78,31 @@ bottom with the date.
   `speaker_id`, per-line guest details and "female"/"male".)
 
 ## Done
+
+- 2026-10-27 *The Last Ferry*'s couch and house band. The hour order now has a shorter second guest after
+  each main guest's two parts (`Item.target_s`, 100 s, part `couch`), and the main guest stays on for it:
+  the producer tells their second part not to say goodbye (`stays_on`), and the couch script names the
+  speaker on each guest line (`CouchScript`), so the two guests talk to each other as well as to Vincent.
+  They sit side by side on the couch (`guest_near`, `guest_far`), and the close shot finds whoever is
+  talking. Seen on a scratch town: Dougal Crane came on, and Ivy Marchetti, the harbourmaster, teased him
+  about the oars he lent. The house band is a jazz trio on *Beacon* (`jingle.band`: piano, upright bass,
+  brushes, no brass), chosen by ear: `walkon` plays each new guest on, `button` comes back from a break,
+  as a silent first line (`assets.band_line`). Stems with `python -m newsroom.station_audio --band`.
+- 2026-10-27 Specials have an air time: a finished special waits for the first news bumper from the next
+  top of the hour that airs specials (`schedule.special_slot`, `work["airs_from"]`); overnight it still
+  airs after the next test card.
+- 2026-10-27 Model-written continuity (`continuity.make`, route `promo`, in healthy idle time): a trail for
+  each finished special and tonight's documentary, valid until it airs ("Tonight at ten o'clock on
+  Channel 7: a special report, Two Engines or One?", with the time and title from code and the pitch from
+  the model, or the standfirst without one), and up to four community notices a day from the open
+  stories (`[continuity]`, every 45 minutes), addressed to the public and valid until midnight.
+- 2026-10-27 Guest casting: scripts give `guest_age` (young, middle, old) and `guest_accent` (british,
+  american) beside the gender, normalised from whatever the model writes. Age sets the voice's speed and
+  the look (grey hair for the old) and lets an old man get `am_santa`; nine new Kokoro voices widen the
+  pool (af_sarah, af_nova, af_sky, af_jessica, af_river, af_alloy, am_adam, am_echo, am_santa), and
+  bf_isabella is the continuity announcer's alone. Local guests get Kokoro's British pronunciation
+  (`[tts] british_guests`, chosen by ear; a second pipeline shares the model). Guests already cast keep
+  their voices. A missing `ANTHROPIC_API_KEY` is now "unavailable" (templates) instead of a crash.
 
 - 2026-10-27 Channel 7's station sound and logo, for the first stream. An original five-note tune
   (*Beacon*: C G C E, then a held G, `jingle.py`) chosen by ear from four. Every show plays it in its own

@@ -48,15 +48,17 @@ class SynthResult:
 
 
 def _pipeline(lang_code: str):
-    """Return a cached KPipeline for the language, creating it on first use."""
+    """Return a cached KPipeline for the language, creating it on first use. A second language
+    (British pronunciation for a guest with that accent) shares the first one's model weights."""
     with _PIPE_LOCK:
         if lang_code not in _PIPELINES:
             t0 = time.perf_counter()
             import torch  # noqa: F401  (ensures CPU build is importable before kokoro)
             from kokoro import KPipeline
 
+            model = next((p.model for p in _PIPELINES.values()), True)
             _PIPELINES[lang_code] = KPipeline(
-                lang_code=lang_code, repo_id="hexgrad/Kokoro-82M", device=CONFIG.tts.device
+                lang_code=lang_code, repo_id="hexgrad/Kokoro-82M", device=CONFIG.tts.device, model=model
             )
             log.info("kokoro pipeline %r ready in %.1fs", lang_code, time.perf_counter() - t0)
         return _PIPELINES[lang_code]
@@ -72,10 +74,11 @@ def mouth_envelope(audio: np.ndarray, sr: int, window_s: float = ENV_WINDOW_S) -
     return [round(float(v / peak), 3) for v in rms]
 
 
-def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0) -> SynthResult:
-    """Render `text` with `voice` to `out_path` (24 kHz mono PCM_16)."""
+def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: str | None = None) -> SynthResult:
+    """Render `text` with `voice` to `out_path` (24 kHz mono PCM_16). `lang` is Kokoro's
+    pronunciation ("a" American, "b" British); the station's own by default."""
     sr = CONFIG.tts.sample_rate
-    pipe = _pipeline(CONFIG.tts.lang_code)
+    pipe = _pipeline(lang or CONFIG.tts.lang_code)
     t0 = time.perf_counter()
 
     chunks: list[np.ndarray] = []

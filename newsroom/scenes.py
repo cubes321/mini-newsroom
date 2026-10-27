@@ -203,7 +203,7 @@ LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a
 
 def _guest(v: View, name: str | None):
     """A guest's look from their voice and role, as the player found them; by name alone otherwise."""
-    return guest_look(name, *v.guests.get(name or "", ("", "")))
+    return guest_look(name, *v.guests.get(name or "", ("", "", "")))
 
 
 def _interview_set(v: View) -> str:
@@ -219,15 +219,23 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
         if v.show == "late":                                    # the monologue, from behind the desk
             return [(who, name, marks["host"])]
         return [(who, name, (160, 156, 2, 1))]                  # alone: centre stage, standing
+    if len(v.people) >= 3 and "guest_far" in marks:             # the late couch: two guests
+        slots = [marks["host"], marks["guest_near"], marks["guest_far"]]
+        return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:3])]
     slots = [marks["host"], marks["guest"]]
     return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:2])]
+
+
+def _speaking(v: View, who: str, name: str | None) -> bool:
+    """Is this person the one talking? With two guests on the couch, the name says which."""
+    return v.speaker == who and (who != "guest" or not v.guest_name or name == v.guest_name)
 
 
 def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, _interview_set(v))
     late = v.show == "late"
     for who, name, (x, y, scale, facing) in _interview_marks(v):
-        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing,
+        draw_character(canvas, x, y, who, v.mouth if _speaking(v, who, name) else 0.0, t, scale=scale, facing=facing,
                        look=_guest(v, name) if who == "guest" else None, light=LATE_LIGHT if late else None)
 
 
@@ -238,12 +246,12 @@ def draw_interview(canvas: pygame.Surface, v: View, t: float) -> None:
     """The interview set: a presenter and a guest, two presenters, or the talk-show host alone.
     The close shot crops round whoever is speaking, like the sofa's."""
     global _interview_buf
-    marks = {who: m for who, _, m in _interview_marks(v)}
-    if v.shot == "close" and v.speaker in marks:
+    mark = next((m for who, name, m in _interview_marks(v) if _speaking(v, who, name)), None)
+    if v.shot == "close" and mark:
         if _interview_buf is None:
             _interview_buf = pygame.Surface(CANVAS)
         _interview_wide(_interview_buf, v, t)
-        x, y = marks[v.speaker][:2]
+        x, y = mark[:2]
         crop = pygame.Rect(0, 0, 160, 90)
         crop.midbottom = (x, y + 6)
         crop.clamp_ip(_interview_buf.get_rect())

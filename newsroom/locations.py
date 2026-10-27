@@ -109,7 +109,9 @@ Mark = tuple[int, int, int, int]
 MARKS: dict[str, dict[str, Mark]] = {
     "studio_interview": {"host": (92, 150, 2, 1), "guest": (228, 150, 2, -1)},
     "studio_sofa": {"host_a": (122, 146, 2, 1), "host_b": (186, 146, 2, -1), "guest": (272, 150, 2, -1)},
-    "studio_late": {"host": (92, 136, 2, 1), "guest": (228, 150, 2, -1)},    # host just behind the desk top
+    "studio_late": {"host": (92, 136, 2, 1), "guest": (228, 150, 2, -1),    # host just behind the desk top
+                    # two on the couch: the new guest nearest the desk, the earlier one moved down
+                    "guest_near": (204, 150, 2, -1), "guest_far": (268, 150, 2, -1)},
 }
 
 BY_ID: dict[str, Location] = {loc.id: loc for loc in LOCATIONS}

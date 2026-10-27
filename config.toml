@@ -39,6 +39,7 @@ special_section = "claude_sonnet"
 story_desk = "claude_sonnet"      # plans how threads develop, seeds new ones
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
+promo = "claude_haiku"            # continuity: trails for specials, community notices
 
 # Special reports (documentary v0). The editor runs on the worker thread when
 # it is idle; a commissioned special is a low-priority job that plays at the
@@ -85,6 +86,10 @@ scene_window_s = 2700    # Miles reports from the scene in the first field repor
 pool_size = 40
 make_every_s = 1800
 max_in_a_row = 3         # then the filler card and the weather replay
+
+[continuity]
+notice_every_s = 2700    # a community notice from the day's open stories, in idle time
+notices_per_day = 4
 
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, Moonshot, ...). api_key_env names the env var holding the
@@ -158,6 +163,7 @@ backend = "kokoro"
 lang_code = "a"          # Kokoro: "a" American, "b" British
 sample_rate = 24000
 device = "cpu"
+british_guests = true   # guests cast as locals get Kokoro's British pronunciation (chosen by ear 2026-10-27)
 
 [tts.voices]
 anchor = "af_heart"

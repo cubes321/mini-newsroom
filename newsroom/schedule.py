@@ -38,8 +38,9 @@ RGB = tuple[int, int, int]
 class Item:
     """One entry in a running order when a bare segment type isn't enough."""
     type: T
-    part: str = ""                   # "open" | "cont" | "close" (writers.py)
+    part: str = ""                   # "open" | "cont" | "couch" | "close" (writers.py)
     brief: str = ""                  # the angle for this item, given to the writer
+    target_s: float = 0.0            # its own length; 0 = the show's target for the type
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,10 @@ class Show:
     def cast_for(self, seg_type: T) -> tuple[str, ...]:
         return self.cast_by_type.get(seg_type, self.cast)
 
+    def target_for(self, entry: T | Item) -> float:
+        item = as_item(entry)
+        return item.target_s or self.target_s[item.type]
+
     def item(self, pos: int) -> Item:
         """The pattern entry at `pos`, counting on past the end through the wrap."""
         n = len(self.pattern)
@@ -79,7 +84,7 @@ class Show:
 
     @property
     def closing_s(self) -> float:
-        return sum(self.target_s[as_item(e).type] for e in self.closing)
+        return sum(self.target_for(e) for e in self.closing)
 
 
 def as_item(entry: T | Item) -> Item:
@@ -87,6 +92,11 @@ def as_item(entry: T | Item) -> Item:
 
 
 I = Item
+
+# The Last Ferry's shorter second guest: one part, no break, with the main guest still on the couch.
+SHORT_GUEST_S = 100.0
+_SHORT = ("a SHORTER SECOND GUEST, one part with no break: a quick hello, one good story and a laugh, "
+          "then Vincent thanks them; ")
 
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
@@ -212,22 +222,27 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "late", "THE LAST FERRY", "LATE", (90, 50, 130),
-        # One monologue an hour; each guest stays for two parts either side of a break.
+        # One monologue an hour. The main guest stays for two parts either side of a break; a
+        # shorter second guest follows for one part, as on the talk shows it is modelled on.
         pattern=(
             T.bumper, I(T.monologue, "open"),
             I(T.interview, brief="a public figure, more candid than usual"), T.ad_break, I(T.interview, "cont"),
+            I(T.interview, "couch", brief=_SHORT + "a local character with one story everyone in town has heard a version of",
+              target_s=SHORT_GUEST_S),
             I(T.vox_pop, brief="night owls: Miles asks people out late (the taxi rank, the chip shop, the last ferry)"),
-            I(T.interview, brief="a local character with a life story"), T.ad_break, I(T.interview, "cont"),
             # the order wraps back to here
             I(T.links, brief="a letter from a viewer, read out and answered"),
             I(T.interview, brief="someone who works nights: a nurse, a baker, a ferry hand"), T.ad_break,
             I(T.interview, "cont"),
+            I(T.interview, "couch", brief=_SHORT + "a performer, a musician or a comedian on before a gig in town",
+              target_s=SHORT_GUEST_S),
             I(T.vox_pop, brief="Miles at the harbour or on the last ferry, asking one late-night question"),
-            I(T.interview, brief="someone with a story from the town's past"), T.ad_break, I(T.interview, "cont"),
             I(T.links, brief="tomorrow's papers, or what's on in town tomorrow"),
-            I(T.interview, brief="a performer, a musician or an artist"), T.ad_break, I(T.interview, "cont"),
+            I(T.interview, brief="someone with a story from the town's past"), T.ad_break, I(T.interview, "cont"),
+            I(T.interview, "couch", brief=_SHORT + "someone who has just done something: a win, a rescue, a first, a daft record",
+              target_s=SHORT_GUEST_S),
         ),
-        loop_from=9,
+        loop_from=7,
         closing=(I(T.links, "close"),),
         target_s={T.bumper: 8.0, T.monologue: 60.0, T.interview: 180.0, T.vox_pop: 60.0, T.links: 40.0,
                   T.ad_break: 60.0},
@@ -289,6 +304,16 @@ def show_end(ts: float) -> float:
     return top + 24 * 3600
 
 
+def special_slot(ts: float) -> float:
+    """When a special finished at `ts` airs: after the first news bumper from the next top of the
+    hour, so a trail can give the time. Overnight at once, after the test card: nobody to trail to."""
+    if show_at(ts).id == "overnight":
+        return ts
+    lt = time.localtime(ts)
+    top = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, lt.tm_hour, 0, 0, 0, 0, -1))
+    return next((top + k * 3600 for k in range(1, 25) if show_at(top + k * 3600).airs_specials), ts)
+
+
 def part_of_day(ts: float) -> str:
     """The word presenters use for the time: 'morning', 'afternoon', 'evening' or 'night'."""
     hour = time.localtime(ts).tm_hour
@@ -334,7 +359,7 @@ def _cli() -> int:
     for start, slot in SCHEDULE:
         s = SHOWS[STAND_INS.get(slot, slot)]
         items = [as_item(e) for e in s.pattern]
-        total = sum(s.target_s.get(i.type, 0.0) for i in items)
+        total = sum(s.target_for(i) for i in items)
         name = slot if slot == s.id else f"{slot} (not built; {s.id} stands in)"
         order = " ".join(i.type.value + (f"({i.part})" if i.part else "") for i in items)
         shape = (f"order ~{total / 60:.0f} min, wraps to item {s.loop_from}, closing ~{s.closing_s:.0f}s"

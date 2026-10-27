@@ -140,7 +140,8 @@ def voice_line(line: Line, i: int, world: World, h: str) -> None:
     """Synthesize one line to `<hash>_<i>.wav`; fill its duration and mouth envelope."""
     out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
     res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out,
-                         speed=world.speed_for(line.speaker, line.guest_name))
+                         speed=world.speed_for(line.speaker, line.guest_name),
+                         lang=world.lang_for(line.speaker, line.guest_name))
     line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
 
 
@@ -208,6 +209,10 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     voice_segment(seg, world, h)
     if buffer:
         buffer.mark(seg, SegmentState.voiced)
+    if seg.show == "late" and seg.type is SegmentType.interview:
+        from .assets import band_line
+
+        seg.lines.insert(0, band_line("button" if seg.part == "cont" else "walkon"))
 
     seg.state = SegmentState.ready
     _save_cached(seg, h)
@@ -295,9 +300,11 @@ class WorkerPool:
 
     def _first_part_pending(self, seg: Segment) -> bool:
         """A guest's second part carries on from the first (writers.py), so it waits while the
-        first part is still unwritten. A failed or forgotten first part doesn't hold it up."""
+        first part is still unwritten; so does the late couch, for the guest who stays on. A
+        failed or forgotten first part doesn't hold it up."""
         first = seg.work.get("first_part")
-        return seg.part == "cont" and first is not None and self.buffer.state_of(first) is SegmentState.planned
+        return (seg.part in ("cont", "couch") and first is not None
+                and self.buffer.state_of(first) is SegmentState.planned)
 
     def _failed(self, seg: Segment, e: Exception) -> None:
         if seg.type is SegmentType.documentary and seg.work.get("retries", 0) < SPECIAL_RETRIES:
@@ -317,7 +324,8 @@ class WorkerPool:
         """Background work. The hand-written adverts are voiced first, whatever the buffer
         (they are what covers a gap). Then, only when the live buffer is comfortably full:
         the story desk plans developments (and now and then breaks a story itself), the day's
-        documentary is commissioned, the model writes a new advert now and then, and the
+        documentary is commissioned, finished pieces get a trail and the day's stories a
+        community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
         from . import adverts, breaking, continuity, desk, documentary, special
 
@@ -343,6 +351,9 @@ class WorkerPool:
                 world_mod.save(self.world)
                 if d is not None:
                     self.buffer.submit_special(documentary.commission(self.world, d))
+                return
+            if continuity.should_make(self.world, self.buffer):
+                continuity.make(self.world, self.buffer)   # a trail for a finished piece, or a community notice
                 return
             if adverts.should_make():
                 adverts.make(self.world)
