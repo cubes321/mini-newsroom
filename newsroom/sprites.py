@@ -47,9 +47,9 @@ class Look:
     tie: RGB | None = None
     facial: str = ""               # stubble beard moustache
     glasses: str = ""              # on up shades
-    hat: str = ""                  # cap beanie flatcap
+    hat: str = ""                  # cap beanie flatcap peaked
     hat_col: RGB = (40, 50, 80)
-    extra: str = ""                # lanyard pen chain collar earrings stripe
+    extra: str = ""                # lanyard pen chain collar earrings stripe apron hivis tape scarf soot
     extra_col: RGB = GOLD
     mouth: str = "line"            # line smile smirk
     brows: str = ""                # raised
@@ -109,7 +109,34 @@ TOPS = [(70, 90, 80), (110, 70, 90), (160, 130, 60), (50, 70, 120), (120, 120, 1
 UNDERS = [(240, 240, 236), (235, 225, 210), (200, 210, 230), (250, 240, 200), (220, 200, 210)]
 
 # Role words that dress a guest: (words, look changes). The first rule that matches wins.
+LEATHER, CANVAS, DENIM = (120, 78, 46), (150, 136, 104), (60, 86, 130)
 COSTUMES: list[tuple[tuple[str, ...], dict]] = [
+    # trades and shops, from the town's own roles (2026-10-27): ahead of the broader words below
+    (("cobbler", "saddler", "leather", "bookbinder", "blacksmith", "smith", "farrier", "cooper"),
+     dict(top_style="tshirt", top=(220, 214, 196), extra="apron", extra_col=LEATHER)),
+    (("chip", "chippy", "fishmonger", "butcher", "greengrocer", "grocer"),
+     dict(top_style="tshirt", top=(70, 110, 150), extra="apron", extra_col=(236, 236, 230))),
+    (("coffee", "barista", "tea room", "tearoom"),
+     dict(top_style="tshirt", top=(40, 40, 46), extra="apron", extra_col=(110, 70, 40))),
+    (("printer", "print", "stationer", "newsagent"),
+     dict(top_style="tshirt", top=(200, 200, 205), extra="apron", extra_col=(60, 64, 72))),
+    (("hardware", "ironmonger", "tool", "ladder", "crockery", "kettle", "shopkeeper", "proprietor"),
+     dict(top_style="jumper", top=(120, 40, 40), extra="apron", extra_col=CANVAS)),
+    (("mechanic", "garage", "bicycle", "bike", "plumber"),
+     dict(top_style="tshirt", top=(200, 200, 205), extra="apron", extra_col=DENIM)),
+    (("electrician", "roofer", "builder", "scaffold", "labourer", "joiner", "carpenter", "roadworks", "engineer"),
+     dict(top_style="jacket", top=(60, 64, 72), extra="hivis", extra_col=(226, 232, 44))),
+    (("tailor", "seamstress", "dressmaker", "alterations", "upholsterer"),
+     dict(top_style="cardigan", extra="tape", extra_col=(236, 200, 40))),
+    (("fc", "football", "footballer", "striker", "goalkeeper", "supporter", "rugby", "cricket"),
+     dict(top_style="jacket", top=(30, 50, 100), extra="scarf", extra_col=(60, 150, 210))),
+    (("taxi", "cab", "driver", "chauffeur", "ticket", "conductor", "postmistress", "postmaster", "postman",
+      "postwoman", "post office"),
+     dict(top_style="uniform", top=(30, 40, 70), under=(220, 220, 225), hat="peaked", hat_col=(30, 40, 70))),
+    (("sweep",), dict(top_style="jacket", top=(36, 36, 40), under=(36, 36, 40), hat="flatcap",
+                      hat_col=(30, 30, 34), extra="soot", extra_col=(70, 70, 74))),
+    (("clockmaker", "watchmaker", "jeweller", "horologist", "antique"),
+     dict(top_style="suit", top=(110, 90, 66), tweed=True, glasses="up")),
     (("fire",), dict(top_style="uniform", top=(30, 34, 50), under=(30, 34, 50), extra="stripe",
                      extra_col=(230, 200, 40))),
     (("police", "constable", "inspector", "sergeant", "detective"),
@@ -127,7 +154,7 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
      dict(top_style="jacket", top=(84, 100, 60), hat="flatcap", hat_col=(110, 96, 70))),
     (("doctor", "nurse", "gp", "surgery", "paramedic", "vet"),
      dict(top_style="tshirt", top=(70, 140, 150), under=(70, 140, 150))),
-    (("councillor", "mp", "minister", "solicitor", "director", "manager", "chief", "chair", "officer",
+    (("councillor", "mp", "parliament", "minister", "solicitor", "director", "manager", "chief", "chair", "officer",
       "clerk", "estate agent", "developer", "businessman", "businesswoman"),
      dict(top_style="suit")),
     (("teacher", "head", "librarian", "historian", "society", "archivist", "professor", "author"),
@@ -285,6 +312,27 @@ def _body(p: _Pen, L: Look) -> None:
         p(L.extra_col, -1, 26, 2, 2)
     elif L.extra == "collar":
         p(WHITE, -1, 17, 2, 2)
+    elif L.extra == "apron":                                  # a bib apron: straps over the shoulders
+        a = L.extra_col
+        p(a, -5, 17, 1, 5); p(a, 4, 17, 1, 5)
+        p.rows(a, [(r, -6, 5) for r in range(22, 37)])
+        p(_dark(a, 0.75), -6, 22, 12, 1); p(_dark(a, 0.8), -3, 30, 6, 1)   # the bib's top, a pocket
+    elif L.extra == "hivis":                                  # a high-visibility vest, open at the front
+        v, band = L.extra_col, (225, 225, 225)
+        p.rows(v, [(r, -12, -4) for r in range(19, 37)] + [(r, 3, 11) for r in range(19, 37)])
+        for r in (27, 31):
+            p(band, -12, r, 9, 1); p(band, 3, r, 9, 1)
+    elif L.extra == "tape":                                   # a tape measure round the neck
+        for x in (-5, 4):
+            p(L.extra_col, x, 17, 1, 17)
+            for r in range(18, 34, 2):
+                p(_dark(L.extra_col, 0.6), x, r)
+    elif L.extra == "scarf":                                  # a club scarf in stripes, one end hanging
+        stripes = (L.extra_col, WHITE)
+        for r in range(16, 19):
+            p(stripes[r % 2], -5, r, 10, 1)
+        for r in range(19, 31):
+            p(stripes[(r // 2) % 2], 2, r, 3, 1)
 
 
 def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
@@ -298,6 +346,9 @@ def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
     p(_dark(skin, 0.8), -8, 7, 1, 2)
     if L.extra == "earrings":
         p(L.extra_col, -8, 10)
+    if L.extra == "soot":                                     # the chimney sweep's smudges
+        for d, r in ((2, 9), (3, 10), (-4, 11), (-5, 10)):
+            p(L.extra_col, d, r)
     if L.freckles:
         for d, r in ((-3, 9), (-1, 10), (4, 9), (5, 10)):
             p(_dark(skin, 0.85), d, r)
@@ -392,6 +443,11 @@ def _hair_front(p: _Pen, L: Look) -> None:
     elif L.hat == "flatcap":
         p.rows(L.hat_col, [(-1, -7, 6), (0, -8, 8), (1, -8, 9)])
         p(_dark(L.hat_col, 0.7), 3, 2, 7, 1)
+    elif L.hat == "peaked":                                   # a uniform cap: flat crown, band, badge, peak
+        p.rows(L.hat_col, [(-3, -7, 6), (-2, -8, 7), (-1, -7, 6), (0, -7, 6)])
+        p((20, 20, 24), -7, 1, 14, 1)
+        p(GOLD, -1, -1, 2, 1)
+        p((20, 20, 24), 1, 2, 9, 1)
 
 
 def _beat(who: str, look: Look | None) -> float:
@@ -435,6 +491,14 @@ SAMPLE_GUESTS = [
     ("Jade Okoro", "bf_isabella", "Student"), ("Dev Sharma", "am_puck", "Farmer"),
     ("Lola Vance", "af_bella", "Singer"), ("Priya Nair", "bf_emma", "GP"), ("Gary Bright", "bm_daniel", "resident"),
     ("Moira Teague", "af_aoede", "resident"),
+    ("Arthur Penhale", "am_adam", "cobbler, Harrow Street"), ("Nuala Brennan", "af_sarah", "owner, Gull's Rest Fish & Chips"),
+    ("Kit Anand", "af_river", "coffee stall owner"), ("Ross Daly", "bm_lewis", "printer, Saltmarsh Print & Copy"),
+    ("Jasper Fowle", "am_echo", "owner, Fowle & Sons Hardware"), ("Sam Okafor", "am_adam", "bicycle mechanic"),
+    ("Dougal Crane", "bm_daniel", "roofer, Port Wexley"), ("Rhiannon Lusk", "af_jessica", "electrician"),
+    ("Edie Marsh", "af_nova", "seamstress, Main Street"), ("Gil Tarrant", "am_echo", "Secretary, Wexley Gulls FC"),
+    ("Kenji Okonkwo", "am_adam", "taxi driver, Okonkwo's Taxis"), ("Wyn Prosser", "af_sky", "Saltby postmistress"),
+    ("Albert Soames", "am_santa", "chimney sweep"), ("Hector Vane", "bm_fable", "clockmaker, Wexley Town Hall"),
+    ("Fern Odell", "af_alloy", "ticket collector"), ("Sir Giles Wren", "bm_lewis", "Member of Parliament"),
 ]
 
 

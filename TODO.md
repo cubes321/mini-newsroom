@@ -5,17 +5,16 @@ bottom with the date.
 
 ## Art
 
-- [ ] Re-fit positions set for the placeholders to the art: the lighthouse
-  beam origin, the `WATER` shimmer rectangles (the slipway's top strip), and
-  the crane and drill tower behind the clock box.
-- [ ] Studio sets still to come: a sports corner.
 - [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start); perhaps a new breaking sting (still the brass version, in
   minor; the user kept it for now).
-- [ ] Optional parallax: two layers per backdrop.
-- [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the
-  first match on a role word wins), and perhaps gesture states for presenters.
+- [ ] Optional parallax: two layers per backdrop. A big job: every backdrop is one flat picture, so
+  each (24 days, 14 nights, the studio sets) needs a far layer redrawn without the foreground in
+  ComfyUI and approved by eye, and it only shows when the camera moves, which no shot does yet.
+- [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
+  wins; on 2026-10-27 every role in the town had one but the sea-glass collector), and perhaps gesture
+  states for presenters.
 
 ## Content
 
@@ -94,6 +93,21 @@ bottom with the date.
   `speaker_id`, per-line guest details and "female"/"male".)
 
 ## Done
+
+- 2026-10-27 Art fits: the water shimmer only touches the art's own water pixels inside the `WATER`
+  rects (`backdrops._water_mask`, from the day picture), so it keeps off the loading dock's containers,
+  the slipway's ramp and boat, and the cannery's quay; the slipway and estuary rects now take in all
+  their water (the slipway's channel, the estuary's pool). The fire station's drill tower is one window
+  bay shorter in its day and night art, so it clears the clock box. The lighthouse beam already started
+  at the lamp. Costumes for the town's trades (`sprites.COSTUMES`, approved on a contact sheet): bib
+  aprons in a trade's colours (leather, chip-shop white, coffee, ink, canvas, mechanic's denim), hi-vis
+  vests, a tailor's tape measure, a club scarf, a peaked cap for taxis, tickets and the post office,
+  the sweep's soot, the clockmaker's loupe; the MP gets the suit.
+- 2026-10-27 The loading dock redrawn in ComfyUI (Qwen ref-latent, day seed 101, night seed 404, chosen
+  on a before/after sheet) with the whole crane in the picture, its top at y 22, clear of the clock.
+- 2026-10-27 The sports corner set, `studio_sports` (Qwen seed 202, picked from four): a small sports desk
+  the presenter stands behind (host mark (92, 144)), a swivel chair for a guest (228, 150), the stadium on
+  the big screen, a results board, the trophy cabinet and scarves. No show uses it yet (see Sport).
 
 - 2026-10-27 *The Last Ferry*'s couch and house band. The hour order now has a shorter second guest after
   each main guest's two parts (`Item.target_s`, 100 s, part `couch`), and the main guest stays on for it:

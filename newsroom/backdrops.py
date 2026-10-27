@@ -43,18 +43,19 @@ GLASS = (60, 75, 95)
 LIT = (255, 214, 130)
 WATER_C, WATER_HI = (55, 95, 135), (80, 125, 165)
 
-# Where water is visible, for the shimmer overlay. Art for these ids should
-# keep its water in the same places.
+# Where to look for water, for the shimmer overlay. The shimmer only touches the art's own
+# water pixels inside these (`_water_mask`), so they can be generous; keep them below the sky,
+# which is blue too.
 WATER: dict[str, list[tuple[int, int, int, int]]] = {
     "harbour": [(140, 110, 180, 70)],
     "cannery": [(200, 124, 120, 56)],
-    "slipway": [(120, 106, 200, 10), (250, 116, 70, 64)],
+    "slipway": [(100, 106, 220, 74)],
     "loading_dock": [(0, 100, W, 12)],
     "lighthouse": [(0, 100, 175, 16)],
     "lifeboat_station": [(0, 104, 190, 12), (270, 104, 50, 8)],
     "seafront": [(0, 84, W, 22)],
     "coast_road": [(190, 72, 130, 108)],
-    "estuary": [(0, 106, W, 20)],
+    "estuary": [(0, 106, W, 20), (170, 145, 150, 30)],
 }
 LIGHTHOUSE_LAMP = (251, 21)
 
@@ -800,6 +801,61 @@ def _studio_late(p: _Paint) -> None:
     p.poly((245, 205, 130), [(153, 112), (169, 112), (165, 102), (157, 102)])
 
 
+TIDES = ((40, 110, 190), (240, 240, 235))                       # Tidewater Town: sea blue and white
+
+
+@_painter("studio_sports")
+def _studio_sports(p: _Paint) -> None:
+    """The sports corner of the main studio: the stadium on the big screen, a blank results board
+    the scenes can fill, the trophy cabinet and the scarves."""
+    p.rect(p.loc.sky, 0, 0, W, H)
+    for x in range(0, W, 32):
+        p.rect((42, 50, 80), x, 0, 1, 128)
+    for x in range(30, W, 60):                                   # ceiling spots
+        p.rect((90, 90, 100), x, 0, 6, 4)
+    p.rect(p.loc.ground, 0, 128, W, H - 128)
+    p.rect((80, 68, 64), 0, 128, W, 2)
+    p.rect((18, 18, 24), 84, 12, 116, 60)                        # big screen: the stadium
+    p.s.blit(picture("stadium", "day", None, (108, 52)), (88, 16))
+    p.rect((18, 18, 24), 206, 12, 64, 60)                        # results board, rows left blank
+    p.rect((24, 34, 70), 210, 16, 56, 52)
+    for i in range(6):
+        y = 19 + i * 8
+        p.rect(TIDES[0] if i % 2 == 0 else (190, 40, 40), 213, y, 5, 5)
+        p.rect((70, 84, 120), 220, y, 30, 5)
+        p.rect((230, 230, 230), 253, y, 4, 5)
+        p.rect((230, 230, 230), 259, y, 4, 5)
+    wood = (110, 75, 50)                                         # trophy cabinet, clear of the presenter
+    p.rect(wood, 8, 28, 50, 100)
+    p.rect((50, 64, 90), 12, 32, 42, 92)
+    for y in (54, 80, 106):
+        p.rect((170, 200, 215), 12, y, 42, 2)
+    gold, silver = (220, 180, 60), (200, 205, 215)
+    for x, y, c in ((18, 54, gold), (36, 54, silver), (16, 80, silver), (34, 80, gold), (24, 106, gold), (42, 106, silver)):
+        p.poly(c, [(x, y - 14), (x + 10, y - 14), (x + 7, y - 7), (x + 3, y - 7)])
+        p.rect(c, x + 4, y - 7, 2, 4)
+        p.rect(_shade(c, 0.7), x + 2, y - 3, 6, 3)
+    p.rect((150, 150, 160), 276, 24, 40, 2)                      # scarves on a rail
+    for i, (a, b) in enumerate((TIDES, ((190, 40, 40), (30, 30, 30)), (TIDES[0], (240, 200, 60)))):
+        x = 279 + i * 12
+        for y in range(26, 106, 6):
+            p.rect(a if (y // 6) % 2 == 0 else b, x, y, 8, 6)
+        for fx in range(x, x + 8, 2):
+            p.rect(b, fx, 106, 1, 4)
+    host, guest = MARKS["studio_sports"]["host"], MARKS["studio_sports"]["guest"]
+    top = host[1] - 4                                            # desk top just above the baseline: they stand behind it
+    p.rect((210, 210, 215), host[0] - 40, top, 80, 4)
+    p.rect((40, 46, 70), host[0] - 36, top + 4, 72, 30)
+    p.rect(TIDES[0], host[0] - 36, top + 10, 72, 3)
+    p.rect((200, 40, 40), host[0] - 36, top + 14, 72, 2)
+    blue = TIDES[0]                                              # the guest's swivel chair
+    p.ellipse(_shade(blue, 0.8), guest[0] - 24, guest[1] - 52, 48, 14)
+    p.rect(_shade(blue, 0.8), guest[0] - 24, guest[1] - 46, 48, 44)
+    p.rect(blue, guest[0] - 30, guest[1] - 2, 60, 6)
+    p.rect((150, 150, 160), guest[0] - 2, guest[1] + 4, 4, 14)
+    p.ellipse((110, 110, 120), guest[0] - 16, guest[1] + 16, 32, 6)
+
+
 def _generic(p: _Paint) -> None:
     """Any location without its own painter: the original blocks."""
     _ground(p)
@@ -1026,16 +1082,44 @@ def _fog_layer() -> pygame.Surface:
     return _fog
 
 
-def _shimmer(canvas: pygame.Surface, rects, tod: str, t: float) -> None:
+_water_masks: dict[str, pygame.Surface] = {}
+_shimmer_buf: pygame.Surface | None = None
+
+
+def _water_mask(loc_id: str) -> pygame.Surface:
+    """Where the art itself shows water inside the WATER rects, as an alpha mask: the shimmer
+    keeps off the quays, ramps, boats and containers the art draws there. Taken once from the
+    day picture; the night art lines up with it."""
+    m = _water_masks.get(loc_id)
+    if m is None:
+        rgb = pygame.surfarray.array3d(surface(loc_id, "day", None)).astype(np.int16)
+        water = (rgb[..., 2] > rgb[..., 0] + 25) & (rgb[..., 2] >= rgb[..., 1])
+        inside = np.zeros((W, H), bool)
+        for x0, y0, w, h in WATER[loc_id]:
+            inside[x0:x0 + w, y0:y0 + h] = True
+        m = pygame.Surface((W, H), pygame.SRCALPHA)
+        m.fill((255, 255, 255, 255))
+        pygame.surfarray.pixels_alpha(m)[:] = np.where(water & inside, 255, 0).astype(np.uint8)
+        _water_masks[loc_id] = m
+    return m
+
+
+def _shimmer(canvas: pygame.Surface, loc_id: str, tod: str, t: float) -> None:
+    global _shimmer_buf
+    if _shimmer_buf is None:
+        _shimmer_buf = pygame.Surface((W, H), pygame.SRCALPHA)
     c = {"day": (160, 195, 225), "dusk": (230, 170, 140), "night": (70, 85, 125)}[tod]
-    clip = canvas.get_clip()
-    for x0, y0, w, h in rects:
-        canvas.set_clip(pygame.Rect(x0, y0, w, h))
+    buf = _shimmer_buf
+    buf.fill((0, 0, 0, 0))
+    for x0, y0, w, h in WATER[loc_id]:
+        buf.set_clip(pygame.Rect(x0, y0, w, h))
         for i in range(max(3, w * h // 700)):
             x = x0 + (i * 41 + int(t * 10)) % (w + 24) - 24
             y = y0 + 2 + (i * 17) % max(1, h - 3)
-            canvas.fill(c, (x, y, 8 + (i % 3) * 5, 1))
-    canvas.set_clip(clip)
+            buf.fill(c, (x, y, 8 + (i % 3) * 5, 1))
+    buf.set_clip(None)
+    buf.blit(_water_mask(loc_id), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    canvas.blit(buf, (0, 0))
 
 
 def _beam(canvas: pygame.Surface, t: float) -> None:
@@ -1085,7 +1169,7 @@ def draw(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: 
     if not loc.exterior:
         return
     if loc.id in WATER:
-        _shimmer(canvas, WATER[loc.id], tod, t)
+        _shimmer(canvas, loc.id, tod, t)
     if loc.id == "lighthouse" and tod != "day":
         _beam(canvas, t)
     _weather_fx(canvas, wx, tod, t)
