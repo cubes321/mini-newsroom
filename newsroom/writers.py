@@ -138,6 +138,19 @@ Choose a backdrop id from the LOCATIONS list for the picture. Separately, locati
 place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
 """,
+    SegmentType.interview: _COMMON_RULES + _GUEST_RULES + """
+This is the GUEST ON THE SOFA: the sort of guest a breakfast show books, as THIS ITEM says. One
+guest in the armchair; "host_a" leads the chat and "host_b" chips in. Keep it light: an uplifting
+story, a funny guest who gets the hosts laughing, or someone here to plug something (a book, a
+film, a television series, a gig or a show in town), who names it and says when and where. A
+visitor from outside the town is fine for a plug; the guest and their work are invented, never a
+real title or a real name. It comes mid-programme: the first line introduces the guest by name
+(no good morning to the town, no date, no hosts introducing themselves; it is television, so
+viewers, never listeners), then four to six easy exchanges with one funny or
+touching moment, and a plug or a thank-you to close. Not hard news: thread_id is null unless a
+lighter open thread genuinely fits.
+headline = the guest and their story in under 12 words. lower_third = a short caption.
+""",
 }
 
 
@@ -277,11 +290,18 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
         return ""
     heads = "\n".join(f"  - {e['headline']}" for e in aired[-SOFA_MEMORY:])
     if part == "close":
-        return f"ON THE SOFA THIS MORNING (for the nod to what was on):\n{heads}"
+        guests = _guests_so_far(world, show)
+        return f"ON THE SOFA THIS MORNING (for the nod to what was on):\n{heads}" + (
+            f"\nAND IN THE ARMCHAIR:\n{guests}" if guests else "")
     same = [e for e in aired if brief and e.get("brief") == brief][-SOFA_SAME_ANGLE:]
     same_s = ("\nEARLIER CHATS ON THIS ITEM'S ANGLE, how they began (find something else):\n"
               + "\n".join(f"  - {e['headline']}: {e['text']}" for e in same)) if same else ""
     return _SOFA_SO_FAR.format(heads=heads, same=same_s)
+
+
+def _guests_so_far(world: World, show: schedule.Show) -> str:
+    """This morning's guests in the armchair, one headline each."""
+    return "\n".join(f"  - {e['headline']}" for e in world.aired_today(SegmentType.interview.value, show.id))
 
 
 def _part(show: schedule.Show) -> str:
@@ -328,6 +348,10 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
     if so_far:
         user += "\n\n" + so_far
+    guests = _guests_so_far(world, show) if seg_type is SegmentType.interview and show.id == "breakfast" else ""
+    if guests:
+        user += ("\n\nIN THE ARMCHAIR ALREADY THIS MORNING (book a different sort of person, and give anything "
+                 f"they plug a title unlike these):\n{guests}")
     if cont:
         user += "\n\n" + _CONT.format(**cont)
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):

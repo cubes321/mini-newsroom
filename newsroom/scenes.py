@@ -234,22 +234,34 @@ SOFA_INSET = pygame.Rect(214, 22, 98, 58)       # the handover box, top right, c
 _sofa_buf: pygame.Surface | None = None
 
 
+def _sofa_marks(v: View) -> dict[str, tuple[tuple[int, int, int, int], str | None]]:
+    """who -> (mark, guest name): the two hosts, and a guest in the armchair when there is one
+    (a presenter booked as a guest sits there as themselves)."""
+    marks = {who: (SOFA[who], None) for who in ("host_a", "host_b")}
+    for who, name in v.people:
+        if who not in marks:
+            marks[who] = (SOFA["guest"], name)
+            break
+    return marks
+
+
 def _sofa_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, "studio_sofa")
-    for who in ("host_a", "host_b"):
-        x, y, scale, facing = SOFA[who]
-        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing)
+    for who, ((x, y, scale, facing), name) in _sofa_marks(v).items():
+        draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing,
+                       look=_guest(v, name) if who == "guest" else None)
 
 
 def draw_sofa(canvas: pygame.Surface, v: View, t: float) -> None:
     """Morning Tide on the breakfast sofa: two-shot, a close-up on whoever is talking,
     and a box with the location in it while they hand over to a field report."""
     global _sofa_buf
-    if v.shot == "close" and v.speaker in SOFA:
+    marks = _sofa_marks(v)
+    if v.shot == "close" and v.speaker in marks:
         if _sofa_buf is None:
             _sofa_buf = pygame.Surface(CANVAS)
         _sofa_wide(_sofa_buf, v, t)
-        x, y = SOFA[v.speaker][:2]
+        x, y = marks[v.speaker][0][:2]
         crop = pygame.Rect(0, 0, 160, 90)
         crop.midbottom = (x, y + 6)            # head room above, the sofa cushion below
         crop.clamp_ip(_sofa_buf.get_rect())

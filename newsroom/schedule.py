@@ -108,8 +108,10 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
         "breakfast", "MORNING TIDE", "MORNING", (230, 140, 40),
         # Headlines, sofa, weather and a report, round and round for three hours; the briefs
-        # below give every sofa chat and report its own angle.
+        # below give every sofa chat, report and guest its own angle. The loop is two laps,
+        # with a guest in the armchair on the first: one about every seventeen minutes.
         pattern=(T.bumper, I(T.bulletin, "open"), T.sofa, T.weather, T.field_report, T.sofa, T.ad_break,
+                 T.bulletin, T.sofa, T.weather, T.field_report, T.sofa, T.interview, T.ad_break,
                  T.bulletin, T.sofa, T.weather, T.field_report, T.sofa, T.sofa, T.ad_break),
         loop_from=7,
         closing=(I(T.sofa, "close"),),
@@ -136,13 +138,24 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "a follow-up on an open story, from where it is happening",
                 "the harbour at first light",
             ),
+            T.interview: (
+                "an author with a new book out: what it's about, and a story from writing it",
+                "someone with an inspiring story: a rescue, a comeback, an ambition finally achieved",
+                "a funny guest: a comedian before a gig in town, or a resident with a gloriously silly hobby",
+                "an actor promoting a new film or television series, ideally shot or set on this coast",
+                "a charity challenge or a record attempt, and how viewers can back it",
+                "a musician or a band before a gig in town, or the leader of a local choir",
+                "a chef, a baker or a cookery writer with a dish for the season",
+                "someone who has done something kind: a volunteer, a neighbour, a long career of helping",
+                "a sportsperson after a win, or a coach whose team is on a run",
+            ),
         },
         target_s={T.bumper: 8.0, T.bulletin: 60.0, T.sofa: 75.0, T.weather: 45.0, T.field_report: 75.0,
-                  T.ad_break: 60.0},
+                  T.ad_break: 60.0, T.interview: 150.0},
         cast=("host_a", "host_b", "weather", "reporter"), lead="host_a",
         station="Morning Tide, Port Wexley's breakfast show on channel 7",
         tone="light, warm and chatty, early-morning company; still local and specific",
-        cast_by_type={T.sofa: ("host_a", "host_b")},
+        cast_by_type={T.sofa: ("host_a", "host_b"), T.interview: ("host_a", "host_b", "guest")},
         light=True,
         repeats_overnight=False,     # "good morning" from the sofa doesn't belong at three a.m.
     ),
