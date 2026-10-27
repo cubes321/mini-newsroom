@@ -44,7 +44,7 @@ advert = "claude_haiku"           # local adverts, written in idle time
 # it is idle; a commissioned special is a low-priority job that plays at the
 # next break (a news bumper, or the overnight test card) once it is ready.
 [special]
-check_every_s = 900      # how often the editor looks at the open threads
+check_every_s = 1800     # how often the editor looks at the open threads (every 15 min it said no 38 times a night)
 cooldown_s = 3600        # minimum gap between specials
 target_s = 300           # length of a special
 min_mentions = 2         # a thread needs this much coverage to be considered
@@ -139,7 +139,7 @@ timeout_s = 60
 extra_body = { thinking = { type = "disabled" } }
 # The town, presenters and public figures at the top of every briefing, with the system prompt and
 # schema, are cached for an hour: a read costs a tenth, the first write twice, and every read
-# restarts the hour, so even the editor (every 15 min) and the desk (30 min) stay cached.
+# restarts the hour, so even the editor and the desk (every 30 min) stay cached.
 cache_ttl = "1h"
 
 [llm.providers.claude_sonnet]      # story desk, editor, specials: thinking on, 7 s for a desk plan
