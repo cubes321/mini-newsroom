@@ -17,6 +17,9 @@ from .player import View
 from .sprites import draw_character, draw_mic, guest_look
 
 CANVAS = (320, 180)
+LOWER_THIRD_Y = 128                             # the banner's top edge; it runs the width of the frame
+FAR_Y = LOWER_THIRD_Y + 12                      # a small figure further back in a two-shot: head and
+                                                # shoulders stand clear of the banner, the rest behind it
 
 BARS = [(192, 192, 192), (192, 192, 0), (0, 192, 192), (0, 192, 0), (192, 0, 192), (192, 0, 0), (0, 0, 192)]
 SKY = {
@@ -337,7 +340,7 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, (v.map_state or "").upper(), 271, 58, 8, (200, 200, 120), center=True)
     draw_character(canvas, 270, 152, "weather", v.mouth if v.speaker == "weather" else 0.0, t, scale=2)
     if v.speaker not in (None, "weather"):                       # whoever handed over, small at the left
-        draw_character(canvas, 30, 160, v.speaker, v.mouth, t, scale=1)
+        draw_character(canvas, 30, FAR_Y, v.speaker, v.mouth, t, scale=1)
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -347,7 +350,7 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     if v.speaker not in (None, "reporter"):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
         draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light)
-        draw_character(canvas, 62, 152, "reporter", 0.0, t, scale=1, light=light)
+        draw_character(canvas, 62, FAR_Y, "reporter", 0.0, t, scale=1, light=light)
         draw_mic(canvas, 190, 116)
     else:
         draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
@@ -376,8 +379,8 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     if v.speaker == "guest":
         draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name),
                        light=light)
-        draw_character(canvas, 62, 148, "reporter", 0.0, t, scale=1, light=light)
-        draw_mic(canvas, 72, 122)
+        draw_character(canvas, 62, FAR_Y, "reporter", 0.0, t, scale=1, light=light)
+        draw_mic(canvas, 72, FAR_Y - 26)
     else:
         draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
                        light=light)
@@ -476,13 +479,13 @@ def draw_lower_third(canvas: pygame.Surface, v: View) -> None:
     if not v.lower_third:
         return
     title, sub = v.lower_third
-    w = canvas.get_width()
-    pygame.draw.rect(canvas, (200, 30, 30), (8, 128, 6, 26))
-    pygame.draw.rect(canvas, (170, 16, 22) if v.breaking else (20, 20, 30), (14, 128, w - 60, 16))
-    pygame.draw.rect(canvas, (240, 240, 240), (14, 144, w - 60, 10))
+    w, y = canvas.get_width(), LOWER_THIRD_Y
+    pygame.draw.rect(canvas, (200, 30, 30), (8, y, 6, 26))
+    pygame.draw.rect(canvas, (170, 16, 22) if v.breaking else (20, 20, 30), (14, y, w - 60, 16))
+    pygame.draw.rect(canvas, (240, 240, 240), (14, y + 16, w - 60, 10))
     size = 10 if font(10).size(title)[0] <= w - 70 else 8     # a long headline drops a size first
-    text(canvas, title, 18, 131 if size == 10 else 132, size, maxw=w - 70)
-    text(canvas, sub, 18, 145, 8, (20, 20, 30), maxw=w - 70)
+    text(canvas, title, 18, y + 3 if size == 10 else y + 4, size, maxw=w - 70)
+    text(canvas, sub, 18, y + 17, 8, (20, 20, 30), maxw=w - 70)
 
 
 def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:
