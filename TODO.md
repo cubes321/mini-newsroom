@@ -21,7 +21,6 @@ bottom with the date.
 ## Content
 
 - [ ] *The Last Ferry*: perhaps a house band sting and a second, shorter guest.
-- [ ] Breakfast extras: a guest in the sofa armchair (the `guest` mark is free).
 - [ ] Breaking news from the story desk or the editor (now tip-line only),
   and a follow-up field report from Miles once a breaking story is confirmed.
 - [ ] A model-planned running order for the magazine and the talk show (a
@@ -74,9 +73,10 @@ bottom with the date.
   (`plan_every_s = 1800`, 48 plans a day), until DeepSeek is benched. Estimated 24 h: about
   $3.40–4.35 on that mix against $8–9.50 on Kimi. The story desk is the biggest
   item on both (72 plans a day at `plan_every_s = 1200`, about $2 on Sonnet);
-  hourly plans would take Claude's day to about $2.10–3.00. Next: a `--log-llm`
-  day on Claude for real costs, then the DeepSeek bench to compare. The back office could use
-  the Batch API at half price.
+  hourly plans would take Claude's day to about $2.10–3.00. Measured on the
+  2026-10-26 night (see Done): about $3.70 a day, about $2.80 with the editor every 30
+  minutes. Next: the DeepSeek bench to compare. The back office could use the Batch API
+  at half price.
 - [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
   with no token counts: the reply never arrives, yet providers bill it in full.
@@ -93,6 +93,20 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-27 *Morning Tide* books a guest for the sofa armchair, about one every seventeen minutes
+  (the breakfast loop is two laps, with an `interview` on the first). Each booking takes the next
+  of nine breakfast-show kinds in turn: an author with a book out, an inspiring story, a funny
+  guest, an actor plugging a film or series, a charity challenge, a band or choir, a chef, someone
+  kind, a sportsperson. Both hosts talk to them; anything plugged is invented, with a when and a
+  where. The writer sees this morning's guests so titles don't repeat, the goodbye thanks them,
+  and the guest chat doesn't get the tide table (Rosie read Marjorie Pell the ferry's low-water
+  gap mid-book). Seen on a scratch town: Marjorie Pell's *The Cannery Years*, then Freya Lusk's
+  harbour swim, 13 minutes apart.
+- 2026-10-27 The first `--log-llm` night on Claude (22:51–09:31, real town): 699 segments, no
+  errors, 12 s of filler, 7 of 327 Haiku calls retried once. $1.64 for the 10.7 hours (about
+  $3.70 a day): Haiku wrote every on-air script for $0.16; Sonnet's editor was $0.82 (39 checks,
+  38 of them "no"), the story desk $0.58 and the one special $0.08. The editor now checks every
+  30 minutes, like the desk (`special.check_every_s = 1800`), about $0.40 a night less.
 - 2026-10-26 Fixes from the first look at Claude on screen: a headline, location or strap needs
   four characters (Haiku once sent all three blank, and "Live from" aired bare; later "x" for all
   three, which opened a thread called "x"); the news bulletin is
