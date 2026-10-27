@@ -27,7 +27,14 @@ bottom with the date.
 - [ ] Brainstorm new shows for the schedule. The news loop runs ten hours straight from 09:00 (after
   *Morning Tide*) to 19:00 (*Coastwide*): one or more daytime shows to break it up. And something mid
   evening: from 20:00 it is the news again until *The Last Ferry* at 22:00, apart from the 21:00
-  documentary.
+  documentary. Ideas to start from:
+  - A morning magazine straight after *Morning Tide*, say 09:00 or 10:00: slower and longer items
+    than breakfast and more homely than *Coastwide* (cookery, phone-ins, a guest on the sofa).
+  - A lunchtime business show around 12:00 or 13:00: the harbour and the port trade, local firms,
+    shop openings and closures, jobs, prices on the high street.
+  - An investigative show in the evening, maybe 20:00: one story taken in depth over the half hour
+    or hour, a reporter's own film and a studio interview that pushes back; the opposite of the
+    magazine and the talk show, which are kept `light`.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Sport: a fourth presenter and the Tidewater Stadium.
