@@ -90,6 +90,19 @@ def test_the_scene_replaces_the_rota_angle_in_the_field_report_prompt():
     assert "THIS ITEM" not in user
 
 
+def test_after_the_scene_report_the_other_field_reports_leave_the_story_to_the_bulletins():
+    w = world_mod.seed()
+    tid = _broke(w, 600)
+    show = schedule.get("news")
+    _, before = writers.build_prompt(T.field_report, w, target_s=90.0, show=show)
+    assert "already reported from the scene" not in before
+    w.record_aired("field_report", "Miles at the chandlery", tid, "...", show="news")
+    _, after = writers.build_prompt(T.field_report, w, target_s=90.0, show=show)
+    assert f"already reported from the scene of [{tid}]" in after
+    _, later = writers.build_prompt(T.field_report, w, target_s=90.0, show=show, at_ts=schedule.now() + 3 * 3600)
+    assert "already reported from the scene" not in later          # the story is no longer breaking
+
+
 def test_the_scene_report_is_filed_on_the_breaking_thread(monkeypatch):
     w = world_mod.seed()
     tid = _broke(w, 300)

@@ -267,6 +267,15 @@ def scene_due(world: World, now: float) -> str | None:
            and 0 <= now - t.breaking_ts < CONFIG.breaking.scene_window_s]
     return max(due, key=lambda t: t.breaking_ts).id if due else None
 
+
+def scene_done(world: World, now: float) -> list[str]:
+    """Stories that broke recently and that Miles has already reported from the scene: the
+    bulletins carry them now, and other field reports should leave them be (on 2026-10-27 the
+    next field report went back to the chip-shop fire, and the bulletin between led with it)."""
+    covered = {e.get("thread_id") for e in world.archive if e.get("type") == SegmentType.field_report.value}
+    return [t.id for t in world.open_threads()
+            if t.breaking_ts and t.id in covered and 0 <= now - t.breaking_ts < BREAKING_LEAD_S]
+
 _CONT = """PART TWO: you are CONTINUING the conversation with {name} ({role}) after the break. Use the
 same guest_name, guest_role and guest_gender. One line welcoming viewers back, no long reintroduction,
 then pick up where it left off and go somewhere new: another story, a different side of them.
@@ -373,6 +382,10 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                                        mins=int(max(0, (at_ts or schedule.now()) - scene.breaking_ts) // 60))
     elif brief:
         user += f"\n\nTHIS ITEM: {brief}."
+    done = scene_done(world, at_ts or schedule.now()) if seg_type is SegmentType.field_report and not scene else []
+    if done:
+        user += (f"\n\nMiles has already reported from the scene of {', '.join(f'[{d}]' for d in done)}; the bulletins "
+                 "carry it now. This report is about another story: do not set thread_id to it.")
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
     if so_far:
         user += "\n\n" + so_far
