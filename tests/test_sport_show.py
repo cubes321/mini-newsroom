@@ -44,3 +44,12 @@ def test_the_template_is_fran_with_the_real_result():
     script = writers._template(SegmentType.sport, w, __import__("random").Random(1), schedule.get("sport"))
     assert {l.speaker for l in script.lines} == {"sport"}
     assert "Tides" in script.lines[1].text
+
+
+def test_nobody_in_town_shares_frans_voice():
+    w = world_mod.seed()
+    p = w.ensure_person("Maureen Tapp", "night ferry hand", gender="f")
+    p.voice = "af_jessica"                                  # cast before Fran took it
+    w2 = world_mod._from_dict(world_mod._to_dict(w))
+    assert w2.person_by_name("Maureen Tapp").voice in world_mod.GUEST_VOICES_F
+    assert "af_jessica" not in world_mod.GUEST_VOICES

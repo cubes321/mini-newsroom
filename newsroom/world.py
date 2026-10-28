@@ -57,9 +57,9 @@ PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone; am_santa only ever an old man.
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's; am_santa only ever an old man.
 GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_sarah", "af_nova", "af_sky",
-                  "af_jessica", "af_river", "af_alloy"]
+                  "af_river", "af_alloy"]
 GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam", "am_echo"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M = ["am_santa"]
@@ -681,7 +681,19 @@ def _from_dict(d: dict) -> World:
         if c.id not in have:
             w.characters.append(c)
             log.info("world migrated: new presenter %s (%s)", c.name, c.id)
+    _recast_presenter_voices(w)
     return w
+
+
+def _recast_presenter_voices(w: World) -> None:
+    """Nobody in the town shares a presenter's voice: a guest cast before a presenter joined
+    (Maureen Tapp, before Fran took af_jessica) gets another from their pool, by name as ever."""
+    taken = {c.voice for c in w.characters}
+    for p in w.people:
+        if p.voice in taken:
+            pool = GUEST_VOICES_F if p.voice[1:2] == "f" else GUEST_VOICES_M
+            old, p.voice = p.voice, pool[_name_hash(p.name) % len(pool)]
+            log.info("world migrated: %s shared %s with a presenter; now %s", p.name, old, p.voice)
 
 
 def load(path: Path | None = None) -> World:
