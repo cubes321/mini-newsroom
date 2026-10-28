@@ -138,6 +138,30 @@ max_tokens = 6000
 timeout_s = 240
 max_retries = 0
 
+# DeepSeek, not yet routed: try it for a run with `--route claude_sonnet=deepseek_pro` (the back
+# office) or `--route claude_haiku=deepseek_flash` (live). The key comes from DEEPSEEK_API_KEY.
+# Prices checked 2026-10-28 (third-party listings; confirm on the console): v4-pro $0.66 in /
+# $1.98 out per million off-peak, double at peak (01:00-04:00 and 06:00-10:00 UTC); Flash about
+# $0.15 / $0.60 off-peak, dearer than Haiku 5.5, so the back office is where it could save.
+[llm.providers.deepseek_pro]
+kind = "openai"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-v4-pro"
+extra_body = { thinking = { type = "enabled" }, reasoning_effort = "high" }
+max_tokens = 8000                  # reasoning counts against it
+timeout_s = 240
+max_retries = 0                    # as for k3 and Sonnet: a retried timeout blocks live production
+
+[llm.providers.deepseek_flash]
+kind = "openai"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+model = "deepseek-flash"
+extra_body = { thinking = { type = "disabled" } }
+max_tokens = 2000
+timeout_s = 60
+
 [llm.providers.anthropic]
 kind = "anthropic"
 model = "claude-opus-5-5"

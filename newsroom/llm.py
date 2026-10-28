@@ -12,7 +12,9 @@ Provider kinds:
 - "anthropic": the official Anthropic SDK with structured outputs.
 
 NEWSROOM_LLM=off makes every task raise LLMUnavailable so writers fall back
-to templates; NEWSROOM_LLM=<provider name> forces one provider for all tasks.
+to templates; NEWSROOM_LLM=<provider name> forces one provider for all tasks;
+NEWSROOM_ROUTES=claude_sonnet=deepseek_pro moves one provider's tasks (or one
+task) to another for a run.
 
 Robustness: Qwen-style <think> blocks are stripped before parsing; strict
 json_schema mode falls back to json_object mode if a server rejects it; a
@@ -69,7 +71,17 @@ def provider_for(task: str) -> str:
     override = os.environ.get("NEWSROOM_LLM")
     if override:
         return override
-    return CONFIG.llm.provider_name_for(task)
+    name = CONFIG.llm.provider_name_for(task)
+    swaps = _swaps()
+    return swaps.get(task) or swaps.get(name) or name
+
+
+def _swaps() -> dict[str, str]:
+    """NEWSROOM_ROUTES (or --route): comma-separated `from=to` pairs, each `from` a provider (every
+    task routed to it moves) or a task name. `claude_sonnet=deepseek_pro` trials DeepSeek on the
+    back office for one run, with config.toml untouched."""
+    pairs = (p.split("=", 1) for p in os.environ.get("NEWSROOM_ROUTES", "").split(",") if "=" in p)
+    return {k.strip(): v.strip() for k, v in pairs if k.strip() and v.strip()}
 
 
 # ------------------------------------------------------------------ helpers

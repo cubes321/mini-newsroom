@@ -16,6 +16,7 @@ Flags:
                 (and --log-llm writes to that dir's llm_calls/)
   --documentary-now  commission today's documentary at the first idle moment (it still airs in its slot)
   --breaking-now  have the story desk break a story at its next idle moment (Miles then goes to the scene)
+  --route A=B[,C=D]  for this run, send every task routed to provider A (or task A) to provider B
 """
 from __future__ import annotations
 
@@ -50,6 +51,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--cache", type=str, default="", help="segment cache dir to use instead of data/cache")
     p.add_argument("--scratch", action="store_true",
                    help="run on a temp copy of the world and tip-line, with an empty cache and its own call log")
+    p.add_argument("--route", type=str, default="",
+                   help="move providers' or tasks' calls for this run: claude_sonnet=deepseek_pro[,...] (or NEWSROOM_ROUTES)")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -57,6 +60,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def redirect_paths(args: argparse.Namespace) -> None:
     """Point the world, cache and tip-line elsewhere. Must run before newsroom.config is
     imported: CONFIG is built at import time from these environment variables."""
+    if args.route:
+        os.environ["NEWSROOM_ROUTES"] = args.route
     if args.world:
         os.environ["NEWSROOM_WORLD"] = args.world
     if args.cache:

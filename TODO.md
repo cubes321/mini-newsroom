@@ -58,11 +58,15 @@ bottom with the date.
   editor and specials on Kimi k3. A one-hour trial with a scratchpad reroute
   ran 93 jobs cleanly; sofa chats took about 27 s on qwen3.8 (Kokoro competes
   for the CPU), and the back office would cost about $0.9 a night on k3.
-- [ ] Try DeepSeek (needs credits and `DEEPSEEK_API_KEY`): `deepseek-flash` for
-  live with `thinking = { type = "disabled" }`, `deepseek-v4-pro` for the desk,
-  editor and specials (240 s, `max_retries = 0`). Run the bench prompts first,
-  then a `--log-llm` night. It's about 3–7× cheaper than Kimi, and half price
-  off-peak (outside 01:00–04:00 and 06:00–10:00 UTC on weekdays).
+- [ ] Try DeepSeek (needs credits and `DEEPSEEK_API_KEY`). `deepseek_pro` (v4-pro, thinking on)
+  and `deepseek_flash` are declared in config.toml but not routed; `--route
+  claude_sonnet=deepseek_pro` moves the back office to it for one run. On 2026-10-28 prices
+  (third-party listings; confirm on the console) v4-pro is $0.66 in / $1.98 out per million
+  off-peak, double at peak (01:00–04:00 and 06:00–10:00 UTC), against Sonnet 5.5's $2 / $10: the
+  back office is where it could save (Sonnet was about $4.80 of a $5.20 day on 2026-10-27).
+  Flash, about $0.15 / $0.60, is dearer than Haiku 5.5 live. First a dry desk plan on the real
+  world, to set beside Sonnet's ten right merges, then a scratch hour with a special and the
+  documentary commissioned; judge the desk plans, the special and the documentary by reading.
 - [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench
   prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
   timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
