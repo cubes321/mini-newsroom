@@ -20,4 +20,4 @@ def test_a_task_swap_moves_only_that_task_and_wins_over_its_provider(monkeypatch
 
 def test_the_deepseek_providers_are_declared():
     assert CONFIG.llm.provider("deepseek_pro").api_key_env == "DEEPSEEK_API_KEY"
-    assert CONFIG.llm.provider("deepseek_flash").model == "deepseek-flash"
+    assert CONFIG.llm.provider("deepseek_flash").model == CONFIG.llm.provider("deepseek_flash_think").model == "deepseek-flash"
