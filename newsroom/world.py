@@ -35,7 +35,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-from . import schedule
+from . import schedule, sport
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -202,6 +202,7 @@ class World:
             f"{self._people_lines(('official', 'worthy'), 10)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
+            f"Sport: {sport.summary(datetime.fromtimestamp(schedule.now()))}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
