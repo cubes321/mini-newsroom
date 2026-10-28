@@ -104,6 +104,11 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 The light shows (*Morning Tide*, *Coastwide*, *The Last Ferry*) follow stories up but
+  never open one: every segment type, field reports included, not only guests. Breaking news still
+  opens its own thread whatever is on. On the first evening run 44 of the 108 open threads were
+  Last Ferry and Coastwide guest chats (Priya Anand's cat, Sadie Quill's rabbit) and five were
+  breakfast field reports.
 - 2026-10-28 Threads fade off the air when they stop moving (`world.fade_threads`, run before every
   segment and every desk round). The windows are hours of air time since the last beat
   (`moved_ts`, broadcast clock): 8 for a one-off covered once or twice, 24 for most, 12 when

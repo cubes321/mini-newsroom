@@ -790,7 +790,12 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         tid = None if seg.type is SegmentType.breaking else seg.work.get("scene") or getattr(script, "thread_id", None)
         status = getattr(script, "thread_status", None)
         known = {t.id for t in world.threads}
-        if tid in known or seg.type in THREAD_OPENERS:
+        # The light shows follow stories up but never open one: on 2026-10-27 every Last Ferry and
+        # Coastwide guest became a news story (Priya Anand's cat, Sadie Quill's rabbit), 44 of the
+        # 108 open threads. What a guest talks about goes into their memory instead.
+        opens = seg.type is SegmentType.breaking or (
+            seg.type in THREAD_OPENERS and not schedule.get(seg.show).light)
+        if tid in known or opens:
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
     # Guests join the recurring cast (a stable voice and look), and the writers avoid rebooking them.
     if getattr(script, "guest_name", None) and any(l.speaker == "guest" for l in seg.lines):
