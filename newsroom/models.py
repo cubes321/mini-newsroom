@@ -432,7 +432,7 @@ Phase = Literal["emerging", "developing", "peak", "resolving", "closed"]
 class ThreadUpdate(BaseModel):
     thread_id: str
     phase: Phase
-    next_development: str = Field(max_length=300, description="one sentence: the concrete next thing that happens, with a day if relevant")
+    next_development: Annotated[str, _clip(300)] = Field(max_length=300, description="one sentence: the concrete next thing that happens, with a day if relevant")
     people: list[str] = Field(default_factory=list, max_length=4,
                               description="names of known public figures or residents now involved")
 
@@ -440,8 +440,15 @@ class ThreadUpdate(BaseModel):
 class NewThread(BaseModel):
     title: str = Field(max_length=80)
     status: Annotated[str, _clip(200)] = Field(max_length=200, description="what is known so far, one sentence")
-    next_development: str = Field(max_length=300, description="one sentence")
+    next_development: Annotated[str, _clip(300)] = Field(max_length=300, description="one sentence")
     people: list[str] = Field(default_factory=list, max_length=3)
+    from_guest: str | None = Field(default=None, description="the guest's name if this grows from their LOOSE END, else null")
+
+
+class ThreadMerge(BaseModel):
+    """Two threads that are one story under different titles: the duplicate folds into the other."""
+    duplicate: str = Field(description="id of the thread that repeats another's story")
+    into: str = Field(description="id of the thread to keep: usually the one covered more")
 
 
 class DeskBreaking(BaseModel):
@@ -453,6 +460,7 @@ class DeskBreaking(BaseModel):
 class StoryPlan(BaseModel):
     updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # a batch per call (desk.batch), with room for out-of-turn extras it skips
     new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
+    merges: list[ThreadMerge] = Field(default_factory=list, max_length=12)
     breaking: DeskBreaking | None = Field(default=None, description="rare: null on most rounds")
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 

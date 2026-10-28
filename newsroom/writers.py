@@ -37,7 +37,7 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import World
+from .world import RETURN_EXPIRE_S, Person, World
 
 log = logging.getLogger(__name__)
 
@@ -766,6 +766,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     tips = tipline.offer() if seg.type is SegmentType.bulletin else []
     # A chat show may book back a guest who left something to ask, once a day per show.
     seg.work.pop("return_guest", None)
+    seg.work.pop("loose_end_of", None)
     if (seg.type is SegmentType.interview and show.light and not cont
             and world.guest_returns.get(show.id) != world.last_date):
         back = world.return_guests(exclude=set(_recent_guests) | ({couch["name"]} if couch else set()))
@@ -790,6 +791,16 @@ def script_segment(seg: Segment, world: World) -> Segment:
                      if couch and rebooked.lower() == couch["name"].lower()
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
+        # A guest booked of the writer's own accord who has been on before: ask again with what
+        # they said, so they don't contradict themselves (the offered return visit had it already).
+        known = None if cont else _remembered(script, world, {seg.work.get("return_guest"), couch and couch["name"]})
+        if known:
+            log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
+                     seg.slot_id, known.name)
+            note, end = _remembered_note(known)
+            script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
+            if end:
+                seg.work["loose_end_of"] = known.name
         source = "llm"
         used = getattr(script, "tip_used", None)
         if tips and isinstance(used, int) and 1 <= used <= len(tips):
@@ -837,6 +848,29 @@ def _rebooked(script, world: World) -> str | None:
     if not name or not any(l.speaker == "guest" for l in script.lines):
         return None
     return name if name.lower() in {g.lower() for g in _recent_guests} else None
+
+
+def _remembered(script, world: World, skip: set) -> Person | None:
+    """The booked guest, if they have been on before and said something we kept, unless they are
+    in `skip` (the offered return visit, the guest staying on the couch)."""
+    name = getattr(script, "guest_name", None)
+    if not name or not any(l.speaker == "guest" for l in script.lines):
+        return None
+    if name.strip().lower() in {s.strip().lower() for s in skip if s}:
+        return None
+    p = world.person_by_name(name)
+    return p if p is not None and p.memories else None
+
+
+def _remembered_note(p: Person) -> tuple[str, dict | None]:
+    """What a returning guest said before, and their loose end if one is still waiting."""
+    said = "; ".join(f"{m['said']} ({m['show']}, {datetime.fromisoformat(m['date']):%A %d %B})"
+                     for m in p.memories[-2:])
+    end = next((e for e in reversed(p.loose_ends) if 0 <= schedule.now() - e["ts"] < RETURN_EXPIRE_S), None)
+    note = (f"{p.name} has been on before; what they said then is on record: {said}. Keep to it (no "
+            "contradicting it), welcome them back, no long reintroduction."
+            + (f" Something left to ask them last time: {end['ask']}. Pick it up if it suits this item." if end else ""))
+    return note, end
 
 
 def _guest_of(line, script, stayed: str | None = None) -> str | None:
@@ -922,6 +956,8 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                 world.asked_back(back, seg.show)       # before this visit's own loose end is kept
                 log.info("%s slot %d: %s came back to be asked about their loose end", seg.type.value,
                          seg.slot_id, back)
+            elif (seg.work.get("loose_end_of") or "").lower() == script.guest_name.strip().lower():
+                world.loose_ends_taken(script.guest_name)   # booked again of the writer's accord, and asked
             world.remember_guest(script.guest_name, schedule.get(seg.show).title.title(),
                                  getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
     for l in getattr(script, "lines", []):

@@ -44,18 +44,10 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] Guest memory follow-ups, after a night shows how the return visits land: the story desk could
-  see the day's liveliest loose ends and turn one into a thread when it would make news (the
-  Historical Society's plum cake in a 1906 ledger). A writer who books a remembered guest of their
-  own accord doesn't see the guest's memories yet; only the offered return visit does.
-
-- [ ] Duplicate threads in other words. `world.same_story` folds a new story into a thread with
-  nearly the same title, but not one worded differently: on 2026-10-27 "Fire chief says one engine
-  leaves harbour exposed" and "Harrow Street Residents Back Call for Second Fire Engine" were
-  their own threads beside "fire station pushes for a second engine", and the harbour wall ran
-  as four. That takes judgement: the story desk (Sonnet, which sees every thread) could return
-  merges. Fading clears the leftovers in a day or three. Check the next run's log for
-  "continues thread" to see how often the title match fires.
+- [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
+  title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
+  end" (does the desk make news of a loose end, and is it news?), "has been on before" (how often
+  a writer rebooks a remembered guest; each costs a second call).
 
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
@@ -113,6 +105,19 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-28 The story desk merges duplicate threads (`StoryPlan.merges`, `world.merge_thread`): one
+  story under different titles folds into the thread it keeps, with its beats, coverage and people;
+  its archive entries and specials point there, and a later follow-up of it goes there too
+  (`Thread.merged_into`). The prompt asks for every duplicate: worded "most rounds have none", a dry
+  run on the real world merged 3; asking for each, 10, all right (four fire-engine threads into
+  t058, the harbour wall's two into t116, three "boats out early" fillers into one). The desk's
+  next steps are clipped at 300 characters instead of failing the plan (a Sonnet retry each time).
+- 2026-10-28 Guest memory follow-ups. The story desk sees the five newest loose ends guests left and
+  may seed one as a news thread (`NewThread.from_guest`): the guest joins it, and their loose end
+  is spoken for, so a chat show won't also ask. A writer who books a remembered guest of their own
+  accord (not the offered return visit, not the guest staying on the couch) is asked once more with
+  what they said before, and their loose end if one is waiting; asked, it is used up.
 
 - 2026-10-28 A new story continues the thread it already is (`world.same_story`): when a news
   writer leaves thread_id empty, a headline sharing three telling words, and 60% of the shorter

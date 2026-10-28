@@ -5,7 +5,8 @@ the desk reads the open threads and returns a plan for a batch of them (the
 least recently planned, `[story] batch` per call): a phase for each
 (emerging, developing, peak, resolving, closed), the concrete next
 development the next follow-up should deliver, who is now involved, and
-occasionally a new thread to seed. Writers see the NEXT development in their
+occasionally a new thread to seed (perhaps from a chat-show guest's loose end)
+or two threads to merge as one story. Writers see the NEXT development in their
 briefing, so a bulletin that follows up a thread moves it along.
 """
 from __future__ import annotations
@@ -63,6 +64,30 @@ _BREAKING_NOW = ("\n\nThe producer has asked for BREAKING NEWS this round: set b
                  "that plausibly happens in town right now (not the next step of a thread, not also a new thread).")
 _BREAKING_NO = "\n\nbreaking must be null this round."
 
+# The writers often open a running story again under a new title; a title match catches the near
+# copies (world.same_story), but on 2026-10-27 "Fire chief says one engine leaves harbour exposed"
+# and "Harrow Street Residents Back Call for Second Fire Engine" were their own threads beside the
+# fire station's, and the harbour wall ran as four. Telling them apart takes judgement.
+_MERGES = (
+    "\n\nDUPLICATES: when one story runs as several threads (open or recently faded) under different "
+    "titles, merge EVERY duplicate into the one to keep (usually the one covered more): one merge per "
+    "duplicate. Only the same story, not merely the same place or the same people."
+)
+
+
+def _loose_ends(world: World) -> str:
+    """The newest things chat-show guests left to ask them: the desk may make one news."""
+    ends = world.fresh_loose_ends()
+    if not ends:
+        return ""
+    rows = "\n".join(
+        f"  - {p.name} ({p.role}), on {e['show']} on {e['date']}"
+        + (f": said {p.memories[-1]['said']}" if p.memories else "") + f"; left to ask: {e['ask']}"
+        for p, e in ends)
+    return ("\n\nLOOSE ENDS guests left on the chat shows (not news; most never will be):\n" + rows +
+            "\nIf one would really make news in a small town, you may seed it as one of the new threads, "
+            "with from_guest set to the guest's exact name and the guest among its people.")
+
 
 def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan | None:
     """Ask the desk and apply its plan. Returns None if the model was unavailable, or twice
@@ -88,7 +113,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         "unless it is covered again: give it a NEXT step worth covering, or close it."
         + (f" You may also revive one recently faded thread ({', '.join(t.id for t in faded)}) by giving it "
            "a phase and a NEXT development, but only if something new would really happen." if faded else "")
-    ) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
+    ) + _MERGES + _loose_ends(world) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
         if todo and not _in_turn(p, todo):
@@ -142,10 +167,18 @@ def apply(world: World, p: StoryPlan, only: set[str] | None = None) -> None:
 
 
 def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
+    for m in p.merges:                             # first, so an update can't reopen a duplicate
+        if world.merge_thread(m.duplicate, m.into):
+            log.info("story desk merged thread %s into %s: %s", m.duplicate, m.into, world.thread(m.into).title[:60])
+        else:
+            log.info("story desk merge %s into %s skipped (not two live threads)", m.duplicate, m.into)
     for u in p.updates:
         t = world.thread(u.thread_id)
         if t is None:
             log.warning("story desk named unknown thread %r", u.thread_id)
+            continue
+        if t.merged_into:
+            log.info("story desk planned %s, merged into %s; skipping", t.id, t.merged_into)
             continue
         if only is not None and t.id not in only:
             log.info("story desk planned %s out of turn; skipping", t.id)
@@ -162,8 +195,12 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
     room = CONFIG.story.max_open_threads - len(world.open_threads())
     for nt in p.new_threads[: max(0, room)]:
-        t = world.seed_thread(nt.title, nt.status, nt.next_development, _resolve_people(world, nt.people))
-        log.info("seeded thread %s: %s", t.id, t.title)
+        people = _resolve_people(world, nt.people)
+        guest = world.loose_ends_taken(nt.from_guest) if nt.from_guest else None
+        if guest is not None and guest.id not in people:
+            people.insert(0, guest.id)             # their loose end is news now, not a chat to come
+        t = world.seed_thread(nt.title, nt.status, nt.next_development, people)
+        log.info("seeded thread %s: %s%s", t.id, t.title, f" (from {guest.name}'s loose end)" if guest else "")
 
 
 def _cli(argv: list[str]) -> int:

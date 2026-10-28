@@ -131,6 +131,7 @@ class Thread:
     planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
     moved_ts: float = 0.0           # when it last moved on air, on the broadcast clock (it fades when quiet)
     faded_ts: float = 0.0           # when it faded, on the broadcast clock
+    merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread
 
 
 def _locked(method):
@@ -421,9 +422,14 @@ class World:
     @_locked
     def update_thread(self, thread_id: str | None, title: str, status: str | None, now: float | None = None) -> str:
         """Follow up an existing thread or open a new one. Returns the thread id. A follow-up of a
-        faded thread brings it back."""
+        faded thread brings it back; one of a merged duplicate goes to the thread it joined."""
         today = self.last_date
         now = now or schedule.now()
+        for _ in range(4):
+            dup = self.thread(thread_id)
+            if dup is None or not dup.merged_into:
+                break
+            thread_id = dup.merged_into
         if thread_id:
             for t in self.threads:
                 if t.id == thread_id:
@@ -444,6 +450,34 @@ class World:
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
         self._cap_threads()
         return new_id
+
+    @_locked
+    def merge_thread(self, dup_id: str, keep_id: str) -> bool:
+        """Fold a duplicate into the thread that is the same story: its beats, coverage and people
+        join it, its archive entries and specials point at it, and it closes, redirecting any later
+        follow-up. False (nothing done) unless both are live threads and different."""
+        dup, keep = self.thread(dup_id), self.thread(keep_id)
+        if (dup is None or keep is None or dup is keep or "closed" in (dup.phase, keep.phase)
+                or dup.merged_into or keep.merged_into):
+            return False
+        keep.beats = sorted(keep.beats + dup.beats, key=lambda b: b.get("day", 0))[-12:]
+        keep.mentions += dup.mentions
+        keep.people += [pid for pid in dup.people if pid not in keep.people]
+        keep.next_development = keep.next_development or dup.next_development
+        if dup.moved_ts > keep.moved_ts:              # the latest word on it
+            keep.status = dup.status or keep.status
+        if keep.phase == "faded" and dup.phase != "faded":
+            keep.phase = dup.phase                      # a live duplicate brings the story back
+        if keep.phase == "emerging":
+            keep.phase = "developing"                   # covered under two titles, it has moved
+        keep.updated, keep.moved_ts = max(keep.updated, dup.updated), max(keep.moved_ts, dup.moved_ts)
+        if dup.breaking_ts > keep.breaking_ts:
+            keep.breaking, keep.breaking_ts = dup.breaking, dup.breaking_ts
+        for e in self.archive + self.specials:
+            if e.get("thread_id") == dup.id:
+                e["thread_id"] = keep.id
+        dup.phase, dup.merged_into, dup.updated = "closed", keep.id, self.last_date
+        return True
 
     def _cap_threads(self) -> None:
         """Keep at most MAX_THREADS: drop closed threads first, the least recently updated
@@ -543,10 +577,24 @@ class World:
     def asked_back(self, name: str, show_id: str) -> None:
         """A guest came back for their loose ends: they've been asked, and the show has had its
         return visit today."""
+        self.loose_ends_taken(name)
+        self.guest_returns[show_id] = self.last_date
+
+    @_locked
+    def loose_ends_taken(self, name: str) -> Person | None:
+        """A guest's loose ends are spoken for (asked on air, or become a news story)."""
         p = self.person_by_name(name)
         if p is not None:
             p.loose_ends = []
-        self.guest_returns[show_id] = self.last_date
+        return p
+
+    @_locked
+    def fresh_loose_ends(self, now: float | None = None, limit: int = 5) -> list[tuple[Person, dict]]:
+        """The newest loose ends guests have left, one per guest, for the story desk: a few may be news."""
+        now = now or schedule.now()
+        ends = [(p, p.loose_ends[-1]) for p in self.people
+                if p.loose_ends and 0 <= now - p.loose_ends[-1]["ts"] < RETURN_EXPIRE_S]
+        return sorted(ends, key=lambda pe: -pe[1]["ts"])[:limit]
 
     @_locked
     def mark_breaking(self, thread_id: str | None, ts: float) -> None:
