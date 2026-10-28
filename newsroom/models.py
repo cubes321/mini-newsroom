@@ -181,6 +181,7 @@ def _clip(n: int) -> BeforeValidator:
 
 
 Status = Annotated[str | None, _clip(160)]
+Memo = Annotated[str | None, _clip(140)]       # a guest's memory (world.Person.memories), bookkeeping too
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
 SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
 
@@ -269,6 +270,10 @@ class InterviewScript(BaseModel):
     guest_accent: Accent = Field(default=None, description="british (a local) or american (from away)")
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
+    guest_memory: Memo = Field(default=None, max_length=140,
+                               description="one line: what we learned about the guest that a later show could call back to")
+    ask_next_time: Memo = Field(default=None, max_length=140,
+                                description="usually null: something to ask the guest about next time")
 
     _lift = model_validator(mode="before")(_lift_guest)
 
@@ -302,6 +307,8 @@ class FeatureScript(BaseModel):
     guest_accent: Accent = None
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
+    guest_memory: Memo = Field(default=None, max_length=140)
+    ask_next_time: Memo = Field(default=None, max_length=140)
 
     _lift = model_validator(mode="before")(_lift_guest)
 

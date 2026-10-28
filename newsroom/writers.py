@@ -62,7 +62,9 @@ Studio guests: speaker id "guest". Name the guest ONCE in guest_name (first name
 with guest_role, guest_gender ("f" or "m"), guest_age ("young", "middle" or "old") and guest_accent
 ("british" for a local, "american" for someone from away); their lines use speaker "guest". Prefer a listed
 public figure or a resident we have met when one fits; otherwise invent a plausible resident.
-Do not book anyone listed under RECENT GUESTS.
+Do not book anyone listed under RECENT GUESTS. guest_memory: one line on what we learned about the
+guest that a later show could call back to. ask_next_time: usually null; something to ask them about
+next time, if the chat leaves one (a gig coming up, a result to come, an unfinished story).
 """
 
 _SYSTEM: dict[SegmentType, str] = {
@@ -374,6 +376,16 @@ def _quiet_threads(world: World, exclude: set[str]) -> str:
             "story; set thread_id to it and deliver its NEXT step. Start a new story only if none fits.\n" + rows)
 
 
+def _return_offer(p) -> str:
+    """A guest with a loose end, offered back with what they said last time."""
+    end = p.loose_ends[-1]
+    said = "; ".join(m["said"] for m in p.memories[-2:]) or "(not noted)"
+    return (f"A RETURN VISIT, if it suits THIS ITEM: {p.name} ({p.role}) was on {end['show']} on "
+            f"{datetime.fromisoformat(end['date']):%A %d %B}. Last time: {said}. Something to ask them: {end['ask']}. "
+            "Book them again and pick that up (welcome them back, no long reintroduction; keep what they said "
+            "last time the same), or book someone new if it doesn't fit.")
+
+
 def _guests_so_far(world: World, show: schedule.Show) -> str:
     """This morning's guests in the armchair, one headline each."""
     return "\n".join(f"  - {e['headline']}" for e in world.aired_today(SegmentType.interview.value, show.id))
@@ -455,6 +467,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                      "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
+    back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
+    if back and back.loose_ends:
+        user += "\n\n" + _return_offer(back)
     if couch:
         user += "\n\n" + _COUCH.format(name=couch["name"], role=couch["role"], asked=couch["asked"][-1500:])
     if seg_type is SegmentType.breaking:
@@ -693,6 +708,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
     couch = _last_interview[show.id] if follows and seg.part == "couch" else None
     part = "" if seg.part in ("cont", "couch") and not follows else seg.part
     tips = tipline.offer() if seg.type is SegmentType.bulletin else []
+    # A chat show may book back a guest who left something to ask, once a day per show.
+    seg.work.pop("return_guest", None)
+    if (seg.type is SegmentType.interview and show.light and not cont
+            and world.guest_returns.get(show.id) != world.last_date):
+        back = world.return_guests(exclude=set(_recent_guests) | ({couch["name"]} if couch else set()))
+        if back:
+            seg.work["return_guest"] = back[0].name
     if seg.type is SegmentType.field_report:
         seg.work.pop("scene", None)
         scene = scene_due(world, seg.nominal_start_ts or schedule.now())
@@ -827,6 +849,14 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender,
                             age=getattr(script, "guest_age", None), accent=getattr(script, "guest_accent", None))
         _recent_guests.append(script.guest_name)
+        if not template:
+            back = seg.work.get("return_guest")
+            if back and back.lower() == script.guest_name.strip().lower():
+                world.asked_back(back, seg.show)       # before this visit's own loose end is kept
+                log.info("%s slot %d: %s came back to be asked about their loose end", seg.type.value,
+                         seg.slot_id, back)
+            world.remember_guest(script.guest_name, schedule.get(seg.show).title.title(),
+                                 getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:
             world.ensure_person(l.guest_name, "resident", gender=l.guest_gender, age=l.guest_age, accent=l.guest_accent)

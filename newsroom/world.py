@@ -48,6 +48,9 @@ MAX_THREADS = 120               # closed, then faded, threads beyond this are dr
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
+GUEST_MEMORIES = 4              # what a guest said on air, the last few appearances
+RETURN_RIPE_S = 12 * 3600       # a loose end waits this long (air time) before the guest is offered back
+RETURN_EXPIRE_S = 7 * 86400     # and is forgotten after this
 
 # "faded" is the code's, not the desk's: a thread that stopped moving on air (fade_threads).
 PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
@@ -89,6 +92,10 @@ class Person:
     appearances: int = 0
     age: str = ""                   # young | middle | old, from the script that booked them (their look)
     accent: str = ""                # british | american: british may voice them with British pronunciation
+    # What they said on air, the last few ({date, show, said}), and anything left to ask them next
+    # time ({ts, date, show, ask}, broadcast clock): a chat show may book them back for it.
+    memories: list[dict] = field(default_factory=list)
+    loose_ends: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -144,6 +151,7 @@ class World:
     documentaries: list[dict] = field(default_factory=list)
     last_documentary_date: str = ""          # the broadcast day one was last commissioned
     last_documentary_aired: str = ""         # the day one last aired
+    guest_returns: dict[str, str] = field(default_factory=dict)   # show id -> the day a guest last came back to it
 
     def __post_init__(self) -> None:
         self.lock = threading.RLock()        # not a field: asdict() and the JSON leave it out
@@ -433,6 +441,44 @@ class World:
             t.people = [pid for pid in t.people if pid not in dupes]
         for e in self.archive:
             e["people"] = [pid for pid in e.get("people", []) if pid not in dupes]
+
+    @_locked
+    def remember_guest(self, name: str, show: str, said: str | None, ask: str | None,
+                       now: float | None = None) -> None:
+        """Keep what a guest said on air and anything to ask them next time. A guest chat is not
+        news: this is where it goes instead of a thread."""
+        p = self.person_by_name(name)
+        if p is None:
+            return
+        now = now or schedule.now()
+        if said and said.strip():
+            p.memories = (p.memories + [{"date": self.last_date, "show": show, "said": said.strip()}])[-GUEST_MEMORIES:]
+        if ask and ask.strip():
+            keep = [e for e in p.loose_ends if now - e["ts"] < RETURN_EXPIRE_S][-1:]
+            p.loose_ends = keep + [{"ts": now, "date": self.last_date, "show": show, "ask": ask.strip()}]
+
+    @_locked
+    def return_guests(self, now: float | None = None, exclude: set[str] = frozenset(),
+                      limit: int = 1) -> list[Person]:
+        """Guests with something to be asked: a loose end at least RETURN_RIPE_S old and not yet
+        forgotten. The longest waiting first; nobody in `exclude` (names, the recent guests)."""
+        now = now or schedule.now()
+        skip = {n.lower() for n in exclude}
+        ripe = []
+        for p in self.people:
+            waiting = [e["ts"] for e in p.loose_ends if RETURN_RIPE_S <= now - e["ts"] < RETURN_EXPIRE_S]
+            if waiting and p.name.lower() not in skip and not self.presenter_named(p.name):
+                ripe.append((min(waiting), p))
+        return [p for _, p in sorted(ripe, key=lambda r: r[0])][:limit]
+
+    @_locked
+    def asked_back(self, name: str, show_id: str) -> None:
+        """A guest came back for their loose ends: they've been asked, and the show has had its
+        return visit today."""
+        p = self.person_by_name(name)
+        if p is not None:
+            p.loose_ends = []
+        self.guest_returns[show_id] = self.last_date
 
     @_locked
     def mark_breaking(self, thread_id: str | None, ts: float) -> None:

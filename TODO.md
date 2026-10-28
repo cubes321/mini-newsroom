@@ -47,6 +47,11 @@ bottom with the date.
 
 ## Engineering
 
+- [ ] Guest memory follow-ups, after a night shows how the return visits land: the story desk could
+  see the day's liveliest loose ends and turn one into a thread when it would make news (the
+  Historical Society's plum cake in a 1906 ledger). A writer who books a remembered guest of their
+  own accord doesn't see the guest's memories yet; only the offered return visit does.
+
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
   the fastest, qwen3.8-flash-next the best writer but about 15 s a script).
@@ -104,6 +109,15 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 Guests remember. Every guest script (interview, couch, consumer, feature) has
+  `guest_memory`, one line on what we learned, and `ask_next_time`, usually null, written in the same
+  call. They go on the person (`Person.memories`, the last four; `loose_ends`, broadcast clock,
+  forgotten after a week). Once a loose end has waited 12 hours of air time, a chat-show interview on
+  *Morning Tide*, *Coastwide* or *The Last Ferry* is offered that guest back (`writers._return_offer`:
+  what they said last time and what to ask), once a day per show (`world.guest_returns`), never
+  someone among the recent guests. Booking them uses the loose end up. A guest chat no longer
+  opens a news thread, so this is where it goes: Hollis Byrne's Saturday stadium gig, Maureen Tapp's
+  shortbread tin.
 - 2026-10-28 A news field report is offered up to four QUIET STORIES (`writers._quiet_threads`): open
   threads the briefing's five don't show, minus Miles's last three and any he has reported from the
   scene, those with a planned NEXT first and then the longest quiet. It picks one up before starting
