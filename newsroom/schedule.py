@@ -105,13 +105,22 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         "news", "PORT WEXLEY NEWS", "NEWS", (200, 30, 30),
         # One loop in three swaps the field report for a studio interview. The weather comes
         # once a loop, about every ten minutes (at every bumper it was a quarter of the airtime).
+        # The sport comes once in three loops, about every half hour.
         pattern=(T.bumper, T.weather, T.bulletin, T.field_report,
                  T.bumper, T.bulletin, T.field_report,
+                 T.bumper, T.bulletin, T.interview,
+                 T.bumper, T.weather, T.bulletin, T.field_report,
+                 T.bumper, T.bulletin, T.sport,
+                 T.bumper, T.bulletin, T.interview,
+                 T.bumper, T.weather, T.bulletin, T.field_report,
+                 T.bumper, T.bulletin, T.field_report,
                  T.bumper, T.bulletin, T.interview),
-        target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0},
+        target_s={T.bumper: 8.0, T.weather: 60.0, T.bulletin: 75.0, T.field_report: 90.0, T.interview: 90.0,
+                  T.sport: 60.0},
         cast=("anchor", "weather", "reporter"), lead="anchor",
         cast_by_type={T.interview: ("anchor", "guest"), T.breaking: ("anchor", "reporter"),
-                      T.bulletin: ("anchor", "reporter")},   # Gordon has no place at the desk
+                      T.bulletin: ("anchor", "reporter"),   # Gordon has no place at the desk
+                      T.sport: ("sport",)},
         station="Port Wexley News on channel 7",
         tone="warm, dry, local",
         airs_specials=True,
@@ -255,6 +264,33 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                       T.vox_pop: ("late_host", "reporter", "guest")},
     ),
     Show(
+        "sport", "FULL TIME", "SPORT", (40, 150, 90),
+        # Fifteen minutes of local sport before Coastwide, from the sports corner: the Tides' latest
+        # (sport.py, so the scores are the same everywhere), Miles at a ground, a guest on the
+        # sports desk, the table and the smaller clubs, and the games coming up.
+        pattern=(
+            T.bumper,
+            I(T.sport, "open", brief="the headlines: the Tides' latest result or news, and what else is coming up"),
+            I(T.field_report, brief="Miles at Tidewater Stadium or the training ground: the club this week"),
+            I(T.interview, brief="a Tides player, the manager or the captain, about the last game and the next"),
+            I(T.sport, brief="the rest of the league: the other results from the last round and the table"),
+            # the order wraps back to here
+            I(T.vox_pop, brief="Miles asks supporters, outside the stadium or in the club shop, one question"),
+            I(T.sport, brief="the smaller clubs: bowls, rowing, the sea swimmers or the Gulls' Sunday side"),
+            I(T.interview, brief="someone from one of the smaller clubs, or a young player coming through"),
+        ),
+        loop_from=5,
+        closing=(I(T.sport, "close", brief="the games coming up, and over to Coastwide"),),
+        target_s={T.bumper: 8.0, T.sport: 60.0, T.field_report: 100.0, T.interview: 180.0, T.vox_pop: 60.0},
+        cast=("sport", "reporter"), lead="sport",
+        cast_by_type={T.sport: ("sport",), T.interview: ("sport", "guest"),
+                      T.vox_pop: ("sport", "reporter", "guest"), T.field_report: ("sport", "reporter")},
+        station="Full Time, the sport from Port Wexley and the Greymouth coast on channel 7",
+        tone="quick, keen and local; proud of the clubs, honest about a bad result, never cruel",
+        light=True,                  # no news threads from the sports desk: the scores come from sport.py
+        repeats_overnight=False,     # tonight's results aren't tomorrow's
+    ),
+    Show(
         "overnight", "PORT WEXLEY NEWS", "OVERNIGHT", (90, 90, 140),
         pattern=(T.testcard, T.repeat),
         target_s={T.testcard: 60.0, T.repeat: 75.0},
@@ -271,6 +307,7 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),       # test card and repeats; the editor and story desk keep working, specials air
     (6, "breakfast"),       # Morning Tide on the sofa: lighter, chattier
     (9, "news"),            # the news loop through the day and the early evening
+    ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "news"),
     (22, "late"),           # The Last Ferry: a monologue and long guest chats

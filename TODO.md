@@ -16,8 +16,9 @@ bottom with the date.
   an endless strip with the same gradient and clouds, and let the clouds drift behind the buildings.
   It wouldn't reach the studio sets; check hazy horizons by eye; show before/after first.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
-  wins; on 2026-10-27 every role in the town had one but the sea-glass collector), and perhaps gesture
-  states for presenters.
+  wins). On 2026-10-28 every role the town had cast matched one.
+- [ ] Full Time's own arrangement of the station tune for its ident (it uses the news voicing:
+  `jingle.VOICINGS` has no "sport"), chosen by ear like the others.
 
 ## Content
 
@@ -39,7 +40,6 @@ bottom with the date.
     magazine and the talk show, which are kept `light`.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
-- [ ] Sport: a fourth presenter and the Tidewater Stadium.
 - [ ] Documentary follow-ups: give the writers and the story desk what documentaries
   established (`world.documentaries`), a repeat of the night's documentary in the
   overnight block, and the documentary's own presenter for history pieces.
@@ -109,6 +109,25 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 Sport. Fran Kellaway (`sport`, a former county footballer in the Tides' blue track top)
+  fronts *Full Time*, fifteen minutes from the sports corner at 18:45 before *Coastwide* (headlines,
+  Miles at a ground, a guest on the sports desk, the league, then supporters and the smaller clubs,
+  and the games coming up), and the sport in the news once in three loops (`T.sport`, about every half
+  hour). Every score, scorer, fixture and table position comes from `sport.py`, and every writer's
+  briefing has a line on the Tides. *Full Time* is light (no threads), isn't repeated overnight, and
+  has no big-running-story line. Fran's voice is `af_jessica` until chosen by ear from the samples.
+- 2026-10-28 Seventeen more costumes, approved on a contact sheet: the publican's bar towel, the
+  docker's donkey-jacket yoke, the lighthouse keeper's white peaked cap, aprons for the stallholder, the
+  groomer and the lamp-oil maker, the ghost-tour guide's dark coat, the sea-glass collector's anorak, the
+  milliner and shoemender folded into the tailor and the cobbler, the pasty maker into the chef; and
+  for sport the bowls whites, the rowing and swimming clubs, a referee in black and the Tides' blue.
+  The sport and outdoor rules come last, so a coach driver or a ticket collector keeps their uniform.
+- 2026-10-28 Gestures, approved on a contact sheet: whoever is talking brings a hand up (about 1.6 s in
+  every 5.5, every third time pointing), and whoever has been quiet a moment nods (the head dips one
+  unit, about every 4 s), each on their own beat. The mouth the player already passes says who is
+  talking (`sprites._gesture`), so every set has them; `draw_character(gesture=...)` fixes one for a sheet.
+- 2026-10-28 The schedule can start a show on the quarter ("18:45"): show changes, a show's end, the
+  test card's next start and "Later on Channel 7" follow it, and the announcer says "a quarter to seven".
 - 2026-10-28 Guests remember. Every guest script (interview, couch, consumer, feature) has
   `guest_memory`, one line on what we learned, and `ask_next_time`, usually null, written in the same
   call. They go on the person (`Person.memories`, the last four; `loose_ends`, broadcast clock,

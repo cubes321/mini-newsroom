@@ -21,8 +21,9 @@ from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_mod
 
 from .locations import BACKDROP_IDS
 
-Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest"]
-SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest")
+Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport", "guest"]
+SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
+                             "guest")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
@@ -46,6 +47,7 @@ class SegmentType(StrEnum):
     advert = "advert"            # a local advert from the pool (adverts.py): covers a gap, outside the rundown
     continuity = "continuity"    # an ident, the programme card or a notice (continuity.py): covers a gap, outside the rundown
     ad_break = "ad_break"        # a planned break in a light show's running order: adverts from the pool
+    sport = "sport"              # the sports desk: Fran at the sports corner (the news, and Full Time)
 
 
 class SegmentState(StrEnum):
@@ -119,8 +121,9 @@ class Rundown(BaseModel):
 # -------------------------------------------------------------- LLM outputs
 
 
-LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host"]
-GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "guest"]
+LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport"]
+GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
+                       "guest"]
 
 
 def _gender(v):
@@ -525,6 +528,7 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.sofa: BulletinScript,       # same shape: lines, headline, caption, optional follow-up
     SegmentType.links: BulletinScript,
     SegmentType.monologue: BulletinScript,
+    SegmentType.sport: BulletinScript,
     SegmentType.interview: InterviewScript,
     SegmentType.consumer: InterviewScript,
     SegmentType.feature: FeatureScript,

@@ -45,7 +45,8 @@ REPLAY_AFTER_S = 25.0      # filler this long -> replay last weather
 LET_FINISH_S = 12.0        # breaking news waits for a segment with less than this left
 
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
-INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue)
+INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue,
+                 SegmentType.sport)
 OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
 _BREAKS = (SegmentType.bumper, SegmentType.testcard)   # a ready special may air after these
@@ -57,7 +58,7 @@ class View:
     """Everything scenes.py needs to paint a frame. Plain data, no pygame."""
     mode: str = "testcard"               # testcard | filler | bumper | studio | weather | field | special
     show: str = "news"                   # schedule.SHOWS id: picks the set and the branding
-    set: str = ""                        # "interview" when the segment is on the interview set
+    set: str = ""                        # "interview" on the interview set, "sports" at the sports corner
     people: list = field(default_factory=list)   # who is on that set: [(speaker id, guest name or None)]
     presenter: str = "anchor"            # who stands at the big-picture wall
     tag: str = ""                        # field scenes: LIVE, VOX POP, or nothing for a filmed piece
@@ -486,8 +487,9 @@ class Player:
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
                 v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
-        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late")):
-            v.set, v.people = "interview", self._people(seg)
+        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport")):
+            sports = seg.type is SegmentType.sport or seg.show == "sport"
+            v.set, v.people = "sports" if sports else "interview", self._people(seg)
             if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)

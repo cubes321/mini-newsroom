@@ -15,9 +15,8 @@ def _at(hh: int, mm: int) -> float:
 
 @pytest.fixture
 def quarter(monkeypatch):
-    """The normal day with The Last Ferry standing in for a show at 18:45."""
-    rows = list(schedule.SCHEDULE)
-    rows.insert(next(i for i, (s, _) in enumerate(rows) if s == 19), ("18:45", "late"))
+    """The normal day with The Last Ferry standing in for Full Time at 18:45."""
+    rows = [(s, "late" if show == "sport" else show) for s, show in schedule.SCHEDULE]
     monkeypatch.setattr(schedule, "SCHEDULE", tuple(rows))
 
 
@@ -39,5 +38,5 @@ def test_later_on_channel_7_lists_it_and_says_a_quarter_to(quarter):
 
 
 def test_whole_hours_behave_as_before():
-    assert schedule.show_end(_at(18, 10)) == _at(19, 0)
+    assert schedule.show_end(_at(20, 10)) == _at(22, 0)
     assert schedule.show_end(_at(23, 30)) == _at(0, 0) + 86400

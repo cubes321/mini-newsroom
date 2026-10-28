@@ -355,7 +355,7 @@ def draw_bug(surf: pygame.Surface) -> None:
 
 # ------------------------------------------------------------------ contact sheet and video
 
-SHEET_SHOWS = ["news", "breakfast", "magazine", "late", "overnight"]
+SHEET_SHOWS = ["news", "breakfast", "magazine", "late", "sport", "overnight"]
 
 
 def key_times(onsets: list[float]) -> list[tuple[str, float]]:

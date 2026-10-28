@@ -40,6 +40,8 @@ IDENTS: dict[str, tuple[Path, str]] = {
                  "This is Coastwide, your evening on the Greymouth coast, on channel seven."),
     "late": (CONFIG.paths.assets / "bumper_late.wav",
              "Channel seven, late. This is The Last Ferry."),
+    "sport": (CONFIG.paths.assets / "bumper_sport.wav",
+              "This is Full Time, the sport from the Greymouth coast, on channel seven."),
 }
 
 

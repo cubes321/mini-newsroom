@@ -99,7 +99,7 @@ def test_the_main_guest_stays_on_the_couch_for_the_second(monkeypatch):
     assert people == [("late_host", None), ("guest", "Tam Buchanan"), ("guest", "Marjorie Pell")]
 
     class V:
-        show, speaker, guest_name = "late", "guest", "Marjorie Pell"
+        show, speaker, guest_name, set = "late", "guest", "Marjorie Pell", "interview"
     V.people = people
     marks = {name: m for _, name, m in _interview_marks(V)}
     assert marks["Tam Buchanan"] == MARKS["studio_late"]["guest_near"]

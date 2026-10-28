@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, llm, schedule, tides, tipline
+from . import breaking, llm, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -67,6 +67,13 @@ guest that a later show could call back to. ask_next_time: usually null; somethi
 next time, if the chat leaves one (a gig coming up, a result to come, an unfinished story).
 """
 
+_SPORT_DESK = """
+Fran ("sport") is the sports presenter, at the sports corner: a former county footballer, quick and
+keen, who knows everyone at the club. Every score, scorer, date, table position and fixture comes
+from SPORT FACTS exactly as given; never invent a result, and never say how a match finished
+before the facts give its result. thread_id is null.
+"""
+
 _SYSTEM: dict[SegmentType, str] = {
     SegmentType.weather: _COMMON_RULES + """
 This is the WEATHER segment. The weather presenter speaks (speaker id "weather"),
@@ -88,6 +95,12 @@ This is an ON-SITE FIELD REPORT. Structure:
 Choose a backdrop id from the LOCATIONS list for the picture. Separately, location is the
 place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
+""",
+    SegmentType.sport: _COMMON_RULES + _SPORT_DESK + """
+This is THE SPORT in the news: Fran speaks alone, about a minute, from the sports corner. A quick
+"thanks, Dana" or straight in, then the Tides' latest from SPORT FACTS (a result, the next game,
+the table), then one shorter item from the smaller clubs if there's room.
+headline = the main sports item in under 12 words. lower_third = "Sport" plus a short tag.
 """,
     SegmentType.breaking: _COMMON_RULES + """
 This is BREAKING NEWS, interrupting {interrupting}. The anchor (speaker id "anchor") cuts in from
@@ -239,6 +252,37 @@ answer in a line or two each. Each is speaker "guest" with their own guest_name 
 surname), guest_gender and guest_age; different ages and moods, one of them funny. Vincent may add one line
 back in the studio. question = the question as a caption. Choose a backdrop id from the LOCATIONS
 list; location is the place in words.
+""",
+}
+
+
+# Full Time, the sports show at 18:45: Fran at the sports corner, Miles out at the grounds.
+_SPORT: dict[SegmentType, str] = {
+    SegmentType.sport: _COMMON_RULES + _SPORT_DESK + """
+This is a piece on the SPORTS DESK in Full Time. Fran speaks alone, to camera, on what THIS ITEM
+says. At the open: a quick good evening and welcome to Full Time, the headlines, and what's coming up.
+At the close: the games coming up, a goodbye, and Coastwide is next.
+headline = the piece in under 12 words. lower_third = "Full Time" plus a short tag.
+""",
+    SegmentType.field_report: _COMMON_RULES + _SPORT_DESK + """
+This is a REPORT from a ground on Full Time. "sport" (Fran) hands to Miles in one line; "reporter"
+(Miles) reports from the place THIS ITEM names: the club this week, training, the mood, an injury,
+what people there said; "sport" thanks him in one line. Choose a backdrop id from the LOCATIONS list
+(the stadium for the Tides); location is the place in words, never an id.
+""",
+    SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _SPORT_DESK + """
+This is the GUEST on the sports desk in Full Time. Fran ("sport") talks to one guest as THIS ITEM
+says: a player, the manager, someone from a smaller club. Short, lively questions; the guest tells
+a story or two (a goal, a dressing-room moment, how they started) and is honest about the last
+result as SPORT FACTS gives it. The squad and the manager are in SPORT FACTS: use those names.
+headline = the guest and the best thing they said, under 12 words. lower_third = a short caption.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _SPORT_DESK + """
+This is the VOX POP on Full Time. Fran ("sport") hands over in one line; Miles ("reporter") asks
+supporters ONE question about the club; then three or four answer in a line or two each. Each is
+speaker "guest" with their own guest_name (first name and surname), guest_gender and guest_age;
+different ages and moods, one of them funny. question = the question as a caption. Choose a
+backdrop id from the LOCATIONS list; location is the place in words.
 """,
 }
 
@@ -407,7 +451,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
 
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
-    table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE}.get(show.id, {})
+    table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -419,7 +463,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}."
     )
-    if show.light:
+    if show.light and show.id != "sport":         # the sports show has its own facts, not the news
         big = big_story(world)
         if big and show.opens and part != "open" and seg_type is not SegmentType.bulletin:
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
@@ -435,6 +479,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             show.id == "breakfast" and seg_type is not SegmentType.interview):
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
+    if seg_type is SegmentType.sport or show.id == "sport":
+        user += "\n\n" + sport.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))
     scene = world.thread(work.get("scene")) if seg_type is SegmentType.field_report else None
     if scene:                             # the rota's angle ("the first ferry") would fight it
         user += _FROM_THE_SCENE.format(id=scene.id, title=scene.title, status=scene.status,
@@ -631,6 +677,16 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             ],
             headline="Tonight on Coastwide",
             lower_third=f"{show.title.title()}, channel seven",
+        )
+    if seg_type is SegmentType.sport:
+        latest = sport.summary(datetime.fromtimestamp(schedule.now()))
+        return BulletinScript(
+            lines=[LiveLine(speaker="sport", text="Time for the sport." if part_ != "close" else "That's Full Time."),
+                   LiveLine(speaker="sport", text=latest.replace("Tidewater Town FC (the Tides): ", "For the Tides: ")),
+                   LiveLine(speaker="sport", text="More from the Tides and the smaller clubs next time. Goodnight."
+                            if part_ == "close" else "That's the sport for now.")],
+            headline="The Tides: the latest",
+            lower_third="Sport, channel seven",
         )
     if seg_type is SegmentType.monologue:
         lm = rng.choice(world.landmarks)

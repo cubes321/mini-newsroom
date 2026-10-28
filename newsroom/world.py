@@ -653,6 +653,9 @@ def seed_characters() -> list[Character]:
         Character("late_host", "Vincent Marr", "host, The Last Ferry (late-night talk show)",
                   CONFIG.tts.voices.get("late_host", "am_onyx"),
                   ["raconteur", "a former foreign correspondent who came home", "lets guests talk"]),
+        Character("sport", "Fran Kellaway", "sports presenter (the news, and Full Time at 18:45)",
+                  CONFIG.tts.voices.get("sport", "af_jessica"),
+                  ["quick and keen", "played for the county until her knee went", "knows everyone at the club"]),
     ]
 
 

@@ -207,7 +207,10 @@ def _guest(v: View, name: str | None):
 
 
 def _interview_set(v: View) -> str:
-    """The Last Ferry has its own desk-and-couch set; every other show uses the armchairs."""
+    """The Last Ferry has its own desk-and-couch set, the sport its corner of the studio; every
+    other show uses the armchairs."""
+    if v.set == "sports":
+        return "studio_sports"
     return "studio_late" if v.show == "late" else "studio_interview"
 
 
@@ -216,7 +219,7 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
     marks = locations.MARKS[_interview_set(v)]
     if len(v.people) == 1:
         who, name = v.people[0]
-        if v.show == "late":                                    # the monologue, from behind the desk
+        if v.show == "late" or v.set == "sports":               # the monologue, the sports desk
             return [(who, name, marks["host"])]
         return [(who, name, (160, 156, 2, 1))]                  # alone: centre stage, standing
     if len(v.people) >= 3 and "guest_far" in marks:             # the late couch: two guests
@@ -311,7 +314,7 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
         return draw_sofa(canvas, v, t)
     if v.shot == "wall":
         return _studio_wall(canvas, v, t)
-    if v.set == "interview":
+    if v.set in ("interview", "sports"):
         return draw_interview(canvas, v, t)
     if v.shot == "close":
         return _studio_close(canvas, v, t)

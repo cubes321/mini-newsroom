@@ -41,7 +41,7 @@ from .models import Line, Segment, SegmentState, SegmentType
 log = logging.getLogger(__name__)
 
 VOICE = "bf_isabella"           # the continuity announcer: nobody else on the station uses her
-SHOWS = ("news", "breakfast", "magazine", "late")
+SHOWS = ("news", "breakfast", "magazine", "late", "sport")
 
 # In a gap: ident, advert, a card (programmes, a trail or a notice), advert, advert, ident... then the filler card.
 GAP_PATTERN = ("ident", "advert", "card", "advert", "advert", "ident", "card")
@@ -52,6 +52,7 @@ IDENT_LINES = {
     "breakfast": ["Good morning. This is Channel 7.", "Channel 7. Good morning, Port Wexley."],
     "magazine": ["Channel 7, this evening.", "This is Channel 7, for the Greymouth coast."],
     "late": ["Channel 7, late.", "You're still with Channel 7."],
+    "sport": ["Channel 7 sport.", "This is Channel 7, with the sport."],
 }
 
 NOTICES: dict[str, tuple[str, list[str]]] = {          # each line a whole sentence or two: a block on the slide
@@ -188,13 +189,14 @@ def bake_ident(show: str, n: int) -> Item:
     p = pool()
     item_id = f"ident_{show}_{n}"
     stem = assets.MUSIC / f"ident_{show}.wav"
+    voicing = show if show in jingle.VOICINGS else "news"     # Full Time has no arrangement of its own yet
     if stem.exists():
         music = assets._load(stem)
     else:
-        music = assets._load_array(jingle.render(voicing=show), jingle.SR)
+        music = assets._load_array(jingle.render(voicing=voicing), jingle.SR)
     text = IDENT_LINES[show][n]
     voice, line = _voice(text, p.dir / f"{item_id}_vo.wav")
-    mix = assets._ident_mix(music, voice, jingle.onsets(voicing=show)[-1] + assets.VOICE_AFTER_S)
+    mix = assets._ident_mix(music, voice, jingle.onsets(voicing=voicing)[-1] + assets.VOICE_AFTER_S)
     wav = p.dir / f"{item_id}.wav"
     assets._write(wav, mix)
     line = line.model_copy(update={"wav_path": wav, "duration_s": len(mix) / assets.SR, "mouth_env": []})
