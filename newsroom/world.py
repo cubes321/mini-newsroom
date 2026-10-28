@@ -177,11 +177,7 @@ class World:
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
         )
-        # Threads updated the same day tie on the date; the one followed up least often today goes
-        # first, so each follow-up moves a story down a place instead of keeping it on top.
-        live = sorted(self.open_threads(), reverse=True,
-                      key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
-        threads = "\n".join(self._thread_line(t) for t in live[:MAX_THREADS_IN_PROMPT]) or "  (none yet)"
+        threads = "\n".join(self._thread_line(t) for t in self.briefing_threads()) or "  (none yet)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-MAX_HEADLINES_IN_PROMPT:]) or "  (none yet)"
         wx = self.last_weather
         wx_line = (
@@ -201,6 +197,15 @@ class World:
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
+
+    @_locked
+    def briefing_threads(self) -> list[Thread]:
+        """The open threads the writers' briefing lists. Threads updated the same day tie on the
+        date; the one followed up least often today goes first, so each follow-up moves a story
+        down a place instead of keeping it on top."""
+        live = sorted(self.open_threads(), reverse=True,
+                      key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
+        return live[:MAX_THREADS_IN_PROMPT]
 
     @_locked
     def summary_for_editor(self) -> str:

@@ -104,6 +104,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 A news field report is offered up to four QUIET STORIES (`writers._quiet_threads`): open
+  threads the briefing's five don't show, minus Miles's last three and any he has reported from the
+  scene, those with a planned NEXT first and then the longest quiet. It picks one up before starting
+  a new story. Told to leave Miles's last three alone with only five to choose from, field reports
+  had opened 35 threads on the first evening run, among them four on the second fire engine and five
+  on the estuary tide in the wind. Not on the light shows, which can't open a story anyway.
 - 2026-10-28 The light shows (*Morning Tide*, *Coastwide*, *The Last Ferry*) follow stories up but
   never open one: every segment type, field reports included, not only guests. Breaking news still
   opens its own thread whatever is on. On the first evening run 44 of the 108 open threads were

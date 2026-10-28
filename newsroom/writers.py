@@ -354,6 +354,26 @@ def _field_so_far(world: World, show: schedule.Show) -> str:
             f"threads named here; a passing mention is fine):\n{heads}")
 
 
+QUIET_THREADS = 4               # open threads beyond the briefing's offered to a news field report
+
+
+def _quiet_threads(world: World, exclude: set[str]) -> str:
+    """Open threads the briefing doesn't list, for a news field report to pick up before it
+    invents a story: told to go somewhere other than Miles's last three, with only the
+    briefing's five to choose from, it started new ones (four "second fire engine" threads and
+    five "estuary tide in the wind" on 2026-10-27). Those with a planned NEXT first, then the
+    longest quiet, which they also keep from fading."""
+    shown = {t.id for t in world.briefing_threads()} | exclude
+    quiet = sorted((t for t in world.open_threads() if t.id not in shown),
+                   key=lambda t: (not t.next_development, t.moved_ts))[:QUIET_THREADS]
+    if not quiet:
+        return ""
+    rows = "\n".join(f"  - [{t.id}] {t.title}: {t.status}" + (f"; NEXT: {t.next_development}" if t.next_development else "")
+                     for t in quiet)
+    return ("QUIET STORIES (open, not in the briefing's list): pick one of these up before starting a new "
+            "story; set thread_id to it and deliver its NEXT step. Start a new story only if none fits.\n" + rows)
+
+
 def _guests_so_far(world: World, show: schedule.Show) -> str:
     """This morning's guests in the armchair, one headline each."""
     return "\n".join(f"  - {e['headline']}" for e in world.aired_today(SegmentType.interview.value, show.id))
@@ -416,6 +436,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     last = _field_so_far(world, show) if seg_type is SegmentType.field_report and not scene else ""
     if last:
         user += "\n\n" + last
+    if seg_type is SegmentType.field_report and not scene and not show.light:
+        recent = {e.get("thread_id") for e in world.aired_today(SegmentType.field_report.value, show.id)[-FIELD_MEMORY:]}
+        quiet = _quiet_threads(world, recent | set(done))
+        if quiet:
+            user += "\n\n" + quiet
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
     if so_far:
         user += "\n\n" + so_far
