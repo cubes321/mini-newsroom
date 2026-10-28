@@ -117,7 +117,7 @@ def _count(provider: str, usage: dict | None, *, failed: bool = False) -> None:
 
 
 def _cache_text(u: dict) -> str:
-    return f" ({u['cache_read']} cache read, {u['cache_write']} written)" if u.get("cache_read") or u.get("cache_write") else ""
+    return f" ({u.get('cache_read', 0)} cache read, {u.get('cache_write', 0)} written)" if u.get("cache_read") or u.get("cache_write") else ""
 
 
 def usage_summary() -> str:
@@ -195,9 +195,20 @@ def list_models(provider: str | None = None) -> list[str]:
         return []
 
 
+def _cached_prompt_tokens(usage) -> int:
+    """Prompt tokens the server served from its own cache. DeepSeek caches shared prefixes
+    without being asked and bills them at a fiftieth of the input price (2026-10-28 export:
+    43% of Flash's input), reporting them as prompt_cache_hit_tokens; OpenAI-style servers
+    use prompt_tokens_details.cached_tokens."""
+    hit = getattr(usage, "prompt_cache_hit_tokens", None)
+    if hit is None:
+        hit = getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", None)
+    return hit or 0
+
+
 def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict],
                 schema: type[BaseModel]) -> tuple[str, dict | None]:
-    """The reply text and its token usage ({in, out, reasoning}) if the server reported it."""
+    """The reply text and its token usage ({in, out, reasoning, cache_read}) if the server reported it."""
     import openai
 
     client = _openai_client(prov)
@@ -257,7 +268,8 @@ def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict],
     if resp.usage:
         details = getattr(resp.usage, "completion_tokens_details", None)
         usage = {"in": resp.usage.prompt_tokens or 0, "out": resp.usage.completion_tokens or 0,
-                 "reasoning": getattr(details, "reasoning_tokens", None) or 0}
+                 "reasoning": getattr(details, "reasoning_tokens", None) or 0,
+                 "cache_read": _cached_prompt_tokens(resp.usage)}
     return choice.message.content or "", usage
 
 
