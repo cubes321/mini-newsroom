@@ -94,8 +94,13 @@ class DocumentaryCfg:
 @dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
-    max_open_threads: int = 8
+    max_open_threads: int = 8            # the desk seeds new threads only while fewer than this are open
     batch: int = 8                       # threads the desk plans per call, least recently planned first
+    max_live_threads: int = 40           # past this many open, the stalest fade (world.fade_threads)
+    fade_oneoff_h: float = 8.0           # hours of air time without a new beat before a thread fades,
+    fade_quiet_h: float = 24.0           # for one covered once or twice, most threads,
+    fade_resolving_h: float = 12.0       # one winding down,
+    fade_peak_h: float = 72.0            # and one at its peak
 
 
 @dataclass(frozen=True)

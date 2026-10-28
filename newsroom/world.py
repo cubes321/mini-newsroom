@@ -44,9 +44,13 @@ log = logging.getLogger(__name__)
 MAX_THREADS_IN_PROMPT = 5
 MAX_HEADLINES_IN_PROMPT = 10
 MAX_ARCHIVE = 1000
-MAX_THREADS = 40                # closed threads beyond this are dropped; open ones never are
+MAX_THREADS = 120               # closed, then faded, threads beyond this are dropped; open ones never are
+# A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
+_BREAKING_KEEP_S = 2 * 3600
+STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
 
-PHASES = ("emerging", "developing", "peak", "resolving", "closed")
+# "faded" is the code's, not the desk's: a thread that stopped moving on air (fade_threads).
+PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
@@ -102,6 +106,8 @@ class Thread:
     breaking: str = ""              # ISO date it broke as breaking news (the light shows lead with it)
     breaking_ts: float = 0.0        # when it broke, on the broadcast clock (bulletins lead with it for a while)
     planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
+    moved_ts: float = 0.0           # when it last moved on air, on the broadcast clock (it fades when quiet)
+    faded_ts: float = 0.0           # when it faded, on the broadcast clock
 
 
 def _locked(method):
@@ -158,6 +164,10 @@ class World:
         people = ", ".join(self.person(pid).name for pid in t.people if self.person(pid)) or "nobody named yet"
         nxt = f"; NEXT: {t.next_development}" if t.next_development else ""
         extra = f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
+        if full and t.moved_ts and t.phase != "faded":
+            left = fade_after_s(t) - (schedule.now() - t.moved_ts)
+            if left < STALE_WARNING_S:
+                nxt += f"; GOING QUIET: fades off the air in about {max(1, round(left / 3600))}h unless it moves"
         return f"  - [{t.id}] {t.title} — {t.phase}{extra}{last_s}; people: {people}{nxt}"
 
     @_locked
@@ -196,6 +206,7 @@ class World:
     def summary_for_editor(self) -> str:
         """Fuller view for the editor and story desk."""
         threads = "\n".join(self._thread_line(t, full=True) for t in self.open_threads()) or "  (none)"
+        faded = "\n".join(self._thread_line(t, full=True) for t in self.recently_faded()) or "  (none)"
         done = "\n".join(f"  - {s['date']}: {s['title']} (thread {s['thread_id']})" for s in self.specials[-10:]) or "  (none)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
         return (
@@ -203,6 +214,7 @@ class World:
             f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n"
+            f"Recently faded off the air (revive one only if something new would really happen):\n{faded}\n"
             f"Specials already made (do not repeat these subjects):\n{done}\n"
             f"Recent headlines:\n{heads}"
         )
@@ -211,7 +223,15 @@ class World:
 
     @_locked
     def open_threads(self) -> list[Thread]:
-        return sorted((t for t in self.threads if t.phase != "closed"), key=lambda t: t.updated, reverse=True)
+        return sorted((t for t in self.threads if t.phase not in ("closed", "faded")), key=lambda t: t.updated,
+                      reverse=True)
+
+    @_locked
+    def recently_faded(self, now: float | None = None, limit: int = 5) -> list[Thread]:
+        """Threads that faded in the last three days, the most recent first: the desk may revive one."""
+        now = now or schedule.now()
+        faded = [t for t in self.threads if t.phase == "faded" and 0 <= now - t.faded_ts < 3 * 86400]
+        return sorted(faded, key=lambda t: -t.faded_ts)[:limit]
 
     @_locked
     def thread(self, thread_id: str | None) -> Thread | None:
@@ -321,14 +341,20 @@ class World:
                 if e["date"] == self.last_date and e["type"] == seg_type and e.get("show") == show]
 
     @_locked
-    def update_thread(self, thread_id: str | None, title: str, status: str | None) -> str:
-        """Follow up an existing thread or open a new one. Returns the thread id."""
+    def update_thread(self, thread_id: str | None, title: str, status: str | None, now: float | None = None) -> str:
+        """Follow up an existing thread or open a new one. Returns the thread id. A follow-up of a
+        faded thread brings it back."""
         today = self.last_date
+        now = now or schedule.now()
         if thread_id:
             for t in self.threads:
                 if t.id == thread_id:
+                    if t.phase == "faded":
+                        t.phase = "developing"
+                        log.info("thread %s back from faded: %s", t.id, title[:60])
                     t.status = status or t.status
                     t.updated = today
+                    t.moved_ts = now
                     t.mentions += 1
                     t.beats.append({"date": today, "day": self.broadcast_day, "headline": title[:90], "status": t.status})
                     t.beats = t.beats[-12:]
@@ -336,24 +362,48 @@ class World:
                         t.phase = "developing"
                     return t.id
         new_id = self._new_thread_id()
-        self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1,
+        self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1, moved_ts=now,
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
         self._cap_threads()
         return new_id
 
     def _cap_threads(self) -> None:
         """Keep at most MAX_THREADS: drop closed threads first, the least recently updated
-        first. Never drop an open thread (a plain [-40:] once evicted live stories); if
-        every thread is open the list grows past the cap."""
+        first, then faded ones, the longest faded first. Never drop an open thread (a plain
+        [-40:] once evicted live stories); if every thread is open the list grows past the cap.
+        fade_threads keeps the open ones in check."""
         excess = len(self.threads) - MAX_THREADS
         if excess <= 0:
             return
-        closed = sorted((t for t in self.threads if t.phase == "closed"), key=lambda t: t.updated)
-        drop = {t.id for t in closed[:excess]}
+        gone = (sorted((t for t in self.threads if t.phase == "closed"), key=lambda t: t.updated)
+                + sorted((t for t in self.threads if t.phase == "faded"), key=lambda t: t.faded_ts))
+        drop = {t.id for t in gone[:excess]}
         self.threads = [t for t in self.threads if t.id not in drop]
         if len(self.threads) > MAX_THREADS:
             log.warning("%d threads, all open; keeping them all past the cap of %d",
                         len(self.threads), MAX_THREADS)
+
+    @_locked
+    def fade_threads(self, now: float | None = None) -> list[Thread]:
+        """Threads that haven't moved on air for their window fade (`fade_after_s`): off the
+        writers' and the desk's boards, kept for the desk to revive and for the documentary.
+        Then, past `[story] max_live_threads` open, the stalest fade too, never a story at its
+        peak or one that broke in the last two hours. On 2026-10-28 every guest chat and field
+        report had opened a thread and nothing retired them: 108 open, the cap ignored."""
+        now = now or schedule.now()
+        live = self.open_threads()
+        faded = [t for t in live if t.moved_ts and now - t.moved_ts >= fade_after_s(t)]
+        live = [t for t in live if t not in faded]
+        excess = len(live) - CONFIG.story.max_live_threads
+        if excess > 0:
+            spare = [t for t in live if t.phase != "peak"
+                     and not (t.breaking_ts and 0 <= now - t.breaking_ts < _BREAKING_KEEP_S)]
+            faded += sorted(spare, key=lambda t: (t.moved_ts, t.mentions))[:excess]
+        for t in faded:
+            log.info("thread %s faded (%s, %.0fh quiet, covered %dx): %s", t.id, t.phase,
+                     (now - t.moved_ts) / 3600, t.mentions, t.title[:60])
+            t.phase, t.updated, t.faded_ts = "faded", self.last_date, now
+        return faded
 
     def _new_thread_id(self) -> str:
         """One past the highest id ever used. Not the list's length: the list is capped at 40,
@@ -383,13 +433,14 @@ class World:
     def mark_breaking(self, thread_id: str | None, ts: float) -> None:
         t = self.thread(thread_id)
         if t is not None:
-            t.phase, t.breaking, t.breaking_ts = "peak", self.last_date, ts
+            t.phase, t.breaking, t.breaking_ts, t.moved_ts = "peak", self.last_date, ts, ts
 
     @_locked
     def seed_thread(self, title: str, status: str, next_development: str, people: list[str]) -> Thread:
         """A story the desk wants to exist before anyone has covered it."""
         t = Thread(self._new_thread_id(), title[:80], status[:160], self.last_date, self.last_date, 0,
-                   phase="emerging", next_development=next_development[:200], people=people)
+                   phase="emerging", next_development=next_development[:200], people=people,
+                   moved_ts=schedule.now())
         self.threads.append(t)
         self._cap_threads()
         return t
@@ -458,6 +509,15 @@ class World:
                 scored.append((score, e))
         scored.sort(key=lambda s: -s[0])
         return [e for _, e in scored[:limit]]
+
+
+def fade_after_s(t: Thread) -> float:
+    """How long a thread may go without moving on air before it fades: a story at its peak
+    longest, a one-off (covered once or twice) soonest, one that is resolving soon after."""
+    s = CONFIG.story
+    h = (s.fade_peak_h if t.phase == "peak" else s.fade_resolving_h if t.phase == "resolving"
+         else s.fade_oneoff_h if t.mentions <= 2 else s.fade_quiet_h)
+    return h * 3600
 
 
 def _name_hash(name: str | None) -> int:
@@ -551,6 +611,10 @@ def _from_dict(d: dict) -> World:
     d["threads"] = [Thread(**t) for t in d.get("threads", [])]
     d["people"] = [Person(**p) for p in d.get("people", [])]
     w = World(**d)
+    now = schedule.now()
+    for t in w.threads:                    # saved before threads faded: a full window from now
+        if not t.moved_ts and t.phase not in ("closed", "faded"):
+            t.moved_ts = now
     if not w.people:                       # migrate a world saved before the cast existed
         w.people = seed_people()
         log.info("world migrated: seeded %d public figures", len(w.people))
@@ -595,6 +659,42 @@ def save(w: World | None = None, path: Path | None = None) -> None:
         tmp.replace(path)
 
 
+def _fade_backlog(w: World, *, dry: bool) -> int:
+    """`python -m newsroom.world fade [--dry]`: retire a world saved before threads faded. Never
+    while the station is running: it saves the world too. Threads without `moved_ts` get one from
+    their last day (noon, at most now); threads a light show opened fade, as they'd no longer open;
+    then the normal fade pass and the cap."""
+    raw = json.loads(CONFIG.paths.world.read_text(encoding="utf-8"))
+    undated = {t["id"] for t in raw.get("threads", []) if not t.get("moved_ts")}
+    now = schedule.now()
+    with w.lock:
+        before = len(w.open_threads())
+        for t in w.open_threads():
+            if t.id in undated:
+                noon = datetime.fromisoformat(t.updated).replace(hour=12).timestamp()
+                t.moved_ts = min(noon, now)
+        first = {}
+        for e in w.archive:
+            if e.get("thread_id"):
+                first.setdefault(e["thread_id"], e)
+        light = [t for t in w.open_threads() if (e := first.get(t.id)) and e.get("type") != "breaking"
+                 and e.get("show") in schedule.SHOWS and schedule.SHOWS[e["show"]].light]
+        for t in light:
+            log.info("thread %s opened by %s (%s): fades: %s", t.id, first[t.id]["show"], first[t.id]["type"],
+                     t.title[:60])
+            t.phase, t.updated, t.faded_ts = "faded", w.last_date, now
+        faded = w.fade_threads(now)
+        print(f"{before} open before; {len(light)} opened by light shows and {len(faded)} more faded; "
+              f"{len(w.open_threads())} open now:")
+        for t in w.open_threads():
+            print(f"  [{t.id}] {t.phase:<10} {t.mentions:>2}x  {t.title}")
+    if dry:
+        print("(dry run: nothing saved)")
+    else:
+        save(w)
+    return 0
+
+
 def _cli() -> int:
     import sys
 
@@ -606,6 +706,8 @@ def _cli() -> int:
         for e in w.archive[-20:]:
             print(f"{e['date']} d{e['day']} {e['type']:<13} {e['headline']}  [{e['thread_id']}]")
         return 0
+    elif len(sys.argv) > 1 and sys.argv[1] == "fade":
+        return _fade_backlog(w, dry="--dry" in sys.argv)
     else:
         text = w.summary_for_prompt()
     text = text.replace(CACHE_BREAK, "")

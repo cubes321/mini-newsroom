@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import time
 
-from . import llm
+from . import llm, schedule
 from .config import CONFIG
 from .models import StoryPlan
 from .world import Thread, World
@@ -72,9 +72,11 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     `breaking` is "no", "may" (the desk may break a story itself, rarely) or "now" (asked to):
     the plan's `breaking` is left for the worker, which commissions it (`breaking.from_desk`)."""
     world.last_story_plan_ts = time.time()
+    world.fade_threads()
     open_n = len(world.open_threads())
     room = max(0, CONFIG.story.max_open_threads - open_n)
     todo = batch(world)
+    faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
@@ -82,7 +84,10 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         f"their turn later; use them as context only. You may seed at most {min(room, 2)} new ones. "
         "Return phase and NEXT development for each of this round's threads you want to change, close any "
         "that are finished, and list the people now involved (exact names from the briefing where "
-        "possible): at most four per thread, three for a new one."
+        "possible): at most four per thread, three for a new one. A thread GOING QUIET fades off the air "
+        "unless it is covered again: give it a NEXT step worth covering, or close it."
+        + (f" You may also revive one recently faded thread ({', '.join(t.id for t in faded)}) by giving it "
+           "a phase and a NEXT development, but only if something new would really happen." if faded else "")
     ) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
@@ -99,7 +104,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         return None
     if not dry:
         with world.lock:                           # threads are changed in place
-            apply(world, p, only={t.id for t in todo})
+            apply(world, p, only={t.id for t in todo} | {t.id for t in faded})
             now = time.time()
             for t in todo:
                 t.planned_ts = now
@@ -145,6 +150,9 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         if only is not None and t.id not in only:
             log.info("story desk planned %s out of turn; skipping", t.id)
             continue
+        if t.phase == "faded" and u.phase != "closed":
+            t.moved_ts = schedule.now()             # revived: a full window before it can fade again
+            log.info("story desk revived faded thread %s", t.id)
         t.phase = u.phase
         t.next_development = u.next_development.strip()
         t.updated = world.last_date if u.phase == "closed" else t.updated

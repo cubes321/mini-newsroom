@@ -139,7 +139,8 @@ def should_commission(world: World, buffer, now: float | None = None) -> bool:
 def decide(world: World) -> DocumentaryCommission | None:
     """Ask the documentary editor for today's subject. None if the model is unavailable."""
     world.last_documentary_date = world.last_date      # one attempt a day, even if it fails
-    threads = sorted(world.open_threads(), key=lambda t: -t.mentions)
+    # Faded threads too: a big story that went quiet is a "whatever happened to" subject.
+    threads = sorted(world.open_threads() + world.recently_faded(), key=lambda t: -t.mentions)
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
         "Threads by coverage: " + (", ".join(f"[{t.id}] {t.mentions}x" for t in threads) or "none yet") + "\n"

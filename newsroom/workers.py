@@ -157,6 +157,7 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     """Full pipeline for one segment. Returns the ready Segment."""
     t0 = time.perf_counter()
     world.roll_day_if_needed()                # an always-on station crosses midnight
+    world.fade_threads()                      # stories that stopped moving leave the board
 
     # Specials and breaking news key their own cache, before the slot-keyed hash below is
     # stamped: their slot numbers restart every run, so a slot key would hand a new special

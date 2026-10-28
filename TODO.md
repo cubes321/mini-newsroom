@@ -104,6 +104,17 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 Threads fade off the air when they stop moving (`world.fade_threads`, run before every
+  segment and every desk round). The windows are hours of air time since the last beat
+  (`moved_ts`, broadcast clock): 8 for a one-off covered once or twice, 24 for most, 12 when
+  resolving, 72 at a peak. Past `[story] max_live_threads = 40` open, the stalest fade too, never a
+  peak or a story that broke in the last two hours. A faded thread leaves the writers' and the
+  desk's boards but stays in the list (now 120, closed then faded evicted first). It comes back on
+  a follow-up, or when the desk revives it: the desk sees the five most recently faded, and threads
+  GOING QUIET six hours before they fade, to give them a next step or close them. The documentary
+  can still pick a faded one. The first evening run left 108 open, nothing ever retiring them; a
+  world saved before this gets a full window from load, and `python -m newsroom.world fade [--dry]`
+  retires such a backlog by its dates (never while the station runs: it saves the world).
 - 2026-10-27 `--clock` moves the town's day too: the day roll (`world.roll_day_if_needed`), the
   writers' "Today is" line and the segment cache key read the broadcast clock, not the real date.
   A run started at `--clock 18:30` at 22:50 had been due to turn Wednesday at real midnight, about

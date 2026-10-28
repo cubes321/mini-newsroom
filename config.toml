@@ -67,6 +67,13 @@ window_s = 3600          # not ready within an hour of airs_at: it waits for tom
 plan_every_s = 1800     # every 30 min: the desk is the biggest cost on any provider
 max_open_threads = 8
 batch = 8                # threads planned per desk call; the whole board in one reply overran max_tokens
+# Threads fade off the air when they stop moving (hours of air time without a new beat), and past
+# max_live_threads open the stalest fade. A faded thread comes back on a follow-up or from the desk.
+max_live_threads = 40
+fade_oneoff_h = 8        # covered once or twice
+fade_quiet_h = 24
+fade_resolving_h = 12
+fade_peak_h = 72
 
 # The viewer tip-line: one tip per line in data/tipline.txt (python -m newsroom.tipline "...").
 # A plain tip is offered to the next bulletins; a line starting "BREAKING:" interrupts
