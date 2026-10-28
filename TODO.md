@@ -49,6 +49,14 @@ bottom with the date.
   Historical Society's plum cake in a 1906 ledger). A writer who books a remembered guest of their
   own accord doesn't see the guest's memories yet; only the offered return visit does.
 
+- [ ] Duplicate threads in other words. `world.same_story` folds a new story into a thread with
+  nearly the same title, but not one worded differently: on 2026-10-27 "Fire chief says one engine
+  leaves harbour exposed" and "Harrow Street Residents Back Call for Second Fire Engine" were
+  their own threads beside "fire station pushes for a second engine", and the harbour wall ran
+  as four. That takes judgement: the story desk (Sonnet, which sees every thread) could return
+  merges. Fading clears the leftovers in a day or three. Check the next run's log for
+  "continues thread" to see how often the title match fires.
+
 - [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
   the fastest, qwen3.8-flash-next the best writer but about 15 s a script).
@@ -105,6 +113,16 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-28 A new story continues the thread it already is (`world.same_story`): when a news
+  writer leaves thread_id empty, a headline sharing three telling words, and 60% of the shorter
+  title's, with an open or faded thread's title follows that thread up (a faded one revives).
+  Breaking news still opens its own. Replayed over the 160 threads of 2026-10-27: 38 would have
+  joined, near enough all the same story (the market petition, the estuary tide, the fire engine
+  twice word for word). The writer logs "continues thread".
+- 2026-10-28 An outage's canned scripts (`Segment.fallback`) are not replayed from the cache or
+  repeated overnight: a six-minute outage's interview aired seven times. The night's 16 were
+  marked in the cache by hand.
 
 - 2026-10-28 Hugh Tremayne (`historian`), approved on a contact sheet: a former history teacher in his
   sixties, white hair receding, round glasses, a brown corduroy jacket and a mustard tie. Voice

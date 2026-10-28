@@ -58,6 +58,16 @@ RETURN_EXPIRE_S = 7 * 86400     # and is forgotten after this
 
 # "faded" is the code's, not the desk's: a thread that stopped moving on air (fade_threads).
 PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
+# A new story's headline joins an open or faded thread whose title shares this many words, and
+# this share of the shorter title's words, beyond the common ones. Tried on the 160 threads of
+# 2026-10-27: 38 joined, near enough all the same story (twelve threads were the fire engine).
+SAME_STORY_WORDS = 3
+SAME_STORY_SHARE = 0.6
+_STORY_STOP = frozenset("""a an the and or but of to in on at by for with from as is are was were be been it its his
+her their this that these those after before over under up down out into off again still now new old more than
+about says say said gets get got make makes made back takes take set sets keeps keep could would will may might
+tonight today tomorrow morning evening night week weekend first last one two second here there what who
+port wexley town harbour harbor local""".split())
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
@@ -283,6 +293,23 @@ class World:
     @_locked
     def thread(self, thread_id: str | None) -> Thread | None:
         return next((t for t in self.threads if t.id == thread_id), None)
+
+    @_locked
+    def same_story(self, headline: str) -> tuple[Thread, set[str]] | None:
+        """The open or faded thread a new story's headline already is, by its title's words, and the
+        words they share. The writers often leave thread_id empty for a story already running.
+        Titles only: a thread's people and beats gather whatever its follow-ups mentioned."""
+        new = _story_words(headline)
+        best = None
+        for t in self.threads:
+            if t.phase == "closed":
+                continue
+            old = _story_words(t.title)
+            shared = new & old
+            if len(shared) >= SAME_STORY_WORDS and len(shared) >= SAME_STORY_SHARE * min(len(new), len(old)):
+                if best is None or (len(shared), t.moved_ts) > (len(best[1]), best[0].moved_ts):
+                    best = (t, shared)
+        return best
 
     @_locked
     def person(self, person_id: str | None) -> Person | None:
@@ -601,6 +628,13 @@ class World:
                 scored.append((score, e))
         scored.sort(key=lambda s: -s[0])
         return [e for _, e in scored[:limit]]
+
+
+def _story_words(title: str) -> set[str]:
+    """A headline's telling words: lower case, plural s off, the common and the town's own words out."""
+    words = re.findall(r"[a-z]+", title.lower().replace("'s", ""))
+    return {w[:-1] if w.endswith("s") and not w.endswith("ss") and len(w) > 4 else w
+            for w in words if w not in _STORY_STOP and len(w) > 2}
 
 
 def _before(when: str, day: str) -> bool:

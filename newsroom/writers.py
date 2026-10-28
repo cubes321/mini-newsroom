@@ -901,6 +901,14 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         # 108 open threads. What a guest talks about goes into their memory instead.
         opens = seg.type is SegmentType.breaking or (
             seg.type in THREAD_OPENERS and not schedule.get(seg.show).light)
+        if tid not in known and opens and seg.type is not SegmentType.breaking:
+            # Not a new story if an open (or faded) thread already has its headline: on 2026-10-27
+            # the fire station's case for a second engine ran as twelve threads.
+            same = world.same_story(script.headline)
+            if same:
+                tid = same[0].id
+                log.info("%s slot %d: %r continues thread %s (shared %s)", seg.type.value, seg.slot_id,
+                         script.headline[:60], tid, ", ".join(sorted(same[1])))
         if tid in known or opens:
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
     # Guests join the recurring cast (a stable voice and look), and the writers avoid rebooking them.
