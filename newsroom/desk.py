@@ -118,9 +118,11 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
         if todo and not _in_turn(p, todo):
             log.warning("story desk planned none of %s; asking once more", ids)
+            merges = p.merges
             p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user + (
                 f"\n\nYour last reply planned none of this round's threads. Return an update (phase and "
                 f"NEXT development) for each of: {ids}."))
+            p.merges = p.merges or merges           # the duplicates it found are still duplicates
     except llm.LLMError as e:
         log.warning("story desk unavailable: %s", e)
         return None                                # the same batch comes round again next time
@@ -197,6 +199,8 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
     for nt in p.new_threads[: max(0, room)]:
         people = _resolve_people(world, nt.people)
         guest = world.loose_ends_taken(nt.from_guest) if nt.from_guest else None
+        if nt.from_guest and guest is None:
+            log.info("story desk seeded from %r's loose end, but nobody has that name", nt.from_guest)
         if guest is not None and guest.id not in people:
             people.insert(0, guest.id)             # their loose end is news now, not a chat to come
         t = world.seed_thread(nt.title, nt.status, nt.next_development, people)

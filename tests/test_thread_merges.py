@@ -56,3 +56,13 @@ def test_merged_into_survives_a_save():
     w.merge_thread(chief, station)
     w2 = world_mod._from_dict(world_mod._to_dict(w))
     assert w2.thread(chief).merged_into == station
+
+
+def test_merges_in_a_reply_that_planned_nothing_else_are_kept(monkeypatch):
+    w, station, chief = _town()
+    replies = iter([StoryPlan(merges=[ThreadMerge(duplicate=chief, into=station)]),
+                    StoryPlan(updates=[ThreadUpdate(thread_id=t.id, phase="developing", next_development="On.")
+                                       for t in desk.batch(w)])])
+    monkeypatch.setattr(desk.llm, "complete_json", lambda *a, **k: next(replies))
+    desk.plan(w)
+    assert w.thread(chief).merged_into == station
