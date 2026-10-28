@@ -405,18 +405,21 @@ class World:
         report had opened a thread and nothing retired them: 108 open, the cap ignored."""
         now = now or schedule.now()
         live = self.open_threads()
-        faded = [t for t in live if t.moved_ts and now - t.moved_ts >= fade_after_s(t)]
-        live = [t for t in live if t not in faded]
+        quiet = [t for t in live if t.moved_ts and now - t.moved_ts >= fade_after_s(t)]
+        live = [t for t in live if t not in quiet]
         excess = len(live) - CONFIG.story.max_live_threads
+        capped = []
         if excess > 0:
             spare = [t for t in live if t.phase != "peak"
                      and not (t.breaking_ts and 0 <= now - t.breaking_ts < _BREAKING_KEEP_S)]
-            faded += sorted(spare, key=lambda t: (t.moved_ts, t.mentions))[:excess]
-        for t in faded:
-            log.info("thread %s faded (%s, %.0fh quiet, covered %dx): %s", t.id, t.phase,
+            capped = sorted(spare, key=lambda t: (t.moved_ts, t.mentions))[:excess]
+        # "over the cap" in the log is how a night shows whether max_live_threads is too low:
+        # quiet fades are stories that stopped; cap fades are live ones squeezed out.
+        for t, why in [(t, "quiet") for t in quiet] + [(t, "over the cap") for t in capped]:
+            log.info("thread %s faded, %s (%s, %.0fh since it moved, covered %dx): %s", t.id, why, t.phase,
                      (now - t.moved_ts) / 3600, t.mentions, t.title[:60])
             t.phase, t.updated, t.faded_ts = "faded", self.last_date, now
-        return faded
+        return quiet + capped
 
     def _new_thread_id(self) -> str:
         """One past the highest id ever used. Not the list's length: the list is capped at 40,
