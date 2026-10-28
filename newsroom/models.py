@@ -375,8 +375,12 @@ class SectionPlan(BaseModel):
 class SpecialOutline(BaseModel):
     title: str = Field(max_length=60)
     standfirst: str = Field(max_length=140, description="one-sentence subtitle shown on the title card")
-    intro: str = Field(max_length=400, description="what the anchor says in the studio to hand over")
-    outro: str = Field(max_length=300, description="what the anchor says back in the studio afterwards")
+    # 400 and 300 were too tight for DeepSeek Flash (450 and 354, so a whole outline retried); Sonnet
+    # writes 230-340 and 180-260. About 40 s and 30 s spoken at the top.
+    intro: str = Field(max_length=600, description="what the anchor says in the studio to hand over: "
+                                                   "two to four sentences")
+    outro: str = Field(max_length=450, description="what the anchor says back in the studio afterwards: "
+                                                   "two or three sentences")
     sections: list[SectionPlan] = Field(min_length=3, max_length=6)
 
 
