@@ -278,6 +278,11 @@ agreed look is early 60s) are gone from the real town; the backup is
 
 ## Working notes
 
+- **Engine and town:** the backend is to be reused for an entertainment channel (plan in
+  [ENGINE.md](ENGINE.md)). When changing or adding anything, keep the mechanics free of Port
+  Wexley: names, places, prompts and show details come in through config, the schedule or the
+  world, never as literals in engine code. Build work that every channel needs (TTS, parallax,
+  the mixer, provider fallback) as engine features from the start.
 - **The GPU is shared** (16 GB). Check `nvidia-smi` before loading anything. Kokoro runs on the
   CPU. After a ComfyUI batch, `POST /free` with `unload_models` (it under-reports what it holds).
 - **Voices:**
