@@ -54,3 +54,12 @@ These matter for every channel, so they belong to the engine (details in `TODO.m
 - a 44.1 kHz stereo mixer;
 - a fallback provider when one doesn't respond (e.g. Sonnet behind DeepSeek), and an occasional
   supervisor pass, once the overnight cost figures are in.
+
+## A content bank (idea, 2026-10-28)
+
+The entertainment channel could air pre-generated films from a bank that is reused, made offline
+(for example with the local video models) rather than live. Port Wexley already has four
+one-off versions of this pattern: the advert pool, the continuity pool, the 00:00–06:00 repeats
+and finished specials that survive a restart. A bank would be one engine feature that serves all
+of them: items made ahead and stored, airings recorded, rules for how soon something may repeat,
+and retirement. That makes it a good first thing to generalise when the channel starts.
