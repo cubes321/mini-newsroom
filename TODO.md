@@ -70,6 +70,15 @@ bottom with the date.
   Flash, about $0.15 / $0.60, is dearer than Haiku 5.5 live. First a dry desk plan on the real
   world, to set beside Sonnet's ten right merges, then a scratch hour with a special and the
   documentary commissioned; judge the desk plans, the special and the documentary by reading.
+  Done 2026-10-28: Flash (thinking on) ran the back office for an hour for $0.043 (the DeepSeek
+  export matched our logs; reasoning bills as output; 43% of input was its own cache hits), against
+  about $0.45 for Sonnet's first 40 minutes that night. Flash's desk merges were right; v4-pro put the
+  fire-engine letter (t126) into the baker's petition. Its first documentary section recited the
+  world brief. Still to decide, once the overnight figures are in: Flash for the back office, Haiku
+  keeping the scripts, Sonnet as an hourly supervisor and as the fallback when DeepSeek doesn't
+  respond (no provider fallback exists yet: a call that fails twice gets a canned script).
+- [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
+  `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
 - [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench
   prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
   timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
