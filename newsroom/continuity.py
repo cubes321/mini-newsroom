@@ -216,22 +216,28 @@ def _at(day: date, hour: int) -> float:
 
 def upcoming(now: float, n: int = 3) -> list[tuple[float, str]]:
     """The next `n` show changes after `now`: (start, show id), over midnight if need be."""
-    day = datetime.fromtimestamp(now).date()
     out, prev = [], schedule.show_at(now).id
-    for d in (day, date.fromordinal(day.toordinal() + 1)):
-        for hour, _ in schedule.SCHEDULE:
-            ts = _at(d, hour)
-            sid = schedule.show_at(ts).id
-            if ts > now and sid != prev:
-                out.append((ts, sid))
-                prev = sid
+    for ts, _ in schedule.starts(now):
+        sid = schedule.show_at(ts).id
+        if ts > now and sid != prev:
+            out.append((ts, sid))
+            prev = sid
     return out[:n]
 
 
 def _spoken_time(ts: float) -> str:
-    h = time.localtime(ts).tm_hour
+    """'seven o'clock', 'a quarter to seven', 'half past ten': how the announcer says a start."""
+    lt = time.localtime(ts)
     words = "midnight one two three four five six seven eight nine ten eleven twelve".split()
-    return "midnight" if h == 0 else f"{words[h % 12 or 12]} o'clock"
+
+    def hour(h: int) -> str:
+        return "midnight" if h % 24 == 0 else words[h % 12 or 12]
+
+    h, m = lt.tm_hour, lt.tm_min
+    if m == 0:
+        return "midnight" if h == 0 else f"{hour(h)} o'clock"
+    return {15: f"a quarter past {hour(h)}", 30: f"half past {hour(h)}",
+            45: f"a quarter to {hour(h + 1)}"}.get(m, time.strftime("%H:%M", lt))
 
 
 def bake_programmes(now: float, world=None) -> Item:
@@ -244,7 +250,7 @@ def bake_programmes(now: float, world=None) -> Item:
     if world is not None and now < airs < entries[-1][0] and documentary.due(world, airs):
         entries.append((airs, CONFIG.documentary.title))
     entries.sort()
-    item_id = f"programmes_{datetime.fromtimestamp(now):%Y%m%d}_{time.localtime(entries[0][0]).tm_hour:02d}"
+    item_id = f"programmes_{datetime.fromtimestamp(now):%Y%m%d}_{time.strftime('%H%M', time.localtime(entries[0][0]))}"
     shown = [f"{time.strftime('%H:%M', time.localtime(ts))}  {title}" for ts, title in entries]
     said = [f"at {_spoken_time(ts)}, {title.title()}" for ts, title in entries]
     spoken = ["Later on Channel 7: " + ", ".join(said[:-1]) + (", and " if len(said) > 1 else "") + said[-1] + "."]

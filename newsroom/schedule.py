@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from datetime import date
 
 from .models import SegmentType as T
 
@@ -263,9 +264,10 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
 )}
 
-# A normal day, without breaking news: (start hour, show id), in order; the last
-# entry at or before the hour wins. A show that isn't built yet airs its stand-in.
-SCHEDULE: tuple[tuple[int, str], ...] = (
+# A normal day, without breaking news: (start, show id), in order; the last entry at or
+# before the time wins. A start is a whole hour, or "HH:MM" for a show that starts on the
+# quarter. A show that isn't built yet airs its stand-in.
+SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),       # test card and repeats; the editor and story desk keep working, specials air
     (6, "breakfast"),       # Morning Tide on the sofa: lighter, chattier
     (9, "news"),            # the news loop through the day and the early evening
@@ -277,14 +279,40 @@ SCHEDULE: tuple[tuple[int, str], ...] = (
 STAND_INS: dict[str, str] = {}          # schedule slots whose show isn't built yet -> what airs instead
 
 
+def hour_min(start: int | str) -> tuple[int, int]:
+    """A schedule start as (hour, minute)."""
+    if isinstance(start, str):
+        h, m = start.split(":")
+        return int(h), int(m)
+    return start, 0
+
+
+def start_label(start: int | str) -> str:
+    return "%02d:%02d" % hour_min(start)
+
+
 def slot_at(ts: float) -> str:
     """The schedule entry at `ts`, which may be a show that isn't built yet."""
-    hour = time.localtime(ts).tm_hour
+    lt = time.localtime(ts)
+    at = (lt.tm_hour, lt.tm_min)
     current = SCHEDULE[0][1]
     for start, show_id in SCHEDULE:
-        if hour >= start:
+        if at >= hour_min(start):
             current = show_id
     return current
+
+
+def starts(ts: float, days: int = 2) -> list[tuple[float, str]]:
+    """Every schedule entry's start from the day of `ts` on, for `days` days, in order:
+    (timestamp, slot). DST-safe: each is built from the calendar day."""
+    day = date.fromtimestamp(ts)
+    out = []
+    for k in range(days):
+        d = date.fromordinal(day.toordinal() + k)
+        for start, slot in SCHEDULE:
+            h, m = hour_min(start)
+            out.append((time.mktime((d.year, d.month, d.day, h, m, 0, 0, 0, -1)), slot))
+    return out
 
 
 def show_at(ts: float) -> Show:
@@ -293,15 +321,9 @@ def show_at(ts: float) -> Show:
 
 
 def show_end(ts: float) -> float:
-    """When the show on air at `ts` hands over to a different one (the top of that hour)."""
-    lt = time.localtime(ts)
-    top = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, lt.tm_hour, 0, 0, 0, 0, -1))
+    """When the show on air at `ts` hands over to a different one: the start of that entry."""
     now_id = show_at(ts).id
-    for k in range(1, 25):
-        t = top + k * 3600
-        if show_at(t).id != now_id:
-            return t
-    return top + 24 * 3600
+    return next((t for t, _ in starts(ts) if t > ts and show_at(t).id != now_id), ts + 24 * 3600)
 
 
 def special_slot(ts: float) -> float:
@@ -332,9 +354,8 @@ def get(show_id: str | None) -> Show:
 
 def next_start(show_id: str) -> str:
     """When `show_id`'s first block ends, as HH:MM: for "programmes resume at" captions."""
-    hours = [h for h, _ in SCHEDULE]
     i = next(i for i, (_, s) in enumerate(SCHEDULE) if s == show_id)
-    return f"{hours[(i + 1) % len(hours)]:02d}:00"
+    return start_label(SCHEDULE[(i + 1) % len(SCHEDULE)][0])
 
 
 # ------------------------------------------------------------------- clock
@@ -364,7 +385,7 @@ def _cli() -> int:
         order = " ".join(i.type.value + (f"({i.part})" if i.part else "") for i in items)
         shape = (f"order ~{total / 60:.0f} min, wraps to item {s.loop_from}, closing ~{s.closing_s:.0f}s"
                  if s.loop_from or s.closing else f"loop ~{total / 60:.1f} min")
-        print(f"{start:02d}:00  {name:<10} {s.title:<18}{' light' if s.light else ''}  cast={','.join(s.cast) or '-'}  "
+        print(f"{start_label(start)}  {name:<10} {s.title:<18}{' light' if s.light else ''}  cast={','.join(s.cast) or '-'}  "
               f"{shape}: {order}")
     lt = time.localtime()
     at = [time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, 1, 0, 0, 0, -1)) for h in range(24)]   # DST-safe

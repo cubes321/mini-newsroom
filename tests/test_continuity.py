@@ -40,7 +40,7 @@ def test_baking_does_this_shows_idents_first_then_the_card_tides_and_notices(con
     while continuity.bake_one(world_mod.seed(), now):
         kinds.append(max(cont.items(), key=lambda i: (cont.dir / f"{i.id}.json").stat().st_mtime_ns).id)
     assert kinds[:2] == ["ident_magazine_0", "ident_magazine_1"]
-    assert {"programmes_20261027_20", "tides_20261027"} <= set(kinds)
+    assert {"programmes_20261027_2000", "tides_20261027"} <= set(kinds)
     assert sum(k.startswith("notice_") for k in kinds) == len(continuity.NOTICES)
     assert not continuity.bake_one(world_mod.seed(), now)          # nothing left to do
 
