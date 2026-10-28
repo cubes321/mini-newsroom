@@ -76,8 +76,8 @@ extracts give. Everything is fiction. Return ONLY JSON.
 
 OUTLINE_SYSTEM = """\
 You are the producer of a fifteen-minute documentary in the strand {strand}, for a small-town TV
-station in the FICTIONAL town in the briefing. The presenter is the field reporter (speaker id
-"reporter"), on location; the anchor (speaker id "anchor") introduces and closes it from the studio.
+station in the FICTIONAL town in the briefing. The presenter is {presenter_is} (speaker id
+"{presenter}"), on location; the anchor (speaker id "anchor") introduces and closes it from the studio.
 Plan 6 to 10 sections with a shape: an opening that sets the question, the history or the build-up,
 the people with a stake, the turning points, where things stand, and an ending that looks ahead. Each
 section has a heading, the beats it establishes, a backdrop from the allowed list (vary them), and
@@ -90,8 +90,8 @@ warm, local, specific, a little dry. Everything is fiction. Return ONLY JSON.
 
 SECTION_SYSTEM = """\
 You write one section of a fifteen-minute documentary in the strand {strand}, for a small-town TV
-station in the FICTIONAL town in the briefing. Speakers allowed in this section: "reporter" (the
-presenter, narrating on location) and, if a guest is named, "guest" with guest_name set to that exact
+station in the FICTIONAL town in the briefing. Speakers allowed in this section: "{presenter}" (the
+presenter, {presenter_is}, narrating on location) and, if a guest is named, "guest" with guest_name set to that exact
 name. Spoken lines only: no stage directions, brackets, markdown or emojis. Numbers as words when
 short. Keep to the word budget. Let the guest talk like a real person: a detail, an opinion, a short
 story. The research notes are the record: keep their dates and facts; background items describe the
@@ -102,6 +102,21 @@ section in the middle. Return ONLY JSON.
 
 def strand() -> str:
     return CONFIG.documentary.title
+
+
+# Who presents: Miles a story the town is living through, Hugh a piece of its history.
+PRESENTERS = {"reporter": "the field reporter, Miles Okafor",
+              "historian": "Hugh Tremayne, the station's local-history presenter, a former history teacher"}
+
+
+def presenter(seg: Segment) -> str:
+    return "historian" if seg.work.get("subject") == "history" else "reporter"
+
+
+def prompt_vars(seg: Segment) -> dict:
+    """The presenter for the outline and section prompts."""
+    who = presenter(seg)
+    return {"presenter": who, "presenter_is": PRESENTERS[who]}
 
 
 def _today_at(hhmm: str, now: float) -> float:
@@ -230,7 +245,7 @@ def _cached_segments() -> dict[str, Segment]:
 def _clip_line(seg: Segment) -> Line | None:
     """The line worth replaying: a guest's quote, or else the reporter in the field. Never an anchor
     reading the news, and never a clip of a clip."""
-    usable = [l for l in seg.lines if l.speaker in ("guest", "reporter") and l.text and not l.archive
+    usable = [l for l in seg.lines if l.speaker in ("guest", "reporter", "historian") and l.text and not l.archive
               and l.wav_path and Path(l.wav_path).exists() and CLIP_S[0] <= (l.duration_s or 0) <= CLIP_S[1]]
     # A guest first; then a report line that doesn't open with a handback ("Thanks, Dana."), which
     # sounds odd out of its bulletin.

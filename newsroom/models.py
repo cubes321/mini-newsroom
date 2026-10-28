@@ -21,9 +21,10 @@ from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_mod
 
 from .locations import BACKDROP_IDS
 
-Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport", "guest"]
+Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
+                  "historian", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                             "guest")
+                             "historian", "guest")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 

@@ -40,9 +40,6 @@ bottom with the date.
     magazine and the talk show, which are kept `light`.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
-- [ ] The history documentaries' own presenter (a man in his 60s, a former schoolteacher turned local TV
-  personality), shared with the entertainment channel planned in `E:\programming\mini-TVChannel`;
-  thread documentaries stay with Miles. Voice by ear, look on a contact sheet.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
 
 ## Engineering
@@ -109,6 +106,13 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 Hugh Tremayne (`historian`), approved on a contact sheet: a former history teacher in his
+  sixties, white hair receding, round glasses, a brown corduroy jacket and a mustard tie. Voice
+  `am_santa` (out of the guest pools) with British pronunciation at 0.92: presenters can now have
+  their own `speed` and `lang`. He presents the documentaries on the town's history; Miles keeps
+  those on a running story (`documentary.presenter`), and a section line the model gives "reporter"
+  in a history piece is his. He is a character of the town, saved with the world, for the
+  entertainment channel planned in `E:\programming\mini-TVChannel` too.
 - 2026-10-28 What documentaries establish is canon for the rest of the station
   (`World._history`). The story desk, the editor and the documentary editor see the last five in
   full: each standfirst and up to four background facts. Every writer's briefing lists the six

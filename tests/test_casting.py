@@ -38,8 +38,8 @@ def test_an_old_guest_speaks_slower_and_looks_it():
     old = [w.ensure_person(f"Albert Tanner {i}", "fisherman", gender="m", age="old") for i in range(30)]
     young = [w.ensure_person(f"Kai Rowe {i}", "apprentice", gender="m", age="young") for i in range(30)]
     assert max(p.speed for p in old) < min(p.speed for p in young)
-    assert {p.voice for p in old} & set(world_mod.OLD_VOICES_M)
     assert not {p.voice for p in young} & set(world_mod.OLD_VOICES_M)
+    assert not {p.voice for p in old + young} & {c.voice for c in w.characters}   # am_santa is Hugh's now
     p = old[0]
     assert guest_look(p.name, p.voice, "resident", p.age).hair in GREYS
 

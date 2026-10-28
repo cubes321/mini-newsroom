@@ -387,14 +387,16 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     wash.fill((10, 10, 30, 70))
     canvas.blit(wash, (0, 0))
     light = backdrops.person_light(v.backdrop, v.tod, v.weather)
+    # Miles or Hugh presents; an archive clip of Miles in a history piece shows Miles.
+    host = v.presenter if v.presenter in ("reporter", "historian") else "reporter"
+    who = v.speaker if v.speaker in ("reporter", "historian") else host
     if v.speaker == "guest":
         draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name),
                        light=light)
-        draw_character(canvas, 62, FAR_Y, "reporter", 0.0, t, scale=1, light=light)
+        draw_character(canvas, 62, FAR_Y, host, 0.0, t, scale=1, light=light)
         draw_mic(canvas, 72, FAR_Y - 26)
     else:
-        draw_character(canvas, 90, 152, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
-                       light=light)
+        draw_character(canvas, 90, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2, light=light)
         draw_mic(canvas, 105, 110)
     if v.archive:                                    # archive footage: black and white with a warm cast
         canvas.blit(pygame.transform.grayscale(canvas), (0, 0))

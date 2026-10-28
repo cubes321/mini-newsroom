@@ -61,12 +61,12 @@ PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone, af_jessica Fran's; am_santa only ever an old man.
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's.
 GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_sarah", "af_nova", "af_sky",
                   "af_river", "af_alloy"]
 GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam", "am_echo"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
-OLD_VOICES_M = ["am_santa"]
+OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
 # A guest's speaking speed: the old a little slower, the young a little quicker.
 SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
           "": [0.92, 0.97, 1.0, 1.04, 1.08]}
@@ -79,6 +79,8 @@ class Character:
     role: str
     voice: str
     traits: list[str]
+    speed: float = 1.0              # speaking speed: Hugh, in his sixties, takes his time
+    lang: str = ""                  # Kokoro's pronunciation: "b" British; "" the station's own
 
 
 @dataclass
@@ -331,13 +333,17 @@ class World:
             if p:
                 return p.speed
             return [0.92, 0.97, 1.0, 1.04, 1.08][_name_hash(guest_name) % 5]
-        return 1.0
+        c = self.character(speaker)
+        return c.speed if c else 1.0
 
     @_locked
     def lang_for(self, speaker: str, guest_name: str | None = None) -> str | None:
         """Kokoro's pronunciation for a line: British for a guest cast with a British accent when
-        [tts] british_guests is on; otherwise None, the station's own."""
-        if speaker == "guest" and CONFIG.tts.british_guests and not self.presenter_named(guest_name):
+        [tts] british_guests is on, or a presenter cast that way (Hugh); otherwise None, the station's own."""
+        if speaker != "guest":
+            c = self.character(speaker)
+            return (c.lang or None) if c else None
+        if CONFIG.tts.british_guests and not self.presenter_named(guest_name):
             p = self.person_by_name(guest_name)
             if p and p.accent == "british":
                 return "b"
@@ -698,6 +704,11 @@ def seed_characters() -> list[Character]:
         Character("sport", "Fran Kellaway", "sports presenter (the news, and Full Time at 18:45)",
                   CONFIG.tts.voices.get("sport", "af_jessica"),
                   ["quick and keen", "played for the county until her knee went", "knows everyone at the club"]),
+        # Shared with the entertainment channel planned in E:\programming\mini-TVChannel (same town).
+        Character("historian", "Hugh Tremayne", "local-history presenter (the history documentaries)",
+                  CONFIG.tts.voices.get("historian", "am_santa"),
+                  ["a former history teacher at Greymouth Academy", "knows a story about every street",
+                   "tells it with a twinkle"], speed=0.92, lang="b"),
     ]
 
 

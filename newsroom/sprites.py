@@ -100,6 +100,11 @@ LOOKS: dict[str, Look] = {
 LOOKS["sport"] = Look(skin=(226, 182, 150), hair=(150, 110, 60), top=(40, 110, 190), under=(240, 240, 236),
                       hair_style="ponytail", top_style="jacket", extra="stripe", extra_col=(240, 240, 236),
                       mouth="smile")
+# Hugh Tremayne: mid-60s, a retired history teacher, white hair receding, round glasses, a brown
+# corduroy jacket over a cream shirt and a mustard tie, eyebrows up mid-story
+LOOKS["historian"] = Look(skin=(226, 180, 152), hair=(225, 225, 228), top=(120, 84, 52), under=(236, 226, 196),
+                          hair_style="receding", top_style="blazer", tie=(200, 150, 40), glasses="on",
+                          mouth="smile", brows="raised", tweed=True)
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 

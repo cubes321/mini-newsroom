@@ -475,6 +475,8 @@ class Player:
         v.chapter = cues.get("chapter")
         if seg.type is SegmentType.documentary:
             v.mode = "studio" if v.speaker == "anchor" else "special"
+            if v.mode == "special":
+                v.presenter = documentary.presenter(seg)
             v.strand = seg.work.get("strand", "")
             v.archive = (line.archive or "") if line else ""
         elif v.breaking and self.line_idx == 0:

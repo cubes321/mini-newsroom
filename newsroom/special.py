@@ -245,7 +245,8 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
     )
     if doc:
         return llm.complete_json("special_outline", DocumentaryOutline,
-                                 documentary.OUTLINE_SYSTEM.format(strand=_strand(seg)), user)
+                                 documentary.OUTLINE_SYSTEM.format(strand=_strand(seg), **documentary.prompt_vars(seg)),
+                                 user)
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
 
@@ -273,7 +274,8 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
     footage = documentary.clip(seg, sec.archive_clip) if doc else None
     if footage:
         user += "\n" + documentary.clip_brief(footage)
-    system = documentary.SECTION_SYSTEM.format(strand=_strand(seg)) if doc else _SECTION_SYSTEM
+    system = (documentary.SECTION_SYSTEM.format(strand=_strand(seg), **documentary.prompt_vars(seg)) if doc
+              else _SECTION_SYSTEM)
     return llm.complete_json("special_section", SpecialSection, system, user)
 
 
@@ -375,7 +377,9 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             if not l.text.strip():
                 continue
             name = (l.guest_name or plan.guest_name) if l.speaker == "guest" else None
-            seg.lines.append(Line(speaker=l.speaker, text=l.text.strip(), guest_name=name))
+            # The presenter is whoever this piece has: a model that writes "reporter" for Hugh means him.
+            who = documentary.presenter(seg) if _is_doc(seg) and l.speaker in ("reporter", "historian") else l.speaker
+            seg.lines.append(Line(speaker=who, text=l.text.strip(), guest_name=name))
         footage = documentary.clip(seg, plan.archive_clip) if _is_doc(seg) else None
         start = seg.work["starts"][-1]
         if footage and len(seg.lines) > start and (line := documentary.clip_line(footage, h, i)):
