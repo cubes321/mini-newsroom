@@ -19,6 +19,9 @@ bottom with the date.
   wins). On 2026-10-28 every role the town had cast matched one.
 - [ ] Full Time's own arrangement of the station tune for its ident (it uses the news voicing:
   `jingle.VOICINGS` has no "sport"), chosen by ear like the others.
+- [ ] Backdrops for the new sport: the Wreckers' Quarry Field (a rugby pitch, posts, a clubhouse) and a
+  pub interior for the darts (the board, the oche, a scoreboard chalked up). Until then the rugby and
+  the darts stay at the sports desk and in the studio; with them, Full Time could send Miles there.
 
 ## Content
 
@@ -109,6 +112,13 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-28 Full Time has more than the Tides: Port Wexley RFC ("the Wreckers") in Coastal Counties One
+  on Saturdays (`rugby.py`: tries, conversions, penalties, bonus points) and the Wexley & District pub
+  darts league on Tuesday and Thursday nights (`darts.py`: nine games a match, a point a game, the
+  regulars' 180s and checkouts), worked out like the football so every show agrees. Both are in every
+  writer's sport line and in the sports desk's facts, and Full Time covers them before its order wraps;
+  the darts gives a fresh result most weekday evenings.
 
 - 2026-10-28 The story desk merges duplicate threads (`StoryPlan.merges`, `world.merge_thread`): one
   story under different titles folds into the thread it keeps, with its beats, coverage and people;

@@ -7,6 +7,9 @@ every score from a seeded draw on the clubs' strengths, so a result is the same 
 bulletin, on the sports desk and in Vincent's monologue, and the table adds up. A result is
 known once the match is over on the broadcast clock (kick-off plus FULL_TIME_MIN).
 
+The rugby (rugby.py) and the pub darts league (darts.py) are worked out the same way; briefing()
+and for_prompt() here gather all three for the writers.
+
 Fictional, like the town: the clubs, the players and the league are invented.
 
     python -m newsroom.sport [YYYY-MM-DD HH:MM]
@@ -58,20 +61,21 @@ class Result:
     scorers: tuple[str, ...]             # the Tides' scorers, in order (theirs only; others aren't named)
 
 
-def _first_saturday(y: int) -> date:
-    d = date(y, *SEASON_OPENS)
-    return d + timedelta(days=(5 - d.weekday()) % 7)
+def first_weekday(y: int, opens: tuple[int, int], weekday: int) -> date:
+    """The first `weekday` (Monday 0) on or after the month and day `opens` in year `y`."""
+    d = date(y, *opens)
+    return d + timedelta(days=(weekday - d.weekday()) % 7)
 
 
-def season_start(day: date) -> date:
-    """The opening Saturday of the season `day` falls in (or the one just finished)."""
-    start = _first_saturday(day.year)
-    return start if day >= start else _first_saturday(day.year - 1)
+def season_start(day: date, opens: tuple[int, int] = SEASON_OPENS, weekday: int = 5) -> date:
+    """The opening day of the season `day` falls in (or the one just finished)."""
+    start = first_weekday(day.year, opens, weekday)
+    return start if day >= start else first_weekday(day.year - 1, opens, weekday)
 
 
-def _rounds() -> list[list[tuple[str, str]]]:
-    """A double round-robin by the circle method: each club at home to every other once."""
-    names = [c for c, _ in CLUBS]
+def round_robin(names: list[str]) -> list[list[tuple[str, str]]]:
+    """A double round-robin by the circle method: each club at home to every other once.
+    The rugby and the darts (rugby.py, darts.py) draw their fixtures the same way."""
     n = len(names)
     first = []
     for r in range(n - 1):
@@ -87,13 +91,13 @@ def fixtures(day: date) -> list[Fixture]:
     saturdays = (start + timedelta(weeks=k) for k in range(200))
     league_days = [d for k, d in enumerate(saturdays) if k % CUP_EVERY != CUP_EVERY - 1]
     out = []
-    for r, (d, rnd) in enumerate(zip(league_days, _rounds())):
+    for r, (d, rnd) in enumerate(zip(league_days, round_robin([c for c, _ in CLUBS]))):
         ko = datetime.combine(d, datetime.min.time()).replace(hour=KICKOFF[0], minute=KICKOFF[1])
         out += [Fixture(r + 1, ko, h, a) for h, a in rnd]
     return out
 
 
-def _poisson(rng: random.Random, lam: float) -> int:
+def poisson(rng: random.Random, lam: float) -> int:
     k, p, limit = 0, 1.0, math.exp(-lam)
     while True:
         p *= rng.random()
@@ -107,7 +111,7 @@ def result(fx: Fixture) -> Result:
     strength = dict(CLUBS)
     rng = random.Random(f"{fx.kickoff:%Y-%m-%d}|{fx.home}|{fx.away}")
     sh, sa = strength[fx.home], strength[fx.away]
-    hg, ag = _poisson(rng, 1.25 * 1.12 * sh / sa), _poisson(rng, 1.25 * sa / sh)
+    hg, ag = poisson(rng, 1.25 * 1.12 * sh / sa), poisson(rng, 1.25 * sa / sh)
     ours = hg if fx.home == CLUB else ag if fx.away == CLUB else 0
     names, weights = zip(*[(n, SCORE_WEIGHT[pos]) for n, pos in SQUAD])
     scorers = tuple(rng.choices(names, weights)[0] for _ in range(ours))
@@ -151,7 +155,7 @@ def _score_line(r: Result) -> str:
     return f"{NICK} {verb} {other} {us}-{them} {where}{goals}"
 
 
-def _ordinal(n: int) -> str:
+def ordinal(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
@@ -177,13 +181,23 @@ def summary(now: datetime) -> str:
     else:
         parts.append("the season is over")
     pos = next(i for i, row in enumerate(table(now), 1) if row["club"] == CLUB)
-    parts.append(f"{_ordinal(pos)} in the {LEAGUE}" if done else f"the {LEAGUE} season starts soon")
+    parts.append(f"{ordinal(pos)} in the {LEAGUE}" if done else f"the {LEAGUE} season starts soon")
     return f"{CLUB} ({NICK}): " + "; ".join(parts) + "."
 
 
+def briefing(now: datetime) -> str:
+    """The sport line in every writer's briefing: the Tides first, then the rugby and the darts."""
+    from . import darts, rugby              # they import this module's helpers
+
+    return " ".join((summary(now), rugby.summary(now), darts.summary(now)))
+
+
 def for_prompt(now: datetime) -> str:
-    """Everything the sports desk may use, in words: results, fixtures, the table, the squad."""
-    lines = [f"SPORT FACTS (use these exact scores, dates and names; never invent a result or a fixture):",
+    """Everything the sports desk may use, in words: the football's results, fixtures, table and
+    squad, then the rugby's and the darts'."""
+    from . import darts, rugby
+
+    lines =[f"SPORT FACTS (use these exact scores, dates and names; never invent a result or a fixture):",
              summary(now)]
     ours = [r for r in played(now) if _ours(r.fixture)]
     if ours:
@@ -199,7 +213,7 @@ def for_prompt(now: datetime) -> str:
     if any(r["p"] for r in rows):
         top = "; ".join(f"{i}. {r['club']} {r['pts']} pts (P{r['p']})" for i, r in enumerate(rows, 1) if i <= 4)
         pos, us = next((i, r) for i, r in enumerate(rows, 1) if r["club"] == CLUB)
-        lines.append(f"{LEAGUE} table: {top}. The Tides are {_ordinal(pos)}: played {us['p']}, won {us['w']}, "
+        lines.append(f"{LEAGUE} table: {top}. The Tides are {ordinal(pos)}: played {us['p']}, won {us['w']}, "
                      f"drawn {us['d']}, lost {us['l']}, scored {us['gf']}, conceded {us['ga']}, {us['pts']} points.")
     upcoming = [f for f in fixtures(now.date()) if _ours(f) and f.kickoff > now][:2]
     if upcoming:
@@ -209,7 +223,7 @@ def for_prompt(now: datetime) -> str:
     lines.append(f"The club: manager {MANAGER}; captain {SQUAD[0][0]}; in the squad "
                  + ", ".join(f"{n} ({pos})" for n, pos in SQUAD[1:]) + f". Home ground {GROUND}.")
     lines.append(f"Other local sport (no fixed results; small-town scale): {OTHER_SPORT}.")
-    return "\n".join(lines)
+    return "\n\n".join(("\n".join(lines), rugby.for_prompt(now), darts.for_prompt(now)))
 
 
 if __name__ == "__main__":

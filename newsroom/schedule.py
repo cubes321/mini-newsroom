@@ -265,21 +265,26 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "sport", "FULL TIME", "SPORT", (40, 150, 90),
-        # Fifteen minutes of local sport before Coastwide, from the sports corner: the Tides' latest
-        # (sport.py, so the scores are the same everywhere), Miles at a ground, a guest on the
-        # sports desk, the table and the smaller clubs, and the games coming up.
+        # Fifteen minutes of local sport before Coastwide, from the sports corner: the Tides, the
+        # Wreckers' rugby and the pub darts (sport.py, rugby.py, darts.py, so the scores are the same
+        # everywhere), Miles at the stadium, a guest on the sports desk, and the games coming up.
+        # The rugby and the darts come before the wrap: fifteen minutes rarely gets past it.
         pattern=(
             T.bumper,
-            I(T.sport, "open", brief="the headlines: the Tides' latest result or news, and what else is coming up"),
-            I(T.field_report, brief="Miles at Tidewater Stadium or the training ground: the club this week"),
-            I(T.interview, brief="a Tides player, the manager or the captain, about the last game and the next"),
-            I(T.sport, brief="the rest of the league: the other results from the last round and the table"),
+            I(T.sport, "open", brief="the headlines: the Tides' latest result or news, the Wreckers' rugby, the darts"),
+            I(T.field_report, brief="Miles at Tidewater Stadium or the training ground: the Tides this week"),
+            I(T.sport, brief="the rugby: the Wreckers' last result, who scored the tries, the table, the next game"),
+            I(T.interview, brief="a guest from the Tides, the Wreckers or the darts league, about the last game "
+                                 "or match night and the next"),
+            I(T.sport, brief="the pub darts: the last match night's results, the 180s and the best checkout, the "
+                             "table, who plays next"),
             # the order wraps back to here
+            I(T.sport, brief="the rest of the football league: the other results from the last round and the table"),
             I(T.vox_pop, brief="Miles asks supporters, outside the stadium or in the club shop, one question"),
             I(T.sport, brief="the smaller clubs: bowls, rowing, the sea swimmers or the Gulls' Sunday side"),
             I(T.interview, brief="someone from one of the smaller clubs, or a young player coming through"),
         ),
-        loop_from=5,
+        loop_from=6,
         closing=(I(T.sport, "close", brief="the games coming up, and over to Coastwide"),),
         target_s={T.bumper: 8.0, T.sport: 60.0, T.field_report: 100.0, T.interview: 180.0, T.vox_pop: 60.0},
         cast=("sport", "reporter"), lead="sport",

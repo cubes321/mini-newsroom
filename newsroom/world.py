@@ -245,7 +245,7 @@ class World:
             f"{self._people_lines(('official', 'worthy'), 10)}\n{self._history(full=False)}{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
-            f"Sport: {sport.summary(datetime.fromtimestamp(schedule.now()))}\n"
+            f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )

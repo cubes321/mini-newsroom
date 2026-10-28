@@ -69,9 +69,10 @@ next time, if the chat leaves one (a gig coming up, a result to come, an unfinis
 
 _SPORT_DESK = """
 Fran ("sport") is the sports presenter, at the sports corner: a former county footballer, quick and
-keen, who knows everyone at the club. Every score, scorer, date, table position and fixture comes
-from SPORT FACTS exactly as given; never invent a result, and never say how a match finished
-before the facts give its result. thread_id is null.
+keen, who knows everyone at the clubs and in the pubs. Every score, scorer, date, table position,
+fixture and checkout comes from SPORT FACTS, RUGBY FACTS and DARTS FACTS exactly as given; never
+invent a result, and never say how a match finished before the facts give its result. The darts is
+the lighter end: pub teams, regulars, a good checkout. thread_id is null.
 """
 
 _SYSTEM: dict[SegmentType, str] = {
@@ -272,9 +273,10 @@ what people there said; "sport" thanks him in one line. Choose a backdrop id fro
 """,
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _SPORT_DESK + """
 This is the GUEST on the sports desk in Full Time. Fran ("sport") talks to one guest as THIS ITEM
-says: a player, the manager, someone from a smaller club. Short, lively questions; the guest tells
-a story or two (a goal, a dressing-room moment, how they started) and is honest about the last
-result as SPORT FACTS gives it. The squad and the manager are in SPORT FACTS: use those names.
+says: a player, the manager or coach, a darts captain, someone from a smaller club. Short, lively
+questions; the guest tells a story or two (a goal, a try, a dressing-room moment, a night at the
+oche, how they started) and is honest about the last result as the FACTS give it. The squads, the
+manager, the coach and the darts regulars are in the FACTS: use those names.
 headline = the guest and the best thing they said, under 12 words. lower_third = a short caption.
 """,
     SegmentType.vox_pop: _COMMON_RULES + _SPORT_DESK + """
