@@ -49,7 +49,7 @@ class Look:
     glasses: str = ""              # on up shades
     hat: str = ""                  # cap beanie flatcap peaked
     hat_col: RGB = (40, 50, 80)
-    extra: str = ""                # lanyard pen chain collar earrings stripe apron hivis tape scarf soot
+    extra: str = ""                # lanyard pen chain collar earrings stripe apron hivis tape scarf soot towel yoke
     extra_col: RGB = GOLD
     mouth: str = "line"            # line smile smirk
     brows: str = ""                # raised
@@ -95,6 +95,11 @@ LOOKS: dict[str, Look] = {
                       hair_style="swept", top_style="suit", tie=(196, 40, 50), facial="moustache",
                       temples=(150, 150, 150), mouth="smirk"),
 }
+# Fran Kellaway: mid-30s, former county footballer, a dark blonde ponytail, a zipped track top in
+# the Tides' blue with a white band, a ready smile
+LOOKS["sport"] = Look(skin=(226, 182, 150), hair=(150, 110, 60), top=(40, 110, 190), under=(240, 240, 236),
+                      hair_style="ponytail", top_style="jacket", extra="stripe", extra_col=(240, 240, 236),
+                      mouth="smile")
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 
@@ -112,21 +117,37 @@ UNDERS = [(240, 240, 236), (235, 225, 210), (200, 210, 230), (250, 240, 200), (2
 LEATHER, CANVAS, DENIM = (120, 78, 46), (150, 136, 104), (60, 86, 130)
 COSTUMES: list[tuple[tuple[str, ...], dict]] = [
     # trades and shops, from the town's own roles (2026-10-27): ahead of the broader words below
-    (("cobbler", "saddler", "leather", "bookbinder", "blacksmith", "smith", "farrier", "cooper"),
+    (("cobbler", "shoemender", "shoe", "saddler", "leather", "bookbinder", "blacksmith", "smith", "farrier",
+      "cooper"),
      dict(top_style="tshirt", top=(220, 214, 196), extra="apron", extra_col=LEATHER)),
+    # more of the town's trades (2026-10-28), from the roles the first evening run cast
+    (("publican", "landlord", "landlady", "barman", "barmaid", "bar", "pub", "innkeeper", "brewer"),
+     dict(top_style="tshirt", top=(110, 34, 44), extra="towel", extra_col=(236, 232, 220))),
+    (("docker", "dock", "stevedore", "cannery worker", "packer", "warehouse", "porter"),
+     dict(top_style="jacket", top=(40, 44, 52), extra="yoke", extra_col=(22, 22, 26), hat="flatcap",
+          hat_col=(70, 64, 58))),
+    (("lighthouse",), dict(top_style="jumper", top=(30, 38, 66), under=(30, 38, 66), hat="peaked",
+                           hat_col=(236, 236, 236))),
+    (("stallholder", "stall", "market trader", "trader", "costermonger"),
+     dict(top_style="jacket", top=(150, 52, 44), extra="apron", extra_col=(60, 120, 70))),
+    (("groomer", "kennel", "dog", "pet shop"),
+     dict(top_style="tshirt", top=(96, 66, 120), extra="apron", extra_col=(214, 214, 222))),
+    (("ghost", "tour guide", "guide", "storyteller"),
+     dict(top_style="suit", top=(30, 28, 36), under=(30, 28, 36), extra="scarf", extra_col=(150, 30, 40))),
     (("chip", "chippy", "fishmonger", "butcher", "greengrocer", "grocer"),
      dict(top_style="tshirt", top=(70, 110, 150), extra="apron", extra_col=(236, 236, 230))),
     (("coffee", "barista", "tea room", "tearoom"),
      dict(top_style="tshirt", top=(40, 40, 46), extra="apron", extra_col=(110, 70, 40))),
     (("printer", "print", "stationer", "newsagent"),
      dict(top_style="tshirt", top=(200, 200, 205), extra="apron", extra_col=(60, 64, 72))),
-    (("hardware", "ironmonger", "tool", "ladder", "crockery", "kettle", "shopkeeper", "proprietor"),
+    (("hardware", "ironmonger", "tool", "ladder", "crockery", "kettle", "shopkeeper", "proprietor", "lamp",
+      "chandler", "candle"),
      dict(top_style="jumper", top=(120, 40, 40), extra="apron", extra_col=CANVAS)),
     (("mechanic", "garage", "bicycle", "bike", "plumber"),
      dict(top_style="tshirt", top=(200, 200, 205), extra="apron", extra_col=DENIM)),
     (("electrician", "roofer", "builder", "scaffold", "labourer", "joiner", "carpenter", "roadworks", "engineer"),
      dict(top_style="jacket", top=(60, 64, 72), extra="hivis", extra_col=(226, 232, 44))),
-    (("tailor", "seamstress", "dressmaker", "alterations", "upholsterer"),
+    (("tailor", "seamstress", "dressmaker", "alterations", "upholsterer", "milliner", "hatter"),
      dict(top_style="cardigan", extra="tape", extra_col=(236, 200, 40))),
     (("fc", "football", "footballer", "striker", "goalkeeper", "supporter", "rugby", "cricket"),
      dict(top_style="jacket", top=(30, 50, 100), extra="scarf", extra_col=(60, 150, 210))),
@@ -145,7 +166,7 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
                                               hat="beanie", hat_col=(30, 40, 70))),
     (("harbour", "fisher", "skipper", "trawler", "boat", "ferry", "sailor", "crab", "oyster", "quay"),
      dict(top_style="jumper", top=(36, 44, 76), under=(36, 44, 76), hat="beanie", hat_col=(150, 40, 40))),
-    (("chef", "cook", "baker", "bakery", "cafe", "café", "restaurant"),
+    (("chef", "cook", "baker", "bakery", "cafe", "café", "restaurant", "pie", "pasty", "kitchen"),
      dict(top_style="chef", top=(240, 240, 236), under=(240, 240, 236))),
     (("mayor",), dict(top_style="suit", top=(40, 40, 50), under=(236, 236, 236), extra="chain")),
     (("vicar", "reverend", "rector", "priest", "chaplain", "curate"),
@@ -159,9 +180,21 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
      dict(top_style="suit")),
     (("teacher", "head", "librarian", "historian", "society", "archivist", "professor", "author"),
      dict(top_style="cardigan", glasses="on")),
-    (("singer", "musician", "band", "actor", "actress", "star", "celebrity", "presenter", "comedian",
+    (("singer", "musician", "band", "actor", "actress", "star", "celebrity", "presenter", "comedian", "performer",
+      "magician", "entertainer",
       "influencer", "dj", "artist", "painter", "designer"),
      dict(top_style="jacket", glasses="shades")),
+    (("sea glass", "collector", "beachcomber", "birdwatcher", "naturalist", "rambler", "walker"),
+     dict(top_style="jacket", top=(58, 128, 126), hat="beanie", hat_col=(196, 90, 76))),
+    # sport, for Full Time's guests; outdoors. Late, so a coach driver or a ticket collector keeps their uniform
+    (("bowls", "bowler"), dict(top_style="cardigan", top=(236, 232, 220), under=(236, 236, 236))),
+    (("rowing", "rower", "cox", "oarsman", "oarswoman"),
+     dict(top_style="tshirt", top=(30, 70, 60), extra="stripe", extra_col=(236, 200, 60))),
+    (("swimmer", "swimming", "lido"),
+     dict(top_style="tshirt", top=(40, 120, 170), extra="towel", extra_col=(236, 236, 236))),
+    (("referee", "linesman", "umpire"), dict(top_style="tshirt", top=(24, 24, 28), under=(24, 24, 28))),
+    (("midfielder", "defender", "winger", "groundsman", "physio"),
+     dict(top_style="jacket", top=(40, 110, 190), under=(240, 240, 236), extra="stripe", extra_col=(240, 240, 236))),
     (("student", "pupil", "teen", "skater", "apprentice"), dict(top_style="tshirt")),
 ]
 OLD_WORDS = ("retired", "pensioner", "grand", "veteran", "elder", "widow", "former", "oldest", "lifelong")
@@ -333,6 +366,13 @@ def _body(p: _Pen, L: Look) -> None:
             p(stripes[r % 2], -5, r, 10, 1)
         for r in range(19, 31):
             p(stripes[(r // 2) % 2], 2, r, 3, 1)
+    elif L.extra == "towel":                                  # a bar or beach towel over the near shoulder
+        t = L.extra_col
+        p.rows(t, [(r, 6, 11) for r in range(18, 21)] + [(r, 7, 10) for r in range(21, 28)])
+        for r in (22, 25):
+            p(_dark(t, 0.7), 7, r, 4, 1)
+    elif L.extra == "yoke":                                   # a donkey jacket's leather shoulders
+        p.rows(L.extra_col, [(r, -12, -4) for r in range(18, 22)] + [(r, 3, 11) for r in range(18, 22)])
 
 
 def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
@@ -459,19 +499,70 @@ def _blinking(who: str, look: Look | None, t: float) -> bool:
     return (t + _beat(who, look)) % 4.0 > 3.85                # every ~4 s
 
 
+# Gestures: whoever is talking brings a hand up now and then; whoever is listening nods. The mouth
+# says who is talking, so each character's last open mouth is kept (by who and look: two guests differ).
+_TALKED: dict = {}
+TALK_HOLD_S = 0.6                # still "talking" this long after the mouth last opened (between words)
+LISTEN_AFTER_S = 1.5             # and listening after this long shut
+HAND_EVERY_S, HAND_FOR_S, HAND_RISE_S = 5.5, 1.6, 0.2
+NOD_EVERY_S, NOD_FOR_S = 4.3, 0.45
+
+
+def _gesture(who: str, look: Look | None, mouth: float, t: float) -> tuple[str, float]:
+    """("hand", how far up 0..1), ("nod", 1) or ("", 0) for this frame."""
+    key = (who, look)
+    if mouth > 0.08:
+        _TALKED[key] = t
+    last = _TALKED.get(key)
+    beat = _beat(who, look)
+    if last is not None and 0 <= t - last < TALK_HOLD_S:
+        w = (t + beat) % HAND_EVERY_S
+        return ("hand", min(1.0, w / HAND_RISE_S, (HAND_FOR_S - w) / HAND_RISE_S)) if w < HAND_FOR_S else ("", 0.0)
+    if last is None or not 0 <= t - last < LISTEN_AFTER_S:
+        return ("nod", 1.0) if (t + beat * 1.7) % NOD_EVERY_S < NOD_FOR_S else ("", 0.0)
+    return "", 0.0
+
+
+def _hand(p: _Pen, L: Look, up: float, t: float, beat: float) -> None:
+    """A hand coming up into frame on the near side, a cuff of the top below it; every other
+    gesture an index finger points."""
+    n = int((t + beat) // HAND_EVERY_S)
+    dx = 3 if n % 2 else 5
+    hy = 37 - round(10 * up)
+    if hy >= 36:
+        return
+    edge = _dark(L.top, OUTLINE_K)
+    p(edge, dx - 1, hy + 3, 6, 37 - hy - 3)
+    p.rows(L.top, [(r, dx, dx + 3) for r in range(hy + 3, 37)])
+    skin, skin_edge = L.skin, _dark(L.skin, OUTLINE_K)
+    p(skin_edge, dx - 1, hy - 1, 6, 5)
+    p.rows(skin, [(r, dx, dx + 3) for r in range(hy, hy + 3)])
+    p(_dark(skin, 0.82), dx, hy + 2, 4, 1)                    # the knuckles' shadow
+    if n % 3 == 2:
+        p(skin_edge, dx + 2, hy - 4, 3, 4)
+        p(skin, dx + 3, hy - 3, 1, 3)                         # the pointing finger
+
+
 def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: float, t: float,
                    *, scale: int = 1, facing: int = 1, look: Look | None = None,
-                   light: tuple[float, float, float] | None = None) -> None:
+                   light: tuple[float, float, float] | None = None,
+                   gesture: tuple[str, float] | None = None) -> None:
     """Head-and-shoulders character with the bottom at (x, y) baseline. mouth in 0..1.
     `look` overrides the presenter's own (guests pass guest_look(...)); `light` multiplies
-    every colour, to sit them in a location's light (backdrops.person_light)."""
+    every colour, to sit them in a location's light (backdrops.person_light). `gesture` fixes
+    one for a contact sheet; otherwise talking and listening choose (`_gesture`)."""
     L = look or LOOKS.get(who, LOOKS["guest"])
+    kind, up = gesture if gesture is not None else _gesture(who, look, mouth, t)
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
-    p = _Pen(canvas, x, y - 37 * scale + bob, scale, facing, light)
-    _hair_back(p, L)
+    top = y - 37 * scale + bob
+    p = _Pen(canvas, x, top, scale, facing, light)
+    hp = _Pen(canvas, x, top + scale, scale, facing, light) if kind == "nod" else p   # the head dips
+    _hair_back(hp, L)
     _body(p, L)
-    _head(p, L, mouth, _blinking(who, look, t))
-    _hair_front(p, L)
+    if kind == "hand":
+        _hand(p, L, up, t, _beat(who, look))
+    _head(hp, L, mouth, _blinking(who, look, t))
+    _hair_front(hp, L)
 
 
 def draw_mic(canvas: pygame.Surface, x: int, y: int) -> None:
