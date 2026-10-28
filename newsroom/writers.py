@@ -798,6 +798,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
         log.warning("%s slot %d: using template (%s)", seg.type.value, seg.slot_id, e)
         script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work)
         source = "template"
+        # With NEWSROOM_LLM=off the template is the content; otherwise it stands in for a model
+        # that was unreachable, and the cache and the overnight repeats must not keep it.
+        seg.fallback = llm.provider_for(seg.type.value) != "off"
 
     stayed = couch["name"] if couch and source == "llm" else None
     seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script, stayed),

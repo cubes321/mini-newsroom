@@ -89,6 +89,7 @@ class Segment(BaseModel):
     priority: int = 0                      # 0 = live slot, 9 = documentary
     show: str = "news"                     # schedule.SHOWS id
     repeat: bool = False                   # an earlier segment aired again overnight
+    fallback: bool = False                 # a canned script: the model was configured but unreachable
     part: str = ""                         # place in the show's running order: open | cont | close
     brief: str = ""                        # the running order's angle for this item
     nominal_start_ts: float = Field(default_factory=time.time)

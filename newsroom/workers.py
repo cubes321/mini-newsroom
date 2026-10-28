@@ -70,6 +70,8 @@ def _load_cached(seg: Segment, h: str) -> Segment | None:
         return None
     if not all(l.wav_path and Path(l.wav_path).exists() for l in cached.lines):
         return None
+    if cached.fallback:              # written while the model was unreachable: ask it again
+        return None
     # Keep the planned slot's scheduling fields; take content from the cache.
     cached.slot_id, cached.priority = seg.slot_id, seg.priority
     cached.nominal_start_ts, cached.target_s = seg.nominal_start_ts, seg.target_s
@@ -94,8 +96,9 @@ _recent_repeats: deque[str] = deque(maxlen=12)
 
 def repeatable(c: Segment) -> bool:
     """A cached segment that suits the overnight repeats: a repeatable type, from a show whose
-    scripts aren't tied to its own hours (no breakfast sofa during the test-card block)."""
-    return c.type in REPEATABLE and schedule.get(c.show).repeats_overnight
+    scripts aren't tied to its own hours (no breakfast sofa during the test-card block). Not a
+    canned fallback: on 2026-10-28 one written in a six-minute outage aired seven times."""
+    return c.type in REPEATABLE and schedule.get(c.show).repeats_overnight and not c.fallback
 
 
 def repeat_segment(seg: Segment) -> Segment:
