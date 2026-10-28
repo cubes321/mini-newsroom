@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 import functools
 import threading
 import time
@@ -48,6 +49,9 @@ MAX_THREADS = 120               # closed, then faded, threads beyond this are dr
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
+HISTORY_DOCS = 5                # the documentaries the desk and editors are shown in full,
+HISTORY_PER_DOC = 4             # with this many background facts each;
+HISTORY_FACTS = 6               # the writers, this many of the newest background facts
 GUEST_MEMORIES = 4              # what a guest said on air, the last few appearances
 RETURN_RIPE_S = 12 * 3600       # a loose end waits this long (air time) before the guest is offered back
 RETURN_EXPIRE_S = 7 * 86400     # and is forgotten after this
@@ -151,6 +155,9 @@ class World:
     documentaries: list[dict] = field(default_factory=list)
     last_documentary_date: str = ""          # the broadcast day one was last commissioned
     last_documentary_aired: str = ""         # the day one last aired
+    last_documentary_hash: str = ""          # the last one to air (its cache key), for the overnight repeat,
+    last_documentary_aired_ts: float = 0.0   # when it aired (broadcast clock),
+    last_documentary_repeated: str = ""      # and the last one repeated
     guest_returns: dict[str, str] = field(default_factory=dict)   # show id -> the day a guest last came back to it
 
     def __post_init__(self) -> None:
@@ -165,6 +172,29 @@ class World:
         # would change the cached head of the briefing (see llm.CACHE_BREAK).
         rows = sorted(rows[:limit], key=lambda p: p.name)
         return "\n".join(f"  - {p.name}, {p.role}" + (f"; {p.notes}" if p.notes else "") for p in rows) or "  (none yet)"
+
+    def _history(self, *, full: bool) -> str:
+        """What the documentaries established, so later pieces keep to it: the invented background
+        especially (the town's founding in 1871), which nothing else on record holds. In full for
+        the desk and the editors: each recent documentary's standfirst and its background. In brief
+        for the writers: the newest few background facts. Empty before the first documentary.
+        It changes once a day, so it sits in the cached head of the briefing."""
+        docs = self.documentaries[-HISTORY_DOCS:]
+        if not docs:
+            return ""
+        if full:
+            rows = []
+            for d in docs:
+                rows.append(f"  - {d['date']}: {d['title']}: {d.get('standfirst', '')}")
+                rows += [f"      established: {e.get('date', '')}: {e['event'][:160]}"
+                         for e in d.get("timeline", []) if not e.get("on_record")][:HISTORY_PER_DOC]
+            return ("Documentaries made (their history is canon: plan nothing that contradicts it):\n"
+                    + "\n".join(rows) + "\n")
+        facts = [f"  - {e.get('date', '')}: {e['event'][:140]}" for d in reversed(docs)
+                 for e in d.get("timeline", []) if not e.get("on_record") and _before(e.get("date", ""), d["date"])
+                 ][:HISTORY_FACTS]
+        return ("Town history our documentaries have told (keep to it; never contradict it):\n"
+                + "\n".join(facts) + "\n") if facts else ""
 
     def _thread_line(self, t: Thread, *, full: bool = False) -> str:
         last = t.beats[-1] if t.beats else None
@@ -199,7 +229,7 @@ class World:
             f"Use these dates; do not invent how much time has passed.\n"
             f"Presenters (the ONLY allowed speaker ids in live segments):\n{chars}\n"
             f"Public figures who may be quoted or interviewed (by name, in the text):\n"
-            f"{self._people_lines(('official', 'worthy'), 10)}\n{CACHE_BREAK}"
+            f"{self._people_lines(('official', 'worthy'), 10)}\n{self._history(full=False)}{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Sport: {sport.summary(datetime.fromtimestamp(schedule.now()))}\n"
@@ -230,6 +260,7 @@ class World:
             f"Open threads:\n{threads}\n"
             f"Recently faded off the air (revive one only if something new would really happen):\n{faded}\n"
             f"Specials already made (do not repeat these subjects):\n{done}\n"
+            f"{self._history(full=True)}"
             f"Recent headlines:\n{heads}"
         )
 
@@ -564,6 +595,17 @@ class World:
                 scored.append((score, e))
         scored.sort(key=lambda s: -s[0])
         return [e for _, e in scored[:limit]]
+
+
+def _before(when: str, day: str) -> bool:
+    """Is a timeline date ("1871", "March 1953", "Thursday 2026-10-29") history by `day` (ISO)? A
+    documentary's background also holds what it expected to happen ("Scheduled: ... on Thursday"),
+    which would go stale in every writer's briefing. Undated entries aren't history either."""
+    if m := re.search(r"\d{4}-\d{2}-\d{2}", when):
+        return m.group() < day
+    if m := re.search(r"\b(1[0-9]{3}|20[0-9]{2})\b", when):
+        return int(m.group()) < int(day[:4])
+    return False
 
 
 def fade_after_s(t: Thread) -> float:

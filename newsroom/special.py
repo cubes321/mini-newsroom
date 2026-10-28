@@ -469,6 +469,7 @@ def mark_aired(seg: Segment, world: World | None = None) -> None:
             world.record_aired("documentary", title, seg.thread_id, " ".join(l.text for l in seg.lines),
                                content_hash=seg.content_hash)
             world.last_documentary_aired = datetime.fromtimestamp(schedule.now()).date().isoformat()
+            world.last_documentary_hash, world.last_documentary_aired_ts = seg.content_hash, schedule.now()
         else:
             world.record_headline(f"Special report: {title}")
             world.record_aired("special", title, seg.thread_id, " ".join(l.text for l in seg.lines),

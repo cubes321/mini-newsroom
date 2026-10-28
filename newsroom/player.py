@@ -255,7 +255,8 @@ class Player:
                 from .special import mark_aired
 
                 self.specials_played += 1
-                mark_aired(seg, self.world)
+                if not seg.repeat:                # a repeat is no new airing (it would block tonight's)
+                    mark_aired(seg, self.world)
                 self.buffer.forget(seg.slot_id)
             else:
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)
@@ -304,6 +305,13 @@ class Player:
             doc = self.buffer.pop_special("documentary")
             if doc is not None:
                 self._start(doc, now)
+                return
+
+        # The night's documentary again, overnight: after the first test card from repeat_at.
+        if self.last_type is SegmentType.testcard and documentary.repeat_due(self.world, now):
+            rep = documentary.load_repeat(self.world)
+            if rep is not None:
+                self._start(rep, now)
                 return
 
         # A finished special is aired at a break (a bumper, or overnight the test

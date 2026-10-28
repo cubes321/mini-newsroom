@@ -89,6 +89,7 @@ class DocumentaryCfg:
     commission_from: str = "18:00"       # the day's documentary is commissioned in idle time from here
     airs_at: str = "21:00"               # and airs at the first news bumper from here
     window_s: float = 3600.0             # not ready within this: it waits for tomorrow's slot
+    repeat_at: str = "02:00"             # it airs again after the first overnight test card from here
 
 
 @dataclass(frozen=True)

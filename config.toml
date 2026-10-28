@@ -60,6 +60,7 @@ target_s = 900
 commission_from = "18:00" # late enough to cover the day; making one takes minutes, not hours
 airs_at = "21:00"
 window_s = 3600          # not ready within an hour of airs_at: it waits for tomorrow's slot
+repeat_at = "02:00"      # and the night's documentary airs again after the first overnight test card from here
 
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.

@@ -40,9 +40,9 @@ bottom with the date.
     magazine and the talk show, which are kept `light`.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
-- [ ] Documentary follow-ups: give the writers and the story desk what documentaries
-  established (`world.documentaries`), a repeat of the night's documentary in the
-  overnight block, and the documentary's own presenter for history pieces.
+- [ ] The history documentaries' own presenter (a man in his 60s, a former schoolteacher turned local TV
+  personality), shared with the entertainment channel planned in `E:\programming\mini-TVChannel`;
+  thread documentaries stay with Miles. Voice by ear, look on a contact sheet.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
 
 ## Engineering
@@ -109,6 +109,14 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-28 What documentaries establish is canon for the rest of the station
+  (`World._history`). The story desk, the editor and the documentary editor see the last five in
+  full: each standfirst and up to four background facts. Every writer's briefing lists the six
+  newest background facts dated before their documentary (the town's founding in 1871), in the
+  cached head; what a documentary expected to happen ("Scheduled: ... on Thursday") stays with the
+  desk. The night's documentary repeats overnight (`[documentary] repeat_at = "02:00"`) after the
+  first test card from then, from its cache entry, labelled REPEAT, once, and only if it aired
+  within twelve hours; a repeat is not recorded as an airing, so it can't block the next evening's.
 - 2026-10-28 Sport. Fran Kellaway (`sport`, a former county footballer in the Tides' blue track top)
   fronts *Full Time*, fifteen minutes from the sports corner at 18:45 before *Coastwide* (headlines,
   Miles at a ground, a guest on the sports desk, the league, then supporters and the smaller clubs,
