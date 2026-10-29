@@ -72,9 +72,13 @@ bottom with the date.
   documentary commissioned; judge the desk plans, the special and the documentary by reading.
   Done 2026-10-28: Flash (thinking on) ran the back office for an hour for $0.043 (the DeepSeek
   export matched our logs; reasoning bills as output; 43% of input was its own cache hits), against
-  about $0.45 for Sonnet's first 40 minutes that night. Flash's desk merges were right; v4-pro put the
-  fire-engine letter (t126) into the baker's petition. Its first documentary section recited the
-  world brief. Still to decide, once the overnight figures are in: Flash for the back office, Haiku
+  about $0.45 for Sonnet's first 40 minutes that night. The desk merges were sound on all three
+  models (v4-pro put the Harrow Street letter, t126, into the baker's petition rather than the
+  fire-station thread, and that's defensible: the baker's petition *is* the second-engine
+  petition). Flash's first documentary section recited the world brief. The all-Claude baseline
+  night (2026-10-28 19:43 to 10-29 11:13, data/measure-2026-10-28.log) cost about $2.60 at list
+  prices: Sonnet about $2.20 for 89 calls, Haiku about $0.40 for 692. Still to decide, after the
+  DeepSeek night: Flash for the back office, Haiku
   keeping the scripts, Sonnet as an hourly supervisor and as the fallback when DeepSeek doesn't
   respond (no provider fallback exists yet: a call that fails twice gets a canned script).
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
