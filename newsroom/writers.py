@@ -176,9 +176,9 @@ headline = the guest and their story in under 12 words. lower_third = a short ca
 _MAGAZINE: dict[SegmentType, str] = {
     SegmentType.links: _COMMON_RULES + """
 These are the PRESENTERS' LINKS on Coastwide. "mag_a" (Pat) and "mag_b" (Clive) chat in short
-alternating lines: a welcome, a bit of banter about something small and local (Clive has usually
-found an odd fact), and what is coming up: a filmed report, a guest in the studio, the vox pop
-and the consumer slot. No guests speak. Do not open a new story; thread_id is null unless you
+alternating lines, as their PLACE IN THE SHOW says: a bit of banter about something small and local
+(Clive has usually found an odd fact), and what is coming up: a filmed report, a guest in the
+studio, the vox pop or the consumer slot. No guests speak. Do not open a new story; thread_id is null unless you
 mention an open thread in passing.
 headline = the evening's theme in under 12 words. lower_third = "Coastwide" plus a short tag.
 """,
@@ -353,13 +353,31 @@ already featured; a passing mention is fine):
 Facts already given on air this morning are settled: an anniversary, a birthday, an age or a date
 said once is not announced again, and never contradicted."""
 
-# Full Time's sports-desk pieces, by their place in the running order (the close is _CLOSE). Told
-# both at once, the rugby in the middle of the 2026-10-29 show welcomed viewers and said goodbye.
-_FULL_TIME_PLACE = {
-    "open": "PLACE IN THE SHOW: this OPENS Full Time: a quick good evening and welcome to Full Time, the "
-            "headlines, and what's coming up.",
-    "": "PLACE IN THE SHOW: the MIDDLE of Full Time, already under way: no welcome or good evening, and no "
-        "goodbye or hand-over to Coastwide. Go straight into it.",
+# Where a piece sits in its show, by show, type and running-order part (a close gets _CLOSE). Left to
+# guess, the middle pieces opened and closed the show: on 2026-10-28 all twelve of Coastwide's middle
+# links welcomed viewers, and Full Time's rugby on 2026-10-29 said goodbye with ten minutes to go.
+_MIDDLE = ("PLACE IN THE SHOW: the MIDDLE of {title}, already under way: no welcome or good evening, and "
+           "no goodbye or goodnight{extra}. ")
+_ROLLING = ("PLACE IN THE SHOW: one item in the rolling news, which runs on all day and evening: no "
+            "sign-off from anyone, presenter or guest (no goodnight, goodbye or see you tomorrow). The "
+            "next item follows straight on.")
+_PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
+    ("sport", SegmentType.sport): {
+        "open": "PLACE IN THE SHOW: this OPENS Full Time: a quick good evening and welcome to Full Time, the "
+                "headlines, and what's coming up.",
+        "": _MIDDLE.format(title="Full Time", extra=", and no hand-over to Coastwide") + "Go straight into it.",
+    },
+    ("magazine", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS Coastwide: a good evening and welcome, then the banter and "
+                "what's coming up.",
+        "": _MIDDLE.format(title="Coastwide", extra=", and never \"Coastwide is next\": it is on now")
+            + "Come out of the last item, a little banter, and on to what's next.",
+    },
+    ("late", SegmentType.links): {
+        "": _MIDDLE.format(title="The Last Ferry", extra=": Vincent says goodnight at the end of the show"),
+    },
+    ("news", SegmentType.bulletin): {"": _ROLLING},
+    ("news", SegmentType.interview): {"": _ROLLING},
 }
 
 _CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on, thanks to anyone
@@ -543,8 +561,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
                  "tip_used to its number; otherwise tip_used is null):\n"
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
-    if show.id == "sport" and seg_type is SegmentType.sport and part in _FULL_TIME_PLACE:
-        user += "\n\n" + _FULL_TIME_PLACE[part]
+    place = _PLACE.get((show.id, seg_type), {}).get(part)
+    if place:
+        user += "\n\n" + place.rstrip()
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
         user += "\n\n" + _CLOSE.format(goodbye="goodbye" if _part(show) == "morning" else "goodnight",
