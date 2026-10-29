@@ -80,3 +80,13 @@ def test_every_motif_renders_and_has_onsets_for_every_voicing():
             assert ons[0] == 0.0 and ons == sorted(ons)
     audio = jingle.render(jingle.DEFAULT, "news")
     assert audio.shape[1] == 2 and np.abs(audio).max() <= 0.9
+
+
+def test_every_style_renders_and_the_chosen_one_is_the_default():
+    for voicing, styles in (("news", jingle.NEWS_STYLES), ("sport", jingle.SPORT_STYLES),
+                            ("breaking", jingle.BREAKING_STYLES)):
+        assert jingle.STYLES[voicing] in styles
+        for style in styles:
+            audio = jingle.render(voicing=voicing, style=style)
+            assert audio.shape[1] == 2 and 0.5 < np.abs(audio).max() <= 0.9
+    assert jingle.render(voicing="sport") is jingle.render(voicing="sport", style=jingle.SPORT_STYLE)

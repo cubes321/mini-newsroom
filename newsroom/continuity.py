@@ -189,7 +189,7 @@ def bake_ident(show: str, n: int) -> Item:
     p = pool()
     item_id = f"ident_{show}_{n}"
     stem = assets.MUSIC / f"ident_{show}.wav"
-    voicing = show if show in jingle.VOICINGS else "news"     # Full Time has no arrangement of its own yet
+    voicing = show if show in jingle.VOICINGS else "news"
     if stem.exists():
         music = assets._load(stem)
     else:

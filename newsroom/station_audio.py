@@ -9,7 +9,7 @@ Offline, run by hand; assets.py bakes the bumpers, sting and bed from whatever s
     python -m newsroom.station_audio --band                  # The Last Ferry's house band stings
 
 The other shows' idents and the breaking sting come from their code voicings unless a file is
-given (--breakfast, --magazine, --late, --breaking). Stems are written at 24 kHz mono, the
+given (--breakfast, --magazine, --late, --sport, --breaking). Stems are written at 24 kHz mono, the
 mixer's own format. SA3 is called through the Pinokio app's Gradio API (`gradio_client` is not
 a project dependency: run --bed-takes with `uv run --with gradio_client`).
 """
@@ -32,6 +32,7 @@ MUSIC = CONFIG.paths.assets / "music"
 PEAK = 0.89
 FADE_S = 0.4
 LOOP_XFADE_S = 3.0
+SHOWS = ("breakfast", "magazine", "late", "sport", "breaking")     # the voicings besides the news
 
 BED_PROMPT = ("1970s British television continuity music, light and warm, gentle {style}, "
               "in C major, 100 BPM, steady, no vocals, loopable background bed")
@@ -98,7 +99,7 @@ def bed_takes(url: str, out: Path, styles: list[str], seconds: int = 90, seed: i
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--news", help=f"a WAV, or a code style: {', '.join(jingle.NEWS_STYLES)}")
-    for show in ("breakfast", "magazine", "late", "breaking"):
+    for show in SHOWS:
         ap.add_argument(f"--{show}", help="a WAV instead of the code voicing")
     ap.add_argument("--bed", help="an approved bed WAV (looped already by --bed-takes)")
     ap.add_argument("--bed-takes", type=Path, help="write SA3 bed takes here to audition")
@@ -116,7 +117,7 @@ def main() -> None:
         return
     if args.news:
         write("ident_news", _source(args.news, "news"))
-        for show in ("breakfast", "magazine", "late", "breaking"):
+        for show in SHOWS:
             write("breaking" if show == "breaking" else f"ident_{show}", _source(getattr(args, show), show))
     if args.bed:
         audio, sr = sf.read(args.bed, always_2d=True)

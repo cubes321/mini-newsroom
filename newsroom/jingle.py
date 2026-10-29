@@ -6,9 +6,10 @@ motif, and the logo animation (logo.py) keys its reveal off `onsets()`.
 
 - `MOTIFS`: candidate tunes as (MIDI note, beats) pairs; None is a rest. The last note is
   the held one, and `chord` is the chord under it.
-- `render(name, voicing)`: 44.1 kHz stereo float32. Voicings: news (a brass fanfare),
+- `render(name, voicing)`: 44.1 kHz stereo float32. Voicings: news (vibes and Rhodes),
   breakfast (glockenspiel and marimba, a third up), magazine (strings and funk bass),
-  late (lounge piano, slower), breaking (the opening notes in minor, urgent).
+  late (lounge piano, slower), sport (a tone up and faster, over a drum kit), breaking (the
+  opening notes in minor, urgent).
 - `python -m newsroom.jingle --audition DIR` writes every candidate in every voicing.
 
 The synthesis is deliberately simple (FM brass, additive partials, FFT filters and a
@@ -56,6 +57,7 @@ VOICINGS: dict[str, tuple[int, float]] = {
     "breakfast": (4, 1.08),
     "magazine": (-3, 1.0),
     "late": (-5, 0.78),
+    "sport": (2, 1.15),
     "breaking": (0, 1.35),
 }
 
@@ -210,6 +212,29 @@ def tick(vel: float = 1.0) -> np.ndarray:
     return _filter(RNG.standard_normal(len(t)), lo=7000) * np.exp(-t * 90) * 0.25 * vel
 
 
+def kick(vel: float = 1.0) -> np.ndarray:
+    t = _t(0.4)
+    phi = 2 * np.pi * np.cumsum(45 + 80 * np.exp(-t * 35)) / SR
+    click = _filter(RNG.standard_normal(len(t)), lo=2000) * np.exp(-t * 300) * 0.15
+    return (np.sin(phi) * np.exp(-t * 9) + click) * vel * 0.9
+
+
+def clap(vel: float = 1.0) -> np.ndarray:
+    """Hands together: three quick bursts of band-passed noise and a short tail."""
+    t = _t(0.3)
+    noise = _filter(RNG.standard_normal(len(t)), lo=900, hi=5000)
+    env = sum(np.where(t >= d, np.exp(-(t - d) * 250), 0.0) for d in (0.0, 0.011, 0.022))
+    env = env + np.where(t >= 0.03, 0.6 * np.exp(-(t - 0.03) * 20), 0.0)
+    return noise * env * 0.35 * vel
+
+
+def clav(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    """A clavinet: a bright, nasal pluck, damped as soon as the key comes up."""
+    t = _t(dur + 0.08)
+    y = _filter(_saw(f, t) - 0.6 * _saw(f * 2, t), lo=350, hi=4500)
+    return y * _env(len(t), 0.002, 0.05, dur * 0.7, decay=5.0) * vel * 0.5
+
+
 # --- arranging ---
 
 class _Mix:
@@ -223,6 +248,23 @@ class _Mix:
         seg = mono[: len(self.buf) - i] * gain
         self.buf[i:i + len(seg), 0] += seg * np.sqrt((1 - pan) / 2)
         self.buf[i:i + len(seg), 1] += seg * np.sqrt((1 + pan) / 2)
+
+
+def _kit(mix: _Mix, beat: float, until: float, four: bool = False, sixteenths: bool = False) -> None:
+    """A drum kit up to `until`: kick on one and three (every beat if `four`), claps on two and
+    four, hats on the eighths (or sixteenths)."""
+    per = 4 if sixteenths else 2
+    k = 0
+    while k * beat / per < until - 1e-6:
+        at = k * beat / per
+        if k % per == 0:
+            b = k // per
+            if four or b % 2 == 0:
+                mix.add(at, kick(), 0.7)
+            if b % 2 == 1:
+                mix.add(at, clap(), 0.6, pan=-0.15)
+        mix.add(at, tick(1.0 if k % 2 else 0.5), 0.9, pan=0.35)
+        k += 1
 
 
 def _reverb(buf: np.ndarray, seconds: float, mix: float) -> np.ndarray:
@@ -256,14 +298,19 @@ def onsets(name: str = DEFAULT, voicing: str = "news") -> list[float]:
     return [s for s, _, _ in _events(MOTIFS[name], transpose, tempo, voicing == "breaking")]
 
 
-# The news ident's sound; the others are kept for auditions. "breaking" is always brass.
+# The sound of the voicings that have more than one; the others are kept for auditions.
 NEWS_STYLES = ("brass", "synth", "vibes", "strings")
 NEWS_STYLE = "vibes"            # chosen by ear 2026-10-27 (code render, vibes-A)
+SPORT_STYLES = ("funk", "drive", "disco")
+SPORT_STYLE = "drive"           # chosen by ear 2026-10-29 (Full Time: synth lead, four on the floor)
+BREAKING_STYLES = ("brass", "vibes", "synth", "strings")
+BREAKING_STYLE = "vibes"        # chosen by ear 2026-10-29, replacing the brass kept "for now"
+STYLES = {"news": NEWS_STYLE, "sport": SPORT_STYLE, "breaking": BREAKING_STYLE}
 
 
 def render(name: str = DEFAULT, voicing: str = "news", tail_s: float = 1.8, style: str | None = None) -> np.ndarray:
     """The tune in a show's arrangement, 44.1 kHz stereo float32. Cached: don't change the array."""
-    return _render(name, voicing, tail_s, style or NEWS_STYLE)
+    return _render(name, voicing, tail_s, style or STYLES.get(voicing, ""))
 
 
 @lru_cache(maxsize=16)
@@ -281,7 +328,81 @@ def _render(name: str, voicing: str, tail_s: float, style: str) -> np.ndarray:
     root = chord[0]
     beat = 60.0 / (m.bpm * tempo)
 
-    if voicing == "news" and style == "synth":
+    if voicing == "sport":
+        lead = {"funk": clav, "drive": analog, "disco": strings}[style]
+        for at, dur, n in ev:
+            mix.add(at, lead(_hz(n), dur * 0.9), 0.5, pan=0.15)
+            if style == "funk":
+                mix.add(at, strings(_hz(n + 12), dur * 0.95, 0.6), 0.16, pan=-0.25)
+            else:
+                mix.add(at + 0.01, lead(_hz(n + 12), dur * 0.9, 0.5), 0.22, pan=-0.3)
+        for k in range(int(round(last_at / (beat / 2)))):      # the bass line under the tune
+            if style == "disco":
+                f = root - 12 + (12 if k % 2 else 0)          # octaves
+            elif style == "drive":
+                f = root - 12                                 # a pulse on the root
+            else:
+                f = root - 12 + (12 if k % 4 == 3 else 0) + (10 if k % 8 == 6 else 0)
+            mix.add(k * beat / 2, bass(_hz(f), beat / 2 * 0.7), 0.5)
+        _kit(mix, beat, end, four=style != "funk", sixteenths=style == "disco")   # on under the held note
+        for at in (last_at, end):
+            mix.add(at, kick(), 0.8)
+            mix.add(at, cymbal_swell(0.02, 0.8), 1.0, pan=0.3)
+        mix.add(last_at, bass(_hz(root - 12), end - last_at + 0.4), 0.5)
+        if style == "disco":
+            gliss = [c + o for o in (0, 12) for c in chord[1:]]
+            for k, c in enumerate(gliss):
+                mix.add(max(0.0, last_at - 0.03 * (len(gliss) - k)), harp(_hz(c), 0.8), 0.3,
+                        pan=-0.6 + 1.2 * k / len(gliss))
+        pad = synth_pad if style == "drive" else strings
+        for j, c in enumerate(chord[1:]):
+            mix.add(last_at, pad(_hz(c), end - last_at + 0.8, 0.8), 0.2, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+        if style == "funk":
+            for c in chord[1:]:
+                mix.add(last_at, clav(_hz(c), 0.12), 0.25)
+        out = _reverb(mix.buf, 1.3, 0.2)
+    elif voicing == "breaking" and style == "vibes":
+        for at, dur, n in ev:
+            mix.add(at, vibes(_hz(n), dur), 0.5, pan=0.2)
+            mix.add(at, rhodes(_hz(n - 12), dur * 0.9), 0.35, pan=-0.2)
+        for j, c in enumerate(chord):
+            mix.add(last_at + 0.02 * j, rhodes(_hz(c - 12), end - last_at + 1.2, 0.8), 0.25, pan=-0.3 + 0.15 * j)
+        for o in (24, 12):
+            mix.add(last_at, piano(_hz(root - o), 1.6, 0.9), 0.5)
+        k = 0
+        while k * beat / 2 < end + tail_s:                    # a clock that keeps ticking under the chord
+            mix.add(k * beat / 2, tick(1.0 if k % 2 == 0 else 0.6), 1.2, pan=0.3)
+            k += 1
+        out = _reverb(mix.buf, 1.6, 0.25)
+    elif voicing == "breaking" and style == "synth":
+        k = 0
+        while k * beat / 4 < end + 1.0:                       # a sixteenth pulse on the root, fading out
+            at = k * beat / 4
+            mix.add(at, bass(_hz(root - 12), beat / 4 * 0.6), 0.45 * min(1.0, max(0.0, 1 - (at - end))))
+            k += 1
+        for at, dur, n in ev:
+            mix.add(at, analog(_hz(n), dur * 0.9), 0.5)
+            mix.add(at + 0.01, analog(_hz(n + 12), dur * 0.9, 0.5), 0.22, pan=0.4)
+        for j, c in enumerate(chord[1:]):
+            mix.add(last_at, synth_pad(_hz(c), end - last_at + 1.2), 0.35, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+        mix.add(0.0, kick(), 0.8)
+        mix.add(last_at, kick(), 0.9)
+        mix.add(max(0.0, last_at - 0.4), cymbal_swell(min(0.4, last_at)), 0.8)
+        out = _reverb(mix.buf, 1.5, 0.25)
+    elif voicing == "breaking" and style == "strings":
+        for at, dur, n in ev:
+            mix.add(at, strings(_hz(n), dur * 0.6), 0.45, pan=-0.15)
+            mix.add(at, strings(_hz(n + 12), dur * 0.6, 0.7), 0.25, pan=0.15)
+        for j, c in enumerate(chord):
+            y = strings(_hz(c), end - last_at + 1.2, 0.8)
+            y = y * (0.5 + 0.5 * np.abs(np.sin(np.pi * 7.5 * np.arange(len(y)) / SR + j)))   # tremolo
+            mix.add(last_at, y, 0.25, pan=(-0.6, -0.3, 0, 0.3, 0.6)[j % 5])
+        for at in (0.0, last_at):
+            for o in (24, 12):
+                mix.add(at, piano(_hz(root - o), 1.4, 1.0), 0.45)
+        mix.add(max(0.0, last_at - 0.4), cymbal_swell(min(0.4, last_at)), 0.8)
+        out = _reverb(mix.buf, 2.0, 0.3)
+    elif voicing == "news" and style == "synth":
         for at, dur, n in ev:
             mix.add(at, analog(_hz(n), dur * 0.95), 0.55)
             mix.add(at + 0.012, analog(_hz(n + 12), dur * 0.95, 0.4), 0.2, pan=0.4)
