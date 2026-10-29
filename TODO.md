@@ -15,6 +15,11 @@ bottom with the date.
   evening and no ComfyUI: drifting skies. Lift the sky out of each picture by colour, rebuild it as
   an endless strip with the same gradient and clouds, and let the clouds drift behind the buildings.
   It wouldn't reach the studio sets; check hazy horizons by eye; show before/after first.
+  Drifting skies built 2026-10-29 on branch `drifting-skies` (`skies.py`): every exterior, day and
+  night art, graded for dusk and weather; the wind hurries the clouds. Waiting for the user to
+  approve the review clip, and to merge after the DeepSeek night. Finding a sky takes about 50 ms
+  the first time a backdrop is drawn; if that shows as a hitch on air, warm them at start-up.
+  True parallax (a moving camera over wider art) is still parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
 - [ ] Full Time's own arrangement of the station tune for its ident (it uses the news voicing:

@@ -8,9 +8,10 @@ backdrop id the picture comes from the first of:
 3. a programmatic placeholder painter below
 
 Exteriors are also graded for the last weather report. Animated touches
-(water shimmer, rain, snow, fog, wind, the lighthouse beam) are drawn on top
-every frame. Graded pictures are cached per (id, tod, weather), so a scene
-pays one blit plus its overlays.
+(drifting clouds, water shimmer, rain, snow, fog, wind, the lighthouse beam)
+are drawn on top every frame. The art's own clouds are lifted out and drift
+behind the buildings (skies.py, SKY_DRIFT). Graded pictures are cached per
+(id, tod, weather), so a scene pays one blit plus its overlays.
 
 Placeholders are painted onto a transparent layer over a separate sky, so
 the sky can have its own dusk and night colours. Windows and lamps they
@@ -29,7 +30,7 @@ from pathlib import Path
 import numpy as np
 import pygame
 
-from . import locations
+from . import locations, skies
 from .config import CONFIG
 from .locations import MARKS, Location
 
@@ -79,6 +80,11 @@ WX_GRADE: dict[str, tuple[tuple[float, float, float], float, tuple | None]] = {
     "snow": ((1.0, 1.0, 1.0), 0.25, ((235, 240, 250), 0.18)),
     "fog": ((1.0, 1.0, 1.0), 0.3, ((190, 190, 195), 0.45)),
 }
+# Drifting skies (skies.py): the art's clouds, in px/s at 320 wide; clouds near the horizon are
+# further away so they go slower, and the wind hurries them. 0 turns it off.
+SKY_DRIFT = 1.2
+SKY_DRIFT_LAYER = (1.0, 0.55)
+SKY_DRIFT_WX = {"wind": 3.0, "storm": 3.0, "rain": 1.6, "cloudy": 1.3}
 SKY_TOD = {"dusk": ((70, 60, 120), (245, 160, 110)), "night": ((8, 10, 28), (28, 34, 70))}
 SKY_WX = {"cloudy": ((165, 170, 180), 0.5), "rain": ((105, 110, 122), 0.75), "storm": ((60, 62, 76), 0.85),
           "snow": ((200, 205, 215), 0.6), "fog": ((190, 190, 195), 0.85)}
@@ -987,17 +993,31 @@ def _load(path: Path) -> pygame.Surface:
     return out
 
 
-def _build(loc: Location, tod: str, wx: str | None) -> pygame.Surface:
+def _art_file(loc: Location, tod: str) -> tuple[Path, bool] | None:
+    """The art file for this time of day, and whether it was made for it."""
     for name, own_tod in ((f"{loc.id}_{tod}.png", True), (f"{loc.id}.png", False)):
-        path = ART_DIR / name
-        if path.exists():
-            img = _load(path)
-            if loc.exterior:
-                dusk = tod == "dusk" and not own_tod
-                if dusk:                                         # sunset first, so the weather sits on top of it
-                    _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ))
-                _grade(img, tod, wx, tod_grade=not own_tod and not dusk)
-            return _finish(img)
+        if (ART_DIR / name).exists():
+            return ART_DIR / name, own_tod
+    return None
+
+
+def _grade_art(img: pygame.Surface, loc: Location, tod: str, wx: str | None, own_tod: bool) -> None:
+    dusk = tod == "dusk" and not own_tod
+    if dusk:                                                     # sunset first, so the weather sits on top of it
+        _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ))
+    _grade(img, tod, wx, tod_grade=not own_tod and not dusk)
+
+
+def _build(loc: Location, tod: str, wx: str | None, clean: bool = False) -> pygame.Surface:
+    art = _art_file(loc, tod)
+    if art:
+        path, own_tod = art
+        img = _load(path)
+        if loc.exterior:
+            if clean:                                            # the clouds drift on their own layers
+                pygame.surfarray.blit_array(img, _sky_of(path).clean)
+            _grade_art(img, loc, tod, wx, own_tod)
+        return _finish(img)
     p = _paint(loc)
     if not loc.exterior:
         out = pygame.Surface((W, H))
@@ -1014,15 +1034,16 @@ _cache: OrderedDict[tuple, pygame.Surface] = OrderedDict()
 _art: dict[str, bool] = {}
 
 
-def surface(backdrop_id: str | None, tod: str = "day", wx: str | None = None) -> pygame.Surface:
-    """The graded still for a backdrop. Built on first use, then cached."""
+def surface(backdrop_id: str | None, tod: str = "day", wx: str | None = None, *, clean: bool = False) -> pygame.Surface:
+    """The graded still for a backdrop. Built on first use, then cached. clean: with the
+    painted clouds lifted out, for drawing under drifting ones."""
     loc = locations.get(backdrop_id)
     if not loc.exterior:
-        tod, wx = "day", None
-    key = (loc.id, tod, wx)
+        tod, wx, clean = "day", None, False
+    key = (loc.id, tod, wx, clean)
     s = _cache.get(key)
     if s is None:
-        s = _cache[key] = _build(loc, tod, wx)
+        s = _cache[key] = _build(loc, tod, wx, clean)
         if len(_cache) > CACHE_SIZE:
             _cache.popitem(last=False)
     else:
@@ -1162,12 +1183,71 @@ def _weather_fx(canvas: pygame.Surface, wx: str | None, tod: str, t: float) -> N
             canvas.fill((200, 190, 150), (x, y, 2, 1))
 
 
+_skies: dict[Path, skies.Sky] = {}
+_clouds_cache: OrderedDict[tuple, tuple[list[pygame.Surface], pygame.Surface] | None] = OrderedDict()
+_cloud_buf: pygame.Surface | None = None
+
+
+def _sky_of(path: Path) -> skies.Sky:
+    s = _skies.get(path)
+    if s is None:
+        s = _skies[path] = skies.find(pygame.surfarray.array3d(_load(path)))
+    return s
+
+
+def _clouds(loc: Location, tod: str, wx: str | None) -> tuple[list[pygame.Surface], pygame.Surface] | None:
+    """The cloud layers, graded like the still, and the sky mask they show through; None for
+    placeholders and art without clouds."""
+    key = (loc.id, tod, wx)
+    if key in _clouds_cache:
+        _clouds_cache.move_to_end(key)
+        return _clouds_cache[key]
+    art = _art_file(loc, tod) if loc.exterior and SKY_DRIFT else None
+    out = None
+    if art and (sky := _sky_of(art[0])).has_clouds:
+        layers = []
+        for rgb, cloud in sky.layers:
+            s = pygame.Surface((W, H), 0, 32)
+            pygame.surfarray.blit_array(s, rgb)
+            _grade_art(s, loc, tod, wx, art[1])
+            layer = pygame.Surface((W, H), pygame.SRCALPHA)
+            layer.blit(s, (0, 0))
+            pygame.surfarray.pixels_alpha(layer)[:] = np.where(cloud, 255, 0).astype(np.uint8)
+            layers.append(layer)
+        mask = pygame.Surface((W, H), pygame.SRCALPHA)
+        mask.fill((255, 255, 255, 255))
+        pygame.surfarray.pixels_alpha(mask)[:] = np.where(sky.mask, 255, 0).astype(np.uint8)
+        out = (layers, mask)
+    _clouds_cache[key] = out
+    if len(_clouds_cache) > CACHE_SIZE:
+        _clouds_cache.popitem(last=False)
+    return out
+
+
+def _drift(canvas: pygame.Surface, clouds: tuple[list[pygame.Surface], pygame.Surface], wx: str | None, t: float) -> None:
+    global _cloud_buf
+    if _cloud_buf is None:
+        _cloud_buf = pygame.Surface((W, H), pygame.SRCALPHA)
+    layers, mask = clouds
+    buf = _cloud_buf
+    buf.fill((0, 0, 0, 0))
+    for layer, k in zip(layers, SKY_DRIFT_LAYER):
+        x = int(t * SKY_DRIFT * k * SKY_DRIFT_WX.get(wx, 1.0)) % W
+        buf.blit(layer, (x, 0))
+        buf.blit(layer, (x - W, 0))
+    buf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    canvas.blit(buf, (0, 0))
+
+
 def draw(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: str | None = None, t: float = 0.0) -> None:
     """Paint the full canvas: the graded still, then the animated touches."""
     loc = locations.get(backdrop_id)
-    canvas.blit(surface(loc.id, tod, wx), (0, 0))
+    clouds = _clouds(loc, tod, wx)
+    canvas.blit(surface(loc.id, tod, wx, clean=clouds is not None), (0, 0))
     if not loc.exterior:
         return
+    if clouds:
+        _drift(canvas, clouds, wx, t)
     if loc.id in WATER:
         _shimmer(canvas, loc.id, tod, t)
     if loc.id == "lighthouse" and tod != "day":
