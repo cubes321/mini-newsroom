@@ -261,8 +261,7 @@ list; location is the place in words.
 _SPORT: dict[SegmentType, str] = {
     SegmentType.sport: _COMMON_RULES + _SPORT_DESK + """
 This is a piece on the SPORTS DESK in Full Time. Fran speaks alone, to camera, on what THIS ITEM
-says. At the open: a quick good evening and welcome to Full Time, the headlines, and what's coming up.
-At the close: the games coming up, a goodbye, and Coastwide is next.
+says, in its PLACE IN THE SHOW.
 headline = the piece in under 12 words. lower_third = "Full Time" plus a short tag.
 """,
     SegmentType.field_report: _COMMON_RULES + _SPORT_DESK + """
@@ -353,6 +352,15 @@ already featured; a passing mention is fine):
 {heads}{same}
 Facts already given on air this morning are settled: an anniversary, a birthday, an age or a date
 said once is not announced again, and never contradicted."""
+
+# Full Time's sports-desk pieces, by their place in the running order (the close is _CLOSE). Told
+# both at once, the rugby in the middle of the 2026-10-29 show welcomed viewers and said goodbye.
+_FULL_TIME_PLACE = {
+    "open": "PLACE IN THE SHOW: this OPENS Full Time: a quick good evening and welcome to Full Time, the "
+            "headlines, and what's coming up.",
+    "": "PLACE IN THE SHOW: the MIDDLE of Full Time, already under way: no welcome or good evening, and no "
+        "goodbye or hand-over to Coastwide. Go straight into it.",
+}
 
 _CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on, thanks to anyone
 who joined you, a {goodbye}; {next_title} follows at {next_at}. No new stories."""
@@ -535,6 +543,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
                  "tip_used to its number; otherwise tip_used is null):\n"
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
+    if show.id == "sport" and seg_type is SegmentType.sport and part in _FULL_TIME_PLACE:
+        user += "\n\n" + _FULL_TIME_PLACE[part]
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
         user += "\n\n" + _CLOSE.format(goodbye="goodbye" if _part(show) == "morning" else "goodnight",
