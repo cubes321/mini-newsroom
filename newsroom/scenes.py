@@ -3,7 +3,9 @@
 The whole frame is painted on a 320x180 canvas and scaled to the window
 with nearest-neighbour, which is what gives it the pixel-art look for free.
 Every scene paints the full canvas; overlays (lower third, ticker, clock)
-are drawn on top by `render()`.
+are drawn on top by `render()`. Text is the exception: `text()` lays it out
+on the canvas but draws it at the window's size, in `present()`, because an
+8-pixel font scaled up three times breaks up and is hard to read.
 """
 from __future__ import annotations
 
@@ -27,13 +29,59 @@ SKY = {
     "snow": (200, 205, 215), "fog": (170, 170, 170), "wind": (140, 170, 210), None: (110, 140, 200),
 }
 
-_fonts: dict[int, pygame.font.Font] = {}
+TEXT_FACE = "bahnschrift,segoeui,dejavusans,arial"     # drawn at full size, so a proper screen face
+TEXT_SCALE = 1.0                # the full-size face's size against the canvas size it's laid out at
+REF = 3                         # the window is the canvas this many times over (960x540)
+
+_fonts: dict[int, "CanvasFont"] = {}
+_full: dict[tuple[int, bool], pygame.font.Font] = {}
+_layer: list[tuple[str, int, tuple, tuple[int, int], pygame.Rect | None]] = []   # this frame's text
 
 
-def font(size: int) -> pygame.font.Font:
+def _face(px: int, bold: bool) -> pygame.font.Font:
+    if (px, bold) not in _full:
+        _full[px, bold] = pygame.font.SysFont(TEXT_FACE, px, bold=bold)
+    return _full[px, bold]
+
+
+class CanvasFont:
+    """The full-size face, measured in canvas pixels, so layout stays on the 320x180 grid."""
+
+    def __init__(self, size: int):
+        self.px, self.bold = size, size >= 10
+
+    def full(self, k: float) -> pygame.font.Font:
+        return _face(max(6, round(self.px * k * TEXT_SCALE)), self.bold)
+
+    def size(self, s: str) -> tuple[int, int]:
+        w, h = self.full(REF).size(s)
+        return math.ceil(w / REF), math.ceil(h / REF)
+
+    def get_height(self) -> int:
+        return math.ceil(self.full(REF).get_height() / REF)
+
+
+def font(size: int) -> CanvasFont:
     if size not in _fonts:
-        _fonts[size] = pygame.font.SysFont("consolas,couriernew,monospace", size, bold=size >= 10)
+        _fonts[size] = CanvasFont(size)
     return _fonts[size]
+
+
+def queue_text(s: str, size: int, color, at: tuple[int, int], clip: pygame.Rect | None = None) -> None:
+    """Draw `s` at canvas position `at` when the frame is presented, over everything on the canvas."""
+    _layer.append((s, size, tuple(color), at, clip))
+
+
+def present(canvas: pygame.Surface, screen: pygame.Surface) -> None:
+    """Scale the canvas to `screen` and draw this frame's text on it at full size."""
+    pygame.transform.scale(canvas, screen.get_size(), screen)
+    k = screen.get_width() / canvas.get_width()
+    for s, size, color, (x, y), clip in _layer:
+        if clip:
+            screen.set_clip(pygame.Rect(round(clip.x * k), round(clip.y * k), round(clip.w * k), round(clip.h * k)))
+        screen.blit(font(size).full(k).render(s, True, color), (round(x * k), round(y * k)))
+        if clip:
+            screen.set_clip(None)
 
 
 def wrap(s: str, size: int, maxw: int, max_lines: int = 3) -> list[str]:
@@ -69,9 +117,12 @@ def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), c
     f = font(size)
     if maxw and f.size(s)[0] > maxw:
         s = clip(s, f, maxw)
-    surf = f.render(s, False, color)
-    r = surf.get_rect(center=(x, y)) if center else surf.get_rect(topleft=(x, y))
-    canvas.blit(surf, r)
+    r = pygame.Rect((0, 0), f.size(s))
+    if center:
+        r.center = (x, y)
+    else:
+        r.topleft = (x, y)
+    queue_text(s, size, color, r.topleft)
     return r
 
 
@@ -421,6 +472,7 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
             card = pygame.Surface((w, h), pygame.SRCALPHA)
             card.fill((5, 5, 15, 225))
             canvas.blit(card, (0, 0))
+            _layer.clear()                          # the card covers the strand label's words as well
             text(canvas, "A PORT WEXLEY NEWS SPECIAL", w // 2, 46, 8, (200, 170, 60), center=True)
             y = 66
             for ln in wrap(ch.get("title", ""), 14, w - 24, 2):
@@ -509,18 +561,18 @@ def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:
         pygame.draw.rect(canvas, (230, 40, 40), (0, h - 14, 44, 14))
     else:
         pygame.draw.rect(canvas, show.colour, (0, h - 14, 44, 14))
-    text(canvas, "BREAKING" if v.breaking else show.ticker, 22, h - 7, 8, center=True, maxw=42)
+    label = "BREAKING" if v.breaking else show.ticker
+    size = next((n for n in (8, 7) if font(n).size(label)[0] <= 42), 6)      # COASTWIDE is a long word
+    text(canvas, label, 22, h - 7, size, center=True, maxw=42)
     items = v.ticker or [f"{show.title.title()}, channel seven"]
     s = "   •   ".join(items) + "   •   "
     f = font(8)
     tw = f.size(s)[0] or 1
     x = 48 - int((t * 30) % tw)
-    clip = canvas.get_clip()
-    canvas.set_clip(pygame.Rect(46, h - 14, w - 46, 14))
+    band = pygame.Rect(46, h - 14, w - 46, 14)
     while x < w:
-        canvas.blit(f.render(s, False, (230, 230, 230)), (x, h - 12))
+        queue_text(s, 8, (230, 230, 230), (x, h - 7 - f.get_height() // 2), band)
         x += tw
-    canvas.set_clip(clip)
 
 
 def draw_clock(canvas: pygame.Surface, v: View) -> None:
@@ -546,6 +598,7 @@ def shows_bug(v: View) -> bool:
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
+    _layer.clear()
     if v.mode == "testcard":
         draw_test_card(canvas, t, v)
         if v.resume_at:
