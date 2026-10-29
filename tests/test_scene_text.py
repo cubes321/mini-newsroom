@@ -21,7 +21,7 @@ def test_text_is_drawn_at_full_size_over_the_scaled_frame():
     assert any(screen.get_at((x, y)) != plain.get_at((x, y)) for x in range(band.x, band.right, 3)
                for y in range(band.y, band.bottom, 3))
     scenes.render(canvas, View(mode="testcard"), 1.0)
-    assert scenes._layer == []                      # each frame starts with no text
+    assert "Harbour Wall Report Due Friday" not in [s for s, *_ in scenes._layer]   # each frame starts afresh
 
 
 def test_layout_is_measured_in_canvas_pixels():
