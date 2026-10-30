@@ -54,8 +54,9 @@ bottom with the date.
   routed since 2026-10-30). Run it in its own PowerShell window, not a Claude app terminal tab (an app
   update closed the 2026-10-29 night at 08:21), with `--log-llm`, both API keys from the User scope, and
   a world.json backup first. Then check: does the memo break the convergence onto one meeting (count
-  "converge" in the desk notes, 11 of 24 on 2026-10-29), does the senior editor's new thread land, how
-  often "falling back to" fires, and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
+  "converge" in the desk notes, 11 of 24 on 2026-10-29), how many new stories the desk and the senior
+  editor seed under the new daily allowance (8) and whether they air, how often "falling back to" fires,
+  Tamsin's first Full Time, Coastwide's repeats, and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
