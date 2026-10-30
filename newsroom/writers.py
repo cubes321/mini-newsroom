@@ -331,6 +331,36 @@ question as a caption. Choose a backdrop id from the LOCATIONS list; location is
 """,
 }
 
+# Rock Pool: Poppy ("kids") and Gully the puppet ("gully"), children's television; Hugh tells stories.
+_ROCKPOOL_RULES = """
+This is ROCK POOL, a children's programme for four- to eight-year-olds, in the studio, presented by
+Poppy Tregenza ("kids"), who taught Year Two at Saltby primary: patient, bright, kind, makes anything
+out of an egg box. Gully ("gully") is a herring-gull puppet on her arm who speaks for himself: cheeky,
+greedy (every chip is his), sure he knows best, wrong about most things, secretly fond of Poppy; he
+never hurts anyone's feelings. Short sentences and simple words; questions to the children watching
+("Can you see?"); silly jokes; kind always. NOTHING frightening, sad or grown-up: no news, no story
+threads (thread_id null), no danger, no money worries, nobody hurt. Safe making: a grown-up helps
+with scissors and glue. The town's places and people are the briefing's, seen the way a child would.
+"""
+
+_ROCKPOOL: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _ROCKPOOL_RULES + """
+This is a piece in the studio, as THIS ITEM and the PLACE IN THE SHOW say: Poppy and Gully together,
+short lines back and forth. For STORY TIME, Hugh Tremayne ("historian"), the town's storyteller, a
+retired history teacher with a twinkle, tells the story in several short lines, and Poppy and Gully
+only introduce it and ask at the end; Hugh speaks in no other item. Several short lines, never one long one.
+headline = the item in under 12 words. lower_third = "Rock Pool" plus a short tag.
+""",
+    SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _ROCKPOOL_RULES + """
+This is a VISITOR in the Rock Pool studio, as THIS ITEM says: a grown-up from the town (and their
+animal, if they bring one), sitting with Poppy and Gully. Poppy asks what children would ask; the
+visitor answers simply and warmly; Gully interrupts with a silly question or two, and gets one real
+answer. The guest is speaker "guest", named in guest_name with guest_role, guest_gender and guest_age.
+An animal they bring never speaks and is never the guest: guest_name is always the grown-up's name.
+headline = the visitor and the best fact in under 12 words (never empty). lower_third = a short caption.
+""",
+}
+
 # Have Your Say (phonein.py): Jonah (host_b) and the phones; every item gets TODAY'S QUESTION.
 _PHONEIN_RULES = """
 This is part of HAVE YOUR SAY, the morning news phone-in presented by Jonah Pike ("host_b"), a former
@@ -608,6 +638,11 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="The Panel", extra=""),
     },
     ("panel", SegmentType.interview): {"": _MIDDLE.format(title="The Panel", extra="")},
+    ("rockpool", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS Rock Pool: a big hello to the children watching, then what's on.",
+        "": _MIDDLE.format(title="Rock Pool", extra=""),
+    },
+    ("rockpool", SegmentType.interview): {"": _MIDDLE.format(title="Rock Pool", extra="")},
     ("outabout", SegmentType.field_report): {
         "open": "PLACE IN THE SHOW: this OPENS Out and About: a brief good afternoon from where Meg is, then "
                 "what's coming up.",
@@ -678,7 +713,7 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
 # Oliver Fenwick-Hale twice each, and "clocks and chips" in nearly every link.
 SHOW_MEMORY = 30                # tonight's items on the show listed for the next writer
 SHOW_SAME_TYPE = 4              # earlier items of this item's kind, with how they began
-REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE", "outabout": "OUT AND ABOUT"}
+REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE", "outabout": "OUT AND ABOUT", "rockpool": "ROCK POOL"}
 _SHOW_TYPES = (SegmentType.links, SegmentType.feature, SegmentType.interview, SegmentType.vox_pop,
                SegmentType.consumer, SegmentType.review, SegmentType.field_report)
 
@@ -776,7 +811,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
              "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "phonein": _PHONEIN,
-             "outabout": _OUTABOUT}.get(show.id, {})
+             "outabout": _OUTABOUT, "rockpool": _ROCKPOOL}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -788,7 +823,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}."
     )
-    if show.light and show.id not in ("sport", outabout.SHOW):   # their own facts and places, not the news
+    if show.light and show.id not in ("sport", outabout.SHOW, "rockpool"):   # their own facts, not the news
         big = big_story(world)
         if big and show.opens and part != "open" and seg_type is not SegmentType.bulletin:
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
@@ -985,6 +1020,26 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             headline=f"Repairs to {lm} begin next week",
             lower_third="Council confirms repair schedule",
         )
+    if show.id == "rockpool" and seg_type is SegmentType.links:    # never Coastwide's "your money" (2026-10-30)
+        say = ([("kids", "That's all from Rock Pool today. Thank you for making things with us."),
+                ("gully", "And for not eating my chips. Bye bye, everyone! See you tomorrow!")] if part_ == "close" else
+               [("kids", "Gully, what have you got there?"),
+                ("gully", "Nothing. A shell. A shell that looks exactly like a chip."),
+                ("kids", "It's a shell, Gully. Can you see it, everyone? It's pink and curly. Let's put it back on the beach "
+                         "later, where it lives.")])
+        return BulletinScript(lines=[LiveLine(speaker=s, text=t) for s, t in say],
+                              headline="Goodbye from Rock Pool" if part_ == "close" else "Gully finds a shell",
+                              lower_third="Rock Pool, channel seven")
+    if show.id == "rockpool" and seg_type is SegmentType.interview:
+        return InterviewScript(
+            lines=[GuestLine(speaker="kids", text="We've got a visitor! This is Ruth, from the lifeboat station. Hello, Ruth!"),
+                   GuestLine(speaker="guest", text="Hello, Poppy. Hello, Gully. Hello, everyone at home!"),
+                   GuestLine(speaker="gully", text="Do lifeboats have chips on board?"),
+                   GuestLine(speaker="guest", text="No chips, Gully. But we do have a very big flask of tea."),
+                   GuestLine(speaker="kids", text="Thank you for coming, Ruth. Wave goodbye, Gully!")],
+            headline="Ruth from the lifeboat station visits", lower_third="Rock Pool: a visitor",
+            guest_name="Ruth Penrose", guest_role="lifeboat volunteer", guest_gender="f", guest_age="middle",
+            guest_accent="british")
     if show.id == outabout.SHOW and seg_type in (SegmentType.field_report, SegmentType.feature,
                                                  SegmentType.review, SegmentType.vox_pop):
         return _outabout_template(seg_type, part_)
@@ -1181,8 +1236,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     # A chat show may book back a guest who left something to ask, once a day per show.
     seg.work.pop("return_guest", None)
     seg.work.pop("loose_end_of", None)
-    if (seg.type is SegmentType.interview and show.light and not cont
-            and world.guest_returns.get(show.id) != world.last_date):
+    if (seg.type is SegmentType.interview and show.light and not cont and show.id != "rockpool"
+            and world.guest_returns.get(show.id) != world.last_date):     # no councillors' loose ends on Rock Pool
         back = world.return_guests(exclude=set(_recent_guests) | ({couch["name"]} if couch else set()))
         if back:
             seg.work["return_guest"] = back[0].name
@@ -1199,7 +1254,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     # The phone-in's studio guest is booked for the morning (phonein.py) and stays in the armchair all hour.
     studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
     booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW)
-    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate)
+    chatter = show.id == "rockpool"           # Poppy and Gully (and a visitor): many short lines
+    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate, chatter=chatter)
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)

@@ -73,8 +73,8 @@ port wexley town harbour harbor local""".split())
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
 # bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's, am_echo Howard's,
-# af_river Meg's.
-GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky", "af_alloy"]
+# af_river Meg's, af_bella Poppy's. Gully's "bm_fable@puppet" is Fable raised a third (tts.py), so Fable stays here.
+GUEST_VOICES_F = ["af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky", "af_alloy"]
 GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
@@ -828,6 +828,15 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("travel", "af_river"),
                   ["twenty years a ranger on the Greymouth coast path", "knows every stile, tide table and tea room",
                    "practical and honest: is it worth the walk?", "laughs at the weather"], lang="b"),
+        # Rock Pool's presenter at 16:00, and Gully, the herring-gull puppet on her arm, who speaks for himself.
+        Character("kids", "Poppy Tregenza", "presenter, Rock Pool at 16:00 (children's television)",
+                  CONFIG.tts.voices.get("kids", "af_bella"),
+                  ["taught Year Two at Saltby primary for six years", "patient, bright and kind",
+                   "makes anything out of an egg box", "Gully's long-suffering friend"], lang="b"),
+        Character("gully", "Gully", "a herring-gull puppet on Rock Pool (Poppy's arm)",
+                  CONFIG.tts.voices.get("gully", "bm_fable@puppet"),
+                  ["a herring gull with opinions", "thinks every chip is his", "sure he knows best",
+                   "secretly very fond of Poppy"], lang="b"),
         # Shared with the entertainment channel planned in E:\programming\mini-TVChannel (same town).
         Character("historian", "Hugh Tremayne", "local-history presenter (the history documentaries)",
                   CONFIG.tts.voices.get("historian", "am_santa"),

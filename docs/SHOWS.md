@@ -100,7 +100,7 @@ backdrops.
   answer back. The show is light but not the news: no big running story, no threads, and breaking news
   never sends Meg. Her voice is provisional (af_river, British); the bumper uses the news arrangement.
 
-### Rock Pool (16:00, 45 minutes): children's TV
+### Rock Pool (16:00, 45 minutes): children's TV. BUILT 2026-10-30
 
 A presenter and Gully, a herring-gull puppet with opinions. A "make" in the studio, story time (Hugh
 Tremayne reads a town legend), viewers' drawings and letters, an animal visitor (the lifeboat's cat, a
@@ -111,6 +111,17 @@ farm's lambs), a song now and then.
   sentences, kind, nothing frightening, even about the news).
 - **Reuses:** features, the historian, the guest memory.
 - **Size:** large (mostly art and voice).
+- **Built** (`schedule.py`, `writers._ROCKPOOL`, `sprites.draw_gully`, the `studio_kids` set): Poppy Tregenza
+  (`kids`), late 20s, six years teaching Year Two at Saltby primary, copper bunches and dungarees, voiced
+  by af_bella; and Gully (`gully`), a herring-gull puppet on her arm, drawn in code with a crown, a grey
+  back, an orange-ringed eye and a lower beak that drops as he talks, and voiced by `bm_fable@puppet`:
+  Fable spoken slower and raised a third (`tts.PUPPET`), so he sounds like nobody else and no guest
+  loses Fable. All three were chosen on a contact sheet and by ear. In the studio throughout, on a set
+  painted in code until it has art: the open, the make, an animal visitor, letters and drawings (first
+  names and ages only), story time with Hugh in the visitor's seat, a guest with a job children love,
+  and Gully's poem (a spoken verse stands in for a song). No ad breaks (the advert pool is pubs and
+  garages), no news, no threads, no grown-up guests booked back for their loose ends. The loop is long
+  so story time comes round about three times. The bumper uses the news arrangement.
 
 ### The Inquiry (20:00, half an hour): investigations. BUILT 2026-10-30
 
@@ -177,7 +188,7 @@ reach an end instead of waiting at the council door.
 5. **Out and About**: built 2026-10-30, with Meg Trethewey and the review item.
 6. **The Chamber**: the calendar and the votes, once the senior editor and the new story allowance
    have been watched for a night or two (it changes how stories end).
-7. **Rock Pool**: the most art and voice; best done when there's time to listen.
+7. **Rock Pool**: built 2026-10-30, with Poppy and Gully. The Chamber waits a night or two after it.
 
 New presenters' voices wait until they can be chosen by ear; a show can be built and tested with a
 provisional voice, as Tamsin's was.

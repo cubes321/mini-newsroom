@@ -22,9 +22,9 @@ from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_mod
 from .locations import BACKDROP_IDS
 
 Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                  "sport_reporter", "business", "historian", "travel", "guest"]
+                  "sport_reporter", "business", "historian", "travel", "kids", "gully", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                             "sport_reporter", "business", "historian", "travel", "guest")
+                             "sport_reporter", "business", "historian", "travel", "kids", "gully", "guest")
 # Who goes out on location: Miles for the news and Coastwide, Tamsin for Full Time, Meg on Out and About.
 FIELD_REPORTERS: tuple[str, ...] = ("reporter", "sport_reporter", "travel")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
@@ -128,9 +128,9 @@ class Rundown(BaseModel):
 
 
 LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                      "sport_reporter", "business", "travel"]
+                      "sport_reporter", "business", "travel", "kids", "gully", "historian"]
 GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                       "sport_reporter", "business", "travel", "guest"]
+                       "sport_reporter", "business", "travel", "kids", "gully", "historian", "guest"]
 
 
 def _gender(v):
@@ -240,6 +240,12 @@ class BulletinScript(BaseModel):
     )
 
 
+class ChatterScript(BulletinScript):
+    """Rock Pool's pieces: Poppy and Gully's quick back-and-forth runs past a bulletin's ten lines (the
+    first run's make wanted eleven, 2026-10-30), and story time is many short lines too."""
+    lines: list[LiveLine] = Field(min_length=1, max_length=24)
+
+
 class FieldReportScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=2, max_length=12)
     headline: str = Field(min_length=4, max_length=90)
@@ -311,6 +317,11 @@ class CouchScript(InterviewScript):
     """The Last Ferry's couch: a new guest, and the one before still sitting there. guest_name,
     guest_role and guest_gender are the new guest's; each guest line names its speaker."""
     lines: list[CouchLine] = Field(min_length=2, max_length=16)
+
+
+class ChatterInterviewScript(InterviewScript):
+    """A Rock Pool visitor: three voices trading short lines ran past an interview's sixteen (2026-10-30)."""
+    lines: list[GuestLine] = Field(min_length=2, max_length=24)
 
 
 class PanelLine(GuestLine):
@@ -727,16 +738,19 @@ _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 
 
 def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False,
-                  panel: bool = False) -> type[BaseModel]:
+                  panel: bool = False, chatter: bool = False) -> type[BaseModel]:
     """The script schema with `lines[].speaker` narrowed to one show's cast.
 
     The JSON schema the model sees then lists only that show's presenters, the
     same way the Backdrop enum comes from locations.py. `couch`: an interview
-    with two guests on The Last Ferry's couch; `panel`: The Panel's debate, three guests.
+    with two guests on The Last Ferry's couch; `panel`: The Panel's debate, three guests; `chatter`:
+    Rock Pool's links and visitors, with more and shorter lines than a bulletin or an interview.
     """
-    key = (seg_type, cast, couch, panel)
+    key = (seg_type, cast, couch, panel, chatter)
     if key not in _NARROWED:
-        base = PanelScript if panel else CouchScript if couch else SCRIPT_SCHEMAS[seg_type]
+        chat = {SegmentType.links: ChatterScript, SegmentType.interview: ChatterInterviewScript}
+        base = (PanelScript if panel else CouchScript if couch else chat.get(seg_type) if chatter and seg_type in chat
+                else SCRIPT_SCHEMAS[seg_type])
         lf = base.model_fields["lines"]
         line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine, VoxLine or CallLine
         line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,

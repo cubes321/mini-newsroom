@@ -267,6 +267,8 @@ sport = "af_jessica"     # Fran Kellaway, sport (the news, and Full Time at 18:4
 sport_reporter = "af_sarah"   # Tamsin Jago, Full Time's reporter: PROVISIONAL, to be chosen by ear (2026-10-30)
 business = "am_echo"         # Howard Lanyon, Quayside: PROVISIONAL, to be chosen by ear (2026-10-30)
 travel = "af_river"          # Meg Trethewey, Out and About: PROVISIONAL, British pronunciation, by ear (2026-10-30)
+kids = "af_bella"            # Poppy Tregenza, Rock Pool: chosen by ear (2026-10-30)
+gully = "bm_fable@puppet"    # Gully the puppet: Fable raised a third (tts.PUPPET), chosen by ear (2026-10-30)
 historian = "am_santa"   # Hugh Tremayne, the history documentaries (and the entertainment channel's)
 
 [paths]

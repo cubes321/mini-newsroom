@@ -100,6 +100,21 @@ _SHORT = ("a SHORTER SECOND GUEST, one part with no break: a quick hello, one go
           "then Vincent thanks them; ")
 
 
+# Rock Pool's recurring items, each with its own place in the order (writers._ROCKPOOL has the rules).
+_MAKE = ("THE MAKE: Poppy makes one thing from things found at home (an egg box, a paper plate, a sock, a "
+         "loo-roll tube), step by step so children can make it too, with a grown-up for the scissors; Gully helps, "
+         "badly")
+_VISITOR = ("an ANIMAL VISITOR: someone brings an animal into the studio (the lifeboat station's cat, a farm's "
+            "lambs, a rescued hedgehog, a sheepdog, the school's tortoise): what it eats, how to look after it, one "
+            "amazing fact; Gully is jealous")
+_LETTERS = ("LETTERS AND DRAWINGS: Gully reads out two or three letters from viewers and Poppy describes the "
+            "drawings they sent (a first name and an age only, never a surname or an address)")
+_STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town or the coast for children (a "
+          "mermaid, a smuggler's dog, a giant who built the harbour wall), gentle and a little funny, nothing "
+          "frightening; Poppy introduces it in a line, and she and Gully ask one question at the end")
+_POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to eight rhyming lines) about "
+         "something on the beach; Poppy is kind about it")
+
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
         "news", "PORT WEXLEY NEWS", "NEWS", (200, 30, 30),
@@ -438,6 +453,40 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # this afternoon's weekend walk and what's on
     ),
     Show(
+        "rockpool", "ROCK POOL", "ROCK POOL", (232, 120, 64),
+        # Forty-five minutes of children's television with Poppy Tregenza and Gully, the herring-gull puppet
+        # on her arm: a make, an animal visitor, letters and drawings, Gully's poem, a guest with a job
+        # children love, and story time with Hugh Tremayne. All in the studio, no ad breaks (the advert
+        # pool is pubs and garages), and no news. The loop is long so story time comes round about three times.
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Poppy and Gully say hello: what's on today, and Gully's opinion of it",
+              target_s=45.0),
+            I(T.links, brief=_MAKE, target_s=180.0),
+            I(T.interview, brief=_VISITOR),
+            I(T.links, brief=_LETTERS, target_s=90.0),
+            # the order wraps back to here
+            I(T.links, brief=_STORY, target_s=240.0),
+            I(T.interview, brief="a GUEST with a job children love (a lifeboat volunteer, the lighthouse keeper, a "
+                                 "baker, a vet, the bus driver, a fisherman): what they do all day, the best bit, and "
+                                 "one question from Gully"),
+            I(T.links, brief=_POEM, target_s=60.0),
+            I(T.links, brief=_MAKE, target_s=180.0),
+            I(T.interview, brief=_VISITOR),
+            I(T.links, brief=_LETTERS, target_s=90.0),
+        ),
+        loop_from=5,
+        closing=(I(T.links, "close", brief="Poppy and Gully say goodbye until tomorrow; Gully gets the last word",
+                   target_s=35.0),),
+        target_s={T.bumper: 8.0, T.links: 90.0, T.interview: 180.0},
+        cast=("kids", "gully"), lead="kids",
+        cast_by_type={T.links: ("kids", "gully", "historian"), T.interview: ("kids", "gully", "guest")},
+        station="Rock Pool, channel 7's children's programme, with Poppy Tregenza and Gully",
+        tone="kind, bright and silly: short sentences, nothing frightening",
+        light=True,
+        repeats_overnight=False,     # "see you tomorrow!" doesn't belong at three in the morning
+    ),
+    Show(
         "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
         # Half an hour of debate: Dana Ferris chairs three panellists on three questions from the week's
         # news, booked earlier in the evening (panel.py); a question from the public on the second.
@@ -528,6 +577,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     ("13:30", "news"),
     (15, "outabout"),       # Out and About: Meg Trethewey on days out, culture and food
     ("15:45", "news"),
+    (16, "rockpool"),       # Rock Pool: Poppy Tregenza and Gully, children's television
+    ("16:45", "news"),
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "inquiry"),        # The Inquiry: Pat Holloway on one story in depth

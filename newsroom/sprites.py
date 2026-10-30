@@ -116,6 +116,11 @@ LOOKS["business"] = Look(skin=(226, 186, 160), hair=(196, 196, 200), top=(40, 52
 # sheet, 2026-10-30)
 LOOKS["travel"] = Look(skin=(230, 186, 156), hair=(74, 54, 42), top=(190, 52, 44), under=(226, 214, 190),
                        hair_style="ponytail", top_style="jacket", temples=(160, 150, 140), mouth="smile")
+# Poppy Tregenza: late 20s, Rock Pool's presenter, six years teaching Year Two at Saltby primary: copper
+# hair in bunches, freckles, a yellow top under denim dungarees (chosen on a contact sheet, 2026-10-30)
+LOOKS["kids"] = Look(skin=(236, 196, 168), hair=(176, 74, 40), top=(250, 210, 70), under=(250, 236, 200),
+                     hair_style="ponytail", top_style="tshirt", extra="apron", extra_col=(60, 86, 130),
+                     mouth="smile", freckles=True)
 # Hugh Tremayne: mid-60s, a retired history teacher, white hair receding, round glasses, a brown
 # corduroy jacket over a cream shirt and a mustard tie, eyebrows up mid-story
 LOOKS["historian"] = Look(skin=(226, 180, 152), hair=(225, 225, 228), top=(120, 84, 52), under=(236, 226, 196),
@@ -572,6 +577,8 @@ def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: floa
     `look` overrides the presenter's own (guests pass guest_look(...)); `light` multiplies
     every colour, to sit them in a location's light (backdrops.person_light). `gesture` fixes
     one for a contact sheet; otherwise talking and listening choose (`_gesture`)."""
+    if who == "gully":
+        return draw_gully(canvas, x, y, mouth, t, scale=scale, facing=facing, light=light)
     L = look or LOOKS.get(who, LOOKS["guest"])
     kind, up = gesture if gesture is not None else _gesture(who, look, mouth, t)
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
@@ -584,6 +591,52 @@ def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: floa
         _hand(p, L, up, t, _beat(who, look))
     _head(hp, L, mouth, _blinking(who, look, t))
     _hair_front(hp, L)
+
+
+GULL_WHITE, GULL_GREY, GULL_DARK = (244, 244, 240), (150, 160, 172), (40, 40, 48)
+GULL_BEAK, GULL_SPOT = (242, 196, 48), (210, 50, 40)
+# The crown at the back, the forehead sloping down to the beak at the front (+dx), a slim neck.
+GULL_HEAD = ([(0, -4, 0), (1, -6, 2), (2, -7, 3), (3, -7, 4), (4, -7, 5)] + [(r, -7, 6) for r in range(5, 12)]
+             + [(12, -6, 5), (13, -5, 4)] + [(r, -4, 4) for r in range(14, 22)])
+
+
+def draw_gully(canvas: pygame.Surface, x: int, y: int, mouth: float, t: float, *, scale: int = 1,
+               facing: int = 1, light: tuple[float, float, float] | None = None) -> None:
+    """Gully, Rock Pool's herring-gull puppet, up from below frame on Poppy's arm in her yellow sleeve
+    (chosen on a contact sheet, 2026-10-30). (x, y) is the bottom centre, like draw_character's; the
+    lower beak drops with `mouth`, and he bobs when he talks, as a puppeteer's hand does."""
+    talking = mouth > 0.08
+    bob = (-1 if talking and int(t * 6) % 2 else 0) + int(round(math.sin(t * 2.0 + 1.0) * 0.6))
+    p = _Pen(canvas, x, y - 40 * scale + bob * scale, scale, facing, light)
+    sleeve = LOOKS["kids"].top
+    edge = _dark(GULL_WHITE, 0.55)
+    p(_dark(sleeve, 0.7), -5, 22, 11, 18)                    # Poppy's arm in its sleeve, up into the neck
+    p(sleeve, -4, 22, 9, 18)
+    for dy, a, b in GULL_HEAD:
+        p(edge, a - 1, dy, b - a + 3)
+    p(edge, GULL_HEAD[0][1], -1, GULL_HEAD[0][2] - GULL_HEAD[0][1] + 1)
+    for dy, a, b in GULL_HEAD:
+        p(GULL_WHITE, a, dy, b - a + 1)
+    p(GULL_GREY, -6, 15, 7, 7)                               # the grey back, behind the neck
+    p(_dark(GULL_GREY, 0.8), -6, 18, 7, 1)
+    p(GULL_DARK, -6, 21, 3, 1)                               # black wingtips
+    open_ = round(min(1.0, mouth) * 4)                       # the beak: the upper fixed, the lower dropped
+    bk, bx = _dark(GULL_BEAK, 0.6), 7
+    if open_:
+        p((120, 30, 40), bx, 9, 8, open_)
+    p(bk, bx, 6, 11, 4)
+    p(GULL_BEAK, bx, 7, 10, 2)
+    p(GULL_BEAK, bx, 6, 8, 1)
+    p(bk, bx + 9, 9, 2, 2)                                   # the hook at the tip
+    p(bk, bx, 9 + open_, 9, 3)
+    p(GULL_BEAK, bx, 10 + open_, 8, 1)
+    p(GULL_SPOT, bx + 5, 10 + open_, 2, 1)                   # the red spot on the lower beak
+    if int(t * 10) % 47 == 0:                                # a blink now and then
+        p(edge, 1, 5, 4, 2)
+        return
+    p((230, 120, 50), 1, 4, 4, 4)                            # an orange ring round a pale eye
+    p((236, 220, 120), 2, 5, 2, 2)
+    p(GULL_DARK, 3, 5, 1, 2)
 
 
 def draw_mic(canvas: pygame.Surface, x: int, y: int) -> None:

@@ -10,6 +10,9 @@ bottom with the date.
   (Quayside, The Inquiry, The Panel, Have Your Say and Out and About use the news one). Meg Trethewey's
   too: af_river with British pronunciation for now (PROVISIONAL in config.toml); she left the guest pool,
   which is down to eight female voices.
+- [ ] Art for Rock Pool's set (`studio_kids`): painted in code for now, a sea-green wall with painted waves
+  and bunting, a painted rock pool with a crab and a starfish, a craft table at the front. Gully stays
+  code-drawn (`sprites.draw_gully`), like every character. Rock Pool's own bumper arrangement too.
 - [ ] Interiors for Out and About's reviews: a cafe or tea room, a pub dining room, a village hall stage.
   Meg reviews from the nearest exterior (the village, the seafront, the market) until then.
 - [ ] A phone-in desk for Have Your Say: Jonah and the studio guest sit in the interview armchairs
@@ -47,12 +50,11 @@ bottom with the date.
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
   their fixes (no repeated title, notices for the public, slide lines cut at a word past 190
   characters), and a special waiting for its hour and then airing.
-- [ ] New shows, from the 2026-10-30 brainstorm: the plan, a day's schedule and the build order are in
-  `docs/SHOWS.md`. In order: The Inquiry (20:00 investigations, Pat), Quayside (13:00 business, with
-  `quay.py` prices), The Panel (20:30 debate, Dana chairs), Have Your Say (10:00 news phone-in, Jonah),
-  Out and About (15:00 travel, culture and food), The Chamber (live council nights), Rock Pool (16:00
-  children's TV with Gully the gull). The Kettle's On, Harbour Row and Wexley Wits go to the
-  entertainment channel (`docs/ENGINE.md`).
+- [ ] The Chamber, the last of the 2026-10-30 brainstorm's seven new shows (`docs/SHOWS.md`): the council
+  meeting live on council nights, with a council calendar and votes that settle stories. Put off to
+  2026-10-31 or the day after, once a night or two has shown how the senior editor and the story
+  allowance end stories. The other six are built. The Kettle's On, Harbour Row and Wexley Wits go to
+  the entertainment channel (`docs/ENGINE.md`).
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
@@ -68,7 +70,9 @@ bottom with the date.
   Tamsin's first Full Time, Coastwide's repeats, The Inquiry's and The Panel's first nights (the story, the lineup, four voices at the desk), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
   The night run ends at 10:00, so the daytime shows need runs of their own: Have Your Say (`--clock
   09:45`: the booking, the callers' variety across the hour, ring-backs), Quayside, and Out and About
-  (`--clock 14:50`: whether places rest a fortnight, revisits, an owner answering back on Coastwide).
+  (`--clock 14:50`: whether places rest a fortnight, revisits, an owner answering back on Coastwide),
+  and Rock Pool (`--clock 15:52`: story time's legends across the hour, the makes, the visitors: the
+  lifeboat station brought its cat twice in each first run, Biscuit being town canon).
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
@@ -159,6 +163,22 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 Rock Pool at 16:00 (`docs/SHOWS.md`): children's television with Poppy Tregenza (`kids`), six years
+  teaching Year Two at Saltby primary, and Gully (`gully`), the herring-gull puppet on her arm, who speaks
+  for himself. Both chosen on a contact sheet (A of three, with the herring-gull Gully) and by ear: Poppy
+  af_bella, Gully `bm_fable@puppet`, Fable spoken slower and raised a third (`tts.PUPPET`), so no guest
+  loses Fable. Gully is drawn in code (`sprites.draw_gully`): a crown, a grey back, an orange-ringed eye,
+  a lower beak that drops as he talks, a bob in his puppeteer's hand. In the studio throughout, on a set
+  painted in code (`studio_kids`) with Poppy, Gully and one visitor's seat: the make, an animal visitor,
+  letters and drawings, story time with Hugh, a guest with a job children love, Gully's poem. No ad
+  breaks, no news, no threads, no grown-ups booked back for their loose ends; its canned pieces are Poppy
+  and Gully's. First runs (scratch, `--clock 15:52` and `15:57`): a paper-plate owl, Biscuit the lifeboat
+  cat, letters from Lily (six) and Oscar (five), Hugh's giant who built the harbour wall "in a curve, like
+  a smile". Fixed from them: Poppy and Gully's back-and-forth ran past a bulletin's ten lines, so two makes
+  and a story fell to Coastwide's canned links ("your money"), and two visitors past an interview's
+  sixteen; their pieces and visitors now take 24 lines (`ChatterScript`, `ChatterInterviewScript`) and
+  have canned ones of their own. A visitor's dog was taken for the guest, twice: the animal never is.
 
 - 2026-10-30 Out and About at 15:00 (`docs/SHOWS.md`): Meg Trethewey (`travel`), late 40s, twenty years a
   ranger on the Greymouth coast path (A of three people on a contact sheet: red waterproof, a greying

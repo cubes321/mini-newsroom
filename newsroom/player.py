@@ -115,7 +115,7 @@ class Player:
         self.replaying = False
         self.last_weather: Segment | None = None
         self.last_type: SegmentType | None = None
-        self.ticker: deque[str] = deque(maxlen=6)
+        self.ticker: deque[tuple[str, str]] = deque(maxlen=6)    # (show, headline)
         self.played = 0
         self.specials_played = 0
         self.breaking_played = 0
@@ -185,7 +185,7 @@ class Player:
         if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
             if seg.headline:
-                self.ticker.append(seg.headline)
+                self.ticker.append((seg.show, seg.headline))
             if seg.type is SegmentType.weather:
                 self.last_weather = seg
         if self.filler_since is not None:
@@ -437,13 +437,17 @@ class Player:
             stayed = seg.work.get("couch")
             guests = (sorted(guests[:2], key=lambda g: g == stayed) if stayed
                       else guests[:3] if seg.show == "panel" else guests[:1])
+            if seg.show == "rockpool":       # Gully is always on Poppy's arm; Hugh or a visitor takes the third seat
+                hosts = [("kids", None), ("gully", None)] + [h for h in hosts if h[0] not in ("kids", "gully")]
+                self._cast_of = (seg.id, (hosts + [("guest", g) for g in guests])[:3])
+                return self._cast_of[1]
             self._cast_of = (seg.id, hosts[:2] + [("guest", g) for g in guests])
         return self._cast_of[1]
 
     def view(self, now: float | None = None) -> View:
         now = now or schedule.now()
         local = time.localtime(now)
-        v = View(clock=time.strftime("%H:%M", local), ticker=list(self.ticker),
+        v = View(clock=time.strftime("%H:%M", local), ticker=[h for _, h in self.ticker],
                  buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
                  tod=time_of_day(local.tm_hour), weather=self.world.last_weather.get("map_state"))
         on_air = schedule.show_at(now)
@@ -472,6 +476,8 @@ class Player:
         v.repeat = seg.repeat
         v.show = seg.show
         v.breaking = seg.type is SegmentType.breaking
+        if seg.show == "rockpool":           # no news on the children's ticker: their own items, or the title
+            v.ticker = [h for s, h in self.ticker if s == "rockpool"]
         if line and line.mouth_env:
             i = int((now - self.line_start) / ENV_WINDOW_S)
             v.mouth = line.mouth_env[i] if 0 <= i < len(line.mouth_env) else 0.0

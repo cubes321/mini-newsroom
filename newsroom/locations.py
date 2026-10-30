@@ -107,6 +107,8 @@ LOCATIONS: tuple[Location, ...] = (
              "studio", (28, 34, 60), (60, 50, 48)),
     Location("studio_panel", "the panel set", "a long desk: the chair at one end, three panellists facing her",
              "studio", (30, 32, 52), (58, 48, 46)),
+    Location("studio_kids", "the Rock Pool set", "Rock Pool's set: a sea-green wall, a painted rock pool, a craft table",
+             "studio", (86, 186, 186), (238, 210, 150)),
 )
 
 # Where people go on the studio sets: (x, baseline y, sprite scale, facing).
@@ -124,6 +126,8 @@ MARKS: dict[str, dict[str, Mark]] = {
     # The Panel: the chair at the left end of a long desk, three panellists facing her, all behind it
     "studio_panel": {"host": (58, 138, 2, 1), "guest": (152, 138, 2, -1),
                      "panel_1": (152, 138, 2, -1), "panel_2": (212, 138, 2, -1), "panel_3": (272, 138, 2, -1)},
+    # Rock Pool: Poppy, Gully on her arm turned to her, and a visitor's seat across the craft table
+    "studio_kids": {"host": (78, 150, 2, 1), "gully": (134, 158, 2, -1), "guest": (250, 152, 2, -1)},
 }
 
 BY_ID: dict[str, Location] = {loc.id: loc for loc in LOCATIONS}

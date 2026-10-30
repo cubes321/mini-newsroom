@@ -263,12 +263,15 @@ def _interview_set(v: View) -> str:
     other show uses the armchairs."""
     if v.set == "sports":
         return "studio_sports"
-    return {"late": "studio_late", "panel": "studio_panel"}.get(v.show, "studio_interview")
+    return {"late": "studio_late", "panel": "studio_panel", "rockpool": "studio_kids"}.get(v.show, "studio_interview")
 
 
 def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:
     """(who, guest name, mark) for each person on the interview set."""
     marks = locations.MARKS[_interview_set(v)]
+    if "gully" in marks:                                        # Rock Pool: Poppy, Gully on her arm, a visitor
+        seat = {"kids": "host", "gully": "gully"}
+        return [(who, name, marks[seat.get(who, "guest")]) for who, name in v.people[:3]]
     if len(v.people) == 1:
         who, name = v.people[0]
         if v.show == "late" or v.set == "sports":               # the monologue, the sports desk

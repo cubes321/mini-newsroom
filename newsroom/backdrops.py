@@ -861,6 +861,37 @@ def _studio_panel(p: _Paint) -> None:
         p.rect((170, 200, 225), x + 12, top - 6, 3, 6)           # a glass of water
 
 
+@_painter("studio_kids")
+def _studio_kids(p: _Paint) -> None:
+    """Rock Pool's set: a sea-green wall with painted waves and bunting, a big painted rock pool with a
+    crab and a starfish, and a craft table at the front for the make. Painted until it has art."""
+    p.rect(p.loc.sky, 0, 0, W, H)
+    for i, x in enumerate(range(-20, W + 40, 40)):                # the painted waves along the wall
+        p.circle((120, 210, 206), x + 20, 74 + (i % 2) * 6, 26)
+    p.rect(p.loc.sky, 0, 100, W, 40)
+    for i, x in enumerate(range(6, W, 22)):                       # bunting
+        p.poly([(240, 90, 80), (250, 210, 70), (90, 150, 230)][i % 3], [(x, 10), (x + 16, 10), (x + 8, 22)])
+    p.line((60, 60, 70), (0, 10), (W, 10))
+    p.ellipse((70, 110, 120), 168, 34, 120, 52)                  # the painted rock pool on the wall
+    p.ellipse((110, 170, 180), 176, 40, 104, 40)
+    p.circle((128, 120, 112), 186, 60, 10)
+    p.circle((128, 120, 112), 270, 48, 8)
+    p.ellipse((220, 80, 60), 218, 56, 18, 10)                    # a crab
+    for dx in (0, 14):
+        p.rect((220, 80, 60), 214 + dx + (4 if dx else 0), 52, 3, 4)
+    p.poly((250, 160, 60), [(252, 44), (255, 50), (262, 50), (256, 54), (258, 61), (252, 57), (246, 61),
+                            (248, 54), (242, 50), (249, 50)])     # a starfish
+    p.rect(p.loc.ground, 0, 140, W, H - 140)                     # the sandy floor
+    p.circle((150, 140, 130), 22, 150, 12)
+    p.circle((130, 124, 118), 300, 152, 16)
+    table, edge = (170, 120, 80), (210, 160, 110)                 # the craft table for the make
+    p.rect(table, 150, 138, 80, 22)
+    p.rect(edge, 150, 136, 80, 3)
+    for x, c in ((158, (240, 90, 80)), (172, (90, 150, 230)), (186, (250, 210, 70))):
+        p.rect(c, x, 130, 10, 6)                                  # pots of paint and an egg box
+    p.rect((236, 226, 196), 202, 130, 18, 6)
+
+
 @_painter("studio_sofa")
 def _studio_sofa(p: _Paint) -> None:
     p.rect(p.loc.sky, 0, 0, W, H)

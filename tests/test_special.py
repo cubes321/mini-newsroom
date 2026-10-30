@@ -220,7 +220,7 @@ def test_where_a_ready_special_airs(hour, last_type, airs):
 
 @pytest.mark.parametrize("finished, airs", [
     (11, 12),           # the news: after the bumper at the next top of the hour, so it can be trailed
-    (14, 16),           # Out and About doesn't air specials, and 15:45 isn't a top of the hour: four o'clock
+    (14, 17),           # Out and About and Rock Pool don't air specials, and 15:45 isn't a top of the hour
     (19, 21),           # Coastwide and The Inquiry don't air specials: the news at nine
     (7, 9),             # breakfast: the nine o'clock news
     (22, 23),           # the late show: the late news

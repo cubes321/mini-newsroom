@@ -4,8 +4,8 @@
 
 Everything is on `master` (last pushed `e4a984a`). Since the 2026-10-29 DeepSeek night: the back
 office runs on DeepSeek Flash with Sonnet as a two-hourly senior editor and as Flash's fallback; a
-daily allowance of new stories (8) replaced the open-thread cap; five new shows went on the
-schedule (*Have Your Say* 10:00, *Quayside* 13:00, *Out and About* 15:00, *The Inquiry* 20:00, *The Panel* 20:30); Tamsin Jago is *Full Time*'s
+daily allowance of new stories (8) replaced the open-thread cap; six new shows went on the
+schedule (*Have Your Say* 10:00, *Quayside* 13:00, *Out and About* 15:00, *Rock Pool* 16:00, *The Inquiry* 20:00, *The Panel* 20:30); Tamsin Jago is *Full Time*'s
 reporter; *Coastwide* remembers its evening; the specials' sections no longer restate or foretell.
 Tonight is two jobs, in this order.
 
@@ -80,7 +80,11 @@ with the `call` item (a caller through a telephone band, a box with a waveform i
 needs a morning run to be seen on air (`--clock 09:45`), as *Quayside* does. *Out and About* (15:00)
 followed the same evening: Meg Trethewey (`travel`, a coast-path ranger, chosen on a contact sheet)
 on location all the way through, and the `review` item, with stars on a card that the town
-remembers. Meg's voice is provisional (af_river). Still to build, in the agreed order:
+remembers. Meg's voice is provisional (af_river). *Rock Pool* (16:00) came last that evening: Poppy
+Tregenza (`kids`, af_bella) and Gully, a herring-gull puppet drawn in code and voiced by
+`bm_fable@puppet` (Fable raised a third), on a children's set painted in code. Still to build, put off
+to 2026-10-31 or the day after, once a night or two has shown how the senior editor and the story
+allowance end stories:
 
 1. **The Chamber** (council nights, 20:00 to 21:00): the council meeting, live. Dana in the press
    seats, Helen Strand in the chair, Miles in the public gallery; items from the threads due at
@@ -89,17 +93,11 @@ remembers. Meg's voice is provisional (af_river). Still to build, in the agreed 
    a show that takes over the evening slot on those nights (as the documentary and breaking news
    take over the news). Do it after a night or two of watching the senior editor and the new
    story allowance: it changes how stories end. Large.
-2. **Rock Pool** (16:00, 45 minutes): children's TV. A presenter and Gully, a herring-gull puppet
-   with opinions; a "make" in the studio, story time (Hugh Tremayne reads a town legend), viewers'
-   drawings, an animal visitor. Needs a presenter, Gully's sprite (a puppet with a moving beak) and
-   voice, a children's set and a children's tone for the writers. Large, mostly art and voice: best
-   when there's time to listen.
-
 The day's schedule leaves the news at 09:00, 11:00, 13:30, 15:45, 16:45, 21:00 and 23:00 once all
 seven are on. *The Kettle's On*, *Harbour Row* and *Wexley Wits* are kept for the entertainment
 channel (`docs/ENGINE.md`).
 
-Art waiting for ComfyUI: a proper set for *The Panel* (`studio_panel` is painted in code) and a
+Art waiting for ComfyUI: Rock Pool's set (`studio_kids`, painted in code), a proper set for *The Panel* (`studio_panel` is painted in code) and a
 fish quay backdrop for *Quayside* (Miles reports the auction from the harbour until then).
 
 ## Where it stood on 2026-10-26

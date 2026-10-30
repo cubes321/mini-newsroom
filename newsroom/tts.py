@@ -89,11 +89,25 @@ def telephone(audio: np.ndarray, sr: int) -> np.ndarray:
     return (np.tanh(band / peak * 1.8) / np.tanh(1.8) * min(peak * 1.3, 0.9)).astype(np.float32)
 
 
+PUPPET = 1.33                   # "voice@puppet": raised a third, as Gully was chosen by ear (2026-10-30)
+
+
+def raise_pitch(audio: np.ndarray, by: float) -> np.ndarray:
+    """Play `audio` back `by` times faster: the pitch rises, and speech spoken `by` times slower
+    comes back to its own pace. Linear interpolation is plenty for a puppet."""
+    n = int(len(audio) / by)
+    return np.interp(np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio).astype(np.float32)
+
+
 def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: str | None = None,
                phone: bool = False) -> SynthResult:
     """Render `text` with `voice` to `out_path` (24 kHz mono PCM_16). `lang` is Kokoro's
     pronunciation ("a" American, "b" British); the station's own by default. `phone`: through
-    the telephone band, for a caller on the line."""
+    the telephone band, for a caller on the line. A voice written "bm_fable@puppet" is that voice
+    raised a third, spoken slower to keep its pace: a puppet's, and nobody else's."""
+    voice, _, effect = voice.partition("@")
+    pitch = PUPPET if effect == "puppet" else 1.0
+    speed /= pitch
     sr = CONFIG.tts.sample_rate
     pipe = _pipeline(lang or CONFIG.tts.lang_code)
     t0 = time.perf_counter()
@@ -114,6 +128,8 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
     if not chunks:
         raise RuntimeError(f"kokoro produced no audio for: {text[:60]!r}")
     audio = np.concatenate(chunks[:-1])  # drop trailing gap
+    if pitch != 1.0:
+        audio = raise_pitch(audio, pitch)
     if phone:
         audio = telephone(audio, sr)
     audio = np.clip(audio, -1.0, 1.0)
