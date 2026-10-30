@@ -70,3 +70,16 @@ def test_labels_come_off_the_intro_outro_and_lines(world, monkeypatch):
         special.advance(seg, world)
     assert [l.text for l in seg.lines] == ["Tonight, a petition.", "On the quay.", "On the quay.", "On the quay.",
                                            "Good night."]
+
+
+def test_a_long_standfirst_fits_the_card_instead_of_failing():
+    from newsroom.models import SectionPlan, SpecialOutline
+
+    def outline(sf):
+        return SpecialOutline(title="T", standfirst=sf, intro="i", outro="o",
+                              sections=[SectionPlan(heading="h", beats=["b"], backdrop="market")] * 3)
+    flash = "The fire station's case for a second engine now rests on a free appliance, a bill and an air set out of test."
+    assert outline(flash + " Again.").standfirst == flash + " Again."            # 150: was a retry, now kept
+    long = "word " * 60
+    cut = outline(long).standfirst
+    assert len(cut) <= 180 and cut.endswith("word…")

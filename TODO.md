@@ -155,7 +155,8 @@ bottom with the date.
   a section gets only the location's name, as told not to Flash still recited the description ("the
   horseshoe of desks" in five specials); and a speaker label written into a line ("Dana: Tonight, ...")
   is stripped before it's voiced (`special.spoken`). Three trial specials on the real town came out
-  clean. Still open: the outline's standfirst over 140 characters costs Flash a retry most times.
+  clean. The standfirst takes up to 180 characters (three lines of the title card hold about 200 in
+  Bahnschrift) and is cut at a word past that, so Flash's 141-150 no longer retries the whole outline.
 
 - 2026-10-30 A senior editor and a fallback for the back office. A provider with `fallback` (both
   DeepSeek back-office providers: `claude_sonnet`) hands a call it fails, unreachable or twice invalid,

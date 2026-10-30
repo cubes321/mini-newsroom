@@ -185,6 +185,16 @@ def _clip(n: int) -> BeforeValidator:
     return BeforeValidator(lambda v: v[: n - 1].rstrip() + "…" if isinstance(v, str) and len(v) > n else v)
 
 
+def _clip_words(n: int) -> BeforeValidator:
+    """Like _clip, for text shown on screen: cut at a word, not inside one."""
+    def cut(v):
+        if not isinstance(v, str) or len(v) <= n:
+            return v
+        head = v[: n - 1]
+        return (head.rsplit(" ", 1)[0] if " " in head else head).rstrip(" ,;:—-") + "…"
+    return BeforeValidator(cut)
+
+
 Status = Annotated[str | None, _clip(160)]
 Memo = Annotated[str | None, _clip(140)]       # a guest's memory (world.Person.memories), bookkeeping too
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
@@ -374,7 +384,11 @@ class SectionPlan(BaseModel):
 
 class SpecialOutline(BaseModel):
     title: str = Field(max_length=60)
-    standfirst: str = Field(max_length=140, description="one-sentence subtitle shown on the title card")
+    # Three lines of the title card hold about 200 characters in Bahnschrift. DeepSeek Flash overran the
+    # old hard 140 in 2 of its 13 outlines on 2026-10-29 and again in a trial (up to 150), each a whole
+    # outline retried: ask for 140, take 180, and cut anything longer at a word.
+    standfirst: Annotated[str, _clip_words(180)] = Field(
+        max_length=180, description="one-sentence subtitle shown on the title card, under 140 characters")
     # 400 and 300 were too tight for DeepSeek Flash (450 and 354, so a whole outline retried); Sonnet
     # writes 230-340 and 180-260. About 40 s and 30 s spoken at the top.
     intro: str = Field(max_length=600, description="what the anchor says in the studio to hand over: "
