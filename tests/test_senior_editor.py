@@ -12,6 +12,7 @@ def _world(n=3):
     w = world_mod.seed()
     for i in range(n):
         w.seed_thread(f"story {i}", "known so far", "", [])
+    w.seeded = []                          # the board as found: none of it seeded today
     return w
 
 
@@ -51,7 +52,7 @@ def test_desk_notes_keep_the_last_dozen(monkeypatch):
 
 
 def test_a_review_merges_seeds_past_the_cap_and_leaves_the_memo(monkeypatch):
-    w = _world(CONFIG.story.max_open_threads + 2)              # the board is past the desk's cap
+    w = _world(CONFIG.story.thin_board + 2)                    # a full board
     a, b = w.open_threads()[:2]
     w.desk_notes = [{"at": "2026-10-30 19:30", "planned": [a.id], "new": 0, "merges": 0,
                      "note": "Everything converges on Monday's council"}]
@@ -92,3 +93,22 @@ def test_a_failed_review_keeps_the_last_memo(monkeypatch):
 def test_the_senior_editor_is_routed_to_sonnet():
     assert CONFIG.llm.provider_name_for("senior_editor") == "claude_sonnet"
     assert CONFIG.story.review_every_s == 7200
+
+
+def test_the_desk_may_seed_one_a_round_two_on_a_thin_board_within_the_days_allowance():
+    w = _world(CONFIG.story.thin_board + 4)                    # the board the writers keep: 11 to 17 open
+    assert desk.seed_room(w, len(w.open_threads())) == 1       # was 0 all night on 2026-10-29
+    assert desk.seed_room(w, CONFIG.story.thin_board - 1) == 2
+    for i in range(CONFIG.story.seeds_per_day):
+        desk.seed(w, NewThread(title=f"Story {i}", status="s", next_development="n"))
+    assert w.seeds_left() == 0 and desk.seed_room(w, 3) == 0
+
+
+def test_the_senior_editor_seeds_nothing_once_the_day_is_used_up(monkeypatch):
+    w = _world()
+    w.seeded = [w.last_date] * CONFIG.story.seeds_per_day
+    seen = _stub(monkeypatch, senior, [SeniorMemo(memo="Fine.", new_thread=NewThread(
+        title="Gull steals the regatta trophy", status="s", next_development="n"))])
+    before = len(w.threads)
+    senior.review(w)
+    assert "new_thread must be null" in seen[0][1] and len(w.threads) == before

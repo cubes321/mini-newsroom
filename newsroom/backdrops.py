@@ -1296,6 +1296,18 @@ def _sky_of(path: Path) -> skies.Sky:
     return s
 
 
+def warm_skies() -> int:
+    """Find every exterior's sky now (about 50 ms each) rather than on the frame a backdrop first airs.
+    Run on a background thread at start-up; a frame that gets there first just finds it itself."""
+    if not SKY_DRIFT:
+        return 0
+    paths = {art[0] for loc in locations.LOCATIONS if loc.exterior
+             for tod in ("day", "dusk", "night") if (art := _art_file(loc, tod))}
+    for path in sorted(paths):
+        _sky_of(path)
+    return len(paths)
+
+
 def _clouds(loc: Location, tod: str, wx: str | None) -> tuple[list[pygame.Surface], pygame.Surface] | None:
     """The cloud layers, graded like the still, and the sky mask they show through; None for
     placeholders and art without clouds."""

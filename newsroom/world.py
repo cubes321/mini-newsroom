@@ -63,6 +63,7 @@ PHASES = ("emerging", "developing", "peak", "resolving", "closed", "faded")
 # 2026-10-27: 38 joined, near enough all the same story (twelve threads were the fire engine).
 SAME_STORY_WORDS = 3
 SAME_STORY_SHARE = 0.6
+SAME_STORY_SHARE_FADED = 0.75   # fire, station, engine of four came back; boat, crew, wait of five didn't
 _STORY_STOP = frozenset("""a an the and or but of to in on at by for with from as is are was were be been it its his
 her their this that these those after before over under up down out into off again still now new old more than
 about says say said gets get got make makes made back takes take set sets keeps keep could would will may might
@@ -169,6 +170,7 @@ class World:
     senior_memo: str = ""
     senior_memo_at: str = ""                 # broadcast date and clock it was written
     last_senior_ts: float = 0.0
+    seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)
@@ -305,7 +307,13 @@ class World:
     def same_story(self, headline: str) -> tuple[Thread, set[str]] | None:
         """The open or faded thread a new story's headline already is, by its title's words, and the
         words they share. The writers often leave thread_id empty for a story already running.
-        Titles only: a thread's people and beats gather whatever its follow-ups mentioned."""
+        Titles only: a thread's people and beats gather whatever its follow-ups mentioned.
+
+        A faded thread, quiet for a day or more, comes back only on three-quarters of the shorter title
+        (an open one on SAME_STORY_SHARE), and an open thread wins a tie: on 2026-10-28 "Lifeboat crew asks small boats to wait for
+        daylight" revived "Harbour Boats Lashed Down as Crews Wait on Divers" on boat, crew and wait
+        (the desk then merged it into the harbour wall), and a fire-crew piece went to a faded
+        duplicate instead of the live second-engine thread."""
         new = _story_words(headline)
         best = None
         for t in self.threads:
@@ -313,10 +321,12 @@ class World:
                 continue
             old = _story_words(t.title)
             shared = new & old
-            if len(shared) >= SAME_STORY_WORDS and len(shared) >= SAME_STORY_SHARE * min(len(new), len(old)):
-                if best is None or (len(shared), t.moved_ts) > (len(best[1]), best[0].moved_ts):
-                    best = (t, shared)
-        return best
+            share = SAME_STORY_SHARE_FADED if t.phase == "faded" else SAME_STORY_SHARE
+            if len(shared) >= SAME_STORY_WORDS and len(shared) >= share * min(len(new), len(old)):
+                rank = (len(shared), t.phase != "faded", t.moved_ts)
+                if best is None or rank > best[2]:
+                    best = (t, shared, rank)
+        return best[:2] if best else None
 
     @_locked
     def person(self, person_id: str | None) -> Person | None:
@@ -615,8 +625,14 @@ class World:
                    phase="emerging", next_development=next_development[:200], people=people,
                    moved_ts=schedule.now())
         self.threads.append(t)
+        self.seeded = (self.seeded + [self.last_date])[-50:]
         self._cap_threads()
         return t
+
+    @_locked
+    def seeds_left(self) -> int:
+        """How many more stories the desk and the senior editor may seed today."""
+        return max(0, CONFIG.story.seeds_per_day - self.seeded.count(self.last_date))
 
     @_locked
     def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None,

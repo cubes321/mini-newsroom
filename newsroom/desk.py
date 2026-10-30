@@ -36,6 +36,12 @@ real people or events. Return ONLY JSON.
 """
 
 
+def seed_room(world: World, open_n: int) -> int:
+    """New stories the desk may seed this round: two while the board is thin, else one, within the
+    day's allowance (shared with the senior editor)."""
+    return min(2 if open_n < CONFIG.story.thin_board else 1, world.seeds_left())
+
+
 def should_plan(world: World, now: float | None = None) -> bool:
     now = now or time.time()
     return now - world.last_story_plan_ts >= CONFIG.story.plan_every_s
@@ -109,14 +115,15 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     world.last_story_plan_ts = time.time()
     world.fade_threads()
     open_n = len(world.open_threads())
-    room = max(0, CONFIG.story.max_open_threads - open_n)
+    room = seed_room(world, open_n)
     todo = batch(world)
     faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) +
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
-        f"their turn later; use them as context only. You may seed at most {min(room, 2)} new ones. "
+        f"their turn later; use them as context only. You may seed at most {room} new "
+        f"{'story' if room == 1 else 'stories'}, only if something would really happen. "
         "Return phase and NEXT development for each of this round's threads you want to change, close any "
         "that are finished, and list the people now involved (exact names from the briefing where "
         "possible): at most four per thread, three for a new one. A thread GOING QUIET fades off the air "
@@ -208,8 +215,7 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
             if pid not in t.people:
                 t.people.append(pid)
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
-    room = CONFIG.story.max_open_threads - len(world.open_threads())
-    for nt in p.new_threads[: max(0, room)]:
+    for nt in p.new_threads[: seed_room(world, len(world.open_threads()))]:
         seed(world, nt)
 
 

@@ -26,6 +26,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -159,6 +160,9 @@ def run_window(cfg, args) -> None:
     pygame.display.set_caption("Mini Newsroom")
     canvas = pygame.Surface(scenes.CANVAS)
     clock = pygame.time.Clock()
+    from . import backdrops
+
+    threading.Thread(target=backdrops.warm_skies, name="warm-skies", daemon=True).start()
 
     world, buffer, producer, pool, player = build(cfg, audio=True, workers=args.workers)
     stats = Stats(buffer)

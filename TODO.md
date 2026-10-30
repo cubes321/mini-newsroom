@@ -147,6 +147,20 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-30 Small fixes and the thread cap.
+  - New stories: `[story] max_open_threads = 8` only ever decided whether the desk could seed, and the
+    writers keep 11 to 17 threads open, so on both measured nights it was told to seed none. Now the
+    desk may seed one a round (two while fewer than `thin_board = 8` are open), and the desk and the
+    senior editor share `seeds_per_day = 8` (`world.seeded`, `world.seeds_left`). The board's size is
+    still `max_live_threads` and fading.
+  - The title match (`world.same_story`) revives a faded thread only on three-quarters of the shorter
+    title, and prefers an open thread on a tie: on 2026-10-28 "Lifeboat crew asks small boats to wait
+    for daylight" revived a faded harbour-wall thread on boat, crew and wait.
+  - Every exterior's sky is found on a thread at start-up (`backdrops.warm_skies`, 38 in 0.7 s), not
+    on the frame a backdrop first airs.
+  - Haiku's empty headline needed nothing: a headline must have four characters since 5e5eb87
+    (2026-10-26), and none was empty in about 2,100 scripts since.
+
 - 2026-10-30 Tamsin Jago, Full Time's reporter (`sport_reporter`): twenty-five, Port Wexley born, played
   for the Tides' women's side; long dark brown hair, a green waterproof and a Tides-blue scarf (look A of
   three on a contact sheet). She goes live from Tidewater Stadium and from a darts pub (the darts desk

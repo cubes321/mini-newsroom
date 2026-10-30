@@ -54,3 +54,18 @@ def test_breaking_news_still_opens_its_own_and_a_closed_thread_stays_shut():
     assert seg.thread_id != engine
     w.thread(engine).phase = "closed"
     assert w.same_story("Fire station makes its case for a second engine")[0].id == seg.thread_id
+
+
+def test_a_faded_thread_needs_more_of_its_title_to_come_back():
+    w, (boats,) = _town("Harbour Boats Lashed Down as Crews Wait on Divers")
+    w.thread(boats).phase = "faded"
+    assert w.same_story("Lifeboat crew asks small boats to wait for daylight") is None      # 3 of 5
+    w.thread(boats).phase = "developing"
+    assert w.same_story("Lifeboat crew asks small boats to wait for daylight")[0].id == boats
+
+
+def test_an_open_thread_wins_a_tie_with_a_faded_duplicate():
+    w, (live, old) = _town("Fire station's second engine case: fire crews walk the gap",
+                           "Fire crews make their case for a second engine")
+    w.thread(old).phase = "faded"
+    assert w.same_story("Fire crews walk the gap: case for a second engine")[0].id == live

@@ -96,7 +96,8 @@ class DocumentaryCfg:
 @dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
-    max_open_threads: int = 8            # the desk seeds new threads only while fewer than this are open
+    thin_board: int = 8                  # below this many open the desk may seed two new stories a round, else one
+    seeds_per_day: int = 8               # planned new stories a day, the desk's and the senior editor's together
     batch: int = 8                       # threads the desk plans per call, least recently planned first
     review_every_s: float = 7200.0       # the senior editor reviews the desk's board this often (0: never)
     max_live_threads: int = 40           # past this many open, the stalest fade (world.fade_threads)

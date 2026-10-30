@@ -5,8 +5,8 @@ The desk plans eight threads a round, every half hour, and each model has a habi
 Sonnet held the same eight threads with "hold Friday's beats" all night. Every `[story]
 review_every_s` (two hours), when the worker is idle, the senior editor reads the whole board and
 the desk's recent rounds and leaves the desk a short memo it reads on every round until the next
-one. It merges duplicates itself, and may open one fresh story even when the board is past the
-desk's `max_open_threads` (the desk was told it could seed none all night on 2026-10-29).
+one. It merges duplicates itself, and may open one fresh story, from the day's allowance of new
+stories it shares with the desk (`[story] seeds_per_day`).
 """
 from __future__ import annotations
 
@@ -58,12 +58,13 @@ def _rounds(world: World) -> str:
 def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
     """Ask the senior editor and apply its memo, merges and new thread. None if the model failed."""
     world.last_senior_ts = time.time()
-    open_n = len(world.open_threads())
+    open_n, left = len(world.open_threads()), world.seeds_left()
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
-        f"There are {open_n} open threads (the desk opens new ones only while fewer than "
-        f"{CONFIG.story.max_open_threads} are open).\n\n"
-        f"THE DESK'S RECENT ROUNDS, oldest first:\n{_rounds(world)}\n\n"
+        f"There are {open_n} open threads. " + (
+            f"{left} of today's {CONFIG.story.seeds_per_day} new stories are left, for you and the desk.\n\n"
+            if left else "Today's new stories are used up: new_thread must be null.\n\n")
+        + f"THE DESK'S RECENT ROUNDS, oldest first:\n{_rounds(world)}\n\n"
         + (f"YOUR LAST MEMO ({world.senior_memo_at}):\n{world.senior_memo}\n\n" if world.senior_memo else "")
         + "Write the memo for the desk's next rounds."
     ) + desk._loose_ends(world)
@@ -80,7 +81,7 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
                              world.thread(mg.into).title[:60])
                 else:
                     log.info("senior editor merge %s into %s skipped (not two live threads)", mg.duplicate, mg.into)
-            if m.new_thread:
+            if m.new_thread and world.seeds_left():
                 desk.seed(world, m.new_thread, who="senior editor")
             world.senior_memo = m.memo.strip()
             world.senior_memo_at = f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}"

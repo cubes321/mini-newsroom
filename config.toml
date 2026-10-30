@@ -70,7 +70,11 @@ repeat_at = "02:00"      # and the night's documentary airs again after the firs
 # finished ones and occasionally seeds a new story, so follow-ups move things on.
 [story]
 plan_every_s = 1800     # every 30 min: the desk is the biggest cost on any provider
-max_open_threads = 8
+# New stories the desk plans itself: one a round, two while fewer than thin_board are open, and no more
+# than seeds_per_day a day with the senior editor's. Until 2026-10-30 the desk seeded only while fewer
+# than 8 threads were open, and the writers keep 11 to 17 open, so it was told to seed none all night.
+thin_board = 8
+seeds_per_day = 8
 batch = 8                # threads planned per desk call; the whole board in one reply overran max_tokens
 # The senior editor (senior.py) reads the whole board and the desk's recent plans every two hours and
 # leaves the desk a memo (and merges duplicates itself): on 2026-10-29 Flash steered 11 of 24 plans onto
