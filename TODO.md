@@ -146,6 +146,15 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-30 Coastwide remembers its evening (`writers._show_so_far`), as the breakfast sofa remembers its
+  morning: each links, feature, interview, vox pop and consumer item sees tonight's items on the show
+  (the last 30) and how the last four of its own kind began, and the goodbye gets the list for its nod.
+  In the recorded hour of 2026-10-29 the chip-shop vox pop came round five times in eleven, Dev's
+  starter three times, and Biscuit the cat, the darts, the estuary birds, the rogue roofer and Oliver
+  Fenwick-Hale twice each. Against that hour's real archive Haiku then wrote four vox pops on four new
+  subjects (shop windows, Friday nights, late October, the covered stalls); one feature in four was the
+  darts again, and the links' odd fact still leans on the Town Hall clock (a landmark in the briefing).
+
 - 2026-10-30 Special and documentary sections, after reading Flash's ten pieces from the 2026-10-29 night
   (lively, with real voices: "They don't read like a memorial. They read like wages."). Four faults, three
   of them the prompts': a thread's planned NEXT step is marked as not yet happened (it had been told as

@@ -413,6 +413,42 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
     return _SOFA_SO_FAR.format(heads=heads, same=same_s)
 
 
+# Coastwide runs the same dozen kinds of item round its hour, and like the breakfast sofa it wrote the
+# same item each lap: in the hour of 2026-10-29 the chip-shop vox pop five times, Dev's sourdough
+# starter three times, Biscuit the harbour cat, the darts, the estuary birds, the rogue roofer and
+# Oliver Fenwick-Hale twice each, and "clocks and chips" in nearly every link.
+SHOW_MEMORY = 30                # tonight's items on the show listed for the next writer
+SHOW_SAME_TYPE = 4              # earlier items of this item's kind, with how they began
+REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE"}
+_SHOW_TYPES = (SegmentType.links, SegmentType.feature, SegmentType.interview, SegmentType.vox_pop,
+               SegmentType.consumer)
+
+_SHOW_SO_FAR = """ON {title} ALREADY TONIGHT (do NOT do any of these again, even when this kind of item
+comes round: a different subject, question, person, place, pet or food; a callback or passing mention is fine):
+{heads}{same}"""
+
+
+def _show_so_far(world: World, show: schedule.Show, seg_type: SegmentType, part: str) -> str:
+    """What a magazine show has already done tonight, for the next item (or the goodbye's nod)."""
+    title = REMEMBERS_ITS_SHOW.get(show.id)
+    if not title or seg_type not in _SHOW_TYPES:
+        return ""
+    kinds = {t.value for t in _SHOW_TYPES}
+    with world.lock:
+        aired = [e for e in world.archive
+                 if e["date"] == world.last_date and e.get("show") == show.id and e["type"] in kinds]
+    if not aired:
+        return ""
+    heads = "\n".join(f"  - {e['type'].replace('_', ' ')}: {e['headline']}" for e in aired[-SHOW_MEMORY:])
+    if part == "close":
+        return f"ON {title} TONIGHT (for the nod to what was on):\n{heads}"
+    same = [e for e in aired if e["type"] == seg_type.value][-SHOW_SAME_TYPE:]
+    kind = seg_type.value.replace("_", " ")
+    same_s = (f"\nTHE LAST {kind.upper()}S, how they began. This {kind} is about none of these subjects, not even "
+              "from a new angle:\n" + "\n".join(f"  - {e['headline']}: {e['text'][:160]}" for e in same)) if same else ""
+    return _SHOW_SO_FAR.format(title=title, heads=heads, same=same_s)
+
+
 FIELD_MEMORY = 3                # the last field reports on this show the next one is shown
 
 
@@ -527,7 +563,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         quiet = _quiet_threads(world, recent | set(done))
         if quiet:
             user += "\n\n" + quiet
-    so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else ""
+    so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
+        world, show, seg_type, part)
     if so_far:
         user += "\n\n" + so_far
     guests = _guests_so_far(world, show) if seg_type is SegmentType.interview and show.id == "breakfast" else ""
