@@ -15,7 +15,9 @@ screenshots.
 
 The Claude bench was committed in `3bf3527`, and the routes now use it: `claude_haiku` (Haiku
 5.5, thinking off) writes every live segment, breaking news and adverts; `claude_sonnet`
-(Sonnet 5.5, thinking on) runs the story desk, editor and specials. Haiku stays off the editor
+(Sonnet 5.5, thinking on) ran the story desk, editor and specials until 2026-10-30, when they moved
+to `deepseek_flash_think` (a quarter of the price) with Sonnet as the senior editor (`senior.py`)
+and Flash's fallback. Haiku stays off the editor
 (in the bench it re-commissioned an aired special). The story desk plans every 30 minutes
 (`plan_every_s = 1800`). This holds until DeepSeek is benched for comparison; the Kimi
 providers are still declared, so switching back is a change to `[llm.routes]`.

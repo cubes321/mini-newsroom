@@ -90,9 +90,10 @@ bottom with the date.
   council meeting (Sonnet 1; Sonnet instead held the same eight threads all night). Neither desk could
   open threads once the board passed `max_open_threads` (8; 11 to 17 were open, so the prompt said
   "seed at most 0"); Sonnet's 3 came in its first two rounds. Built 2026-10-30: Sonnet as the fallback
-  for a call DeepSeek fails, and the senior editor (`senior.py`) every two hours. Still to decide:
-  move the back office to Flash in `[llm.routes]` (until then a Flash night needs
-  `--route claude_sonnet=deepseek_flash_think,senior_editor=claude_sonnet`).
+  for a call DeepSeek fails, and the senior editor (`senior.py`) every two hours. The back office moved
+  to Flash in `[llm.routes]` the same day (`--route deepseek_flash_think=claude_sonnet` puts it back
+  for a run). Next: a night on it, to see whether the memo breaks the convergence and how often the
+  fallback fires.
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
   `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
 - [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench

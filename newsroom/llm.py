@@ -13,7 +13,7 @@ Provider kinds:
 
 NEWSROOM_LLM=off makes every task raise LLMUnavailable so writers fall back
 to templates; NEWSROOM_LLM=<provider name> forces one provider for all tasks;
-NEWSROOM_ROUTES=claude_sonnet=deepseek_pro moves one provider's tasks (or one
+NEWSROOM_ROUTES=deepseek_flash_think=claude_sonnet moves one provider's tasks (or one
 task) to another for a run.
 
 Robustness: Qwen-style <think> blocks are stripped before parsing; strict
@@ -80,8 +80,8 @@ def provider_for(task: str) -> str:
 
 def _swaps() -> dict[str, str]:
     """NEWSROOM_ROUTES (or --route): comma-separated `from=to` pairs, each `from` a provider (every
-    task routed to it moves) or a task name. `claude_sonnet=deepseek_pro` trials DeepSeek on the
-    back office for one run, with config.toml untouched."""
+    task routed to it moves) or a task name. `deepseek_flash_think=claude_sonnet` puts the
+    back office on Sonnet for one run, with config.toml untouched."""
     pairs = (p.split("=", 1) for p in os.environ.get("NEWSROOM_ROUTES", "").split(",") if "=" in p)
     return {k.strip(): v.strip() for k, v in pairs if k.strip() and v.strip()}
 

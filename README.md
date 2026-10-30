@@ -88,9 +88,10 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
 
 Model routing is config-driven. Any OpenAI-compatible endpoint works (LM
 Studio and llama.cpp locally, Moonshot's Kimi in the cloud), plus the Anthropic
-SDK. The shipped config uses Claude Haiku 5.5 for live segments and Claude
-Sonnet 5.5 for the editor, the story desk and specials; Kimi k2.6 and k3 did
-those jobs before and are still declared.
+SDK. The shipped config uses Claude Haiku 5.5 for live segments and DeepSeek
+Flash (thinking) for the editor, the story desk and specials, with Claude
+Sonnet 5.5 as the senior editor over the desk and as Flash's fallback; Kimi
+k2.6 and k3 did those jobs before and are still declared.
 
 ## Status
 
@@ -151,8 +152,8 @@ uv run python -m newsroom
 
 Scripts come from whichever provider `[llm.routes]` in `config.toml` names.
 Providers are declared under `[llm.providers.<name>]`. Shipped entries:
-`claude_haiku` and `claude_sonnet` (the routes as shipped; need
-`ANTHROPIC_API_KEY` in the environment), `moonshot` (Kimi, needs
+`claude_haiku`, `claude_sonnet` and `deepseek_flash_think` (the routes as
+shipped; need `ANTHROPIC_API_KEY` and `DEEPSEEK_API_KEY` in the environment), `moonshot` (Kimi, needs
 `MOONSHOT_API_KEY`), `moonshot_k3`, `lmstudio` (local, `http://localhost:1234`)
 and `anthropic`. Set
 `NEWSROOM_LLM=<name>` to force one provider for every task, or

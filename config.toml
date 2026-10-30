@@ -18,7 +18,10 @@ temperature = 0.8
 log_calls = false
 
 # Which provider writes which segment type. Any name under [llm.providers].
-# Claude since 2026-10-26 (Haiku live, Sonnet for the back office) until DeepSeek is benched;
+# Haiku live since 2026-10-26. The back office moved from Sonnet to DeepSeek Flash (thinking) on
+# 2026-10-30, after the 2026-10-29 night cost $0.23 against Sonnet's $1.89 for the same 12h50m;
+# Sonnet stays as the senior editor and as Flash's fallback. `--route deepseek_flash_think=claude_sonnet`
+# puts the back office back on Sonnet for a run.
 # Kimi ("moonshot" live, "moonshot_k3" back office) is still declared below to switch back.
 [llm.routes]
 weather = "claude_haiku"
@@ -31,12 +34,12 @@ feature = "claude_haiku"
 vox_pop = "claude_haiku"
 consumer = "claude_haiku"
 monologue = "claude_haiku"        # talk show
-editor = "claude_sonnet"          # decides whether a thread deserves a special
-documentary_commission = "claude_sonnet"   # picks the day's documentary subject
-documentary_research = "claude_sonnet"     # research notes from the archive, before the outline
-special_outline = "claude_sonnet"
-special_section = "claude_sonnet"
-story_desk = "claude_sonnet"      # plans how threads develop, seeds new ones
+editor = "deepseek_flash_think"          # decides whether a thread deserves a special
+documentary_commission = "deepseek_flash_think"   # picks the day's documentary subject
+documentary_research = "deepseek_flash_think"     # research notes from the archive, before the outline
+special_outline = "deepseek_flash_think"
+special_section = "deepseek_flash_think"
+story_desk = "deepseek_flash_think"      # plans how threads develop, seeds new ones
 senior_editor = "claude_sonnet"   # reviews the desk's board every [story] review_every_s and leaves it a memo
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
@@ -143,11 +146,9 @@ max_tokens = 6000
 timeout_s = 240
 max_retries = 0
 
-# DeepSeek, not yet routed: try it for a run with `--route claude_sonnet=deepseek_pro` (the back
-# office) or `--route claude_haiku=deepseek_flash` (live). The key comes from DEEPSEEK_API_KEY.
-# A provider swap moves every task routed to Sonnet, the senior editor too: keep it on Sonnet with
-# `--route claude_sonnet=deepseek_flash_think,senior_editor=claude_sonnet` (a task swap wins).
-# Flash ran the back office on 2026-10-29: $0.23 for 12h50m against Sonnet's $1.89 (TODO.md).
+# DeepSeek: Flash thinking runs the back office (see [llm.routes]); try v4-pro there for a run with
+# `--route deepseek_flash_think=deepseek_pro`, or `--route claude_haiku=deepseek_flash` (live). The key
+# comes from DEEPSEEK_API_KEY.
 # Prices checked 2026-10-28 (third-party listings; confirm on the console): v4-pro $0.66 in /
 # $1.98 out per million off-peak, double at peak (01:00-04:00 and 06:00-10:00 UTC); Flash about
 # $0.15 / $0.60 off-peak, dearer than Haiku 5.5, so the back office is where it could save.
@@ -208,7 +209,7 @@ extra_body = { thinking = { type = "disabled" } }
 # restarts the hour, so even the editor and the desk (every 30 min) stay cached.
 cache_ttl = "1h"
 
-[llm.providers.claude_sonnet]      # story desk, editor, specials: thinking on, 7 s for a desk plan
+[llm.providers.claude_sonnet]      # senior editor and Flash's fallback (the back office until 2026-10-30): thinking on
 kind = "anthropic"
 model = "claude-sonnet-5-5"
 max_tokens = 16000                 # thinking counts against it

@@ -52,7 +52,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--scratch", action="store_true",
                    help="run on a temp copy of the world and tip-line, with an empty cache and its own call log")
     p.add_argument("--route", type=str, default="",
-                   help="move providers' or tasks' calls for this run: claude_sonnet=deepseek_pro[,...] (or NEWSROOM_ROUTES)")
+                   help="move providers' or tasks' calls for this run: deepseek_flash_think=claude_sonnet[,...] (or NEWSROOM_ROUTES)")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
