@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -85,7 +86,7 @@ location) and, if a guest is named, "guest" with guest_name set to that exact na
 only: no stage directions, brackets, markdown or emojis. Numbers as words when short. Keep to the
 word budget. Let the guest talk like a real person: a detail, an opinion, a short story. Respect the
 dates in the briefing; do not invent how long things have been going on. Do not re-introduce the
-piece or sign off; this is one section in the middle. Return ONLY JSON.
+piece or sign off; this is one section in the middle.""" + documentary.SECTION_RULES + """ Return ONLY JSON.
 """
 
 
@@ -226,7 +227,9 @@ def story_so_far(world: World, thread_id: str | None) -> str:
             f"how long it has been going on.\n[{t.id}] {t.title}: opened {t.opened}, covered {t.mentions} times, "
             f"now {t.phase}. People involved: {people}.\n"
             + ("\n".join(beats) + "\n" if beats else "")
-            + f"Where it stands: {t.status}" + (f"; planned next: {t.next_development}" if t.next_development else ""))
+            + f"Where it stands: {t.status}"
+            + (f"\nPlanned next (has NOT happened; only ever expected or due): {t.next_development}"
+               if t.next_development else ""))
 
 
 def write_outline(seg: Segment, world: World) -> SpecialOutline:
@@ -250,6 +253,42 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
 
+_LABEL_RE = re.compile(r"^\s*([A-Z][\w'’.-]*(?: [A-Z][\w'’.-]*){0,2})\s*:\s+")
+
+
+def spoken(text: str, world: World, *also: str | None) -> str:
+    """The text without a speaker label the model wrote into it ("Dana: Tonight, a small story..." was a
+    special's intro on 2026-10-30, and would be read out). Only a presenter's or the guest's name, or a
+    speaker id, counts as a label, so a line that opens "Look: ..." keeps its first word."""
+    m = _LABEL_RE.match(text)
+    if not m:
+        return text.strip()
+    names = {"anchor", "reporter", "presenter", "guest", "historian"}
+    for n in [*(c.name for c in world.characters), *(c.id for c in world.characters), *(a for a in also if a)]:
+        names |= {n.lower(), n.split()[0].lower()}
+    return text[m.end():].strip() if m.group(1).lower() in names else text.strip()
+
+
+ALREADY_SAID_WORDS = 2500     # a documentary's eighth section sees about 1,800 words before it
+
+
+def _already_said(seg: Segment, world: World) -> str:
+    """What the piece has said so far (the intro and every earlier section), so a section moves the story
+    on instead of setting the scene again; the newest kept if it runs long."""
+    if not seg.lines:
+        return ""
+    names = {c.id: c.name for c in world.characters}
+    rows, words = [], 0
+    for l in reversed(seg.lines):
+        if l.archive:
+            continue
+        words += len(l.text.split())
+        if words > ALREADY_SAID_WORDS:
+            break
+        rows.append(f"  {l.guest_name or names.get(l.speaker, l.speaker)}: {l.text}")
+    return "\n\nALREADY SAID in this piece, oldest first:\n" + "\n".join(reversed(rows))
+
+
 def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, words: int) -> SpecialSection:
     sec = outline.sections[i]
     if sec.guest_name:
@@ -268,8 +307,9 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         + f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'}: {outline.title}\n{outline.standfirst}\n"
         f"Section {i + 1} of {len(outline.sections)}: {sec.heading}\n"
         f"Beats to cover:\n" + "\n".join(f"  - {b}" for b in sec.beats) + "\n"
-        f"Location: {locations.get(sec.backdrop).blurb}. Previous section was: {prev}.\n{guest}\n"
+        f"Location: {locations.get(sec.backdrop).name}. Previous section was: {prev}.\n{guest}\n"
         f"Word budget for this section: about {words} words."
+        + _already_said(seg, world)
     )
     footage = documentary.clip(seg, sec.archive_clip) if doc else None
     if footage:
@@ -358,7 +398,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         _aired_path(h).unlink(missing_ok=True)
         seg.headline = outline.title
         seg.work.update({"outline": outline.model_dump(), "starts": [], "next_section": 0, "t0": time.time()})
-        seg.lines = [Line(speaker="anchor", text=outline.intro.strip())]
+        seg.lines = [Line(speaker="anchor", text=spoken(outline.intro, world))]
         seg.stage = "sections"
         log.info("special %r outlined: %d sections", outline.title, len(outline.sections))
 
@@ -379,7 +419,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
             name = (l.guest_name or plan.guest_name) if l.speaker == "guest" else None
             # The presenter is whoever this piece has: a model that writes "reporter" for Hugh means him.
             who = documentary.presenter(seg) if _is_doc(seg) and l.speaker in ("reporter", "historian") else l.speaker
-            seg.lines.append(Line(speaker=who, text=l.text.strip(), guest_name=name))
+            seg.lines.append(Line(speaker=who, text=spoken(l.text, world, name), guest_name=name))
         footage = documentary.clip(seg, plan.archive_clip) if _is_doc(seg) else None
         start = seg.work["starts"][-1]
         if footage and len(seg.lines) > start and (line := documentary.clip_line(footage, h, i)):
@@ -387,7 +427,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         seg.work["next_section"] = i + 1
         log.info("special %r section %d/%d scripted (%d lines)", outline.title, i + 1, n, len(sec.lines))
         if i + 1 >= n:
-            seg.lines.append(Line(speaker="anchor", text=outline.outro.strip()))
+            seg.lines.append(Line(speaker="anchor", text=spoken(outline.outro, world)))
             seg.stage = "voice"
             seg.state = SegmentState.scripted
             if buffer:

@@ -146,6 +146,17 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-30 Special and documentary sections, after reading Flash's ten pieces from the 2026-10-29 night
+  (lively, with real voices: "They don't read like a memorial. They read like wages."). Four faults, three
+  of them the prompts': a thread's planned NEXT step is marked as not yet happened (it had been told as
+  done, "on Saturday she called at Winifred's" on a Thursday, or foretold by a guest); each section gets
+  what the piece has already said (`special._already_said`, up to 2,500 words; the documentary had
+  restated "eighty-one years on Harbour Row" in five of eight sections, and Sonnet repeats itself too);
+  a section gets only the location's name, as told not to Flash still recited the description ("the
+  horseshoe of desks" in five specials); and a speaker label written into a line ("Dana: Tonight, ...")
+  is stripped before it's voiced (`special.spoken`). Three trial specials on the real town came out
+  clean. Still open: the outline's standfirst over 140 characters costs Flash a retry most times.
+
 - 2026-10-30 A senior editor and a fallback for the back office. A provider with `fallback` (both
   DeepSeek back-office providers: `claude_sonnet`) hands a call it fails, unreachable or twice invalid,
   to that provider once, from a fresh prompt (`fallback_from` in the call log); not when NEWSROOM_LLM pins

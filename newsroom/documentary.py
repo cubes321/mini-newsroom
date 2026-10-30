@@ -88,6 +88,18 @@ their id in archive_clip: pick ones that move the story on, in the section they 
 warm, local, specific, a little dry. Everything is fiction. Return ONLY JSON.
 """
 
+# For any section of a special or documentary. Read 2026-10-30, Flash's first night on them: a planned
+# NEXT step told as done ("on Saturday she called at Winifred's", on a Thursday) or foretold by a guest
+# ("they'll get it right on the third throw"); the same facts restated in five sections of eight; the
+# location's description read out ("the horseshoe of desks" in five specials, and still, when told not
+# to, so a section now gets only the place's name). Sonnet repeated itself too.
+SECTION_RULES = """
+WHAT HAS NOT HAPPENED: a thread's NEXT development is the desk's plan, not news. Say what is expected
+or due only as expected ("is due to", "says she will"); never report it as done, and nobody predicts
+it as a certainty. ALREADY SAID: the earlier sections are given; do not restate their facts, figures,
+dates or descriptions. Move the story on: new detail, a new voice, a consequence. The LOCATION is only
+where we are (the picture shows it): describe it only where a detail serves the story."""
+
 SECTION_SYSTEM = """\
 You write one section of a fifteen-minute documentary in the strand {strand}, for a small-town TV
 station in the FICTIONAL town in the briefing. Speakers allowed in this section: "{presenter}" (the
@@ -96,7 +108,7 @@ name. Spoken lines only: no stage directions, brackets, markdown or emojis. Numb
 short. Keep to the word budget. Let the guest talk like a real person: a detail, an opinion, a short
 story. The research notes are the record: keep their dates and facts; background items describe the
 town's past and may be told as history. Do not re-introduce the documentary or sign off; this is one
-section in the middle. Return ONLY JSON.
+section in the middle.""" + SECTION_RULES + """ Return ONLY JSON.
 """
 
 
@@ -201,7 +213,7 @@ def research(seg: Segment, world: World) -> DocumentaryResearch:
     terms = " ".join(seg.work.get("search_terms", [])) or seg.headline or ""
     found = [e for e in world.search_archive(terms, limit=16) if id(e) not in seen]
     subject = (f"Thread [{thread.id}] {thread.title}: {thread.phase}; {thread.status}; opened {thread.opened}, "
-               f"covered {thread.mentions}x; NEXT: {thread.next_development or 'nothing planned'}"
+               f"covered {thread.mentions}x; NEXT (planned, has not happened): {thread.next_development or 'nothing planned'}"
                if thread else "The town's history: " + (seg.headline or ""))
     if thread and thread.beats:
         subject += "\nBeats aired:\n" + "\n".join(f"  - {b['date']}: {b['headline']}" for b in thread.beats)
