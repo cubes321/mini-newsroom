@@ -49,6 +49,13 @@ bottom with the date.
 
 ## Engineering
 
+- [ ] **Next: a night on the new back office** (Flash, with the Sonnet senior editor and fallback;
+  routed since 2026-10-30). Run it in its own PowerShell window, not a Claude app terminal tab (an app
+  update closed the 2026-10-29 night at 08:21), with `--log-llm`, both API keys from the User scope, and
+  a world.json backup first. Then check: does the memo break the convergence onto one meeting (count
+  "converge" in the desk notes, 11 of 24 on 2026-10-29), does the senior editor's new thread land, how
+  often "falling back to" fires, and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
+
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
   end" (does the desk make news of a loose end, and is it news?), "has been on before" (how often
