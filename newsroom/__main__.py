@@ -180,7 +180,7 @@ def run_window(cfg, args) -> None:
         t = time.monotonic() - start
         dbg = f"{view.status} | buf {view.buffer_depth_s:.0f}s | {clock.get_fps():.0f}fps" if args.debug else None
         scenes.render(canvas, view, t, debug=dbg)
-        pygame.transform.scale(canvas, screen.get_size(), screen)
+        scenes.present(canvas, screen)
         pygame.display.flip()
         if args.snap and int(t) % 10 == 0 and int(t) != last_snap:
             last_snap = int(t)
