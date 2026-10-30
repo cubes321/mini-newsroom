@@ -7,8 +7,7 @@ bottom with the date.
 
 - [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
-  (the bed is loaded once at start); perhaps a new breaking sting (still the brass version, in
-  minor; the user kept it for now).
+  (the bed is loaded once at start).
 - [ ] Parked (2026-10-27): parallax. True parallax needs the camera to move, and every backdrop is
   exactly screen-sized, so each exterior (24 days, 14 nights) would have to be redrawn wider in
   ComfyUI with its far layer painted separately: several sessions of art. The cheap version, about an
@@ -22,8 +21,6 @@ bottom with the date.
   True parallax (a moving camera over wider art) is still parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
-- [ ] Full Time's own arrangement of the station tune for its ident (it uses the news voicing:
-  `jingle.VOICINGS` has no "sport"), chosen by ear like the others.
 - [ ] Backdrops for the new sport: the Wreckers' Quarry Field (a rugby pitch, posts, a clubhouse) and a
   pub interior for the darts (the board, the oche, a scoreboard chalked up). Until then the rugby and
   the darts stay at the sports desk and in the studio; with them, Full Time could send Miles there.
@@ -131,6 +128,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-29 Full Time's own arrangement of the station tune and a new breaking sting, chosen by ear on a
+  listening page. Full Time ("sport" voicing, a tone up and 15% quicker): a 70s synth lead in octaves, a
+  pulsing root bass and four on the floor (`SPORT_STYLE = "drive"`, over funk and disco). The sting drops
+  the brass for the news ident's vibes and Rhodes in minor, a low piano hit and a clock ticking under the
+  chord (`BREAKING_STYLE = "vibes"`). Fran keeps `af_jessica`. Stems `ident_sport.wav` and `breaking.wav`.
+
 - 2026-10-28 Full Time has more than the Tides: Port Wexley RFC ("the Wreckers") in Coastal Counties One
   on Saturdays (`rugby.py`: tries, conversions, penalties, bonus points) and the Wexley & District pub
   darts league on Tuesday and Thursday nights (`darts.py`: nine games a match, a point a game, the
@@ -182,7 +185,7 @@ bottom with the date.
   and the games coming up), and the sport in the news once in three loops (`T.sport`, about every half
   hour). Every score, scorer, fixture and table position comes from `sport.py`, and every writer's
   briefing has a line on the Tides. *Full Time* is light (no threads), isn't repeated overnight, and
-  has no big-running-story line. Fran's voice is `af_jessica` until chosen by ear from the samples.
+  has no big-running-story line. Fran's voice is `af_jessica` (kept by ear over seven others, 2026-10-29).
 - 2026-10-28 Seventeen more costumes, approved on a contact sheet: the publican's bar towel, the
   docker's donkey-jacket yoke, the lighthouse keeper's white peaked cap, aprons for the stallholder, the
   groomer and the lamp-oil maker, the ghost-tour guide's dark coat, the sea-glass collector's anorak, the
