@@ -30,7 +30,7 @@ def test_the_briefing_line_and_the_facts_agree():
     top = a.lots[0]
     assert f"{top.species} earned most" in line and f"{top.kilos:,} kg" in line
     assert f"  - {top.species}: {top.kilos:,} kg" in facts and "never invent a price" in facts
-    assert "Quay: " in world_mod.seed().summary_for_prompt()
+    assert world_mod.QUAY_LABEL in world_mod.seed().summary_for_prompt() and "BACKGROUND" in world_mod.QUAY_LABEL
 
 
 def test_quayside_is_at_one_with_howard_and_the_facts():

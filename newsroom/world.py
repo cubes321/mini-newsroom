@@ -258,7 +258,7 @@ class World:
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
-            + (f"Quay: {q}\n" if (q := quay.summary(datetime.fromtimestamp(schedule.now()))) else "") +
+            + (f"{QUAY_LABEL}{q}\n" if (q := quay.summary(datetime.fromtimestamp(schedule.now()))) else "") +
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
@@ -730,6 +730,12 @@ def fade_after_s(t: Thread) -> float:
     h = (s.fade_peak_h if t.phase == "peak" else s.fade_resolving_h if t.phase == "resolving"
          else s.fade_oneoff_h if t.mentions <= 2 else s.fade_quiet_h)
     return h * 3600
+
+
+# The morning's auction is the same all day: offered to every writer as news, it led every bulletin (a
+# scratch run on 2026-10-30 had the same "up 62 percent" headline six bulletins out of nine).
+QUAY_LABEL = ("Quay, this morning's auction (BACKGROUND, the same all day: a figure to drop into a money, harbour or "
+              "fishing item, never a bulletin's lead or a headline of its own): ")
 
 
 def _name_hash(name: str | None) -> int:
