@@ -81,6 +81,10 @@ LOCATIONS: tuple[Location, ...] = (
              "town", (145, 180, 220), (100, 100, 105)),
     Location("residential_street", "a residential street", "a residential street: terraced houses, parked cars, front gardens",
              "town", (150, 190, 230), (100, 95, 90)),
+    Location("quarry_field", "the Quarry Field", "the Quarry Field, home of Port Wexley RFC: rugby posts, the tin-roofed stand, quarry rock faces",
+             "town", (140, 180, 225), (85, 140, 70)),
+    Location("pub", "a darts pub", "inside a pub on darts night: the dartboard and the oche, the chalk scoreboard, the bar",
+             "town", (110, 70, 45), (80, 55, 40), interior=True),
     # ---- country
     Location("coast_road", "the coast road", "the coast road along the cliffs: a stone wall, the sea far below",
              "country", (130, 180, 230), (110, 140, 80), water=True),

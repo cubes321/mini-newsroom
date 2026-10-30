@@ -609,6 +609,107 @@ def _residential_street(p: _Paint) -> None:
     p.lamp(130, 84, ground=HZ)
 
 
+@_painter("quarry_field")
+def _quarry_field(p: _Paint) -> None:
+    rock, ledge = (150, 140, 125), (120, 112, 100)
+    p.poly(rock, [(0, 104), (0, 38), (30, 34), (64, 42), (100, 30), (150, 36), (190, 26), (236, 34),
+                  (270, 28), (W, 36), (W, 104)])                 # the old quarry's faces
+    for y, k in ((50, 0.85), (68, 0.8), (86, 0.75)):             # worked benches
+        p.rect(_shade(ledge, k), 0, y, W, 2)
+    for x in range(14, W, 38):                                   # cracks
+        p.line(_shade(ledge, 0.7), (x, 40 + x % 7), (x + 6, 102), 1)
+    for x, r in ((8, 9), (40, 7), (290, 10), (312, 8)):          # gorse along the foot
+        p.circle((70, 105, 50), x, 104 - r // 2, r)
+    _ground(p, 104, (95, 130, 70))
+    _ground(p, HZ)
+    for x in range(0, W, 40):                                    # mown stripes
+        p.rect(_shade(p.loc.ground, 1.12), x, HZ, 20, H - HZ)
+    p.rect((235, 235, 230), 0, HZ + 12, W, 1)                    # touchline
+    p.rect((120, 115, 105), 0, HZ - 4, W, 4)                     # rail round the pitch
+    for x in range(0, W, 10):
+        p.rect((200, 200, 195), x, HZ - 7, 1, 4)
+    p.rect((200, 200, 195), 0, HZ - 7, W, 1)
+    p.rect((170, 160, 140), 200, 70, 58, 46)                     # clubhouse
+    p.poly((90, 70, 60), [(196, 70), (229, 56), (262, 70)])
+    p.window_grid(206, 78, 4, 2, dx=12, dy=14, w=7, h=7)
+    p.rect((60, 40, 40), 250, 100, 6, 16)
+    p.rect((120, 125, 130), 258, 84, 62, 32)                     # the stand, under a tin roof
+    for r in range(4):
+        p.rect((120, 40, 40) if r % 2 else (40, 40, 40), 262, 90 + r * 6, 58, 4)
+    p.poly((160, 165, 170), [(254, 84), (W, 74), (W, 80), (258, 86)])
+    for x in range(258, W, 6):
+        p.rect((130, 135, 140), x, 75 + (W - x) // 6, 1, 8)     # corrugations
+    for x in (262, 290, 318):
+        p.rect((90, 90, 95), x, 80, 2, 36)
+    for x in (148, 176):                                         # the posts, padded at the foot
+        p.rect((240, 240, 235), x, 38, 2, 80)
+        p.rect((40, 40, 40), x - 2, HZ - 10, 6, 10)
+        p.rect((120, 40, 40), x - 2, HZ - 10, 6, 3)
+    p.rect((240, 240, 235), 148, 90, 30, 2)                      # crossbar
+    p.lamp(196, 74, (255, 240, 200))                            # a light over the clubhouse door
+
+
+@_painter("pub")
+def _pub(p: _Paint) -> None:
+    wood, dark = (110, 70, 45), (70, 45, 30)
+    p.rect((140, 50, 45), 0, 0, W, 64)                           # oxblood wallpaper
+    for x in range(0, W, 12):
+        p.rect((125, 44, 40), x, 0, 6, 64)
+    p.rect(dark, 0, 0, W, 6)                                     # beams
+    p.rect(dark, 0, 64, W, 4)
+    p.rect(wood, 0, 68, W, 46)                                   # panelled dado
+    for x in range(4, W, 28):
+        p.rect(_shade(wood, 0.85), x, 74, 22, 34)
+    p.rect(_shade(wood, 1.2), 0, 112, W, 2)
+    p.rect((90, 50, 40), 0, 114, W, H - 114)                     # boards
+    for y in range(118, H, 8):
+        p.rect((80, 44, 36), 0, y, W, 1)
+    # the bar, far left: shelves of bottles, pumps, a polished counter
+    p.rect((60, 40, 28), 0, 14, 54, 52)
+    for y in (24, 40, 56):
+        p.rect((150, 110, 70), 0, y, 54, 2)
+        for i, x in enumerate(range(3, 52, 6)):
+            p.rect(((90, 140, 80), (160, 110, 50), (200, 200, 190), (120, 50, 40))[(i + y) % 4], x, y - 8, 3, 8)
+    p.rect((90, 55, 35), 0, 84, 58, 30)
+    p.rect((150, 105, 60), 0, 82, 60, 4)
+    for x in (10, 24, 38):
+        p.rect((220, 210, 190), x, 70, 3, 12)
+        p.rect((40, 30, 25), x, 66, 3, 4)
+    p.rect((200, 170, 60), 0, 112, 58, 2)                        # brass foot rail
+    # the darts corner, right: the board in its cabinet, the chalk scoreboard, the oche
+    p.rect(dark, 196, 22, 60, 56)                                # cabinet, doors open
+    p.rect((50, 32, 22), 186, 24, 10, 52)
+    p.rect((50, 32, 22), 256, 24, 10, 52)
+    p.circle((20, 20, 20), 226, 50, 22)
+    for i in range(20):
+        a0, a1 = i * math.pi / 10, (i + 1) * math.pi / 10
+        c = (230, 215, 175) if i % 2 else (25, 25, 25)
+        p.poly(c, [(226, 50), (226 + 18 * math.cos(a0), 50 + 18 * math.sin(a0)), (226 + 18 * math.cos(a1), 50 + 18 * math.sin(a1))])
+    for r in (18, 11):                                           # double and treble rings
+        pygame.draw.circle(p.s, (180, 40, 40), (226, 50), r, 2)
+    p.circle((40, 120, 60), 226, 50, 3)
+    p.circle((180, 40, 40), 226, 50, 1)
+    p.rect((30, 34, 32), 272, 28, 40, 56)                        # chalk scoreboard
+    p.rect((150, 110, 70), 270, 26, 44, 2)
+    p.rect((150, 110, 70), 270, 84, 44, 2)
+    p.rect((200, 200, 195), 292, 32, 1, 48)
+    for y in range(36, 80, 8):
+        p.rect((170, 172, 168), 276, y, 12, 1)
+        p.rect((170, 172, 168), 296, y + 4, 10, 1)
+    p.rect((210, 200, 170), 186, 124, 78, 3)                     # the oche
+    p.rect((60, 60, 64), 180, 127, 90, H - 127)                  # rubber mat
+    p.rect((90, 90, 95), 180, 127, 90, 1)
+    # a table by the window between them, and the lights
+    p.rect((150, 175, 160), 128, 18, 36, 40)                     # frosted window
+    p.rect(dark, 145, 18, 2, 40)
+    p.rect(dark, 128, 37, 36, 2)
+    p.rect(dark, 136, 98, 22, 4)
+    p.rect(dark, 145, 102, 4, 12)
+    for x, y in ((226, 10), (90, 12), (176, 12)):               # none under the clock
+        p.rect((40, 30, 25), x, 6, 1, y - 6)
+        p.rect((230, 190, 110), x - 4, y, 9, 4)                  # warm shades, always on indoors
+
+
 @_painter("coast_road")
 def _coast_road(p: _Paint) -> None:
     _water(p, 150, 72, W - 150, H - 72)
