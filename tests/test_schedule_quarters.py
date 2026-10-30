@@ -38,5 +38,5 @@ def test_later_on_channel_7_lists_it_and_says_a_quarter_to(quarter):
 
 
 def test_whole_hours_behave_as_before():
-    assert schedule.show_end(_at(20, 10)) == _at(22, 0)
+    assert schedule.show_end(_at(19, 10)) == _at(20, 0)
     assert schedule.show_end(_at(23, 30)) == _at(0, 0) + 86400

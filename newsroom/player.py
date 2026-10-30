@@ -499,7 +499,7 @@ class Player:
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
                 v.mode = "field" if line and line.speaker in (*FIELD_REPORTERS, "guest") else "studio"
-        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport")):
+        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport", "inquiry")):
             sports = seg.type is SegmentType.sport or seg.show == "sport"
             v.set, v.people = "sports" if sports else "interview", self._people(seg)
             if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident

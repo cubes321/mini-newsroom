@@ -40,6 +40,7 @@ documentary_research = "deepseek_flash_think"     # research notes from the arch
 special_outline = "deepseek_flash_think"
 special_section = "deepseek_flash_think"
 story_desk = "deepseek_flash_think"      # plans how threads develop, seeds new ones
+inquiry = "deepseek_flash_think"         # picks tonight's story for The Inquiry, its questions and its guest
 senior_editor = "claude_sonnet"   # reviews the desk's board every [story] review_every_s and leaves it a memo
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
@@ -65,6 +66,15 @@ commission_from = "18:00" # late enough to cover the day; making one takes minut
 airs_at = "21:00"
 window_s = 3600          # not ready within an hour of airs_at: it waits for tomorrow's slot
 repeat_at = "02:00"      # and the night's documentary airs again after the first overnight test card from here
+
+# The Inquiry (inquiry.py, docs/SHOWS.md): Pat Holloway takes one story in depth at 20:00. From
+# commission_from the back office picks it from the stories with min_mentions or more that haven't been
+# investigated in rest_days, with the questions Pat puts and the guest who has to answer them.
+[inquiry]
+commission_from = "18:30"
+airs_at = "20:00"
+min_mentions = 3
+rest_days = 7
 
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.

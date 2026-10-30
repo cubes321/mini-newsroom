@@ -219,7 +219,7 @@ def test_where_a_ready_special_airs(hour, last_type, airs):
 
 @pytest.mark.parametrize("finished, airs", [
     (14, 15),           # the news: after the bumper at the next top of the hour, so it can be trailed
-    (19, 20),           # Coastwide doesn't air specials: the news at eight
+    (19, 21),           # Coastwide and The Inquiry don't air specials: the news at nine
     (7, 9),             # breakfast: the nine o'clock news
     (22, 23),           # the late show: the late news
     (1, 1),             # overnight: after the next test card, as before

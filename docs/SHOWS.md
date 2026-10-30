@@ -89,7 +89,7 @@ farm's lambs), a song now and then.
 - **Reuses:** features, the historian, the guest memory.
 - **Size:** large (mostly art and voice).
 
-### The Inquiry (20:00, half an hour): investigations
+### The Inquiry (20:00, half an hour): investigations. BUILT 2026-10-30
 
 Pat Holloway, a former consumer champion who never lets a vague answer go, takes one story in depth:
 a story at its peak, or one that has gone quiet with questions still open. Miles's film, the
@@ -100,6 +100,13 @@ isn't answered. The one serious show in an evening of light ones.
   with a hard studio interview added. The editor picks the subject from the threads.
 - **New:** a "not answered" close, and the interview's pushing tone.
 - **Size:** small.
+- **Built** (`inquiry.py`, `schedule.py`, `writers._INQUIRY`): from 18:30 the back office picks the
+  story (`[inquiry]`, route `inquiry`), its angle, two to four questions and the guest; if nothing is
+  chosen by 20:00 the most-covered story at its peak stands in. Every item gets the brief, the record
+  and what the earlier items established. Running order: Pat's open to camera, Miles's film (someone
+  it affected, not the guest), the guest part one (one or two questions), a break, the paper trail, a
+  vox pop, the guest part two, the other side, and Pat's close on what still isn't answered. The
+  bumper uses the news arrangement until it has its own (by ear).
 
 ### The Panel (20:30, half an hour): the debate
 
@@ -140,7 +147,7 @@ reach an end instead of waiting at the council door.
 
 ## Build order
 
-1. **The Inquiry**: almost all reuse; it fills 20:00 at once.
+1. **The Inquiry**: built 2026-10-30.
 2. **Quayside**: `quay.py` gives the whole channel a new source of facts.
 3. **The Panel**: the panel item and set.
 4. **Have Your Say**: the call item.

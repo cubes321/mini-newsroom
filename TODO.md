@@ -143,6 +143,12 @@ bottom with the date.
 
 ## Done
 
+- 2026-10-30 The Inquiry at 20:00 (`docs/SHOWS.md`): Pat Holloway on one story in depth, chosen from
+  18:30 with its questions and guest (`inquiry.py`), then 20:30 is news until The Panel is built. In a
+  trial on the real town Flash chose the cannery slipway names, Pat pushed ("That's not quite what I
+  asked") and Marjorie Pell admitted the families were written to after the decision. Its bumper
+  uses the news arrangement; its own is for when the station sound can be heard.
+
 - 2026-10-30 Small fixes and the thread cap.
   - New stories: `[story] max_open_threads = 8` only ever decided whether the desk could seed, and the
     writers keep 11 to 17 threads open, so on both measured nights it was told to seed none. Now the

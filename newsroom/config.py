@@ -94,6 +94,14 @@ class DocumentaryCfg:
 
 
 @dataclass(frozen=True)
+class InquiryCfg:
+    commission_from: str = "18:30"       # tonight's subject is chosen in idle time from here (inquiry.py)
+    airs_at: str = "20:00"               # when The Inquiry starts; no commission after it
+    min_mentions: int = 3                # a story needs this much coverage to be investigated
+    rest_days: int = 7                   # and not to have been investigated in this many days
+
+
+@dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
     thin_board: int = 8                  # below this many open the desk may seed two new stories a round, else one
@@ -152,6 +160,7 @@ class Config:
     special: SpecialCfg
     documentary: DocumentaryCfg
     story: StoryCfg
+    inquiry: InquiryCfg
     breaking: BreakingCfg
     adverts: AdvertsCfg
     continuity: ContinuityCfg
@@ -183,6 +192,7 @@ def load(path: Path | None = None) -> Config:
         special=SpecialCfg(**raw.get("special", {})),
         documentary=DocumentaryCfg(**raw.get("documentary", {})),
         story=StoryCfg(**raw.get("story", {})),
+        inquiry=InquiryCfg(**raw.get("inquiry", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),
         continuity=ContinuityCfg(**raw.get("continuity", {})),

@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, llm, schedule, sport, tides, tipline
+from . import breaking, inquiry, llm, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -227,6 +227,46 @@ Pick a plausible map_state for a coastal town and a temperature in Celsius.
 """,
 }
 
+# The Inquiry (inquiry.py): Pat (mag_a) on one story in depth; every item gets TONIGHT'S INQUIRY.
+_INQUIRY_RULES = """
+This is part of THE INQUIRY, a half-hour investigation into ONE story, given as TONIGHT'S INQUIRY
+with its record. Keep to the record's dates and facts; what the record doesn't show is a question,
+not a finding. Fair, precise, plain words; small-town scale; nobody accused of a crime the record
+doesn't show. Light touches are fine, jokes are not.
+"""
+
+_INQUIRY: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _INQUIRY_RULES + """
+These are Pat's words TO CAMERA ("mag_a" alone), as THIS ITEM and the PLACE IN THE SHOW say: at the
+open, the story in a few lines and the questions she will put; at the close, what was found, what is
+still not answered, and who has to answer it next. No guests speak.
+headline = the point in under 12 words. lower_third = "The Inquiry" plus a short tag.
+""",
+    SegmentType.feature: _COMMON_RULES + _GUEST_RULES + _INQUIRY_RULES + """
+This is a FILMED REPORT in The Inquiry, on what THIS ITEM names. Structure:
+1. "mag_a" (Pat) introduces it in one line.
+2. "reporter" (Miles) tells it from the location; one person ("guest", named in guest_name with
+   guest_role and guest_gender) may speak two or three times: someone it affected, or who was there.
+3. "mag_a" comes back with a one-line tag that sharpens the question.
+Choose a backdrop id from the LOCATIONS list; location is the place in words, never an id.
+""",
+    SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _INQUIRY_RULES + """
+This is the STUDIO INTERVIEW in The Inquiry. Pat ("mag_a") and one guest in the armchair, as THIS
+ITEM says: THE GUEST named in tonight's brief, or for "the other side" someone else who sees it
+differently. Pat asks short, specific questions from THE QUESTIONS, follows up when an answer slides
+away ("That's not what I asked"), and quotes the record back. The guest defends their position as
+they would, with real reasons; no one collapses or confesses. Polite, firm, no shouting.
+headline = the guest and the key answer (or non-answer) in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _INQUIRY_RULES + """
+This is the VOX POP in The Inquiry. Pat ("mag_a") hands over in one line; Miles ("reporter") asks the
+people most affected by tonight's story ONE question about it; then three or four answer in a line or
+two each. Each is speaker "guest" with their own guest_name (first name and surname), guest_gender
+and guest_age; different views, nobody a cartoon. question = the question as a caption. Choose a
+backdrop id from the LOCATIONS list near the story; location is the place in words.
+""",
+}
+
 # The Last Ferry, the late-night talk show: Vincent (late_host) and one guest at a time.
 _LATE: dict[SegmentType, str] = {
     SegmentType.monologue: _COMMON_RULES + """
@@ -379,6 +419,12 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="Coastwide", extra=", and never \"Coastwide is next\": it is on now")
             + "Come out of the last item, a little banter, and on to what's next.",
     },
+    ("inquiry", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS The Inquiry: a brief good evening, then straight into the story.",
+        "": _MIDDLE.format(title="The Inquiry", extra=""),
+    },
+    ("inquiry", SegmentType.interview): {"": _MIDDLE.format(title="The Inquiry", extra="")},
+    ("inquiry", SegmentType.feature): {"": _MIDDLE.format(title="The Inquiry", extra="")},
     ("late", SegmentType.links): {
         "": _MIDDLE.format(title="The Last Ferry", extra=": Vincent says goodnight at the end of the show"),
     },
@@ -521,7 +567,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
 
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
-    table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT}.get(show.id, {})
+    table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
+             "inquiry": _INQUIRY}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -569,6 +616,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         quiet = _quiet_threads(world, recent | set(done))
         if quiet:
             user += "\n\n" + quiet
+    if show.id == inquiry.SHOW:
+        user += "\n\n" + inquiry.for_prompt(world)
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
         world, show, seg_type, part)
     if so_far:
@@ -582,7 +631,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         if work.get("stays_on"):
             user += ("\n\nThey stay on the couch for the next guest: no goodbye or thanks at the end. Vincent "
                      "closes by saying another guest is joining them.")
-    elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop):
+    elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop) and (
+            show.id != inquiry.SHOW):             # its guest is the one the story needs, however recent
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:

@@ -171,6 +171,7 @@ class World:
     senior_memo_at: str = ""                 # broadcast date and clock it was written
     last_senior_ts: float = 0.0
     seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
+    inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)

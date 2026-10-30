@@ -49,8 +49,8 @@ def test_the_programme_card_lists_whats_next_and_expires_when_it_starts(cont):
     now = _ts("19:20")
     it = continuity.bake_programmes(now, world_mod.seed())
     card = it.segment.work["continuity"]
-    assert card["lines"] == ["20:00  PORT WEXLEY NEWS", "21:00  PORT WEXLEY STORIES",     # tonight's documentary
-                             "22:00  THE LAST FERRY", "23:00  PORT WEXLEY NEWS"]
+    assert card["lines"] == ["20:00  THE INQUIRY", "20:30  PORT WEXLEY NEWS",
+                             "21:00  PORT WEXLEY STORIES", "22:00  THE LAST FERRY"]     # tonight's documentary at nine
     assert it.valid_until == _ts("20:00")
     at_2030 = continuity.bake_programmes(_ts("20:30"), world_mod.seed())
     assert at_2030.valid_until == _ts("21:00")                # gone before "coming up at nine" is wrong

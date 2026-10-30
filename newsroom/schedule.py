@@ -298,6 +298,42 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # tonight's results aren't tomorrow's
     ),
     Show(
+        "inquiry", "THE INQUIRY", "INQUIRY", (150, 46, 46),
+        # Half an hour on one running story, chosen earlier in the evening with Pat's questions and the
+        # guest who has to answer them (inquiry.py). The only serious show of the evening.
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Pat opens The Inquiry to camera: tonight's story in a few lines, and the "
+                                     "questions she will put"),
+            I(T.feature, brief="Miles's film: how the story began and how it got here, from the record, with "
+                               "someone it has affected (not THE GUEST: they are saved for the studio)"),
+            I(T.interview, brief="THE GUEST in the studio, part one: Pat puts only the first one or two of THE "
+                                 "QUESTIONS, and does not let a vague answer go; the rest come after the break"),
+            T.ad_break,
+            I(T.feature, brief="the paper trail: what the minutes, letters, plans and the archive show, and what "
+                               "they leave out", target_s=120.0),
+            I(T.vox_pop, brief="Miles asks the people most affected one question about it"),
+            I(T.interview, "cont", brief="THE GUEST, part two: the questions not yet put; Pat holds them to what "
+                                         "they said in part one and what the film and the papers showed"),
+            I(T.interview, brief="the other side: a resident, a campaigner or an expert who sees it differently "
+                                 "from THE GUEST", target_s=120.0),
+            # the order wraps back to here
+            I(T.feature, brief="Miles back on the ground tonight: what it looks like now, and who is waiting",
+              target_s=90.0),
+        ),
+        loop_from=9,
+        closing=(I(T.links, "close", brief="Pat to camera: what we found, what is still not answered, and who "
+                                           "has to answer it next"),),
+        target_s={T.bumper: 8.0, T.links: 60.0, T.feature: 150.0, T.interview: 210.0, T.vox_pop: 60.0,
+                  T.ad_break: 60.0},
+        cast=("mag_a", "reporter"), lead="mag_a",
+        cast_by_type={T.links: ("mag_a",), T.feature: ("mag_a", "reporter", "guest"),
+                      T.interview: ("mag_a", "guest"), T.vox_pop: ("mag_a", "reporter", "guest")},
+        station="The Inquiry, channel 7's investigation, with Pat Holloway",
+        tone="probing, fair and precise; plain words, no sensation; the record first, then the questions",
+        repeats_overnight=False,     # tonight's questions, tonight
+    ),
+    Show(
         "overnight", "PORT WEXLEY NEWS", "OVERNIGHT", (90, 90, 140),
         pattern=(T.testcard, T.repeat),
         target_s={T.testcard: 60.0, T.repeat: 75.0},
@@ -316,7 +352,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (9, "news"),            # the news loop through the day and the early evening
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
-    (20, "news"),
+    (20, "inquiry"),        # The Inquiry: Pat Holloway on one story in depth
+    ("20:30", "news"),      # The Panel's half hour, when it's built (docs/SHOWS.md)
     (22, "late"),           # The Last Ferry: a monologue and long guest chats
     (23, "news"),           # the late news
 )

@@ -486,6 +486,20 @@ class StoryPlan(BaseModel):
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 
+class InquiryCommission(BaseModel):
+    """Tonight's subject for The Inquiry (inquiry.py): one running story taken in depth."""
+    thread_id: str = Field(description="the story's id from the candidates")
+    title: Annotated[str, _clip_words(70)] = Field(
+        max_length=70, description="the evening's title, a question: 'Who Pays for the Harbour Wall?'")
+    # Only ever read by the writers: Flash overran 300 in a trial, and a retry costs a whole commission.
+    angle: Annotated[str, _clip_words(400)] = Field(
+        max_length=400, description="what the half hour sets out to find, one or two sentences")
+    questions: list[Annotated[str, _clip(200)]] = Field(
+        min_length=2, max_length=4, description="the questions Pat puts to the guest, one sentence each")
+    guest: str = Field(description="the person who has to answer them, in the studio: an exact name from the "
+                                   "story's people or the public figures")
+
+
 class SeniorMemo(BaseModel):
     """The senior editor's review of the story desk's whole board (senior.py)."""
     memo: Annotated[str, _clip(1200)] = Field(
