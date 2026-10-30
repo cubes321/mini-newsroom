@@ -1,5 +1,114 @@
 # Handover
 
+## Picking up on the evening of 2026-10-30
+
+Everything is on `master` (last pushed `e4a984a`). Since the 2026-10-29 DeepSeek night: the back
+office runs on DeepSeek Flash with Sonnet as a two-hourly senior editor and as Flash's fallback; a
+daily allowance of new stories (8) replaced the open-thread cap; three new shows went on the
+schedule (*Quayside* 13:00, *The Inquiry* 20:00, *The Panel* 20:30); Tamsin Jago is *Full Time*'s
+reporter; *Coastwide* remembers its evening; the specials' sections no longer restate or foretell.
+Tonight is two jobs, in this order.
+
+### 1. A better TTS than Kokoro, and the voices waiting to be heard
+
+The TODO's TTS item has the bar: keep up live (Kokoro on the CPU voices a minute of audio in about
+4–18 s, and the buffer wants about ten minutes ready), fit beside the LLM and ComfyUI on the shared
+16 GB card or run on the CPU (check `nvidia-smi` before loading anything), and have enough distinct
+voices for the cast, with British voices that sound British. Voice the same lines with each
+candidate and Kokoro, time each, and choose by ear before wiring one in behind `[tts] backend`.
+
+More voices matter now: each new presenter took a voice from the guest pool, which is down to 9
+female and 6 male Kokoro voices for the whole town.
+
+To hear and choose on the same listening page (`newsroom/station_audio.py`, as for Fran and the
+stings), whichever engine wins:
+
+- **Tamsin Jago** (`sport_reporter`, *Full Time*'s reporter, twenty-five, Port Wexley born):
+  provisional `af_sarah`, British. Try it against `af_bella`, `af_nova` and `af_sky`.
+- **Howard Lanyon** (`business`, *Quayside*, a retired bank manager in his sixties): provisional
+  `am_echo`, British, speed 0.95.
+- **The new shows' bumpers**: *Quayside*, *The Inquiry* and *The Panel* use the news arrangement
+  of the station tune (`jingle.VOICINGS` has no entry for them). Give each its own, as *Full Time*
+  got "drive".
+
+The chosen voice goes in `config.toml` `[tts.voices]`, and leaves `GUEST_VOICES_F`/`_M` in
+`world.py`; guests who had it are recast on the next start.
+
+### 2. The overnight run
+
+The first night on the new back office, and the first airing of *The Inquiry* and *The Panel* (both
+booked in idle time from 18:30). The routes are in `config.toml` now, so no `NEWSROOM_ROUTES`.
+Run it in **its own PowerShell window**, not a Claude app terminal tab: an app update closed the
+2026-10-29 night at 08:21.
+
+```powershell
+Set-Location 'E:\programming\mini newsroom'
+$env:ANTHROPIC_API_KEY = [Environment]::GetEnvironmentVariable('ANTHROPIC_API_KEY', 'User')
+$env:DEEPSEEK_API_KEY = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY', 'User')
+$env:PYTHONIOENCODING = 'utf-8'
+$day = Get-Date -Format 'yyyy-MM-dd'
+Copy-Item data\world.json "data\world.backup-$day-pre-night.json"
+cmd /c "uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 > data\night-$day.log 2>&1"
+```
+
+What to check, against the 2026-10-29 night (`data/measure-deepseek-2026-10-29.log`) and the
+all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
+
+- **The senior editor**: its memos ("senior editor:" lines) and whether the desk's notes stop
+  converging on one meeting (11 of 24 rounds said "converge" on 2026-10-29).
+- **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 8 a day,
+  and whether they air.
+- **The fallback**: how often "falling back to" fires, and why.
+- **The Inquiry** (20:00): the story and guest it booked ("inquiry: tonight"), and whether Pat's
+  questions run across both halves of the interview.
+- **The Panel** (20:30): the lineup ("panel: tonight"), four separate voices at the desk, one
+  question per debate.
+- **Full Time**: Tamsin at the stadium and the darts pub, the Wreckers' vox pop at the Quarry Field.
+- **Coastwide**: repeats across the hour (list what aired 19:00–20:00, as for the recording).
+- **Cost**: DeepSeek's usage export against the call log, and the night against $0.55 (Flash) and
+  $2.18 (all Claude) for the same span.
+- **The usual**: no filler in STATS, tracebacks, failed calls, the title-match continuations.
+
+*Quayside* is at 13:00 and a night run ends mid-morning, so it needs its own run (`--clock 12:45`
+for an hour or so) to be seen on air.
+
+### The shows still to build
+
+From the 2026-10-30 brainstorm; the full plan, a day's schedule and the reasons are in
+[SHOWS.md](SHOWS.md). In the agreed order:
+
+1. **Have Your Say** (10:00, an hour): the news phone-in. Jonah Pike moves from the *Morning Tide*
+   sofa to the phone-in desk after breakfast; one question from the day's news; viewers ring in
+   and a studio guest at the heart of the story answers. Needs a `call` item (a caller on the line:
+   a voiced resident with a phone caption and a waveform instead of a face); reuses the interview
+   set, the guest memory and the tip-line. Medium.
+2. **Out and About** (15:00, 45 minutes): travel, culture and food. Days out along the Greymouth
+   coast, the town's culture (gallery, amateur dramatics, music nights, the library's talks) and
+   food (a café or restaurant visited and reviewed, a recipe, what's in season). Needs a new
+   presenter (a look on a contact sheet, a voice by ear) and a `review` item with a verdict the
+   world remembers, so a place can be revisited or its owner answer back. Small to medium.
+3. **The Chamber** (council nights, 20:00 to 21:00): the council meeting, live. Dana in the press
+   seats, Helen Strand in the chair, Miles in the public gallery; items from the threads due at
+   council, the public speaking, and votes that settle the stories (the desk takes each result as
+   the thread's next development). Needs a council calendar, a `vote` result the desk applies, and
+   a show that takes over the evening slot on those nights (as the documentary and breaking news
+   take over the news). Do it after a night or two of watching the senior editor and the new
+   story allowance: it changes how stories end. Large.
+4. **Rock Pool** (16:00, 45 minutes): children's TV. A presenter and Gully, a herring-gull puppet
+   with opinions; a "make" in the studio, story time (Hugh Tremayne reads a town legend), viewers'
+   drawings, an animal visitor. Needs a presenter, Gully's sprite (a puppet with a moving beak) and
+   voice, a children's set and a children's tone for the writers. Large, mostly art and voice: best
+   when there's time to listen.
+
+The day's schedule leaves the news at 09:00, 11:00, 13:30, 15:45, 16:45, 21:00 and 23:00 once all
+seven are on. *The Kettle's On*, *Harbour Row* and *Wexley Wits* are kept for the entertainment
+channel (`docs/ENGINE.md`).
+
+Art waiting for ComfyUI: a proper set for *The Panel* (`studio_panel` is painted in code) and a
+fish quay backdrop for *Quayside* (Miles reports the auction from the harbour until then).
+
+## Where it stood on 2026-10-26
+
 Where Mini Newsroom stands at the end of 2026-10-26, and how to pick it up.
 The backlog is [TODO.md](../TODO.md) and the overview is the [README](../README.md).
 Everything below is on `master` at `cubes321/mini-newsroom` (last pushed: `41145d9`), except
