@@ -58,7 +58,7 @@ bottom with the date.
   a world.json backup first. Then check: does the memo break the convergence onto one meeting (count
   "converge" in the desk notes, 11 of 24 on 2026-10-29), how many new stories the desk and the senior
   editor seed under the new daily allowance (8) and whether they air, how often "falling back to" fires,
-  Tamsin's first Full Time, Coastwide's repeats, The Inquiry's first night (its story and guest), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
+  Tamsin's first Full Time, Coastwide's repeats, The Inquiry's and The Panel's first nights (the story, the lineup, four voices at the desk), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
