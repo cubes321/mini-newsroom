@@ -63,3 +63,17 @@ one-off versions of this pattern: the advert pool, the continuity pool, the 00:0
 and finished specials that survive a restart. A bank would be one engine feature that serves all
 of them: items made ahead and stored, airings recorded, rules for how soon something may repeat,
 and retirement. That makes it a good first thing to generalise when the channel starts.
+
+## Shows kept for the entertainment channel (2026-10-30)
+
+From the brainstorm that produced `docs/SHOWS.md`, three ideas suit the entertainment channel better
+than the news channel:
+
+- **The Kettle's On**: a homely morning magazine: a recipe from a local kitchen, a phone-in with a
+  studio expert (gardening, pets), a guest on the sofa, the community noticeboard.
+- **Harbour Row**: a fifteen-minute daily soap with the town's residents (Winifred, Dev, Brenda,
+  Jasper) in a continuing story with cliffhangers; needs a drama item and a memory of each episode.
+- **Wexley Wits**: a pub quiz from a darts pub, Clive Ashdown asking, the darts league's pub teams
+  playing, the score kept in code, a local-history round from the archive.
+
+The phone-in's `call` item and the `review` item from `docs/SHOWS.md` would serve them too.
