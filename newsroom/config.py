@@ -40,6 +40,7 @@ class ProviderCfg:
     max_retries: int = 1                 # SDK retries; each timed-out retry waits the full timeout again
     cache_ttl: str = ""                  # anthropic: "5m" or "1h" caches the prompt up to llm.CACHE_BREAK
     extra_body: dict = field(default_factory=dict)
+    fallback: str = ""                   # another provider that takes a call this one fails (one hop)
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,7 @@ class StoryCfg:
     plan_every_s: float = 1200.0
     max_open_threads: int = 8            # the desk seeds new threads only while fewer than this are open
     batch: int = 8                       # threads the desk plans per call, least recently planned first
+    review_every_s: float = 7200.0       # the senior editor reviews the desk's board this often (0: never)
     max_live_threads: int = 40           # past this many open, the stalest fade (world.fade_threads)
     fade_oneoff_h: float = 8.0           # hours of air time without a new beat before a thread fades,
     fade_quiet_h: float = 24.0           # for one covered once or twice, most threads,

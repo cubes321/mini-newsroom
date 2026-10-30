@@ -86,10 +86,13 @@ bottom with the date.
   matched the log to the token; peak hours, 01:00–04:00 and 06:00–10:00 UTC, double Flash too and
   were half its bill), Haiku $0.32. No call failed for good and nothing fell to filler; Flash's median
   call was 8 s (54 s at worst, unseen behind a 10-minute buffer). Flash commissioned 9 specials to
-  Sonnet's 4 and raised a breaking story, but made 12 merges to 17 and opened no new threads (Sonnet
-  3): watch whether the town runs short of fresh stories. Still to decide: Flash for the back office, Haiku
-  keeping the scripts, Sonnet as an hourly supervisor and as the fallback when DeepSeek doesn't
-  respond (no provider fallback exists yet: a call that fails twice gets a canned script).
+  Sonnet's 4 and raised a breaking story, but made 12 merges to 17 and steered 11 of 24 rounds onto one
+  council meeting (Sonnet 1; Sonnet instead held the same eight threads all night). Neither desk could
+  open threads once the board passed `max_open_threads` (8; 11 to 17 were open, so the prompt said
+  "seed at most 0"); Sonnet's 3 came in its first two rounds. Built 2026-10-30: Sonnet as the fallback
+  for a call DeepSeek fails, and the senior editor (`senior.py`) every two hours. Still to decide:
+  move the back office to Flash in `[llm.routes]` (until then a Flash night needs
+  `--route claude_sonnet=deepseek_flash_think,senior_editor=claude_sonnet`).
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
   `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
 - [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench
@@ -134,6 +137,16 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 A senior editor and a fallback for the back office. A provider with `fallback` (both
+  DeepSeek back-office providers: `claude_sonnet`) hands a call it fails, unreachable or twice invalid,
+  to that provider once, from a fresh prompt (`fallback_from` in the call log); not when NEWSROOM_LLM pins
+  a provider. The senior editor (`senior.py`, task `senior_editor` on Sonnet, `[story] review_every_s =
+  7200`) reads the whole board and the desk's last dozen rounds (`world.desk_notes`), merges duplicates,
+  may open one story past the desk's cap, and leaves a memo the desk reads every round until the next.
+  Dry run on the real town: it named the four threads converging on the reserves line and the 6 November
+  finance meeting and gave each another way on, asked five restating threads for a real event or
+  closure, and opened a charity harbour swim from a guest's loose end (10 s, about $0.02 a review).
 
 - 2026-10-30 On-screen text is drawn at the window's size in Bahnschrift (`scenes.present`): text is laid
   out on the 320x180 canvas but queued and drawn over the scaled frame, since viewers found the 8 px

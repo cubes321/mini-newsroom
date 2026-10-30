@@ -18,8 +18,10 @@ task) to another for a run.
 
 Robustness: Qwen-style <think> blocks are stripped before parsing; strict
 json_schema mode falls back to json_object mode if a server rejects it; a
-validation failure gets exactly one retry carrying the error text; the
-second failure raises so the caller can use its canned fallback.
+validation failure gets exactly one retry carrying the error text. After the
+second failure, or if the provider is unreachable, a provider with a
+`fallback` passes the call to that one (DeepSeek's back office to Sonnet);
+otherwise it raises so the caller can use its canned fallback.
 
 Prompt caching: a prompt builder puts CACHE_BREAK where the part that stays
 the same from call to call ends (the town, presenters and public figures at
@@ -345,11 +347,29 @@ def _user_content(prov: ProviderCfg, user: str) -> str | list[dict]:
 
 
 def complete_json(task: str, schema: type[T], system: str, user: str, *, retries: int = 1) -> T:
-    """Ask the model for an instance of `schema`. Raises LLMError on failure."""
+    """Ask the model for an instance of `schema`. Raises LLMError on failure.
+
+    A provider with a `fallback` hands a call it failed (unreachable, an API error, or no valid
+    output after its retries) to that provider, once and from a fresh prompt, so a DeepSeek outage
+    in the back office costs a Sonnet call rather than a lost desk plan. Not when NEWSROOM_LLM
+    pins one provider (or switches the models off): that run asked for exactly that provider."""
     name = provider_for(task)
     if name == "off":
         raise LLMUnavailable("NEWSROOM_LLM=off")
     prov = CONFIG.llm.provider(name)
+    try:
+        return _complete_with(name, prov, task, schema, system, user, retries)
+    except LLMError as e:
+        if not prov.fallback or prov.fallback == name or os.environ.get("NEWSROOM_LLM"):
+            raise
+        log.warning("llm %s: %s failed (%s); falling back to %s", task, name, str(e)[:200], prov.fallback)
+        return _complete_with(prov.fallback, CONFIG.llm.provider(prov.fallback), task, schema, system, user,
+                              retries, fallback_from=name)
+
+
+def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], system: str, user: str,
+                   retries: int, fallback_from: str = "") -> T:
+    """One provider's attempts: a call, and up to `retries` more carrying the validation error."""
     if prov.kind not in ("openai", "anthropic"):
         raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
     messages: list[dict] = [{"role": "user", "content": _user_content(prov, user)}]
@@ -359,7 +379,7 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
         _log_call({"ts": datetime.now().isoformat(timespec="seconds"), "task": task, "provider": name,
                    "model": prov.model, "attempt": attempt + 1, "elapsed_s": round(time.perf_counter() - t0, 1),
                    "usage": usage, "error": error or None, "system": system, "messages": messages,
-                   "reply": text})
+                   "reply": text, **({"fallback_from": fallback_from} if fallback_from else {})})
 
     raw = _anthropic_raw if prov.kind == "anthropic" else _openai_raw
     last_err: Exception | None = None

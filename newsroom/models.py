@@ -469,6 +469,14 @@ class StoryPlan(BaseModel):
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 
+class SeniorMemo(BaseModel):
+    """The senior editor's review of the story desk's whole board (senior.py)."""
+    memo: Annotated[str, _clip(1200)] = Field(
+        max_length=1200, description="at most five short directives to the desk, naming threads by id")
+    merges: list[ThreadMerge] = Field(default_factory=list, max_length=6)
+    new_thread: NewThread | None = Field(default=None, description="one fresh story to open now, or null")
+
+
 class TipBulletinScript(BulletinScript):
     """A bulletin, plus which viewer tip (if any) it used, so the tip is spent."""
     tip_used: int | None = Field(default=None, description="number of the VIEWER TIP used, or null")

@@ -327,11 +327,12 @@ class WorkerPool:
     def _idle_work(self) -> None:
         """Background work. The hand-written adverts are voiced first, whatever the buffer
         (they are what covers a gap). Then, only when the live buffer is comfortably full:
-        the story desk plans developments (and now and then breaks a story itself), the day's
+        the story desk plans developments (and now and then breaks a story itself), every two hours
+        the senior editor leaves the desk a memo on the whole board, the day's
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import adverts, breaking, continuity, desk, documentary, special
+        from . import adverts, breaking, continuity, desk, documentary, senior, special
 
         try:
             if adverts.seed_one(self.world):
@@ -350,6 +351,10 @@ class WorkerPool:
                     breaking.from_desk(self.world, p.breaking.tip, self.buffer)
                 world_mod.save(self.world)
                 return                        # one background call per idle tick
+            if senior.should_review(self.world):
+                senior.review(self.world)     # a memo on the whole board for the desk's next rounds
+                world_mod.save(self.world)
+                return
             if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
                 d = documentary.decide(self.world)
                 world_mod.save(self.world)

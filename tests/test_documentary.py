@@ -82,7 +82,7 @@ def test_it_waits_while_a_special_is_in_hand(world):
 
 
 def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, monkeypatch):
-    from newsroom import adverts, continuity, desk
+    from newsroom import adverts, continuity, desk, senior
     from newsroom.models import EditorDecision
 
     buf = Buffer()
@@ -95,6 +95,7 @@ def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, 
     monkeypatch.setattr(continuity, "should_make", lambda w, b: False)   # the waiting documentary's trail
     monkeypatch.setattr(adverts, "should_make", lambda: False)
     monkeypatch.setattr(desk, "should_plan", lambda w: False)
+    monkeypatch.setattr(senior, "should_review", lambda w: False)
     monkeypatch.setattr(documentary, "should_commission", lambda w, b: False)
     monkeypatch.setattr(special, "should_check", lambda w: True)
     monkeypatch.setattr(special, "decide", lambda w, force=False: asked.append(1) or EditorDecision(commission=False))

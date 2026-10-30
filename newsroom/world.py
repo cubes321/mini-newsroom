@@ -163,6 +163,12 @@ class World:
     archive: list[dict] = field(default_factory=list)      # {date, day, type, headline, thread_id, people, text}
     last_story_plan_ts: float = 0.0
     desk_breaking: list[str] = field(default_factory=list)   # dates the story desk broke a story itself
+    # What the story desk did each round ({at, planned, new, merges, note}, the last dozen), for the
+    # senior editor, whose latest memo the desk then reads (senior.py).
+    desk_notes: list[dict] = field(default_factory=list)
+    senior_memo: str = ""
+    senior_memo_at: str = ""                 # broadcast date and clock it was written
+    last_senior_ts: float = 0.0
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)

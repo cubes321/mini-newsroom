@@ -7,16 +7,18 @@ least recently planned, `[story] batch` per call): a phase for each
 development the next follow-up should deliver, who is now involved, and
 occasionally a new thread to seed (perhaps from a chat-show guest's loose end)
 or two threads to merge as one story. Writers see the NEXT development in their
-briefing, so a bulletin that follows up a thread moves it along.
+briefing, so a bulletin that follows up a thread moves it along. The senior
+editor's latest memo on the whole board (senior.py) comes after the briefing.
 """
 from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 
 from . import llm, schedule
 from .config import CONFIG
-from .models import StoryPlan
+from .models import NewThread, StoryPlan
 from .world import Thread, World
 
 log = logging.getLogger(__name__)
@@ -75,6 +77,14 @@ _MERGES = (
 )
 
 
+def _memo(world: World) -> str:
+    """The senior editor's latest memo on the whole board (senior.py), for the desk to act on."""
+    if not world.senior_memo:
+        return ""
+    return (f"SENIOR EDITOR'S MEMO ({world.senior_memo_at}). The senior editor reviewed the whole board and the "
+            f"desk's recent rounds; follow it where it touches this round's threads:\n{world.senior_memo}\n\n")
+
+
 def _loose_ends(world: World) -> str:
     """The newest things chat-show guests left to ask them: the desk may make one news."""
     ends = world.fresh_loose_ends()
@@ -104,7 +114,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n"
+        f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) +
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
         f"their turn later; use them as context only. You may seed at most {min(room, 2)} new ones. "
         "Return phase and NEXT development for each of this round's threads you want to change, close any "
@@ -135,6 +145,9 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
             now = time.time()
             for t in todo:
                 t.planned_ts = now
+            world.desk_notes = (world.desk_notes + [{
+                "at": f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}", "planned": [t.id for t in todo],
+                "new": len(p.new_threads), "merges": len(p.merges), "note": p.note}])[-12:]
     if breaking == "no":
         p.breaking = None
     log.info("story desk: %d updates, %d new threads (planned %s)%s — %s", len(p.updates), len(p.new_threads),
@@ -197,14 +210,20 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
     room = CONFIG.story.max_open_threads - len(world.open_threads())
     for nt in p.new_threads[: max(0, room)]:
-        people = _resolve_people(world, nt.people)
-        guest = world.loose_ends_taken(nt.from_guest) if nt.from_guest else None
-        if nt.from_guest and guest is None:
-            log.info("story desk seeded from %r's loose end, but nobody has that name", nt.from_guest)
-        if guest is not None and guest.id not in people:
-            people.insert(0, guest.id)             # their loose end is news now, not a chat to come
-        t = world.seed_thread(nt.title, nt.status, nt.next_development, people)
-        log.info("seeded thread %s: %s%s", t.id, t.title, f" (from {guest.name}'s loose end)" if guest else "")
+        seed(world, nt)
+
+
+def seed(world: World, nt: NewThread, who: str = "story desk") -> Thread:
+    """Open a new thread from a plan, with its people, and spend the guest's loose end it grew from."""
+    people = _resolve_people(world, nt.people)
+    guest = world.loose_ends_taken(nt.from_guest) if nt.from_guest else None
+    if nt.from_guest and guest is None:
+        log.info("%s seeded from %r's loose end, but nobody has that name", who, nt.from_guest)
+    if guest is not None and guest.id not in people:
+        people.insert(0, guest.id)                 # their loose end is news now, not a chat to come
+    t = world.seed_thread(nt.title, nt.status, nt.next_development, people)
+    log.info("seeded thread %s: %s%s", t.id, t.title, f" (from {guest.name}'s loose end)" if guest else "")
+    return t
 
 
 def _cli(argv: list[str]) -> int:
