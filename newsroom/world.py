@@ -386,6 +386,15 @@ class World:
         return c.speed if c else 1.0
 
     @_locked
+    def age_for(self, speaker: str, guest_name: str | None = None) -> str | None:
+        """A guest's age as cast ("young", "middle", "old"), for a voice that has an age of its own (Pocket's
+        clips, `tts.clip_for`); None for a presenter or someone not yet cast."""
+        if speaker != "guest" or self.presenter_named(guest_name):
+            return None
+        p = self.person_by_name(guest_name)
+        return (p.age or None) if p else None
+
+    @_locked
     def lang_for(self, speaker: str, guest_name: str | None = None) -> str | None:
         """Kokoro's pronunciation for a line: British for a guest cast with a British accent when
         [tts] british_guests is on, or a presenter cast that way (Hugh); otherwise None, the station's own."""

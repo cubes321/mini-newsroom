@@ -12,6 +12,7 @@ dependencies = [
     "soundfile>=0.13",
     "numpy>=1.26",
     "kokoro>=0.9",
+    "pocket-tts>=4.0.1",
 ]
 
 [tool.uv]

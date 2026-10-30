@@ -248,7 +248,7 @@ extra_body = { effort = "high" }
 cache_ttl = "1h"
 
 [tts]
-backend = "kokoro"
+backend = "pocket"         # Pocket TTS clones presenters and local guests from assets/voices; "kokoro" puts everyone back (2026-10-30)
 lang_code = "a"          # Kokoro: "a" American, "b" British
 sample_rate = 24000
 device = "cpu"

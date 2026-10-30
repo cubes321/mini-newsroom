@@ -286,7 +286,7 @@ uv run python -m newsroom.special make --documentary --thread t030   # make one 
 | `desk.py` | the story desk: phases, next developments, new threads |
 | `tipline.py` | the viewer tip-line file: new lines, pending tips, the CLI |
 | `breaking.py` | breaking news: sorting tip-line lines, scripting and stinging the interrupt |
-| `tts.py` | Kokoro on CPU → 24 kHz WAV + mouth envelope |
+| `tts.py` | Pocket TTS cloning `assets/voices/`, else Kokoro, on CPU → 24 kHz WAV + mouth envelope |
 | `assets.py` | bakes the placeholder bumpers, breaking sting and music bed on first run |
 | `buffer.py` | priority intake queue + ready-by-slot dictionary + pockets for specials and breaking news |
 | `schedule.py` | the shows, the daily schedule and the broadcast clock |
@@ -341,3 +341,8 @@ Overnight repeats are drawn from the last two days of this cache.
 ## Licence
 
 MIT; see [LICENSE](LICENSE). Port Wexley and everyone in it are fictional.
+
+Voices: [Pocket TTS](https://huggingface.co/kyutai/pocket-tts) by Kyutai (weights CC-BY-4.0, gated:
+accept the terms and `hf auth login` once), cloning reference clips in `assets/voices/`: the presenters'
+from [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), the local guests' designed
+with [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) VoiceDesign. Kokoro voices everyone else.

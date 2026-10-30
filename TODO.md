@@ -154,13 +154,17 @@ bottom with the date.
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
   enforced; `writers._keys_hint` spells out the keys, and the schemas accept
   `speaker_id`, per-line guest details and "female"/"male".)
-- [ ] Try a better TTS than Kokoro and see whether it's viable. It has to keep up live: Kokoro on
-  the CPU voices a minute of audio in about 4–18 s, and the buffer wants about ten minutes
-  ready. It also has to fit beside the LLM and ComfyUI on the shared 16 GB card, or run on
-  the CPU. And it needs enough distinct voices for the cast (presenters, Miles, the
-  announcer, guests cast by gender, age and accent), with British voices that sound British.
-  Pick a few candidates, voice the same lines with each and compare them by ear, against
-  Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
+- [ ] Pocket TTS, what's left. Tried 2026-10-30 against Kokoro, Qwen3-TTS, Chatterbox and NeuTTS
+  (samples in data/voice-samples/tts-bakeoff/): the user chose Pocket (Kyutai, CPU, 0.23 RTF on one
+  thread, cloning from a few seconds of audio). Wired in that night: presenters clone their own Kokoro
+  voices (judged more natural by ear), the 13 local guest voices clone Qwen3-TTS VoiceDesign clips
+  (`assets/voices/`, `voices.toml`), cast by gender and age. Left: visitors' clips (`.a.wav`, they're
+  still Kokoro's American voices); more guest voices than Kokoro's thirteen, cast per person rather
+  than by Kokoro voice (two old men who share a voice share a clip); the announcer (`bf_isabella`, who
+  is also the mayor's voice); per-person speed, which Pocket ignores; and throughput if the buffer
+  runs short, since lines are voiced one at a time (Pocket is single-threaded, so two could run on
+  two cores if its model state is safe to share). Weights are gated (accept the terms on
+  huggingface.co/kyutai/pocket-tts, then `hf auth login`) and CC-BY-4.0.
 
 ## Done
 

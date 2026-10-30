@@ -214,7 +214,7 @@ def test_only_the_caller_goes_down_the_phone_line(monkeypatch, tmp_path):
     w = _town()
     seen = []
 
-    def synth(text, voice, out, speed=1.0, lang=None, phone=False):
+    def synth(text, voice, out, speed=1.0, lang=None, phone=False, age=None):
         seen.append(phone)
         return SynthResult(wav_path=out, duration_s=1.0, mouth_env=[0.5])
     monkeypatch.setattr(tts, "synthesize", synth)

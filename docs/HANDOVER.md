@@ -9,16 +9,28 @@ schedule (*Have Your Say* 10:00, *Quayside* 13:00, *Out and About* 15:00, *Rock 
 reporter; *Coastwide* remembers its evening; the specials' sections no longer restate or foretell.
 Tonight is two jobs, in this order.
 
-### 1. A better TTS than Kokoro, and the voices waiting to be heard
+### 1. A better TTS than Kokoro: Pocket TTS for the local guests (done 2026-10-30 evening)
 
-The TODO's TTS item has the bar: keep up live (Kokoro on the CPU voices a minute of audio in about
-4–18 s, and the buffer wants about ten minutes ready), fit beside the LLM and ComfyUI on the shared
-16 GB card or run on the CPU (check `nvidia-smi` before loading anything), and have enough distinct
-voices for the cast, with British voices that sound British. Voice the same lines with each
-candidate and Kokoro, time each, and choose by ear before wiring one in behind `[tts] backend`.
+Bake-off of Kokoro, Qwen3-TTS (design and clone, GPU, slower than real time), Chatterbox (GPU, 0.45
+RTF), Pocket TTS (Kyutai, CPU, 0.23 RTF on one thread) and NeuTTS Air/Nano (CPU, 1.4-2.5 RTF);
+samples in `data/voice-samples/tts-bakeoff/`. The user chose Pocket, and it runs from tonight for
+**everyone but Gully and the continuity announcer** (`[tts] backend = "pocket"`):
 
-More voices matter now: each new presenter took a voice from the guest pool, which is down to 9
-female and 6 male Kokoro voices for the whole town.
+- **Presenters**: Pocket clones of their own Kokoro voices (Kokoro reads a reference at the
+  presenter's speed and pronunciation; the user judged the clones more natural, 2026-10-30).
+  Samples in `data/voice-samples/kokoro-clones/`.
+- **Local guests**: the 13 Kokoro guest voices each have a clip designed with Qwen3-TTS
+  VoiceDesign; a guest whose clip is the wrong age gets one of their gender and age.
+
+Clips are `assets/voices/<kokoro voice>.<lang>.wav`, with what each is in `voices.toml`. Visitors
+(American pronunciation), anyone with no accent, Gully (a pitch effect) and the announcer
+(`bf_isabella`) stay Kokoro's. `backend = "kokoro"` puts everyone back. Every line now costs about
+0.25 s of CPU per second of audio, one at a time, against Kokoro's 0.07: watch the buffer depth in
+STATS. In the night log: `pocket voices ready: 27` near the start, and `pocket failed on ... Kokoro
+takes the line` for any line it couldn't do. To hear it afterwards, pull segments from the cache.
+Next steps are in TODO.
+
+The voices still to choose by ear (now possibly as Pocket clips):
 
 To hear and choose on the same listening page (`newsroom/station_audio.py`, as for Fran and the
 stings), whichever engine wins:

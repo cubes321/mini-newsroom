@@ -150,7 +150,7 @@ def _stub_model_and_voice(monkeypatch, n_sections=8, lines_per_section=3):
         prompts.append(documentary.notes_for_prompt(seg))
         return SpecialSection(lines=[ScriptLine(speaker="reporter", text=f"Line {k}.") for k in range(lines_per_section)])
 
-    def synth(text, voice, out, speed=1.0, lang=None, phone=False):
+    def synth(text, voice, out, speed=1.0, lang=None, phone=False, age=None):
         out.write_bytes(b"RIFF")
         return SynthResult(wav_path=out, duration_s=2.0, mouth_env=[0.5])
 

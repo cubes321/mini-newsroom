@@ -131,7 +131,7 @@ def log_llm_usage() -> None:
 
 
 def build(cfg, *, audio: bool, workers: int):
-    from . import assets, world as world_mod
+    from . import assets, tts, world as world_mod
     from .buffer import Buffer
     from .player import Player
     from .producer import Producer
@@ -144,6 +144,7 @@ def build(cfg, *, audio: bool, workers: int):
     producer.tick()
     pool = WorkerPool(buffer, w, n=workers)
     pool.start()
+    tts.preload()                       # Pocket's model and voices, while the first bumper airs
     player = Player(buffer, w, producer, audio=audio)
     producer.on_air_left = player.time_left
     return w, buffer, producer, pool, player

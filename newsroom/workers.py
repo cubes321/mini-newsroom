@@ -145,7 +145,8 @@ def voice_line(line: Line, i: int, world: World, h: str, phone: bool = False) ->
     out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
     res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out,
                          speed=world.speed_for(line.speaker, line.guest_name),
-                         lang=world.lang_for(line.speaker, line.guest_name), phone=phone)
+                         lang=world.lang_for(line.speaker, line.guest_name), phone=phone,
+                         age=world.age_for(line.speaker, line.guest_name))
     line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
 
 

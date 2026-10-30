@@ -1,0 +1,155 @@
+# Port Wexley guest voices: Qwen3-TTS VoiceDesign references, cloned live by Pocket TTS (tts.py).
+# File <kokoro guest voice>.b.wav: that guest voice as a local (British accent). gender and age place
+# it for casting: a local guest whose own clip is the wrong age is given one of their age (tts.clip_for).
+
+[bm_lewis]
+gender = "m"
+age = "old"
+description = 'An elderly Cornish man in his seventies, a retired fisherman: gravelly, slow and wry, with a broad West Country accent.'
+line = "I've fished out of Port Wexley for fifty-one years, and I've never seen the quay this quiet in October. Mind you, the gulls haven't noticed."
+
+[af_nova]
+gender = "f"
+age = "young"
+description = 'A young British woman in her twenties from a small seaside town in Cornwall: quick, cheerful and slightly exasperated, with a light local accent.'
+line = 'Honestly, I just want the bus to turn up when it says it will. Is that too much to ask? Apparently it is.'
+
+[af_nicole]
+gender = "f"
+age = "middle"
+description = 'A Cornish woman in her fifties who runs a harbourside cafe: warm, brisk and chatty, with a broad West Country accent.'
+line = "We open at seven, rain or shine, and the fishermen are in before the kettle's boiled. They'd live on bacon rolls if I let them."
+
+[bf_emma]
+gender = "f"
+age = "middle"
+description = 'A British woman in her late thirties, a primary school teacher in a Cornish town: clear, kind and measured, with a light Cornish lilt.'
+line = 'The children wrote to the council themselves, every one of them, and I must say the spelling was better than some of the replies.'
+
+[af_kore]
+gender = "f"
+age = "old"
+description = 'An elderly Cornish woman in her late seventies: gentle, a little quavery, fond and amused, with a soft West Country burr.'
+line = "I've lived on Chapel Row since nineteen sixty-two, and in all that time the wind has never once come from the direction they said it would."
+
+[af_aoede]
+gender = "f"
+age = "middle"
+description = 'A British woman in her mid-forties who owns a shop in a Cornish seaside town: confident, crisp and businesslike, with a mild West Country accent.'
+line = "If the car park goes, the high street goes with it. It's as simple as that, and I've told the council so, twice, in writing."
+
+[af_sky]
+gender = "f"
+age = "young"
+description = 'A Cornish teenage girl of sixteen: a little shy at first, then quick and enthusiastic, with a light local accent.'
+line = 'So we started the litter pick as a school thing, but now loads of people come along, and someone found an actual message in a bottle.'
+
+[af_alloy]
+gender = "f"
+age = "old"
+description = "A Cornish farmer's wife in her sixties: plain-spoken, no-nonsense and low-voiced, with a broad Devon and Cornwall accent."
+line = "Them cows don't care what day it is. Christmas, bank holiday, flood, they want milking at half five and that's the end of it."
+
+[am_puck]
+gender = "m"
+age = "young"
+description = 'A young Cornish man in his mid-twenties who works at a surf shop: relaxed, cheerful and easy-going, with a light Cornish accent.'
+line = "Best swell we've had since August, honestly. I was out at six, and by eight half the town was in the water with me."
+
+[bm_daniel]
+gender = "m"
+age = "middle"
+description = 'A Cornish man in his forties, a plumber who grew up in a fishing family: gruff but friendly, plain-spoken, with a broad West Country accent.'
+line = "I've had my head under every sink on Harrow Street at one time or another, and I can tell you, the pipes are older than the mayor."
+
+[am_fenrir]
+gender = "m"
+age = "middle"
+description = 'A Cornish publican in his fifties: big, hearty and booming, quick to laugh, with a warm West Country accent.'
+line = "Quiz night's Thursday, and if anybody tells you the Anchor's team cheats, you send them to me. We just know a lot about boats."
+
+[bm_fable]
+gender = "m"
+age = "young"
+description = 'A British man in his early thirties, a lifeboat volunteer in a Cornish harbour town: earnest, clear and modest, with a mild Cornish accent.'
+line = "We got the call at about two in the morning. By the time we reached them they'd lit a flare, which helped a great deal, to be fair."
+
+[am_adam]
+gender = "m"
+age = "old"
+description = 'A British man in his sixties, a retired engineer living in a Cornish town: precise, a touch pompous, enjoying his own expertise, with a light West Country accent.'
+line = "The swing bridge was built in eighteen ninety-four, and frankly it was over-engineered then. That's the only reason it's still standing."
+
+# The presenters: Pocket clones of the Kokoro voices they were cast with, each reading the same
+# reference in their own speed and pronunciation. Chosen by ear over Kokoro itself (2026-10-30).
+# No gender or age: they're never offered to a guest.
+
+[af_heart]
+presenter = "Dana Ferris"
+source = "kokoro af_heart, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[bm_george]
+presenter = "Gordon Pell"
+source = "kokoro bm_george, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_michael]
+presenter = "Miles Okafor"
+source = "kokoro am_michael, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[bf_lily]
+presenter = "Rosie Treloar"
+source = "kokoro bf_lily, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_eric]
+presenter = "Jonah Pike"
+source = "kokoro am_eric, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[bf_alice]
+presenter = "Pat Holloway"
+source = "kokoro bf_alice, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_liam]
+presenter = "Clive Ashdown"
+source = "kokoro am_liam, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_onyx]
+presenter = "Vincent Marr"
+source = "kokoro am_onyx, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[af_jessica]
+presenter = "Fran Kellaway"
+source = "kokoro af_jessica, speed 1.0, lang a"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[af_sarah]
+presenter = "Tamsin Jago"
+source = "kokoro af_sarah, speed 1.0, lang b"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_echo]
+presenter = "Howard Lanyon"
+source = "kokoro am_echo, speed 0.95, lang b"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[af_river]
+presenter = "Meg Trethewey"
+source = "kokoro af_river, speed 1.0, lang b"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[af_bella]
+presenter = "Poppy Tregenza"
+source = "kokoro af_bella, speed 1.0, lang b"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
+
+[am_santa]
+presenter = "Hugh Tremayne"
+source = "kokoro am_santa, speed 0.92, lang b"
+line = 'Good evening, and thank you for joining us. It has been a busy day along the coast, with the harbour wall, the ferry timetable and a very determined herring gull all making the news.'
