@@ -7,7 +7,11 @@ bottom with the date.
 
 - [ ] Howard Lanyon's voice, by ear: am_echo with British pronunciation at 0.95 for now (PROVISIONAL in
   config.toml), with Tamsin's on the same listening page. The new shows' own bumper arrangements too
-  (Quayside, The Inquiry, The Panel and Have Your Say use the news one).
+  (Quayside, The Inquiry, The Panel, Have Your Say and Out and About use the news one). Meg Trethewey's
+  too: af_river with British pronunciation for now (PROVISIONAL in config.toml); she left the guest pool,
+  which is down to eight female voices.
+- [ ] Interiors for Out and About's reviews: a cafe or tea room, a pub dining room, a village hall stage.
+  Meg reviews from the nearest exterior (the village, the seafront, the market) until then.
 - [ ] A phone-in desk for Have Your Say: Jonah and the studio guest sit in the interview armchairs
   (`studio_interview`) for now; a desk with a phone, a headset and a call board behind would say
   phone-in at a glance. The caller box (`scenes._caller_box`) is drawn in code and can stay.
@@ -62,8 +66,9 @@ bottom with the date.
   "converge" in the desk notes, 11 of 24 on 2026-10-29), how many new stories the desk and the senior
   editor seed under the new daily allowance (8) and whether they air, how often "falling back to" fires,
   Tamsin's first Full Time, Coastwide's repeats, The Inquiry's and The Panel's first nights (the story, the lineup, four voices at the desk), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
-  The night run ends at 10:00, so Have Your Say, like Quayside, needs a morning run of its own
-  (`--clock 09:45`): the booking ("phonein: today"), the callers' variety across the hour, ring-backs.
+  The night run ends at 10:00, so the daytime shows need runs of their own: Have Your Say (`--clock
+  09:45`: the booking, the callers' variety across the hour, ring-backs), Quayside, and Out and About
+  (`--clock 14:50`: whether places rest a fortnight, revisits, an owner answering back on Coastwide).
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
@@ -154,6 +159,24 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 Out and About at 15:00 (`docs/SHOWS.md`): Meg Trethewey (`travel`), late 40s, twenty years a
+  ranger on the Greymouth coast path (A of three people on a contact sheet: red waterproof, a greying
+  plait), presents days out, culture and food, all on location: her pieces to camera are field reports
+  with no studio to hand back to, features have a local showing her round, and a new `review` item
+  (`ReviewScript`, `outabout.py`) visits a place to eat or a show and gives it stars out of five, on a card
+  that goes up as she gives them. The town keeps the reviews (`World.reviews`): a place rests a fortnight,
+  an older one may be revisited, and on Coastwide an owner reviewed in the last week may answer back.
+  Light, but not the news: no big running story, no threads, and breaking news never sends Meg. A canned
+  piece is Meg alone, and isn't remembered. Her voice is provisional (af_river, British). First run
+  (scratch, `--clock 14:52`): the Gull's Cove walk, the Gull's Nest tea room (four stars, honest about the
+  slow service), the Wexley Players, Dev Ramachandran's soup from the market shed, a choir, the estuary
+  hides. Fixed from it: the verdict repeated the stars ("Four stars: ...") under the drawn stars, places
+  ended ", Port Wexley", a feature's location and caption over 60 characters each cost a retry (now cut at
+  a word, for every show's features), a rehearsal feature was followed by a review of the same play
+  (the amateur dramatics are the reviews' now), and two reviews a lap at about 50 s each would have made
+  about nine places an afternoon (now one a lap, with the targets at 150 s, for four or five). The
+  fortnight's rest now covers every review, not only the eight shown to the writer.
 
 - 2026-10-30 Have Your Say at 10:00 (`docs/SHOWS.md`): Jonah Pike's news phone-in. From 08:30 `phonein.py`
   books the day's question, the studio guest at the heart of it and four to six kinds of caller with

@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, inquiry, llm, panel, phonein, quay, schedule, sport, tides, tipline
+from . import breaking, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -34,6 +34,7 @@ from .models import (
     FeatureScript,
     GuestLine,
     InterviewScript,
+    ReviewScript,
     VoxLine,
     VoxPopScript,
     WeatherScript,
@@ -280,6 +281,52 @@ This is the VOX POP on Quayside. Howard ("business") hands over in one line; Mil
 shoppers or traders ONE question about money (prices, the fish, a shop closing, wages); then three or
 four answer in a line or two each. Each is speaker "guest" with their own guest_name (first name and
 surname), guest_gender and guest_age; different ages and views, one of them funny. question = the
+question as a caption. Choose a backdrop id from the LOCATIONS list; location is the place in words.
+""",
+}
+
+# Out and About (outabout.py): Meg ("travel") on location the whole show; there is no studio.
+_OUTABOUT_RULES = """
+This is part of OUT AND ABOUT, the afternoon programme of days out, culture and food along the
+Greymouth coast, presented by Meg Trethewey ("travel"): twenty years a ranger on the coast path,
+practical, warm, honest, laughs at the weather. The whole show is out on location: there is no studio
+and nobody to hand back to; Meg talks straight to camera and moves on. Real prices, opening times, the
+tide and where to park, as a walker would want them. The places, shops, people and events are the
+town's (from the briefing), or plausible new ones. Not the news: no story threads (thread_id null).
+"""
+
+_OUTABOUT: dict[SegmentType, str] = {
+    SegmentType.field_report: _COMMON_RULES + _OUTABOUT_RULES + """
+These are Meg's words TO CAMERA on location ("travel" alone), as THIS ITEM and the PLACE IN THE SHOW say:
+the open (where she is today and what's coming up), her walk for the weekend (the route, the TIDES,
+where to park, where to eat), what's on this week, or the close. Several short lines, as she'd say them
+walking. Choose the backdrop for where she is from the LOCATIONS list; location is the place in words.
+headline = the item in under 12 words. lower_third = "Out and About" plus a short tag.
+""",
+    SegmentType.feature: _COMMON_RULES + _GUEST_RULES + _OUTABOUT_RULES + """
+This is a FILMED PIECE on Out and About, as THIS ITEM says. Meg ("travel") is there, and one person who
+knows the place or does the thing ("guest", named in guest_name with guest_role, guest_gender and
+guest_age) shows her round: a walk, a gallery, a rehearsal, a kitchen, a workshop. Meg asks what a
+visitor would ask; the guest talks two to four times, with real detail. End on how to go and see it:
+when, where, what it costs. Choose a backdrop id from the LOCATIONS list; location is the place in words.
+headline = the piece in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.review: _COMMON_RULES + _OUTABOUT_RULES + """
+This is THE REVIEW on Out and About: Meg ("travel") visits ONE place as THIS ITEM says (somewhere to
+eat or drink, or a show: a play, a concert, an exhibition) and gives it stars out of five, honestly.
+Name it in place, with kind and where. She says what she had or saw and what it cost; the owner, the
+cook or one of the players ("guest", named in guest_name with guest_role, guest_gender, guest_age and
+guest_accent) may speak for it once or twice, or set guest_name to null. Fair and specific: the good
+and the not so good, never cruel; most places get three or four stars, a five is rare, a one rarer.
+Her LAST line gives the stars and the verdict, as on the card ("Four stars: worth the walk for the
+crab alone"). Not a place reviewed in the last fortnight (PLACES MEG HAS REVIEWED); an older one may be
+revisited to see if it has changed. Choose a backdrop id from the LOCATIONS list near it; location is
+the place in words. headline = the place and the verdict in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _OUTABOUT_RULES + """
+This is the VOX POP on Out and About: Meg ("travel") asks people out and about ONE question, as THIS ITEM
+says; three or four answer in a line or two each. Each is speaker "guest" with their own guest_name
+(first name and surname), guest_gender and guest_age; different ages, one of them funny. question = the
 question as a caption. Choose a backdrop id from the LOCATIONS list; location is the place in words.
 """,
 }
@@ -561,6 +608,14 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="The Panel", extra=""),
     },
     ("panel", SegmentType.interview): {"": _MIDDLE.format(title="The Panel", extra="")},
+    ("outabout", SegmentType.field_report): {
+        "open": "PLACE IN THE SHOW: this OPENS Out and About: a brief good afternoon from where Meg is, then "
+                "what's coming up.",
+        "": _MIDDLE.format(title="Out and About", extra=""),
+    },
+    ("outabout", SegmentType.feature): {"": _MIDDLE.format(title="Out and About", extra="")},
+    ("outabout", SegmentType.review): {"": _MIDDLE.format(title="Out and About", extra="")},
+    ("outabout", SegmentType.vox_pop): {"": _MIDDLE.format(title="Out and About", extra="")},
     ("phonein", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS Have Your Say: a brief good morning, then the question and the guest.",
         "": _MIDDLE.format(title="Have Your Say", extra=""),
@@ -623,9 +678,9 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
 # Oliver Fenwick-Hale twice each, and "clocks and chips" in nearly every link.
 SHOW_MEMORY = 30                # tonight's items on the show listed for the next writer
 SHOW_SAME_TYPE = 4              # earlier items of this item's kind, with how they began
-REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE"}
+REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE", "outabout": "OUT AND ABOUT"}
 _SHOW_TYPES = (SegmentType.links, SegmentType.feature, SegmentType.interview, SegmentType.vox_pop,
-               SegmentType.consumer)
+               SegmentType.consumer, SegmentType.review, SegmentType.field_report)
 
 _SHOW_SO_FAR = """ON {title} ALREADY TONIGHT (do NOT do any of these again, even when this kind of item
 comes round: a different subject, question, person, place, pet or food; a callback or passing mention is fine):
@@ -720,7 +775,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
-             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "phonein": _PHONEIN}.get(show.id, {})
+             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "phonein": _PHONEIN,
+             "outabout": _OUTABOUT}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -732,7 +788,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}."
     )
-    if show.light and show.id != "sport":         # the sports show has its own facts, not the news
+    if show.light and show.id not in ("sport", outabout.SHOW):   # their own facts and places, not the news
         big = big_story(world)
         if big and show.opens and part != "open" and seg_type is not SegmentType.bulletin:
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
@@ -746,7 +802,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     # low-water gap in the middle of her book (2026-10-27).
     if seg_type is SegmentType.weather or show.id == "late" or (
             show.id == "breakfast" and seg_type is not SegmentType.interview) or (
-            show.id == phonein.SHOW and seg_type is SegmentType.links):      # the travel: the ferries and the tide
+            show.id == phonein.SHOW and seg_type is SegmentType.links) or (   # the travel: the ferries and the tide
+            show.id == outabout.SHOW and seg_type is SegmentType.field_report):   # Meg's walk: the tide
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
     if seg_type is SegmentType.sport or show.id == "sport":
@@ -757,11 +814,13 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                                        mins=int(max(0, (at_ts or schedule.now()) - scene.breaking_ts) // 60))
     elif brief:
         user += f"\n\nTHIS ITEM: {brief}."
-    done = scene_done(world, at_ts or schedule.now()) if seg_type is SegmentType.field_report and not scene else []
+    # Miles's reports on the news: not Meg's pieces to camera on Out and About.
+    miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW
+    done = scene_done(world, at_ts or schedule.now()) if miles else []
     if done:
         user += (f"\n\nMiles has already reported from the scene of {', '.join(f'[{d}]' for d in done)}; the bulletins "
                  "carry it now. This report is about another story: do not set thread_id to it.")
-    last = _field_so_far(world, show) if seg_type is SegmentType.field_report and not scene else ""
+    last = _field_so_far(world, show) if miles else ""
     if last:
         user += "\n\n" + last
     if seg_type is SegmentType.field_report and not scene and not show.light:
@@ -775,6 +834,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + panel.for_prompt(world)
     if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
         user += "\n\n" + phonein.for_prompt(world, seg_type)
+    if show.id == outabout.SHOW:
+        user += "\n\n" + outabout.for_prompt(world)
+    if show.id == "magazine" and seg_type is SegmentType.interview and (
+            back := outabout.answer_back(world)):
+        user += "\n\n" + back
     if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
         user += "\n\n" + facts
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
@@ -790,7 +854,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         if work.get("stays_on"):
             user += ("\n\nThey stay on the couch for the next guest: no goodbye or thanks at the end. Vincent "
                      "closes by saying another guest is joining them.")
-    elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop) and (
+    elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop,
+                      SegmentType.review) and (
             show.id not in (inquiry.SHOW, panel.SHOW, phonein.SHOW)):   # their guests are booked, however recent
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
@@ -825,7 +890,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + _CLOSE.format(goodbye="goodbye" if _part(show) == "morning" else "goodnight",
                                         next_title=schedule.show_at(end).title.title(),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
-    if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop):
+    if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     return system, user
 
@@ -920,6 +985,9 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             headline=f"Repairs to {lm} begin next week",
             lower_third="Council confirms repair schedule",
         )
+    if show.id == outabout.SHOW and seg_type in (SegmentType.field_report, SegmentType.feature,
+                                                 SegmentType.review, SegmentType.vox_pop):
+        return _outabout_template(seg_type, part_)
     if seg_type is SegmentType.field_report:
         return FieldReportScript(
             lines=[
@@ -1048,6 +1116,49 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
     raise ValueError(seg_type)
 
 
+def _outabout_template(seg_type: SegmentType, part: str):
+    """Out and About's canned scripts: Meg on her own, never Miles, with no studio to hand back to."""
+    if seg_type is SegmentType.field_report:
+        say = ("That's all from me this afternoon. Get out there, and take a waterproof. The news is next."
+               if part == "close" else
+               "Good afternoon from the coast road. The wind's up, the sea's grey and lovely, and the tea room "
+               "at the top is open till four. Stay with me.")
+        return FieldReportScript(lines=[LiveLine(speaker="travel", text=say),
+                                        LiveLine(speaker="travel", text="Boots on. Let's go.")],
+                                 headline="Out and About on the coast road", location="the coast road",
+                                 backdrop="coast_road", lower_third="Out and About")
+    if seg_type is SegmentType.feature:
+        return FeatureScript(
+            lines=[GuestLine(speaker="travel", text="I'm in Wexley Woods with someone who has walked this path every "
+                                                    "morning for thirty years."),
+                   GuestLine(speaker="guest", text="Forty, Meg. Go early and you'll have the deer to yourself."),
+                   GuestLine(speaker="travel", text="The car park's free before nine, and the path's dry all the "
+                                                    "way to the bridge.")],
+            headline="An early walk in Wexley Woods", location="Wexley Woods", backdrop="woods",
+            lower_third="Out and About: Wexley Woods", guest_name="Arthur Penhale", guest_role="dog walker",
+            guest_gender="m", guest_age="old", guest_accent="british")
+    if seg_type is SegmentType.review:
+        return ReviewScript(
+            lines=[GuestLine(speaker="travel", text="The tea room on the seafront: a pot of tea and a scone for "
+                                                    "four pounds fifty."),
+                   GuestLine(speaker="travel", text="The scone was warm, the jam was homemade, and the view does the "
+                                                    "rest. The cream was a little mean."),
+                   GuestLine(speaker="travel", text="Four stars: worth the walk for the scone alone.")],
+            headline="Seafront tea room: four stars for the scone", lower_third="The review",
+            place="The Promenade Tea Room", kind="tea room", where="the seafront", location="the seafront",
+            backdrop="seafront", stars=4, verdict="Worth the walk for the scone alone")
+    return VoxPopScript(
+        lines=[VoxLine(speaker="travel", text="I asked people on the seafront: where's the best view on the coast?"),
+               VoxLine(speaker="guest", text="The lighthouse at sunset. No contest.", guest_name="Jean Hocking",
+                       guest_gender="f", guest_age="old"),
+               VoxLine(speaker="guest", text="The top of the coast road, on a clear day.", guest_name="Sam Pascoe",
+                       guest_gender="m", guest_age="young"),
+               VoxLine(speaker="guest", text="My kitchen window, with the kettle on.", guest_name="Rita Nance",
+                       guest_gender="f", guest_age="middle")],
+        question="Where's the best view on the coast?", headline="The best view on the coast",
+        location="the seafront", backdrop="seafront")
+
+
 # ------------------------------------------------------------------ public
 
 
@@ -1077,7 +1188,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
             seg.work["return_guest"] = back[0].name
     if seg.type is SegmentType.field_report:
         seg.work.pop("scene", None)
-        scene = scene_due(world, seg.nominal_start_ts or schedule.now())
+        # Breaking news sends Miles, never Meg from her walk on Out and About.
+        scene = scene_due(world, seg.nominal_start_ts or schedule.now()) if show.id != outabout.SHOW else None
         if scene:
             seg.work["scene"] = scene         # build_prompt sends Miles there; _apply_to_world files it on it
             log.info("field_report slot %d: Miles reports from the scene of %s", seg.slot_id, scene)
@@ -1229,6 +1341,10 @@ def _cues_for(seg: Segment, script) -> list[VisualCue]:
                               payload={"title": script.lower_third, "subtitle": f"Live from {script.location}"}))
     elif isinstance(script, (InterviewScript, CallScript)):
         cues.append(VisualCue(at_s=0, kind="lower_third", payload={"title": script.headline, "subtitle": script.lower_third}))
+    elif isinstance(script, ReviewScript):
+        cues.append(VisualCue(at_s=0, kind="backdrop", payload={"backdrop": script.backdrop}))
+        cues.append(VisualCue(at_s=0, kind="lower_third",
+                              payload={"title": script.lower_third, "subtitle": f"Out and About: {script.where}"}))
     elif isinstance(script, FeatureScript):
         cues.append(VisualCue(at_s=0, kind="backdrop", payload={"backdrop": script.backdrop}))
         cues.append(VisualCue(at_s=0, kind="lower_third",
@@ -1296,6 +1412,9 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                 world.loose_ends_taken(script.guest_name)   # booked again of the writer's accord, and asked
             world.remember_guest(script.guest_name, schedule.get(seg.show).title.title(),
                                  getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
+    if isinstance(script, ReviewScript):          # the verdict card; the town remembers the stars, not a canned one's
+        seg.work["review"] = (outabout.record(world, script) if not template else
+                              {"place": script.place, "stars": script.stars, "verdict": script.verdict})
     if isinstance(script, CallScript):            # a resident now, with a voice; they may ring again another day
         world.ensure_person(script.caller_name, "resident", gender=script.caller_gender, age=script.caller_age,
                             accent=script.caller_accent)

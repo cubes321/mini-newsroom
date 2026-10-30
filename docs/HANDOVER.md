@@ -4,8 +4,8 @@
 
 Everything is on `master` (last pushed `e4a984a`). Since the 2026-10-29 DeepSeek night: the back
 office runs on DeepSeek Flash with Sonnet as a two-hourly senior editor and as Flash's fallback; a
-daily allowance of new stories (8) replaced the open-thread cap; four new shows went on the
-schedule (*Have Your Say* 10:00, *Quayside* 13:00, *The Inquiry* 20:00, *The Panel* 20:30); Tamsin Jago is *Full Time*'s
+daily allowance of new stories (8) replaced the open-thread cap; five new shows went on the
+schedule (*Have Your Say* 10:00, *Quayside* 13:00, *Out and About* 15:00, *The Inquiry* 20:00, *The Panel* 20:30); Tamsin Jago is *Full Time*'s
 reporter; *Coastwide* remembers its evening; the specials' sections no longer restate or foretell.
 Tonight is two jobs, in this order.
 
@@ -77,22 +77,19 @@ for an hour or so) to be seen on air.
 From the 2026-10-30 brainstorm; the full plan, a day's schedule and the reasons are in
 [SHOWS.md](SHOWS.md). *Have Your Say* (10:00) was built on the evening of 2026-10-30: Jonah's phone-in,
 with the `call` item (a caller through a telephone band, a box with a waveform instead of a face). It
-needs a morning run to be seen on air (`--clock 09:45`), as *Quayside* does. Still to build, in the
-agreed order:
+needs a morning run to be seen on air (`--clock 09:45`), as *Quayside* does. *Out and About* (15:00)
+followed the same evening: Meg Trethewey (`travel`, a coast-path ranger, chosen on a contact sheet)
+on location all the way through, and the `review` item, with stars on a card that the town
+remembers. Meg's voice is provisional (af_river). Still to build, in the agreed order:
 
-1. **Out and About** (15:00, 45 minutes): travel, culture and food. Days out along the Greymouth
-   coast, the town's culture (gallery, amateur dramatics, music nights, the library's talks) and
-   food (a café or restaurant visited and reviewed, a recipe, what's in season). Needs a new
-   presenter (a look on a contact sheet, a voice by ear) and a `review` item with a verdict the
-   world remembers, so a place can be revisited or its owner answer back. Small to medium.
-2. **The Chamber** (council nights, 20:00 to 21:00): the council meeting, live. Dana in the press
+1. **The Chamber** (council nights, 20:00 to 21:00): the council meeting, live. Dana in the press
    seats, Helen Strand in the chair, Miles in the public gallery; items from the threads due at
    council, the public speaking, and votes that settle the stories (the desk takes each result as
    the thread's next development). Needs a council calendar, a `vote` result the desk applies, and
    a show that takes over the evening slot on those nights (as the documentary and breaking news
    take over the news). Do it after a night or two of watching the senior editor and the new
    story allowance: it changes how stories end. Large.
-3. **Rock Pool** (16:00, 45 minutes): children's TV. A presenter and Gully, a herring-gull puppet
+2. **Rock Pool** (16:00, 45 minutes): children's TV. A presenter and Gully, a herring-gull puppet
    with opinions; a "make" in the studio, story time (Hugh Tremayne reads a town legend), viewers'
    drawings, an animal visitor. Needs a presenter, Gully's sprite (a puppet with a moving beak) and
    voice, a children's set and a children's tone for the writers. Large, mostly art and voice: best

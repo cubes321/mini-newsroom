@@ -72,9 +72,9 @@ port wexley town harbour harbor local""".split())
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's, am_echo Howard's.
-GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky",
-                  "af_river", "af_alloy"]
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's, am_echo Howard's,
+# af_river Meg's.
+GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky", "af_alloy"]
 GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
@@ -174,6 +174,7 @@ class World:
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
+    reviews: list[dict] = field(default_factory=list)     # Out and About's verdicts: {date, place, kind, where, stars, verdict, owner}
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)
@@ -822,6 +823,11 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("business", "am_echo"),
                   ["ran the Harrow Street bank branch for thirty years", "knows who owes whom",
                    "dry wit", "reads the figures like tea leaves"], speed=0.95, lang="b"),
+        # Out and About's presenter at 15:00: days out along the coast, the town's culture, and food.
+        Character("travel", "Meg Trethewey", "presenter, Out and About at 15:00 (days out, culture and food)",
+                  CONFIG.tts.voices.get("travel", "af_river"),
+                  ["twenty years a ranger on the Greymouth coast path", "knows every stile, tide table and tea room",
+                   "practical and honest: is it worth the walk?", "laughs at the weather"], lang="b"),
         # Shared with the entertainment channel planned in E:\programming\mini-TVChannel (same town).
         Character("historian", "Hugh Tremayne", "local-history presenter (the history documentaries)",
                   CONFIG.tts.voices.get("historian", "am_santa"),

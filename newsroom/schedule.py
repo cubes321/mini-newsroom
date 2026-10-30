@@ -374,6 +374,70 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # this morning's question, this morning
     ),
     Show(
+        "outabout", "OUT AND ABOUT", "OUT & ABOUT", (70, 140, 80),
+        # Forty-five minutes of days out, culture and food with Meg Trethewey, all of it on location: her
+        # pieces to camera are field reports with no studio to hand back to, and a review gives a place
+        # stars that the town remembers (outabout.py). The briefs below send each lap somewhere new.
+        pattern=(
+            T.bumper,
+            I(T.field_report, "open", brief="Meg opens Out and About to camera from where today starts: a good "
+                                            "afternoon, where she is, and what's coming up", target_s=45.0),
+            T.feature,
+            T.review,
+            T.feature,
+            T.vox_pop,
+            T.ad_break,
+            # the order wraps back to here: one review a lap (two a lap made about nine places an afternoon in
+            # the first run, 2026-10-30, every one of them kept)
+            T.feature,
+            T.field_report,
+            T.feature,
+            T.vox_pop,
+            T.ad_break,
+            T.feature,
+            T.review,
+            T.feature,
+            T.field_report,
+        ),
+        loop_from=7,
+        closing=(I(T.field_report, "close", brief="Meg signs off from where the day ended: the best of what she "
+                                                  "found, and the walk for the weekend", target_s=40.0),),
+        briefs={
+            T.feature: (
+                "a day out along the Greymouth coast: a walk, a cove or a viewpoint, with someone who knows it",
+                # the amateur dramatics are the reviews' (a rehearsal, then its review, on 2026-10-30)
+                "the town's culture: a gallery opening, or a painter in their studio",
+                "food: what's in season on the market, and a recipe cooked with a local cook",
+                "a music night, a choir or a band rehearsing, or a talk at the library",
+                "somewhere to take the family: the estuary birds, the lighthouse, a farm open day",
+                "a maker: a potter, a weaver, a boatbuilder or a baker, and what they make",
+            ),
+            T.review: (
+                "a cafe or a tea room at the end of a walk",
+                "a show: the amateur dramatics, a concert or an exhibition",
+                "a pub lunch or a fish-and-chip shop",
+                "a restaurant or a bakery in town or in Saltby",
+            ),
+            T.field_report: (
+                "Meg's walk for the weekend: the route, the tide times, where to park and where to eat",
+                "what's on this week: three or four things to do in town and along the coast",
+            ),
+            T.vox_pop: (
+                "people out walking: the best walk, cafe or view on the coast",
+                "people in town: the best thing on this week, or the best chips",
+            ),
+        },
+        # Haiku wrote reviews of about 50 s to a 120 s budget in the first run: 150 for about a minute and a quarter.
+        target_s={T.bumper: 8.0, T.field_report: 60.0, T.feature: 150.0, T.review: 150.0, T.vox_pop: 60.0,
+                  T.ad_break: 60.0},
+        cast=("travel",), lead="travel",
+        cast_by_type={T.feature: ("travel", "guest"), T.review: ("travel", "guest"), T.vox_pop: ("travel", "guest")},
+        station="Out and About, channel 7's afternoon of days out, culture and food, with Meg Trethewey",
+        tone="warm, outdoorsy and honest: practical tips, real prices, no gushing",
+        light=True,
+        repeats_overnight=False,     # this afternoon's weekend walk and what's on
+    ),
+    Show(
         "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
         # Half an hour of debate: Dana Ferris chairs three panellists on three questions from the week's
         # news, booked earlier in the evening (panel.py); a question from the public on the second.
@@ -462,6 +526,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (11, "news"),
     (13, "quayside"),      # Quayside: the business half hour, with the fish auction's prices
     ("13:30", "news"),
+    (15, "outabout"),       # Out and About: Meg Trethewey on days out, culture and food
+    ("15:45", "news"),
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "inquiry"),        # The Inquiry: Pat Holloway on one story in depth

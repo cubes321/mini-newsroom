@@ -77,7 +77,7 @@ It leads on the morning's fish auction: what landed, what it fetched, up or down
   fish quay and the market.
 - **Size:** medium (most of it in `quay.py`).
 
-### Out and About (15:00, 45 minutes): travel, culture and food
+### Out and About (15:00, 45 minutes): travel, culture and food. BUILT 2026-10-30
 
 Days out along the Greymouth coast, the town's culture (a gallery opening, the amateur dramatics, a
 music night, the library's talks) and food (a café or restaurant visited and reviewed, a recipe from a
@@ -89,6 +89,16 @@ backdrops.
   world remembers, so the place can be revisited or the owner can answer back.
 - **Reuses:** features, vox pops, the country and town backdrops.
 - **Size:** small to medium.
+- **Built** (`outabout.py`, the `review` item, `schedule.py`, `writers._OUTABOUT`): Meg Trethewey (`travel`),
+  late 40s, twenty years a ranger on the Greymouth coast path (person A of three, chosen on a contact
+  sheet), presents the whole show on location: no studio and nobody to hand back to. Her pieces to camera
+  are field reports (the open, her walk for the weekend with the tides, what's on, the close); features
+  have a local showing her round; a review (`ReviewScript`) visits a place to eat or a show and gives it
+  stars out of five, with the owner, cook or a player speaking for it, and the stars go up on a card as
+  she gives them; one a lap, four or five an afternoon. The town keeps every review (`World.reviews`): a place rests a fortnight before it is
+  reviewed again, an older one may be revisited, and on Coastwide an owner reviewed in the last week may
+  answer back. The show is light but not the news: no big running story, no threads, and breaking news
+  never sends Meg. Her voice is provisional (af_river, British); the bumper uses the news arrangement.
 
 ### Rock Pool (16:00, 45 minutes): children's TV
 
@@ -164,7 +174,7 @@ reach an end instead of waiting at the council door.
 2. **Quayside**: built 2026-10-30, with Howard Lanyon.
 3. **The Panel**: built 2026-10-30.
 4. **Have Your Say**: built 2026-10-30, with the call item.
-5. **Out and About**: a presenter and the review item.
+5. **Out and About**: built 2026-10-30, with Meg Trethewey and the review item.
 6. **The Chamber**: the calendar and the votes, once the senior editor and the new story allowance
    have been watched for a night or two (it changes how stories end).
 7. **Rock Pool**: the most art and voice; best done when there's time to listen.

@@ -452,6 +452,31 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
         w = font(8).size(v.tag)[0] + 8
         pygame.draw.rect(canvas, (255, 60, 60) if v.tag == "LIVE" else (40, 140, 150), (8, 8, w, 10))
         text(canvas, v.tag, 8 + w // 2, 13, 8, center=True)
+    if v.verdict:
+        _verdict_card(canvas, v.verdict)
+
+
+VERDICT_CARD = pygame.Rect(176, 24, 136, 62)    # top right of the location, clear of the clock and Meg
+STAR_GOLD, STAR_EMPTY = (245, 196, 60), (70, 76, 96)
+
+
+def _star(canvas: pygame.Surface, cx: int, cy: int, r: int, colour) -> None:
+    pts = [(cx + (r if k % 2 == 0 else r * 0.45) * math.sin(k * math.pi / 5),
+            cy - (r if k % 2 == 0 else r * 0.45) * math.cos(k * math.pi / 5)) for k in range(10)]
+    pygame.draw.polygon(canvas, colour, pts)
+
+
+def _verdict_card(canvas: pygame.Surface, r: dict) -> None:
+    """Out and About's review: the place, its stars out of five and the one-line verdict."""
+    box = VERDICT_CARD
+    pygame.draw.rect(canvas, (20, 20, 30), box.inflate(4, 4))
+    pygame.draw.rect(canvas, (30, 40, 34), box)
+    pygame.draw.rect(canvas, schedule.get("outabout").colour, (box.x, box.y, box.w, 12))
+    text(canvas, r["place"], box.centerx, box.y + 6, 8, center=True, maxw=box.w - 6)
+    for k in range(5):
+        _star(canvas, box.x + 24 + k * 22, box.y + 24, 7, STAR_GOLD if k < r["stars"] else STAR_EMPTY)
+    for i, ln in enumerate(wrap(r["verdict"], 8, box.w - 8, 2)):
+        text(canvas, ln, box.centerx, box.y + 40 + i * 10, 8, (225, 230, 225), center=True)
 
 
 def _title_card(v: View) -> bool:

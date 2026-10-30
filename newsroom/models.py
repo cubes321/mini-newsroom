@@ -22,11 +22,11 @@ from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_mod
 from .locations import BACKDROP_IDS
 
 Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                  "sport_reporter", "business", "historian", "guest"]
+                  "sport_reporter", "business", "historian", "travel", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                             "sport_reporter", "business", "historian", "guest")
-# Who goes out on location: Miles for the news and Coastwide, Tamsin for Full Time.
-FIELD_REPORTERS: tuple[str, ...] = ("reporter", "sport_reporter")
+                             "sport_reporter", "business", "historian", "travel", "guest")
+# Who goes out on location: Miles for the news and Coastwide, Tamsin for Full Time, Meg on Out and About.
+FIELD_REPORTERS: tuple[str, ...] = ("reporter", "sport_reporter", "travel")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
@@ -52,6 +52,7 @@ class SegmentType(StrEnum):
     ad_break = "ad_break"        # a planned break in a light show's running order: adverts from the pool
     sport = "sport"              # the sports desk: Fran at the sports corner (the news, and Full Time)
     call = "call"                # a phone-in: a caller on the line, the presenter, and maybe the studio guest
+    review = "review"            # Out and About: a place to eat or a show, visited, with stars out of five
 
 
 class SegmentState(StrEnum):
@@ -127,9 +128,9 @@ class Rundown(BaseModel):
 
 
 LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                      "sport_reporter", "business"]
+                      "sport_reporter", "business", "travel"]
 GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                       "sport_reporter", "business", "guest"]
+                       "sport_reporter", "business", "travel", "guest"]
 
 
 def _gender(v):
@@ -367,9 +368,11 @@ class FeatureScript(BaseModel):
     """A filmed magazine piece: Miles on location, optionally with one resident."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
     headline: str = Field(min_length=4, max_length=90)
-    location: str = Field(min_length=4, max_length=60, description="the place in words, never a backdrop id")
+    # On screen ("Report from ..."): cut at a word, not failed; a retry cost a whole feature on 2026-10-30.
+    location: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60,
+                                                      description="the place in words, never a backdrop id")
     backdrop: Backdrop
-    lower_third: str = Field(min_length=4, max_length=60)
+    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)   # likewise, the same day
     guest_name: str | None = Field(default=None, max_length=40)
     guest_role: str | None = Field(default=None, max_length=80)
     guest_gender: Gender = None
@@ -377,6 +380,53 @@ class FeatureScript(BaseModel):
     guest_accent: Accent = None
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
+    guest_memory: Memo = Field(default=None, max_length=140)
+    ask_next_time: Memo = Field(default=None, max_length=140)
+
+    _lift = model_validator(mode="before")(_lift_guest)
+
+    @model_validator(mode="after")
+    def _guest_named(self):
+        return _check_guest_named(self)
+
+
+_STARS = re.compile(r"^\s*(one|two|three|four|five|[1-5])\s+stars?(\s+out\s+of\s+(five|5))?\s*[:,.;\-–—]+\s*", re.I)
+
+
+def _no_stars(v):
+    """'Four stars: worth the climb' under four drawn stars says it twice (2026-10-30): keep the words."""
+    if isinstance(v, str) and (m := _STARS.match(v)) and v[m.end():].strip():
+        rest = v[m.end():].strip()
+        return rest[:1].upper() + rest[1:]
+    return v
+
+
+class ReviewScript(BaseModel):
+    """Out and About's review (outabout.py): Meg visits a place to eat or a show and gives it stars out of
+    five that the town remembers; the owner, the cook or one of the players may speak for it."""
+    lines: list[GuestLine] = Field(min_length=3, max_length=14)
+    headline: str = Field(min_length=4, max_length=90)
+    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
+    place: Annotated[str, _clip_words(40)] = Field(
+        max_length=40, description="its name as on the sign or the poster: 'The Gull's Rest', 'Saltby Players'")
+    kind: Annotated[str, _clip_words(24)] = Field(
+        max_length=24, description="what it is: cafe, restaurant, pub, takeaway, bakery, play, gallery, music night")
+    where: Annotated[str, _clip_words(40)] = Field(
+        max_length=40, description="where it is, in a few words, never the town's own name: 'the back lane above "
+                                   "the harbour'")
+    # On screen ("Report from ..."): cut at a word, not failed; a retry cost a whole feature on 2026-10-30.
+    location: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60,
+                                                      description="the place in words, never a backdrop id")
+    backdrop: Backdrop
+    stars: int = Field(ge=1, le=5, description="out of five: most places three or four, a five is rare, a one rarer")
+    verdict: Annotated[str, BeforeValidator(_no_stars), _clip_words(80)] = Field(
+        max_length=80, description="the verdict in one line for the card, which shows the stars, so without them: "
+                                   "'Worth the walk for the crab alone'")
+    guest_name: str | None = Field(default=None, max_length=40, description="the owner, the cook or a player, or null")
+    guest_role: str | None = Field(default=None, max_length=80)
+    guest_gender: Gender = None
+    guest_age: Age = None
+    guest_accent: Accent = None
     guest_memory: Memo = Field(default=None, max_length=140)
     ask_next_time: Memo = Field(default=None, max_length=140)
 
@@ -670,6 +720,7 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.feature: FeatureScript,
     SegmentType.vox_pop: VoxPopScript,
     SegmentType.call: CallScript,
+    SegmentType.review: ReviewScript,
 }
 
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}

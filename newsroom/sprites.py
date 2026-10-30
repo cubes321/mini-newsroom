@@ -111,6 +111,11 @@ LOOKS["sport_reporter"] = Look(skin=(214, 168, 138), hair=(58, 36, 24), top=(44,
 LOOKS["business"] = Look(skin=(226, 186, 160), hair=(196, 196, 200), top=(40, 52, 90), under=(196, 216, 236),
                          hair_style="swept", top_style="blazer", tie=(40, 100, 70), facial="beard", mouth="smirk",
                          brows="raised")
+# Meg Trethewey: late 40s, Out and About's presenter, twenty years a ranger on the coast path: dark
+# brown hair greying at the sides in a plait, a red waterproof over an oatmeal top (chosen on a contact
+# sheet, 2026-10-30)
+LOOKS["travel"] = Look(skin=(230, 186, 156), hair=(74, 54, 42), top=(190, 52, 44), under=(226, 214, 190),
+                       hair_style="ponytail", top_style="jacket", temples=(160, 150, 140), mouth="smile")
 # Hugh Tremayne: mid-60s, a retired history teacher, white hair receding, round glasses, a brown
 # corduroy jacket over a cream shirt and a mustard tie, eyebrows up mid-story
 LOOKS["historian"] = Look(skin=(226, 180, 152), hair=(225, 225, 228), top=(120, 84, 52), under=(236, 226, 196),

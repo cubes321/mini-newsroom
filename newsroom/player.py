@@ -94,6 +94,7 @@ class View:
     continuity: dict | None = None       # an ident, the programme card or a notice: kind, title, lines
     caller: tuple[str, str] | None = None   # a phone-in caller on the line: (name, where from)
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
+    verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
 
 
 class Player:
@@ -504,7 +505,7 @@ class Player:
                 SegmentType.ad_break: "advert",
                 SegmentType.continuity: "ident" if self._kind() == "ident" else "notice",
             }.get(seg.type, "studio")
-            if seg.type in (SegmentType.feature, SegmentType.vox_pop):
+            if seg.type in (SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
                 v.mode = "field" if line and line.speaker in (*FIELD_REPORTERS, "guest") else "studio"
         if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport", "inquiry", "quayside", "panel")):
             sports = seg.type is SegmentType.sport or seg.show == "sport"
@@ -512,7 +513,16 @@ class Player:
             if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)
-        v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP"}.get(seg.type, "")
+        v.tag = {SegmentType.field_report: "LIVE", SegmentType.vox_pop: "VOX POP", SegmentType.review: "REVIEW"}.get(
+            seg.type, "")
+        if seg.show == "outabout" and seg.type is SegmentType.field_report:
+            v.tag = ""                       # Meg's pieces to camera are filmed, not live
+        megs = [i for i, l in enumerate(seg.lines) if l.speaker == "travel"]
+        if (seg.type is SegmentType.review and seg.work.get("review") and megs and self.line_idx >= megs[-1]
+                and v.speaker == "travel"):
+            v.verdict = seg.work["review"]   # the stars go up as she gives them, never over the owner's head
+        if seg.show == "outabout" and v.mode == "studio":
+            v.mode = "field"                 # no studio on Out and About, even between lines
         if seg.type is SegmentType.continuity:
             v.continuity = dict(seg.work.get("continuity") or {})
         if seg.type in (SegmentType.advert, SegmentType.ad_break):
