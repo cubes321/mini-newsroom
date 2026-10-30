@@ -34,6 +34,7 @@ feature = "claude_haiku"
 vox_pop = "claude_haiku"
 consumer = "claude_haiku"
 monologue = "claude_haiku"        # talk show
+call = "claude_haiku"             # Have Your Say: a caller on the line
 editor = "deepseek_flash_think"          # decides whether a thread deserves a special
 documentary_commission = "deepseek_flash_think"   # picks the day's documentary subject
 documentary_research = "deepseek_flash_think"     # research notes from the archive, before the outline
@@ -42,6 +43,7 @@ special_section = "deepseek_flash_think"
 story_desk = "deepseek_flash_think"      # plans how threads develop, seeds new ones
 inquiry = "deepseek_flash_think"         # picks tonight's story for The Inquiry, its questions and its guest
 panel = "deepseek_flash_think"           # books The Panel: three questions and three panellists who differ
+phonein = "deepseek_flash_think"         # books Have Your Say: the day's question, the studio guest, the callers
 senior_editor = "claude_sonnet"   # reviews the desk's board every [story] review_every_s and leaves it a memo
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
@@ -82,6 +84,12 @@ rest_days = 7
 [panel]
 commission_from = "18:30"
 airs_at = "20:30"
+
+# Have Your Say (phonein.py): Jonah Pike's news phone-in at 10:00. The day's question, the studio guest
+# who answers it and the kinds of caller who ring are booked in idle time from commission_from.
+[phonein]
+commission_from = "08:30"
+airs_at = "10:00"
 
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.

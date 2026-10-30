@@ -51,6 +51,7 @@ class SegmentType(StrEnum):
     continuity = "continuity"    # an ident, the programme card or a notice (continuity.py): covers a gap, outside the rundown
     ad_break = "ad_break"        # a planned break in a light show's running order: adverts from the pool
     sport = "sport"              # the sports desk: Fran at the sports corner (the news, and Full Time)
+    call = "call"                # a phone-in: a caller on the line, the presenter, and maybe the studio guest
 
 
 class SegmentState(StrEnum):
@@ -328,6 +329,40 @@ class PanelScript(InterviewScript):
         return self
 
 
+class CallLine(GuestLine):
+    guest_name: str | None = Field(default=None, max_length=40,
+                                   description="on a 'guest' line: the studio guest by exact name; leave it "
+                                               "null for the caller")
+
+
+class CallScript(BaseModel):
+    """A phone-in call (phonein.py): a resident on the line, the presenter, and sometimes the studio
+    guest answering them. Two kinds of guest in one item: the caller is cast here, like a vox pop's
+    passer-by; the studio guest is booked and named on their own lines."""
+    lines: list[CallLine] = Field(min_length=3, max_length=14)
+    headline: str = Field(min_length=4, max_length=90)
+    # "Have Your Say: " and the whole question overran 60 in the first run, and a retry costs a call.
+    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
+    caller_name: str = Field(min_length=3, max_length=40, description="the caller's first name and surname")
+    caller_from: Annotated[str, _clip_words(40)] = Field(
+        max_length=40, description="where they are ringing from, as Jonah would say it: a street, a village, a boat; "
+                                   "never the town's own name ('Harbour Row', not 'Harbour Row, Port Wexley')")
+    caller_gender: Gender = Field(default=None, description="for casting the caller's voice: 'f' or 'm'")
+    caller_age: Age = Field(default=None, description="young, middle or old")
+    caller_accent: Accent = Field(default=None, description="british (a local) or american (from away)")
+    thread_id: str | None = Field(default=None, description="today's question's thread, or null")
+    caller_memory: Memo = Field(default=None, max_length=140,
+                                description="one line: what the caller said, so they can ring back another day")
+    tip_used: int | None = Field(default=None, description="number of the VIEWER TIP the caller rang about, or null")
+
+    @model_validator(mode="after")
+    def _the_caller_speaks(self):
+        if not any(l.speaker == "guest" and (l.guest_name or "").strip().lower() in ("", self.caller_name.strip().lower())
+                   for l in self.lines):
+            raise ValueError("the caller must speak: a 'guest' line with guest_name null (or the caller's name)")
+        return self
+
+
 class FeatureScript(BaseModel):
     """A filmed magazine piece: Miles on location, optionally with one resident."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
@@ -534,6 +569,20 @@ class PanelLineup(BaseModel):
     panellists: list[Panellist] = Field(min_length=3, max_length=3)
 
 
+class PhoneInBooking(BaseModel):
+    """Today's Have Your Say (phonein.py): one question from the day's news and the guest who answers it."""
+    thread_id: str = Field(description="the story's id from STORIES")
+    question: Annotated[str, _clip_words(120)] = Field(
+        max_length=120, description="today's question as Jonah puts it, one that people in town answer differently")
+    guest: str = Field(description="the studio guest at the heart of the story: an exact name from PEOPLE")
+    guest_stance: Annotated[str, _clip_words(200)] = Field(
+        max_length=200, description="where the guest stands, one sentence")
+    # Flash wrote 150-180 in the first booking (2026-10-30), each cut off mid-thought at the old 140.
+    callers: list[Annotated[str, _clip_words(200)]] = Field(
+        min_length=4, max_length=6, description="the kinds of caller who will ring, each with a different view: "
+                                                "who they are and what they think, one line each")
+
+
 class SeniorMemo(BaseModel):
     """The senior editor's review of the story desk's whole board (senior.py)."""
     memo: Annotated[str, _clip(1200)] = Field(
@@ -620,6 +669,7 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.consumer: InterviewScript,
     SegmentType.feature: FeatureScript,
     SegmentType.vox_pop: VoxPopScript,
+    SegmentType.call: CallScript,
 }
 
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
@@ -637,7 +687,7 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = Fa
     if key not in _NARROWED:
         base = PanelScript if panel else CouchScript if couch else SCRIPT_SCHEMAS[seg_type]
         lf = base.model_fields["lines"]
-        line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine or VoxLine
+        line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine, VoxLine or CallLine
         line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,
                             speaker=(Literal[*cast], Field(validation_alias=SPEAKER_KEY)))
         bounds = {k: getattr(m, k) for m in lf.metadata for k in ("min_length", "max_length") if hasattr(m, k)}

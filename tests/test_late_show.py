@@ -46,7 +46,7 @@ def test_the_order_never_runs_two_desk_pieces_together_when_it_wraps():
 
 
 def test_the_house_band_plays_a_guest_on_and_back_from_the_break(tmp_path, monkeypatch):
-    def synth(text, voice, out, speed=1.0, lang=None):
+    def synth(text, voice, out, speed=1.0, lang=None, phone=False):
         out.parent.mkdir(parents=True, exist_ok=True)
         sf.write(out, np.zeros(assets.SR // 2, dtype=np.float32), assets.SR, subtype="PCM_16")
         return SynthResult(wav_path=out, duration_s=0.5, mouth_env=[0.0])

@@ -173,6 +173,7 @@ class World:
     seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
+    phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
     # The nightly documentary: what each one established (its research timeline and sections), so the
     # canon it invents outlives the 400 characters the archive keeps; and the day markers.
     documentaries: list[dict] = field(default_factory=list)
@@ -796,7 +797,7 @@ def seed_characters() -> list[Character]:
         Character("host_a", "Rosie Treloar", "breakfast presenter, Morning Tide",
                   CONFIG.tts.voices.get("host_a", "bf_lily"),
                   ["bright", "up since four and proud of it", "keeps the diary of what's on"]),
-        Character("host_b", "Jonah Pike", "breakfast co-presenter, Morning Tide",
+        Character("host_b", "Jonah Pike", "breakfast co-presenter (Morning Tide), and the phone-in at 10:00 (Have Your Say)",
                   CONFIG.tts.voices.get("host_b", "am_eric"),
                   ["laid-back", "a weakness for puns", "a former local-radio DJ"]),
         Character("mag_a", "Pat Holloway", "presenter, Coastwide (the early-evening magazine)",
@@ -846,11 +847,13 @@ def _from_dict(d: dict) -> World:
     if not w.people:                       # migrate a world saved before the cast existed
         w.people = seed_people()
         log.info("world migrated: seeded %d public figures", len(w.people))
-    have = {c.id for c in w.characters}
+    have = {c.id: c for c in w.characters}
     for c in seed_characters():            # presenters added since the world was saved
         if c.id not in have:
             w.characters.append(c)
             log.info("world migrated: new presenter %s (%s)", c.name, c.id)
+        elif have[c.id].role != c.role:    # a presenter who took on another show (Jonah, Have Your Say)
+            have[c.id].role = c.role
     _recast_presenter_voices(w)
     return w
 

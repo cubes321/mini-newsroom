@@ -208,7 +208,8 @@ def _player_with_ready_special(last_type: SegmentType) -> tuple[Player, Segment]
 @pytest.mark.parametrize("hour, last_type, airs", [
     (1, SegmentType.testcard, True),       # overnight: after the test card (was: never, until 09:00)
     (1, SegmentType.weather, False),       # overnight, but after a repeat: wait for the card
-    (10, SegmentType.bumper, True),        # the news: after a bumper, as before
+    (11, SegmentType.bumper, True),        # the news: after a bumper, as before
+    (10, SegmentType.bumper, False),       # the phone-in doesn't either: the special waits for 11:00
     (7, SegmentType.bumper, False),        # breakfast doesn't air specials
 ])
 def test_where_a_ready_special_airs(hour, last_type, airs):

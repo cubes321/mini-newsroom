@@ -333,6 +333,47 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # this morning's prices, this lunchtime
     ),
     Show(
+        "phonein", "HAVE YOUR SAY", "YOUR SAY", (50, 110, 190),
+        # An hour's news phone-in with Jonah Pike after breakfast: one question from the day's news, a
+        # studio guest at the heart of it, and viewers ringing in (phonein.py books all three); Dana
+        # reads the headlines from the news desk, and Jonah does the travel.
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Jonah opens Have Your Say: today's question, the studio guest by name and "
+                                     "role, and the number to ring", target_s=45.0),
+            I(T.interview, brief="THE STUDIO GUEST first: Jonah puts today's question to them and gets where they "
+                                 "stand, so the callers have something to answer", target_s=120.0),
+            T.call,
+            T.call,
+            # the order wraps back to here, the headlines at the top of it: ten to fifteen minutes, by how
+            # long the calls run
+            I(T.bulletin, brief="the headlines, from Dana at the news desk in the middle of the phone-in"),
+            T.call,
+            T.call,
+            I(T.links, brief="the travel: the roads, the buses, the ferries and the tide, then back to the phones",
+              target_s=40.0),
+            T.call,
+            T.call,
+            T.ad_break,
+            I(T.interview, brief="back to THE STUDIO GUEST: Jonah puts the callers' strongest points to them, and "
+                                 "presses where they dodged", target_s=100.0),
+            T.call,
+            T.call,
+        ),
+        loop_from=5,
+        closing=(I(T.links, "close", brief="Jonah sums up what the callers said and where the studio guest moved, "
+                                           "thanks them, and gives the number for next time", target_s=40.0),),
+        # Haiku wrote calls of about 55 s to a 100 s budget in the first run (2026-10-30): 130 for about 70.
+        target_s={T.bumper: 8.0, T.links: 45.0, T.interview: 120.0, T.call: 130.0, T.bulletin: 60.0,
+                  T.ad_break: 60.0},
+        cast=("host_b", "anchor"), lead="host_b",
+        cast_by_type={T.links: ("host_b",), T.interview: ("host_b", "guest"), T.call: ("host_b", "guest"),
+                      T.bulletin: ("anchor",)},
+        station="Have Your Say, channel 7's news phone-in, with Jonah Pike",
+        tone="warm, quick and fair: every caller gets a hearing, nobody gets a speech",
+        repeats_overnight=False,     # this morning's question, this morning
+    ),
+    Show(
         "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
         # Half an hour of debate: Dana Ferris chairs three panellists on three questions from the week's
         # news, booked earlier in the evening (panel.py); a question from the public on the second.
@@ -417,7 +458,9 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),       # test card and repeats; the editor and story desk keep working, specials air
     (6, "breakfast"),       # Morning Tide on the sofa: lighter, chattier
     (9, "news"),            # the news loop through the day and the early evening
-    (13, "quayside"),       # Quayside: the business half hour, with the fish auction's prices
+    (10, "phonein"),        # Have Your Say: Jonah Pike's news phone-in
+    (11, "news"),
+    (13, "quayside"),      # Quayside: the business half hour, with the fish auction's prices
     ("13:30", "news"),
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot

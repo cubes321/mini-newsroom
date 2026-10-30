@@ -74,9 +74,26 @@ def mouth_envelope(audio: np.ndarray, sr: int, window_s: float = ENV_WINDOW_S) -
     return [round(float(v / peak), 3) for v in rms]
 
 
-def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: str | None = None) -> SynthResult:
+PHONE_BAND = (300.0, 3400.0)     # Hz: what a telephone line carries
+
+
+def telephone(audio: np.ndarray, sr: int) -> np.ndarray:
+    """A voice down a phone line: only the telephone band, softly squashed, as a phone-in caller sounds.
+    Done in one FFT (no filter design to depend on), with gentle shoulders so the cut doesn't ring."""
+    spec = np.fft.rfft(audio)
+    f = np.fft.rfftfreq(len(audio), 1 / sr)
+    lo, hi = PHONE_BAND
+    gain = np.clip((f - lo * 0.7) / (lo * 0.3), 0, 1) * np.clip((hi * 1.15 - f) / (hi * 0.15), 0, 1)
+    band = np.fft.irfft(spec * gain, n=len(audio)).astype(np.float32)
+    peak = float(np.abs(band).max()) or 1.0
+    return (np.tanh(band / peak * 1.8) / np.tanh(1.8) * min(peak * 1.3, 0.9)).astype(np.float32)
+
+
+def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: str | None = None,
+               phone: bool = False) -> SynthResult:
     """Render `text` with `voice` to `out_path` (24 kHz mono PCM_16). `lang` is Kokoro's
-    pronunciation ("a" American, "b" British); the station's own by default."""
+    pronunciation ("a" American, "b" British); the station's own by default. `phone`: through
+    the telephone band, for a caller on the line."""
     sr = CONFIG.tts.sample_rate
     pipe = _pipeline(lang or CONFIG.tts.lang_code)
     t0 = time.perf_counter()
@@ -97,6 +114,8 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
     if not chunks:
         raise RuntimeError(f"kokoro produced no audio for: {text[:60]!r}")
     audio = np.concatenate(chunks[:-1])  # drop trailing gap
+    if phone:
+        audio = telephone(audio, sr)
     audio = np.clip(audio, -1.0, 1.0)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

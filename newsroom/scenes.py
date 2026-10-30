@@ -16,7 +16,7 @@ import pygame
 
 from . import backdrops, locations, logo, schedule
 from .models import FIELD_REPORTERS
-from .player import View
+from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import draw_character, draw_mic, guest_look
 
 CANVAS = (320, 180)
@@ -314,8 +314,33 @@ def draw_interview(canvas: pygame.Surface, v: View, t: float) -> None:
         crop.midbottom = (x, y + 6)
         crop.clamp_ip(_interview_buf.get_rect())
         pygame.transform.scale(_interview_buf.subsurface(crop), CANVAS, canvas)
-        return
-    _interview_wide(canvas, v, t)
+    else:
+        _interview_wide(canvas, v, t)
+    if v.caller:
+        _caller_box(canvas, v)
+
+
+CALLER_BOX = pygame.Rect(214, 22, 98, 50)       # top right, under the clock, clear of the armchair guest's head
+
+
+def _caller_box(canvas: pygame.Surface, v: View) -> None:
+    """A phone-in caller: nobody on the set, so a box with their name, where they're ringing from, and
+    their voice as a waveform (the envelope that moves a face's mouth), flat while they listen."""
+    box = CALLER_BOX
+    pygame.draw.rect(canvas, (20, 20, 30), box.inflate(4, 4))
+    pygame.draw.rect(canvas, (26, 34, 56), box)
+    pygame.draw.rect(canvas, schedule.get(v.show).colour, (box.x, box.y, box.w, 11))
+    text(canvas, "ON THE LINE", box.centerx, box.y + 6, 8, center=True)
+    name, where = v.caller
+    text(canvas, name, box.x + 4, box.y + 14, 8, maxw=box.w - 8)
+    text(canvas, where, box.x + 4, box.y + 24, 8, (170, 180, 200), maxw=box.w - 8)
+    mid, n = box.bottom - 10, len(v.wave)
+    colour = (120, 220, 160) if any(x > 0.08 for x in v.wave) else (80, 100, 120)
+    for k in range(WAVE_BARS):
+        x = box.x + 4 + k * (box.w - 8) // WAVE_BARS
+        val = v.wave[k - WAVE_BARS + n] if k >= WAVE_BARS - n else 0.0      # the newest on the right
+        h = max(1, int(val * 8))
+        pygame.draw.rect(canvas, colour, (x, mid - h, 2, 2 * h))
 
 
 SOFA = locations.MARKS["studio_sofa"]

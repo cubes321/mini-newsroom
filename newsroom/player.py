@@ -46,7 +46,8 @@ LET_FINISH_S = 12.0        # breaking news waits for a segment with less than th
 
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue,
-                 SegmentType.sport)
+                 SegmentType.sport, SegmentType.call)
+WAVE_WINDOWS = 24          # the caller's waveform: this many envelope windows, the newest on the right
 OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
 _BREAKS = (SegmentType.bumper, SegmentType.testcard)   # a ready special may air after these
@@ -91,6 +92,8 @@ class View:
     breaking: bool = False               # breaking news: red captions, and the BREAKING card over the sting
     advert: dict | None = None           # an advert's end card: business, tagline, where, owner, colour
     continuity: dict | None = None       # an ident, the programme card or a notice: kind, title, lines
+    caller: tuple[str, str] | None = None   # a phone-in caller on the line: (name, where from)
+    wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
 
 
 class Player:
@@ -414,11 +417,14 @@ class Player:
 
     def _people(self, seg: Segment) -> list:
         """Who sits on the interview set: the presenters who speak, then the guest (on the late
-        couch, the new guest and then the one who stayed on and moved down)."""
+        couch, the new guest and then the one who stayed on and moved down). On the phone-in, the
+        studio guest sits in the armchair all hour, and a caller is on the phone, not on the set."""
         if self._cast_of[0] != seg.id:
             hosts: list = []
-            guests: list = []
+            guests: list = [g for g in (seg.work.get("studio_guest"),) if g]
             for l in seg.lines:
+                if l.speaker == "guest" and seg.work.get("caller") and l.guest_name == seg.work["caller"]:
+                    continue
                 c = self.world.presenter_named(l.guest_name) if l.speaker == "guest" else None
                 if c and (c.id, None) not in hosts:
                     hosts.append((c.id, None))       # a presenter as a guest sits in the guest chair
@@ -513,6 +519,11 @@ class Player:
             v.advert = dict(cues.get("advert") or seg.work.get("advert", {}))     # a break: the advert airing now
             owner = self.world.presenter_named(v.advert.get("owner"))
             v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
+        if seg.type is SegmentType.call and seg.work.get("caller"):
+            v.caller = (seg.work["caller"], seg.work.get("caller_from", ""))
+            if line and line.guest_name == v.caller[0] and line.mouth_env:
+                i = int((now - self.line_start) / ENV_WINDOW_S)
+                v.wave = line.mouth_env[max(0, i + 1 - WAVE_WINDOWS):max(0, i + 1)]
         for name in {v.guest_name, (v.advert or {}).get("owner"), *(n for w, n in v.people if w == "guest")} - {None}:
             p = self.world.person_by_name(name)
             v.guests[name] = (self.world.voice_for("guest", name), p.role if p else "", p.age if p else "")

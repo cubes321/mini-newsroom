@@ -17,11 +17,13 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, inquiry, llm, panel, quay, schedule, sport, tides, tipline
+from . import breaking, inquiry, llm, panel, phonein, quay, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
     BulletinScript,
+    CallLine,
+    CallScript,
     FieldReportScript,
     Line,
     LiveLine,
@@ -282,6 +284,52 @@ question as a caption. Choose a backdrop id from the LOCATIONS list; location is
 """,
 }
 
+# Have Your Say (phonein.py): Jonah (host_b) and the phones; every item gets TODAY'S QUESTION.
+_PHONEIN_RULES = """
+This is part of HAVE YOUR SAY, the morning news phone-in presented by Jonah Pike ("host_b"), a former
+local-radio DJ: laid-back, quick, kind to nervous callers, a pun now and then but never at a caller's
+expense, and fair: he gives every view a hearing and moves a long-winded caller on. One question all
+hour, given as TODAY'S QUESTION, with a studio guest at the heart of the story. Facts come from the
+briefing; callers have opinions, memories and their own small facts (their street, their shop, their
+bus), never new news the briefing doesn't have. Small-town scale.
+"""
+
+_PHONEIN: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _PHONEIN_RULES + """
+These are Jonah's words TO CAMERA ("host_b" alone), as THIS ITEM and the PLACE IN THE SHOW say: at the
+open, a good morning, today's question, the studio guest by name and role, and the number to ring
+(said as written); the travel, from the TIDES and the briefing (no invented road accidents), then back
+to the phones; at the close, what callers said and thanks. Several short lines. No guests speak.
+headline = the point in under 12 words. lower_third = "Have Your Say" plus a short tag.
+""",
+    SegmentType.interview: _COMMON_RULES + _PHONEIN_RULES + """
+This is Jonah ("host_b") with THE STUDIO GUEST in the armchair, as THIS ITEM says. The guest is
+speaker "guest", with guest_name their exact name and guest_role their role. Jonah puts today's
+question, or the callers' points from SAID SO FAR; the guest answers from where they stand, with real
+reasons, and may concede a point a caller made. Short questions; the guest talks more than Jonah.
+headline = the guest's answer in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.call: _COMMON_RULES + _PHONEIN_RULES + """
+This is ONE CALL on Have Your Say. Jonah ("host_b") brings the caller in ("Let's go to the phones",
+"Line two, you're on Have Your Say"), with their first name and where they're ringing from. The caller
+is speaker "guest" with guest_name null on their lines; name them once in caller_name (first name and
+surname), with caller_from, caller_gender, caller_age and caller_accent. They say what they think about
+today's question in their own words, with something from their own life; Jonah replies, asks one
+thing back, and keeps it moving. The studio guest may answer them once or twice: speaker "guest" with
+guest_name the studio guest's exact name. Be THIS CALLER, not someone who has already rung. A real
+voice: hesitant, cross, funny or nervous, not a speech. End with Jonah thanking them, or going to the
+next line. caller_memory: one line on what they said. thread_id: today's question's thread.
+headline = the caller and their point in under 12 words. lower_third = "Have Your Say" plus the question, short.
+""",
+    SegmentType.bulletin: _COMMON_RULES + """
+These are THE HEADLINES in the middle of Have Your Say, Jonah Pike's news phone-in: Dana ("anchor") at
+the news desk reads two or three short local stories, one or two sentences each, then hands back to
+Jonah and the phones in one line. Make at most one of them a follow-up of an open thread (set
+thread_id and thread_status); otherwise thread_id is null.
+headline = the top story in under 12 words. lower_third = a short caption for it.
+""",
+}
+
 # The Panel (panel.py): Dana ("anchor") chairs three panellists; every item gets TONIGHT'S PANEL.
 _PANEL_RULES = """
 This is part of THE PANEL, a half-hour debate chaired by Dana Ferris ("anchor"): dry, unflappable,
@@ -513,6 +561,12 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="The Panel", extra=""),
     },
     ("panel", SegmentType.interview): {"": _MIDDLE.format(title="The Panel", extra="")},
+    ("phonein", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS Have Your Say: a brief good morning, then the question and the guest.",
+        "": _MIDDLE.format(title="Have Your Say", extra=""),
+    },
+    ("phonein", SegmentType.interview): {"": _MIDDLE.format(title="Have Your Say", extra="")},
+    ("phonein", SegmentType.call): {"": _MIDDLE.format(title="Have Your Say", extra="")},
     ("quayside", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS Quayside: a brief good afternoon, then the figures.",
         "": _MIDDLE.format(title="Quayside", extra=""),
@@ -666,7 +720,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
-             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL}.get(show.id, {})
+             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "phonein": _PHONEIN}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -691,7 +745,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     # The tides are breakfast small talk, not for its guest: Rosie read Marjorie the ferry's
     # low-water gap in the middle of her book (2026-10-27).
     if seg_type is SegmentType.weather or show.id == "late" or (
-            show.id == "breakfast" and seg_type is not SegmentType.interview):
+            show.id == "breakfast" and seg_type is not SegmentType.interview) or (
+            show.id == phonein.SHOW and seg_type is SegmentType.links):      # the travel: the ferries and the tide
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
     if seg_type is SegmentType.sport or show.id == "sport":
@@ -718,6 +773,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + inquiry.for_prompt(world)
     if show.id == panel.SHOW:
         user += "\n\n" + panel.for_prompt(world)
+    if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
+        user += "\n\n" + phonein.for_prompt(world, seg_type)
     if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
         user += "\n\n" + facts
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
@@ -734,7 +791,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += ("\n\nThey stay on the couch for the next guest: no goodbye or thanks at the end. Vincent "
                      "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop) and (
-            show.id not in (inquiry.SHOW, panel.SHOW)):   # their guests are booked for the night, however recent
+            show.id not in (inquiry.SHOW, panel.SHOW, phonein.SHOW)):   # their guests are booked, however recent
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
@@ -752,7 +809,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                      f"Known so far: {t.status}. Lead with it, as the follow-up of this thread: thread_id \"{t.id}\" and "
                      "a thread_status saying what is new, or plainly what is still not confirmed. "
                      "Do not invent casualties.")
-    if tips:
+    if tips and seg_type is SegmentType.call:
+        user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed). If one fits today's question, this caller may be "
+                 "the viewer who sent it in, ringing about it in their own words: set tip_used to its number; "
+                 "otherwise tip_used is null:\n" + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
+    elif tips:
         user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
                  "tip_used to its number; otherwise tip_used is null):\n"
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
@@ -942,6 +1003,22 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             lower_third=p.role[:60],
             guest_name=p.name, guest_role=p.role,
         )
+    if seg_type is SegmentType.call:
+        booked = phonein.today(world) or {}
+        guest = world.person_by_name(booked.get("guest"))
+        lines = [CallLine(speaker=lead, text="Let's go to the phones. Line one, you're on Have Your Say. Good morning."),
+                 CallLine(speaker="guest", text="Morning, Jonah. Long-time watcher, first time I've rung. I just think "
+                                                "people want to be asked before things change, that's all."),
+                 CallLine(speaker=lead, text="That's a fair point, and you've rung the right place to make it.")]
+        if guest:
+            lines += [CallLine(speaker=lead, text=f"{guest.name}, do people get asked?"),
+                      CallLine(speaker="guest", guest_name=guest.name,
+                               text="They should, and I'd rather hear it on this programme than not at all.")]
+        lines.append(CallLine(speaker=lead, text="Thanks for ringing. Keep the calls coming."))
+        return CallScript(lines=lines, headline="A caller wants to be asked first",
+                          lower_third="Have Your Say", caller_name="Pam Rowe", caller_from="Harrow Street",
+                          caller_gender="f", caller_age="old", caller_accent="british",
+                          thread_id=booked.get("thread_id"))
     if seg_type is SegmentType.feature:
         return FeatureScript(
             lines=[
@@ -989,7 +1066,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     cont = follows and seg.part == "cont"
     couch = _last_interview[show.id] if follows and seg.part == "couch" else None
     part = "" if seg.part in ("cont", "couch") and not follows else seg.part
-    tips = tipline.offer() if seg.type is SegmentType.bulletin else []
+    tips = tipline.offer() if seg.type in (SegmentType.bulletin, SegmentType.call) else []   # a viewer may ring in
     # A chat show may book back a guest who left something to ask, once a day per show.
     seg.work.pop("return_guest", None)
     seg.work.pop("loose_end_of", None)
@@ -1007,11 +1084,14 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
     debate = seg.type is SegmentType.interview and show.id == panel.SHOW     # three panellists, booked tonight
+    # The phone-in's studio guest is booked for the morning (phonein.py) and stays in the armchair all hour.
+    studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
+    booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW)
     schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate)
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        rebooked = None if cont or debate else _rebooked(script, world)
+        rebooked = None if cont or booked else _rebooked(script, world)
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
@@ -1020,7 +1100,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
-        known = None if cont or debate else _remembered(script, world, {seg.work.get("return_guest"),
+        known = None if cont or booked else _remembered(script, world, {seg.work.get("return_guest"),
                                                                         couch and couch["name"]})
         if known:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
@@ -1043,17 +1123,27 @@ def script_segment(seg: Segment, world: World) -> Segment:
 
     stayed = couch["name"] if couch and source == "llm" else None
 
+    call = isinstance(script, CallScript)
+
     def role(name: str | None) -> str | None:
         if stayed and name == stayed:
             return couch["role"]
-        if debate and (p := world.person_by_name(name)):
-            return p.role                     # each panellist under their own caption
+        if call and name == script.caller_name:
+            return f"On the line from {script.caller_from}"
+        if (debate or studio) and (p := world.person_by_name(name)):
+            return p.role                     # each panellist, or the phone-in's guest, under their own caption
         return getattr(script, "guest_role", None)
-    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=(name := _guest_of(l, script, stayed)),
+    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(),
+                      guest_name=(name := _guest_of(l, script, stayed, studio)),
                       guest_role=role(name) if l.speaker == "guest" else None)
                  for l in script.lines if l.text.strip()]
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
+    seg.work.pop("studio_guest", None)
+    if studio:
+        seg.work["studio_guest"] = studio     # in the armchair all hour (player.py), even when a caller speaks
+    if call:
+        seg.work["caller"], seg.work["caller_from"] = script.caller_name, script.caller_from   # on the phone
     seg.headline = script.headline
     seg.cues = _cues_for(seg, script)
     _apply_to_world(seg, script, world, template=source == "template")
@@ -1107,12 +1197,20 @@ def _remembered_note(p: Person) -> tuple[str, dict | None]:
     return note, end
 
 
-def _guest_of(line, script, stayed: str | None = None) -> str | None:
+def _guest_of(line, script, stayed: str | None = None, studio: str | None = None) -> str | None:
     """The guest's name for a guest line: on the line (vox pops) or on the script (interviews).
-    On the late couch a line is the guest who `stayed` on, or else the new guest."""
+    On the late couch a line is the guest who `stayed` on, or else the new guest. On a call it is
+    the `studio` guest if it names them, and otherwise the caller."""
     if line.speaker != "guest":
         return None
     name = getattr(line, "guest_name", None)
+    if isinstance(script, CallScript):
+        said, caller = (name or "").strip().lower().split(), script.caller_name.strip().lower().split()
+        if not said or not studio or said == caller or said[-1] == caller[-1]:
+            return script.caller_name
+        guest = studio.lower().split()
+        # The full name, the surname, or the first name alone ("Ivy"): Jonah's on first-name terms.
+        return studio if said == guest or said[-1] == guest[-1] or said == guest[:1] else script.caller_name
     if stayed:
         return stayed if (name or "").strip().lower() == stayed.lower() else script.guest_name
     return name or getattr(script, "guest_name", None)
@@ -1129,7 +1227,7 @@ def _cues_for(seg: Segment, script) -> list[VisualCue]:
         cues.append(VisualCue(at_s=0, kind="backdrop", payload={"backdrop": script.backdrop}))
         cues.append(VisualCue(at_s=0, kind="lower_third",
                               payload={"title": script.lower_third, "subtitle": f"Live from {script.location}"}))
-    elif isinstance(script, InterviewScript):
+    elif isinstance(script, (InterviewScript, CallScript)):
         cues.append(VisualCue(at_s=0, kind="lower_third", payload={"title": script.headline, "subtitle": script.lower_third}))
     elif isinstance(script, FeatureScript):
         cues.append(VisualCue(at_s=0, kind="backdrop", payload={"backdrop": script.backdrop}))
@@ -1151,6 +1249,10 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
     world.record_headline(script.headline)
     if isinstance(script, WeatherScript):
         world.record_weather(script.map_state, script.temp_c, script.headline)
+    elif isinstance(script, CallScript):
+        # A caller's view is not news: the call files under today's question without moving its story,
+        # and never opens one (the 2026-10-27 lesson, when every chat-show guest became a thread).
+        seg.thread_id = script.thread_id if world.thread(script.thread_id) else None
     elif template and seg.type is not SegmentType.breaking:
         # A canned script is the same story every time: it may follow up the thread it
         # already has, but never opens one (NEWSROOM_LLM=off once opened five cannery
@@ -1194,6 +1296,11 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                 world.loose_ends_taken(script.guest_name)   # booked again of the writer's accord, and asked
             world.remember_guest(script.guest_name, schedule.get(seg.show).title.title(),
                                  getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
+    if isinstance(script, CallScript):            # a resident now, with a voice; they may ring again another day
+        world.ensure_person(script.caller_name, "resident", gender=script.caller_gender, age=script.caller_age,
+                            accent=script.caller_accent)
+        if not template:
+            world.remember_guest(script.caller_name, phonein.CALLED, script.caller_memory, None)
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:
             world.ensure_person(l.guest_name, "resident", gender=l.guest_gender, age=l.guest_age, accent=l.guest_accent)

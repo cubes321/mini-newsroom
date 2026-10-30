@@ -139,19 +139,21 @@ def repeat_segment(seg: Segment) -> Segment:
 # --------------------------------------------------------------- pipeline
 
 
-def voice_line(line: Line, i: int, world: World, h: str) -> None:
-    """Synthesize one line to `<hash>_<i>.wav`; fill its duration and mouth envelope."""
+def voice_line(line: Line, i: int, world: World, h: str, phone: bool = False) -> None:
+    """Synthesize one line to `<hash>_<i>.wav`; fill its duration and mouth envelope. `phone`: a
+    caller on the line, through a telephone's narrow band."""
     out = CONFIG.paths.cache / f"{h}_{i:02d}.wav"
     res = tts.synthesize(line.text, world.voice_for(line.speaker, line.guest_name), out,
                          speed=world.speed_for(line.speaker, line.guest_name),
-                         lang=world.lang_for(line.speaker, line.guest_name))
+                         lang=world.lang_for(line.speaker, line.guest_name), phone=phone)
     line.wav_path, line.duration_s, line.mouth_env = res.wav_path, res.duration_s, res.mouth_env
 
 
 def voice_segment(seg: Segment, world: World, h: str) -> Segment:
     """Synthesize every line to its own WAV; fill duration and mouth envelope."""
+    caller = seg.work.get("caller") if seg.type is SegmentType.call else None
     for i, line in enumerate(seg.lines):
-        voice_line(line, i, world, h)
+        voice_line(line, i, world, h, phone=bool(caller) and line.speaker == "guest" and line.guest_name == caller)
     seg.state = SegmentState.voiced
     return seg
 
@@ -332,7 +334,7 @@ class WorkerPool:
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import adverts, breaking, continuity, desk, documentary, inquiry, panel, senior, special
+        from . import adverts, breaking, continuity, desk, documentary, inquiry, panel, phonein, senior, special
 
         try:
             if adverts.seed_one(self.world):
@@ -360,6 +362,10 @@ class WorkerPool:
                 world_mod.save(self.world)
                 if d is not None:
                     self.buffer.submit_special(documentary.commission(self.world, d))
+                return
+            if phonein.should_commission(self.world):
+                phonein.commission(self.world)    # Have Your Say's question, studio guest and callers
+                world_mod.save(self.world)
                 return
             if inquiry.should_commission(self.world):
                 inquiry.commission(self.world)    # tonight's story for The Inquiry, its questions and guest

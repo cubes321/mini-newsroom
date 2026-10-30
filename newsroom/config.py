@@ -108,6 +108,12 @@ class PanelCfg:
 
 
 @dataclass(frozen=True)
+class PhoneInCfg:
+    commission_from: str = "08:30"       # today's question and studio guest are chosen in idle time from here (phonein.py)
+    airs_at: str = "10:00"               # when Have Your Say starts; no booking after it
+
+
+@dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
     thin_board: int = 8                  # below this many open the desk may seed two new stories a round, else one
@@ -168,6 +174,7 @@ class Config:
     story: StoryCfg
     inquiry: InquiryCfg
     panel: PanelCfg
+    phonein: PhoneInCfg
     breaking: BreakingCfg
     adverts: AdvertsCfg
     continuity: ContinuityCfg
@@ -201,6 +208,7 @@ def load(path: Path | None = None) -> Config:
         story=StoryCfg(**raw.get("story", {})),
         inquiry=InquiryCfg(**raw.get("inquiry", {})),
         panel=PanelCfg(**raw.get("panel", {})),
+        phonein=PhoneInCfg(**raw.get("phonein", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),
         continuity=ContinuityCfg(**raw.get("continuity", {})),

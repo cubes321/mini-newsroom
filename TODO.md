@@ -7,7 +7,10 @@ bottom with the date.
 
 - [ ] Howard Lanyon's voice, by ear: am_echo with British pronunciation at 0.95 for now (PROVISIONAL in
   config.toml), with Tamsin's on the same listening page. The new shows' own bumper arrangements too
-  (Quayside and The Inquiry use the news one).
+  (Quayside, The Inquiry, The Panel and Have Your Say use the news one).
+- [ ] A phone-in desk for Have Your Say: Jonah and the studio guest sit in the interview armchairs
+  (`studio_interview`) for now; a desk with a phone, a headset and a call board behind would say
+  phone-in at a glance. The caller box (`scenes._caller_box`) is drawn in code and can stay.
 - [ ] Art for The Panel's set (`studio_panel`): it is painted in code for now, a long desk with four places,
   a wide screen and the channel 7 ident; the other studio sets have ComfyUI art.
 - [ ] A fish quay backdrop for Quayside (boxes on ice, the auctioneer's chalk board, the fish vans):
@@ -59,6 +62,8 @@ bottom with the date.
   "converge" in the desk notes, 11 of 24 on 2026-10-29), how many new stories the desk and the senior
   editor seed under the new daily allowance (8) and whether they air, how often "falling back to" fires,
   Tamsin's first Full Time, Coastwide's repeats, The Inquiry's and The Panel's first nights (the story, the lineup, four voices at the desk), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
+  The night run ends at 10:00, so Have Your Say, like Quayside, needs a morning run of its own
+  (`--clock 09:45`): the booking ("phonein: today"), the callers' variety across the hour, ring-backs.
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
@@ -149,6 +154,22 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 Have Your Say at 10:00 (`docs/SHOWS.md`): Jonah Pike's news phone-in. From 08:30 `phonein.py`
+  books the day's question, the studio guest at the heart of it and four to six kinds of caller with
+  different views; each call takes the next in turn (a second lap brings someone new with a new point),
+  and someone who rang on an earlier day may ring again. A new `call` item (`CallScript`): the caller is
+  cast like a vox pop's passer-by, voiced through a telephone band (`tts.telephone`, 300-3400 Hz), and
+  shown as a box with their name, where they're ringing from and their voice's waveform, while the studio
+  guest stays in the armchair all hour. A call files under the question's thread without moving it and
+  never opens one. Dana reads the headlines from the news desk; Jonah does the travel with the tides.
+  A viewer tip can become a caller. First run (scratch, `--clock 09:40`): Flash booked the harbour's
+  missing £410 phone bid with Ivy Marchetti and six callers (Bernard Moss the sailmaker, the Kessick Bay
+  bidder, Dolores Finch, Dev Ramachandran, a retired accountant, a young fisherman); the first six calls
+  took them in turn and Ivy answered in five. Fixed from it: calls ran about 55 s to a 100 s budget (now
+  130), the second lap repeated the first word for word (Tomas Reid came back as Tomas Reilly), the caller descriptions were cut at 140
+  characters, and "Harbour Row, Port Wexley" didn't fit the box. A sample call is in
+  `data/voice-samples/phonein-first-call-2026-10-30.wav`.
 
 - 2026-10-30 The Panel at 20:30 (`docs/SHOWS.md`): Dana Ferris chairs three panellists on three questions,
   booked in idle time from 18:30 (`panel.py`) to disagree (an official, a worthy or a business, a resident),

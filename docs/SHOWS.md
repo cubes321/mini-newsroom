@@ -38,7 +38,7 @@ coming.
 
 ## The shows
 
-### Have Your Say (10:00, an hour): the news phone-in
+### Have Your Say (10:00, an hour): the news phone-in. BUILT 2026-10-30
 
 Jonah Pike, a former local-radio DJ, moves from the *Morning Tide* sofa to the phone-in desk after
 breakfast. Each hour has one question from the day's news ("Should the lorry ban stay once the slates
@@ -50,6 +50,19 @@ answers. Between calls come the travel news and the bulletin headlines.
   cast like vox-pop voices, and some ring back on later days with their memories.
 - **Reuses:** the interview set, the guest memory, the tip-line (a viewer tip can become a caller).
 - **Size:** medium.
+- **Built** (`phonein.py`, the `call` item, `schedule.py`, `writers._PHONEIN`): from 08:30 the back office
+  books the question (`[phonein]`, route `phonein`), the studio guest and where they stand, and four to
+  six kinds of caller with different views; each call takes the next in turn, and someone who rang on an
+  earlier day may ring again. If nothing is booked by 10:00, the day's most-covered story and an official
+  stand in. A call (`CallScript`) casts its caller like a vox pop's passer-by and names the studio
+  guest on their own lines; the caller is voiced through a telephone band (`tts.telephone`) and shown as a
+  box with their name, where they're ringing from and their voice's waveform, while the guest stays in the
+  armchair all hour. A call files under the question's thread without moving it, and never opens one.
+  Running order: Jonah's open, the guest on the question, two calls, then a quarter-hour loop of Dana's
+  headlines from the news desk, calls, Jonah's travel (with the tides), a break, back to the guest with
+  the callers' points, more calls; Jonah's close. Calls of about a minute, with the guest answering in
+  most. A viewer tip can become a caller. The bumper uses the news arrangement, and the set is the interview armchairs, until each has
+  its own.
 
 ### Quayside (13:00, half an hour): business. BUILT 2026-10-30
 
@@ -150,7 +163,7 @@ reach an end instead of waiting at the council door.
 1. **The Inquiry**: built 2026-10-30.
 2. **Quayside**: built 2026-10-30, with Howard Lanyon.
 3. **The Panel**: built 2026-10-30.
-4. **Have Your Say**: the call item.
+4. **Have Your Say**: built 2026-10-30, with the call item.
 5. **Out and About**: a presenter and the review item.
 6. **The Chamber**: the calendar and the votes, once the senior editor and the new story allowance
    have been watched for a night or two (it changes how stories end).
