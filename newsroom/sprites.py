@@ -105,6 +105,12 @@ LOOKS["sport"] = Look(skin=(226, 182, 150), hair=(150, 110, 60), top=(40, 110, 1
 LOOKS["sport_reporter"] = Look(skin=(214, 168, 138), hair=(58, 36, 24), top=(44, 96, 70), under=(236, 232, 220),
                                hair_style="long", top_style="jacket", extra="scarf", extra_col=(40, 110, 190),
                                mouth="smile")
+# Howard Lanyon: mid-60s, Quayside's presenter, thirty years the Harrow Street bank manager: neat silver
+# hair, a short grey beard, a navy blazer, a pale blue shirt and a green tie (chosen on a contact sheet,
+# 2026-10-30)
+LOOKS["business"] = Look(skin=(226, 186, 160), hair=(196, 196, 200), top=(40, 52, 90), under=(196, 216, 236),
+                         hair_style="swept", top_style="blazer", tie=(40, 100, 70), facial="beard", mouth="smirk",
+                         brows="raised")
 # Hugh Tremayne: mid-60s, a retired history teacher, white hair receding, round glasses, a brown
 # corduroy jacket over a cream shirt and a mustard tie, eyebrows up mid-story
 LOOKS["historian"] = Look(skin=(226, 180, 152), hair=(225, 225, 228), top=(120, 84, 52), under=(236, 226, 196),

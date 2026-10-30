@@ -298,6 +298,41 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # tonight's results aren't tomorrow's
     ),
     Show(
+        "quayside", "QUAYSIDE", "QUAYSIDE", (40, 104, 124),
+        # Half an hour of the town's money at lunchtime with Howard Lanyon: the morning's fish auction
+        # (quay.py, so the figures agree everywhere), local firms, jobs and prices (docs/SHOWS.md).
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Howard opens Quayside: the morning's auction in a few figures, and what's "
+                                     "coming up"),
+            I(T.field_report, brief="Miles on the fish quay: this morning's auction, the boats that went out "
+                                    "and those that stayed in, a skipper or a buyer"),
+            I(T.interview, brief="a local business in the armchair: a firm, a shop opening or closing, a trader "
+                                 "with a problem"),
+            I(T.links, brief="the jobs board: three or four vacancies in town and along the coast, and who to ask",
+              target_s=50.0),
+            I(T.consumer, brief="prices: the high street, the pumps, a bill or a charge that has changed"),
+            T.ad_break,
+            I(T.feature, brief="a local firm at work: what it makes or does, who it employs, how trade is"),
+            I(T.vox_pop, brief="Miles asks shoppers or traders one question about money"),
+            # the order wraps back to here
+            I(T.interview, brief="the harbour trade: the harbourmaster, the merchant on the quay, or someone "
+                                 "who buys at the auction", target_s=150.0),
+            I(T.feature, brief="a shop or business that is new, closing or changing hands"),
+        ),
+        loop_from=9,
+        closing=(I(T.links, "close", brief="Howard's closing figures, and what to watch this week"),),
+        target_s={T.bumper: 8.0, T.links: 60.0, T.field_report: 100.0, T.interview: 180.0, T.consumer: 75.0,
+                  T.feature: 120.0, T.vox_pop: 60.0, T.ad_break: 60.0},
+        cast=("business", "reporter"), lead="business",
+        cast_by_type={T.links: ("business",), T.field_report: ("business", "reporter"),
+                      T.interview: ("business", "guest"), T.consumer: ("business", "guest"),
+                      T.feature: ("business", "reporter", "guest"), T.vox_pop: ("business", "reporter", "guest")},
+        station="Quayside, the business half hour on channel 7, with Howard Lanyon",
+        tone="dry, clear and local: the figures first, then what they mean for people in town",
+        repeats_overnight=False,     # this morning's prices, this lunchtime
+    ),
+    Show(
         "inquiry", "THE INQUIRY", "INQUIRY", (150, 46, 46),
         # Half an hour on one running story, chosen earlier in the evening with Pat's questions and the
         # guest who has to answer them (inquiry.py). The only serious show of the evening.
@@ -350,6 +385,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),       # test card and repeats; the editor and story desk keep working, specials air
     (6, "breakfast"),       # Morning Tide on the sofa: lighter, chattier
     (9, "news"),            # the news loop through the day and the early evening
+    (13, "quayside"),       # Quayside: the business half hour, with the fish auction's prices
+    ("13:30", "news"),
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "inquiry"),        # The Inquiry: Pat Holloway on one story in depth

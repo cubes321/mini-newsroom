@@ -250,6 +250,7 @@ mag_b = "am_liam"
 late_host = "am_onyx"    # The Last Ferry (late-night talk show)
 sport = "af_jessica"     # Fran Kellaway, sport (the news, and Full Time at 18:45)
 sport_reporter = "af_sarah"   # Tamsin Jago, Full Time's reporter: PROVISIONAL, to be chosen by ear (2026-10-30)
+business = "am_echo"         # Howard Lanyon, Quayside: PROVISIONAL, to be chosen by ear (2026-10-30)
 historian = "am_santa"   # Hugh Tremayne, the history documentaries (and the entertainment channel's)
 
 [paths]

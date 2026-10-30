@@ -51,7 +51,7 @@ answers. Between calls come the travel news and the bulletin headlines.
 - **Reuses:** the interview set, the guest memory, the tip-line (a viewer tip can become a caller).
 - **Size:** medium.
 
-### Quayside (13:00, half an hour): business
+### Quayside (13:00, half an hour): business. BUILT 2026-10-30
 
 The harbour and the port trade, local firms, shop openings and closings, jobs, high-street prices.
 It leads on the morning's fish auction: what landed, what it fetched, up or down on last week.
@@ -148,7 +148,7 @@ reach an end instead of waiting at the council door.
 ## Build order
 
 1. **The Inquiry**: built 2026-10-30.
-2. **Quayside**: `quay.py` gives the whole channel a new source of facts.
+2. **Quayside**: built 2026-10-30, with Howard Lanyon.
 3. **The Panel**: the panel item and set.
 4. **Have Your Say**: the call item.
 5. **Out and About**: a presenter and the review item.

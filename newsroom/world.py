@@ -36,7 +36,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-from . import schedule, sport
+from . import quay, schedule, sport
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -72,10 +72,10 @@ port wexley town harbour harbor local""".split())
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's.
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's, am_echo Howard's.
 GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky",
                   "af_river", "af_alloy"]
-GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam", "am_echo"]
+GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
 # A guest's speaking speed: the old a little slower, the young a little quicker.
@@ -255,6 +255,7 @@ class World:
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
+            + (f"Quay: {q}\n" if (q := quay.summary(datetime.fromtimestamp(schedule.now()))) else "") +
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
@@ -814,6 +815,11 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("sport_reporter", "af_sarah"),
                   ["twenty-five and Port Wexley born", "played for the Tides' women's side",
                    "knows everyone at the Quarry Field and every darts pub", "a bit cheeky with Fran"], lang="b"),
+        # Quayside's presenter at 13:00: the town's money, the quay's prices, its firms and jobs.
+        Character("business", "Howard Lanyon", "business presenter (Quayside at 13:00)",
+                  CONFIG.tts.voices.get("business", "am_echo"),
+                  ["ran the Harrow Street bank branch for thirty years", "knows who owes whom",
+                   "dry wit", "reads the figures like tea leaves"], speed=0.95, lang="b"),
         # Shared with the entertainment channel planned in E:\programming\mini-TVChannel (same town).
         Character("historian", "Hugh Tremayne", "local-history presenter (the history documentaries)",
                   CONFIG.tts.voices.get("historian", "am_santa"),

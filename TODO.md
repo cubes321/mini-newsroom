@@ -5,6 +5,11 @@ bottom with the date.
 
 ## Art
 
+- [ ] Howard Lanyon's voice, by ear: am_echo with British pronunciation at 0.95 for now (PROVISIONAL in
+  config.toml), with Tamsin's on the same listening page. The new shows' own bumper arrangements too
+  (Quayside and The Inquiry use the news one).
+- [ ] A fish quay backdrop for Quayside (boxes on ice, the auctioneer's chalk board, the fish vans):
+  Miles reports the auction from the harbour until then.
 - [ ] Tamsin Jago's voice, by ear: she has af_sarah with British pronunciation for now (PROVISIONAL in
   config.toml). Every English female Kokoro voice is taken by a presenter or the guest pool; try
   af_sarah against af_bella, af_nova and af_sky on a listening page, as for Fran. Whichever she gets
@@ -142,6 +147,13 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 Quayside at 13:00 (`docs/SHOWS.md`): Howard Lanyon (`business`), thirty years the Harrow Street
+  bank manager (look B of three: silver hair, a grey beard, a navy blazer), on the morning's fish auction,
+  a business in the armchair, the jobs board, prices and a local firm. `quay.py` works the auction out
+  from the date like the scores: twelve boats, twelve species in season, rough days that keep the small
+  boats in, prices that rise when the landing is thin, and last week's for comparison; every writer's
+  briefing has a Quay line. Haiku's trial items kept to the figures exactly. Voice provisional (see Art).
 
 - 2026-10-30 The Inquiry at 20:00 (`docs/SHOWS.md`): Pat Holloway on one story in depth, chosen from
   18:30 with its questions and guest (`inquiry.py`), then 20:30 is news until The Panel is built. In a

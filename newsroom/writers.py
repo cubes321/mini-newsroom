@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, inquiry, llm, schedule, sport, tides, tipline
+from . import breaking, inquiry, llm, quay, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -227,6 +227,61 @@ Pick a plausible map_state for a coastal town and a temperature in Celsius.
 """,
 }
 
+# Quayside at 13:00: Howard Lanyon ("business") on the town's money; every item gets QUAY FACTS (quay.py).
+_QUAYSIDE_RULES = """
+This is part of QUAYSIDE, the lunchtime business half hour. Howard Lanyon ("business") ran the
+Harrow Street bank branch for thirty years: he knows who owes whom, has a dry wit and reads the
+figures like tea leaves. Every auction figure, boat, skipper and buyer comes from QUAY FACTS exactly
+as given; never invent a price or a landing. Other money (a shop's rent, a job's wage, a bill) is
+small-town scale and plausible. Plain words: say what a figure means for people in town.
+"""
+
+_QUAYSIDE: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _QUAYSIDE_RULES + """
+These are Howard's words TO CAMERA ("business" alone), as THIS ITEM and the PLACE IN THE SHOW say: the
+opening figures and what's coming up, the jobs board (three or four vacancies, each with the
+employer, the hours and who to ask, each its own line), or the closing figures. Several short lines,
+never one long one. No guests speak. thread_id is null
+unless you mention an open thread in passing.
+headline = the point in under 12 words. lower_third = "Quayside" plus a short tag.
+""",
+    SegmentType.field_report: _COMMON_RULES + _QUAYSIDE_RULES + """
+This is a REPORT from the fish quay on Quayside. "business" (Howard) hands to Miles in one line;
+"reporter" (Miles) reports from the quay as THIS ITEM says: the morning's auction, the boats out and
+those kept in, what a skipper or a buyer said; "business" thanks him in one line. The backdrop is
+harbour; location is the place in words.
+""",
+    SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _QUAYSIDE_RULES + """
+This is the GUEST in the armchair on Quayside. Howard ("business") talks to one guest as THIS ITEM
+says: a business owner, a trader, a skipper, the merchant on the quay. Practical questions about
+money and trade (costs, customers, staff, what would help); the guest gives real figures and a real
+worry. Friendly, but Howard asks how the sums add up.
+headline = the guest and their point in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.consumer: _COMMON_RULES + _GUEST_RULES + _QUAYSIDE_RULES + """
+This is the PRICES item on Quayside, fronted by Howard ("business"): what something costs in town now
+and why, as THIS ITEM says. He may talk to one guest (a trader, a council officer, a shopper), named in
+guest_name with role and gender, or set guest_name to null and speak alone. End with one clear tip.
+headline = the item in under 12 words. lower_third = a short caption.
+""",
+    SegmentType.feature: _COMMON_RULES + _GUEST_RULES + _QUAYSIDE_RULES + """
+This is a FILMED REPORT on Quayside about a local business, as THIS ITEM says. Structure:
+1. "business" (Howard) introduces it in one line.
+2. "reporter" (Miles) tells it from the place; one person from the business ("guest", named in
+   guest_name with guest_role and guest_gender) speaks two or three times: what they do, who works
+   there, how trade is.
+3. "business" comes back with a one-line tag on what it means for the town.
+Choose a backdrop id from the LOCATIONS list; location is the place in words, never an id.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _QUAYSIDE_RULES + """
+This is the VOX POP on Quayside. Howard ("business") hands over in one line; Miles ("reporter") asks
+shoppers or traders ONE question about money (prices, the fish, a shop closing, wages); then three or
+four answer in a line or two each. Each is speaker "guest" with their own guest_name (first name and
+surname), guest_gender and guest_age; different ages and views, one of them funny. question = the
+question as a caption. Choose a backdrop id from the LOCATIONS list; location is the place in words.
+""",
+}
+
 # The Inquiry (inquiry.py): Pat (mag_a) on one story in depth; every item gets TONIGHT'S INQUIRY.
 _INQUIRY_RULES = """
 This is part of THE INQUIRY, a half-hour investigation into ONE story, given as TONIGHT'S INQUIRY
@@ -419,6 +474,10 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="Coastwide", extra=", and never \"Coastwide is next\": it is on now")
             + "Come out of the last item, a little banter, and on to what's next.",
     },
+    ("quayside", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS Quayside: a brief good afternoon, then the figures.",
+        "": _MIDDLE.format(title="Quayside", extra=""),
+    },
     ("inquiry", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS The Inquiry: a brief good evening, then straight into the story.",
         "": _MIDDLE.format(title="The Inquiry", extra=""),
@@ -568,7 +627,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
-             "inquiry": _INQUIRY}.get(show.id, {})
+             "inquiry": _INQUIRY, "quayside": _QUAYSIDE}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -618,6 +677,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += "\n\n" + quiet
     if show.id == inquiry.SHOW:
         user += "\n\n" + inquiry.for_prompt(world)
+    if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
+        user += "\n\n" + facts
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
         world, show, seg_type, part)
     if so_far:
