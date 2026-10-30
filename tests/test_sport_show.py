@@ -39,6 +39,21 @@ def test_the_sports_desk_gets_the_facts_and_not_the_news_big_story():
         assert "BIG RUNNING STORY" not in user
 
 
+def test_each_sports_desk_piece_knows_its_place_in_full_time():
+    w, show = world_mod.seed(), schedule.get("sport")
+    places = {}
+    for part in ("open", "", "close"):
+        system, user = writers.build_prompt(SegmentType.sport, w, target_s=60, show=show, part=part,
+                                            at_ts=_at(18, 50))
+        assert "goodbye" not in system and "welcome" not in system
+        places[part] = user
+    assert "OPENS Full Time" in places["open"] and "END of the programme" not in places["open"]
+    assert "MIDDLE of Full Time" in places[""] and "welcome to Full Time" not in places[""]
+    assert "END of the programme" in places["close"] and "PLACE IN THE SHOW" not in places["close"]
+    _, news = writers.build_prompt(SegmentType.sport, w, target_s=60, show=schedule.get("news"))
+    assert "PLACE IN THE SHOW" not in news
+
+
 def test_the_template_is_fran_with_the_real_result():
     w = world_mod.seed()
     script = writers._template(SegmentType.sport, w, __import__("random").Random(1), schedule.get("sport"))
