@@ -311,6 +311,23 @@ class CouchScript(InterviewScript):
     lines: list[CouchLine] = Field(min_length=2, max_length=16)
 
 
+class PanelLine(GuestLine):
+    guest_name: str | None = Field(default=None, max_length=40,
+                                   description="on a 'guest' line: the panellist speaking, by exact name")
+
+
+class PanelScript(InterviewScript):
+    """The Panel's debate: the chair and three panellists, each guest line naming its panellist (the
+    first is lifted onto the script, as for any interview). Longer than an interview: four voices."""
+    lines: list[PanelLine] = Field(min_length=4, max_length=24)
+
+    @model_validator(mode="after")
+    def _every_panellist_named(self):
+        if any(l.speaker == "guest" and not (l.guest_name or "").strip() for l in self.lines):
+            raise ValueError("every 'guest' line needs guest_name: the panellist speaking")
+        return self
+
+
 class FeatureScript(BaseModel):
     """A filmed magazine piece: Miles on location, optionally with one resident."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
@@ -500,6 +517,23 @@ class InquiryCommission(BaseModel):
                                    "story's people or the public figures")
 
 
+class PanelQuestion(BaseModel):
+    question: Annotated[str, _clip_words(200)] = Field(max_length=200, description="the question as Dana puts it")
+    thread_id: str | None = Field(default=None, description="the story it comes from, by id, or null")
+
+
+class Panellist(BaseModel):
+    name: str = Field(description="an exact name from the PEOPLE list")
+    stance: Annotated[str, _clip_words(200)] = Field(
+        max_length=200, description="where they stand on tonight's questions, one sentence")
+
+
+class PanelLineup(BaseModel):
+    """Tonight's Panel (panel.py): three questions from the week's news and three panellists who differ."""
+    questions: list[PanelQuestion] = Field(min_length=3, max_length=3)
+    panellists: list[Panellist] = Field(min_length=3, max_length=3)
+
+
 class SeniorMemo(BaseModel):
     """The senior editor's review of the story desk's whole board (senior.py)."""
     memo: Annotated[str, _clip(1200)] = Field(
@@ -591,16 +625,17 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 
 
-def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False) -> type[BaseModel]:
+def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False,
+                  panel: bool = False) -> type[BaseModel]:
     """The script schema with `lines[].speaker` narrowed to one show's cast.
 
     The JSON schema the model sees then lists only that show's presenters, the
     same way the Backdrop enum comes from locations.py. `couch`: an interview
-    with two guests on The Last Ferry's couch.
+    with two guests on The Last Ferry's couch; `panel`: The Panel's debate, three guests.
     """
-    key = (seg_type, cast, couch)
+    key = (seg_type, cast, couch, panel)
     if key not in _NARROWED:
-        base = CouchScript if couch else SCRIPT_SCHEMAS[seg_type]
+        base = PanelScript if panel else CouchScript if couch else SCRIPT_SCHEMAS[seg_type]
         lf = base.model_fields["lines"]
         line_base = lf.annotation.__args__[0]          # LiveLine, GuestLine or VoxLine
         line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,

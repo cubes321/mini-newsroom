@@ -833,6 +833,34 @@ def _studio_interview(p: _Paint) -> None:
     p.poly((235, 200, 140), [(296, 60), (312, 60), (308, 48), (300, 48)])
 
 
+@_painter("studio_panel")
+def _studio_panel(p: _Paint) -> None:
+    """The Panel: a long desk the four sit behind (their marks' baseline is its top), the chair at the
+    left end, a wide screen behind the panellists. Painted until it has art of its own."""
+    marks = MARKS["studio_panel"]
+    top = marks["host"][1]
+    p.rect(p.loc.sky, 0, 0, W, H)
+    for x in range(0, W, 24):                                    # a slatted back wall
+        p.rect((40, 42, 66), x, 0, 2, top)
+    for x in range(20, W, 50):                                   # ceiling spots
+        p.rect((96, 96, 106), x, 0, 6, 4)
+    p.rect((18, 18, 26), 112, 18, 196, 58)                       # the wide screen behind the panellists
+    p.rect((44, 52, 96), 116, 22, 188, 50)
+    for i, x in enumerate(range(124, 300, 22)):                  # a faint skyline of the town on it
+        p.rect((70, 80, 130), x, 72 - 10 - (i * 7) % 18, 14, 10 + (i * 7) % 18)
+    p.circle((200, 40, 40), 46, 46, 12)                          # the channel 7 ident above the chair
+    p.rect((240, 240, 240), 40, 39, 12, 3)
+    p.poly((240, 240, 240), [(49, 42), (52, 42), (46, 54), (43, 54)])
+    p.rect(p.loc.ground, 0, top, W, H - top)
+    desk, edge = (64, 54, 70), (150, 130, 90)
+    p.rect(desk, 20, top, W - 40, 24)                            # the desk front
+    p.rect(edge, 20, top, W - 40, 3)                             # its top edge
+    p.rect(_shade(desk, 0.8), 20, top + 24, W - 40, 4)
+    for x, _, _, _ in (marks[k] for k in ("host", "panel_1", "panel_2", "panel_3")):
+        p.rect((210, 210, 214), x - 9, top + 8, 18, 6)           # a name card at each place
+        p.rect((170, 200, 225), x + 12, top - 6, 3, 6)           # a glass of water
+
+
 @_painter("studio_sofa")
 def _studio_sofa(p: _Paint) -> None:
     p.rect(p.loc.sky, 0, 0, W, H)

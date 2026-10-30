@@ -8,6 +8,8 @@ bottom with the date.
 - [ ] Howard Lanyon's voice, by ear: am_echo with British pronunciation at 0.95 for now (PROVISIONAL in
   config.toml), with Tamsin's on the same listening page. The new shows' own bumper arrangements too
   (Quayside and The Inquiry use the news one).
+- [ ] Art for The Panel's set (`studio_panel`): it is painted in code for now, a long desk with four places,
+  a wide screen and the channel 7 ident; the other studio sets have ComfyUI art.
 - [ ] A fish quay backdrop for Quayside (boxes on ice, the auctioneer's chalk board, the fish vans):
   Miles reports the auction from the harbour until then.
 - [ ] Tamsin Jago's voice, by ear: she has af_sarah with British pronunciation for now (PROVISIONAL in
@@ -147,6 +149,15 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 The Panel at 20:30 (`docs/SHOWS.md`): Dana Ferris chairs three panellists on three questions,
+  booked in idle time from 18:30 (`panel.py`) to disagree (an official, a worthy or a business, a resident),
+  never tonight's Inquiry story or guest; a stand-in lineup covers a failed booking. Each debate is an
+  interview item with `PanelScript`: every panellist's line carries their name, so each has their own
+  voice, caption and seat at the long desk (`studio_panel`, painted for now). A question from the public
+  (a vox pop) leads into the second debate. The documentary still opens the news at 21:00, and the
+  programme card puts it in that line. In the first trial one debate took all three questions; the
+  writers are now told one question each.
 
 - 2026-10-30 Quayside at 13:00 (`docs/SHOWS.md`): Howard Lanyon (`business`), thirty years the Harrow Street
   bank manager (look B of three: silver hair, a grey beard, a navy blazer), on the morning's fish auction,

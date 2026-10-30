@@ -333,6 +333,38 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # this morning's prices, this lunchtime
     ),
     Show(
+        "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
+        # Half an hour of debate: Dana Ferris chairs three panellists on three questions from the week's
+        # news, booked earlier in the evening (panel.py); a question from the public on the second.
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Dana opens The Panel: welcome, the three panellists by name and role, and "
+                                     "the first question", target_s=45.0),
+            I(T.interview, brief="the FIRST of TONIGHT'S QUESTIONS: Dana puts it, each panellist answers in turn, "
+                                 "then they take each other on; Dana keeps it moving and fair"),
+            I(T.vox_pop, brief="Miles asks people in town the SECOND of TONIGHT'S QUESTIONS; the last of them "
+                               "puts it to the panel in their own words"),
+            I(T.interview, brief="the SECOND of TONIGHT'S QUESTIONS, picking up the member of the public's words: "
+                                 "each answers, then they argue it out"),
+            T.ad_break,
+            I(T.interview, brief="the THIRD of TONIGHT'S QUESTIONS: each answers, then the sharpest disagreement "
+                                 "of the night; Dana presses whoever dodges"),
+            # the order wraps back to here
+            I(T.interview, brief="the quick-fire round: Dana's short questions on the week's smaller stories, a "
+                                 "line or two from each panellist", target_s=120.0),
+        ),
+        loop_from=7,
+        closing=(I(T.links, "close", brief="Dana thanks the panel and sums up where they agreed and where they "
+                                           "didn't, in a few lines", target_s=40.0),),
+        target_s={T.bumper: 8.0, T.links: 45.0, T.interview: 330.0, T.vox_pop: 60.0, T.ad_break: 60.0},
+        cast=("anchor", "reporter"), lead="anchor",
+        cast_by_type={T.links: ("anchor",), T.interview: ("anchor", "guest"),
+                      T.vox_pop: ("anchor", "reporter", "guest")},
+        station="The Panel, channel 7's debate, chaired by Dana Ferris",
+        tone="lively but civil: real disagreement, real reasons, nobody shouted down",
+        repeats_overnight=False,     # tonight's questions, tonight
+    ),
+    Show(
         "inquiry", "THE INQUIRY", "INQUIRY", (150, 46, 46),
         # Half an hour on one running story, chosen earlier in the evening with Pat's questions and the
         # guest who has to answer them (inquiry.py). The only serious show of the evening.
@@ -390,7 +422,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     ("18:45", "sport"),     # Full Time: fifteen minutes of local sport
     (19, "magazine"),       # Coastwide: features, a studio guest, vox pops, the consumer slot
     (20, "inquiry"),        # The Inquiry: Pat Holloway on one story in depth
-    ("20:30", "news"),      # The Panel's half hour, when it's built (docs/SHOWS.md)
+    ("20:30", "panel"),     # The Panel: Dana Ferris chairs three panellists on the week's news
+    (21, "news"),           # the documentary airs at its first bumper
     (22, "late"),           # The Last Ferry: a monologue and long guest chats
     (23, "news"),           # the late news
 )

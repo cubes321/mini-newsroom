@@ -108,7 +108,7 @@ isn't answered. The one serious show in an evening of light ones.
   vox pop, the guest part two, the other side, and Pat's close on what still isn't answered. The
   bumper uses the news arrangement until it has its own (by ear).
 
-### The Panel (20:30, half an hour): the debate
+### The Panel (20:30, half an hour): the debate. BUILT 2026-10-30
 
 Dana Ferris chairs three panellists, from the town's officials, worthies and residents, on two or
 three questions from the week's news, with a question from the public on each. The panellists keep
@@ -149,7 +149,7 @@ reach an end instead of waiting at the council door.
 
 1. **The Inquiry**: built 2026-10-30.
 2. **Quayside**: built 2026-10-30, with Howard Lanyon.
-3. **The Panel**: the panel item and set.
+3. **The Panel**: built 2026-10-30.
 4. **Have Your Say**: the call item.
 5. **Out and About**: a presenter and the review item.
 6. **The Chamber**: the calendar and the votes, once the senior editor and the new story allowance

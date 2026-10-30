@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, inquiry, llm, quay, schedule, sport, tides, tipline
+from . import breaking, inquiry, llm, panel, quay, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -282,6 +282,40 @@ question as a caption. Choose a backdrop id from the LOCATIONS list; location is
 """,
 }
 
+# The Panel (panel.py): Dana ("anchor") chairs three panellists; every item gets TONIGHT'S PANEL.
+_PANEL_RULES = """
+This is part of THE PANEL, a half-hour debate chaired by Dana Ferris ("anchor"): dry, unflappable,
+fair, quick to stop a speech and to press a dodge. The three panellists in TONIGHT'S PANEL keep to
+their stances and their positions in the briefing; they disagree for real reasons, concede a point
+now and then, and are never cartoons. Facts come from the briefing; opinions are theirs. Civil: no
+shouting, nobody insulted. Small-town scale.
+"""
+
+_PANEL: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _PANEL_RULES + """
+These are Dana's words TO CAMERA ("anchor" alone), as THIS ITEM and the PLACE IN THE SHOW say: at the
+open, a brief welcome, the panellists by name and role, and the first question; at the close, thanks
+and where they agreed and where they didn't. No panellist speaks. thread_id is null.
+headline = the point in under 12 words. lower_third = "The Panel" plus a short tag.
+""",
+    SegmentType.interview: _COMMON_RULES + _PANEL_RULES + """
+This is ONE DEBATE on The Panel, on the ONE question THIS ITEM names; the other questions have their
+own debates elsewhere in the show, so do not put them, and do not end by moving on to the next. Dana
+("anchor") puts it; each of the THREE panellists answers in turn (speaker "guest", guest_name their
+exact name); then they take each other on, short exchanges, Dana stepping in to bring the quiet one in
+or to press a dodge. Every panellist speaks at least twice. Set thread_id to the question's thread if
+it has one.
+headline = the question and the sharpest point, under 12 words. lower_third = the question, short.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _PANEL_RULES + """
+This is the QUESTION FROM THE PUBLIC on The Panel. Dana ("anchor") hands over in one line; Miles
+("reporter") asks people in town THIS ITEM's question; three or four answer in a line or two each, the
+last putting it to the panel in their own words. Each is speaker "guest" with their own guest_name
+(first name and surname), guest_gender and guest_age; different views. question = the question as a
+caption. Choose a backdrop id from the LOCATIONS list; location is the place in words.
+""",
+}
+
 # The Inquiry (inquiry.py): Pat (mag_a) on one story in depth; every item gets TONIGHT'S INQUIRY.
 _INQUIRY_RULES = """
 This is part of THE INQUIRY, a half-hour investigation into ONE story, given as TONIGHT'S INQUIRY
@@ -474,6 +508,11 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="Coastwide", extra=", and never \"Coastwide is next\": it is on now")
             + "Come out of the last item, a little banter, and on to what's next.",
     },
+    ("panel", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS The Panel: a brief good evening, then the panel and the first question.",
+        "": _MIDDLE.format(title="The Panel", extra=""),
+    },
+    ("panel", SegmentType.interview): {"": _MIDDLE.format(title="The Panel", extra="")},
     ("quayside", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS Quayside: a brief good afternoon, then the figures.",
         "": _MIDDLE.format(title="Quayside", extra=""),
@@ -627,7 +666,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
-             "inquiry": _INQUIRY, "quayside": _QUAYSIDE}.get(show.id, {})
+             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -677,6 +716,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += "\n\n" + quiet
     if show.id == inquiry.SHOW:
         user += "\n\n" + inquiry.for_prompt(world)
+    if show.id == panel.SHOW:
+        user += "\n\n" + panel.for_prompt(world)
     if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
         user += "\n\n" + facts
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
@@ -693,7 +734,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += ("\n\nThey stay on the couch for the next guest: no goodbye or thanks at the end. Vincent "
                      "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop) and (
-            show.id != inquiry.SHOW):             # its guest is the one the story needs, however recent
+            show.id not in (inquiry.SHOW, panel.SHOW)):   # their guests are booked for the night, however recent
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
@@ -965,11 +1006,12 @@ def script_segment(seg: Segment, world: World) -> Segment:
             log.info("field_report slot %d: Miles reports from the scene of %s", seg.slot_id, scene)
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
-    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch))
+    debate = seg.type is SegmentType.interview and show.id == panel.SHOW     # three panellists, booked tonight
+    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate)
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        rebooked = None if cont else _rebooked(script, world)
+        rebooked = None if cont or debate else _rebooked(script, world)
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
@@ -978,7 +1020,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
-        known = None if cont else _remembered(script, world, {seg.work.get("return_guest"), couch and couch["name"]})
+        known = None if cont or debate else _remembered(script, world, {seg.work.get("return_guest"),
+                                                                        couch and couch["name"]})
         if known:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
                      seg.slot_id, known.name)
@@ -999,9 +1042,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
         seg.fallback = llm.provider_for(seg.type.value) != "off"
 
     stayed = couch["name"] if couch and source == "llm" else None
-    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=_guest_of(l, script, stayed),
-                      guest_role=(couch["role"] if stayed and _guest_of(l, script, stayed) == stayed
-                                  else getattr(script, "guest_role", None)) if l.speaker == "guest" else None)
+
+    def role(name: str | None) -> str | None:
+        if stayed and name == stayed:
+            return couch["role"]
+        if debate and (p := world.person_by_name(name)):
+            return p.role                     # each panellist under their own caption
+        return getattr(script, "guest_role", None)
+    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(), guest_name=(name := _guest_of(l, script, stayed)),
+                      guest_role=role(name) if l.speaker == "guest" else None)
                  for l in script.lines if l.text.strip()]
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch

@@ -247,10 +247,18 @@ def bake_programmes(now: float, world=None) -> Item:
     still to come. Valid until the first of them starts, so it never says something stale."""
     from . import documentary
 
-    entries = [(ts, schedule.get(sid).title) for ts, sid in upcoming(now)]
+    ups = upcoming(now, 4)
+    entries = [(ts, schedule.get(sid).title) for ts, sid in ups[:3]]
     airs = documentary._today_at(CONFIG.documentary.airs_at, now)
-    if world is not None and now < airs < entries[-1][0] and documentary.due(world, airs):
-        entries.append((airs, CONFIG.documentary.title))
+    if world is not None and now < airs and documentary.due(world, airs):
+        # The documentary opens the news hour it airs in: it takes that line (21:00 has been a news
+        # start since The Panel took 20:30), or goes between the shows if it falls inside one.
+        at = next((i for i, (ts, sid) in enumerate(ups[:3]) if ts == airs and sid == "news"), None)
+        if at is not None:
+            entries[at] = (airs, CONFIG.documentary.title)
+            entries += [(ts, schedule.get(sid).title) for ts, sid in ups[3:4]]
+        elif airs < entries[-1][0]:
+            entries.append((airs, CONFIG.documentary.title))
     entries.sort()
     item_id = f"programmes_{datetime.fromtimestamp(now):%Y%m%d}_{time.strftime('%H%M', time.localtime(entries[0][0]))}"
     shown = [f"{time.strftime('%H:%M', time.localtime(ts))}  {title}" for ts, title in entries]

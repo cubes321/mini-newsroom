@@ -102,6 +102,12 @@ class InquiryCfg:
 
 
 @dataclass(frozen=True)
+class PanelCfg:
+    commission_from: str = "18:30"       # tonight's lineup is chosen in idle time from here (panel.py)
+    airs_at: str = "20:30"               # when The Panel starts; no commission after it
+
+
+@dataclass(frozen=True)
 class StoryCfg:
     plan_every_s: float = 1200.0
     thin_board: int = 8                  # below this many open the desk may seed two new stories a round, else one
@@ -161,6 +167,7 @@ class Config:
     documentary: DocumentaryCfg
     story: StoryCfg
     inquiry: InquiryCfg
+    panel: PanelCfg
     breaking: BreakingCfg
     adverts: AdvertsCfg
     continuity: ContinuityCfg
@@ -193,6 +200,7 @@ def load(path: Path | None = None) -> Config:
         documentary=DocumentaryCfg(**raw.get("documentary", {})),
         story=StoryCfg(**raw.get("story", {})),
         inquiry=InquiryCfg(**raw.get("inquiry", {})),
+        panel=PanelCfg(**raw.get("panel", {})),
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),
         continuity=ContinuityCfg(**raw.get("continuity", {})),

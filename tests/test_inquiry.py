@@ -102,5 +102,5 @@ def test_the_evening_schedule():
     def at(h, m):
         return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, m, 0, 0, 0, -1))
     assert schedule.show_at(at(20, 10)).id == "inquiry" and schedule.show_end(at(20, 10)) == at(20, 30)
-    assert schedule.show_at(at(20, 40)).id == "news"
+    assert schedule.show_at(at(20, 40)).id == "panel" and schedule.show_at(at(21, 10)).id == "news"
     assert "not answered" in schedule.get("inquiry").closing[0].brief

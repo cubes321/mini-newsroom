@@ -332,7 +332,7 @@ class WorkerPool:
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import adverts, breaking, continuity, desk, documentary, inquiry, senior, special
+        from . import adverts, breaking, continuity, desk, documentary, inquiry, panel, senior, special
 
         try:
             if adverts.seed_one(self.world):
@@ -363,6 +363,10 @@ class WorkerPool:
                 return
             if inquiry.should_commission(self.world):
                 inquiry.commission(self.world)    # tonight's story for The Inquiry, its questions and guest
+                world_mod.save(self.world)
+                return
+            if panel.should_commission(self.world):
+                panel.commission(self.world)      # The Panel's three questions and three panellists
                 world_mod.save(self.world)
                 return
             if continuity.should_make(self.world, self.buffer):
