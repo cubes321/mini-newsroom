@@ -15,15 +15,15 @@ bottom with the date.
   an endless strip with the same gradient and clouds, and let the clouds drift behind the buildings.
   It wouldn't reach the studio sets; check hazy horizons by eye; show before/after first.
   Drifting skies built 2026-10-29 on branch `drifting-skies` (`skies.py`): every exterior, day and
-  night art, graded for dusk and weather; the wind hurries the clouds. Waiting for the user to
-  approve the review clip, and to merge after the DeepSeek night. Finding a sky takes about 50 ms
+  night art, graded for dusk and weather; the wind hurries the clouds. Approved and merged
+  2026-10-30. Finding a sky takes about 50 ms
   the first time a backdrop is drawn; if that shows as a hitch on air, warm them at start-up.
   True parallax (a moving camera over wider art) is still parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
-- [ ] Backdrops for the new sport: the Wreckers' Quarry Field (a rugby pitch, posts, a clubhouse) and a
-  pub interior for the darts (the board, the oche, a scoreboard chalked up). Until then the rugby and
-  the darts stay at the sports desk and in the studio; with them, Full Time could send Miles there.
+- [ ] Send Miles out for Full Time. The backdrops are in (merged 2026-10-30): the Wreckers' Quarry
+  Field, day and night, and the darts pub. Full Time still keeps the rugby and the darts at the
+  sports desk; wire its field reports to go there.
 
 ## Content
 
@@ -79,8 +79,15 @@ bottom with the date.
   fire-station thread, and that's defensible: the baker's petition *is* the second-engine
   petition). Flash's first documentary section recited the world brief. The all-Claude baseline
   night (2026-10-28 19:43 to 10-29 11:13, data/measure-2026-10-28.log) cost about $2.60 at list
-  prices: Sonnet about $2.20 for 89 calls, Haiku about $0.40 for 692. Still to decide, after the
-  DeepSeek night: Flash for the back office, Haiku
+  prices: Sonnet about $2.20 for 89 calls, Haiku about $0.40 for 692. The DeepSeek night
+  (2026-10-29 19:26 to 10-30 08:21, data/measure-deepseek-2026-10-29.log; a Claude desktop update
+  closed the terminal tab running it, so run long nights in their own window) cost $0.55 over
+  12h50m against $2.18 for the same span of the baseline: Flash $0.23 by DeepSeek's export (which
+  matched the log to the token; peak hours, 01:00–04:00 and 06:00–10:00 UTC, double Flash too and
+  were half its bill), Haiku $0.32. No call failed for good and nothing fell to filler; Flash's median
+  call was 8 s (54 s at worst, unseen behind a 10-minute buffer). Flash commissioned 9 specials to
+  Sonnet's 4 and raised a breaking story, but made 12 merges to 17 and opened no new threads (Sonnet
+  3): watch whether the town runs short of fresh stories. Still to decide: Flash for the back office, Haiku
   keeping the scripts, Sonnet as an hourly supervisor and as the fallback when DeepSeek doesn't
   respond (no provider fallback exists yet: a call that fails twice gets a canned script).
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
@@ -127,6 +134,16 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 On-screen text is drawn at the window's size in Bahnschrift (`scenes.present`): text is laid
+  out on the 320x180 canvas but queued and drawn over the scaled frame, since viewers found the 8 px
+  Consolas scaled 3x hard to read. `logo.py`'s audition sheet renders the canvas alone, so it shows no
+  text.
+
+- 2026-10-30 Pieces know their place in the show (`writers._PLACE`): Full Time's and Coastwide's openers
+  welcome, the middle pieces don't welcome or say goodbye (Coastwide never trails itself as "next"), the
+  Last Ferry leaves goodnight to Vincent's close, and the rolling news has no sign-offs. On 2026-10-28
+  every Coastwide middle link welcomed viewers again, and about one bulletin in four said goodnight.
 
 - 2026-10-29 Full Time's own arrangement of the station tune and a new breaking sting, chosen by ear on a
   listening page. Full Time ("sport" voicing, a tone up and 15% quicker): a 70s synth lead in octaves, a
