@@ -71,8 +71,8 @@ port wexley town harbour harbor local""".split())
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's.
-GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_sarah", "af_nova", "af_sky",
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's.
+GUEST_VOICES_F = ["af_bella", "af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky",
                   "af_river", "af_alloy"]
 GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam", "am_echo"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
@@ -792,6 +792,11 @@ def seed_characters() -> list[Character]:
         Character("sport", "Fran Kellaway", "sports presenter (the news, and Full Time at 18:45)",
                   CONFIG.tts.voices.get("sport", "af_jessica"),
                   ["quick and keen", "played for the county until her knee went", "knows everyone at the club"]),
+        # Full Time's reporter at the grounds and the pubs, so Miles isn't on three shows an evening.
+        Character("sport_reporter", "Tamsin Jago", "sports reporter (Full Time: the grounds, the clubs and the pubs)",
+                  CONFIG.tts.voices.get("sport_reporter", "af_sarah"),
+                  ["twenty-five and Port Wexley born", "played for the Tides' women's side",
+                   "knows everyone at the Quarry Field and every darts pub", "a bit cheeky with Fran"], lang="b"),
         # Shared with the entertainment channel planned in E:\programming\mini-TVChannel (same town).
         Character("historian", "Hugh Tremayne", "local-history presenter (the history documentaries)",
                   CONFIG.tts.voices.get("historian", "am_santa"),

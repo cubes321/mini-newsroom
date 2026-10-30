@@ -5,6 +5,10 @@ bottom with the date.
 
 ## Art
 
+- [ ] Tamsin Jago's voice, by ear: she has af_sarah with British pronunciation for now (PROVISIONAL in
+  config.toml). Every English female Kokoro voice is taken by a presenter or the guest pool; try
+  af_sarah against af_bella, af_nova and af_sky on a listening page, as for Fran. Whichever she gets
+  leaves GUEST_VOICES_F, and guests who had it are recast automatically.
 - [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start).
@@ -21,9 +25,6 @@ bottom with the date.
   True parallax (a moving camera over wider art) is still parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
-- [ ] Send Miles out for Full Time. The backdrops are in (merged 2026-10-30): the Wreckers' Quarry
-  Field, day and night, and the darts pub. Full Time still keeps the rugby and the darts at the
-  sports desk; wire its field reports to go there.
 
 ## Content
 
@@ -145,6 +146,14 @@ bottom with the date.
   Kokoro, timing each one. Only then wire one in behind `[tts] backend`.
 
 ## Done
+
+- 2026-10-30 Tamsin Jago, Full Time's reporter (`sport_reporter`): twenty-five, Port Wexley born, played
+  for the Tides' women's side; long dark brown hair, a green waterproof and a Tides-blue scarf (look A of
+  three on a contact sheet). She goes live from Tidewater Stadium and from a darts pub (the darts desk
+  piece became her report) and asks the Wreckers' supporters at the Quarry Field, so the new backdrops
+  are used and Miles is off Full Time (he was on three shows an evening). The field scene draws whoever
+  is out on location (`View.reporter`, `models.FIELD_REPORTERS`). Haiku's trial darts report and Quarry
+  Field vox pop chose the right backdrops and kept to the darts facts. Voice provisional (see Art).
 
 - 2026-10-30 Coastwide remembers its evening (`writers._show_so_far`), as the breakfast sofa remembers its
   morning: each links, feature, interview, vox pop and consumer item sees tonight's items on the show

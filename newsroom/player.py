@@ -34,7 +34,7 @@ from . import adverts, continuity, documentary, schedule
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
-from .models import Segment, SegmentState, SegmentType
+from .models import FIELD_REPORTERS, Segment, SegmentState, SegmentType
 from .producer import Producer
 from .tts import ENV_WINDOW_S
 from .world import World
@@ -61,6 +61,7 @@ class View:
     set: str = ""                        # "interview" on the interview set, "sports" at the sports corner
     people: list = field(default_factory=list)   # who is on that set: [(speaker id, guest name or None)]
     presenter: str = "anchor"            # who stands at the big-picture wall
+    reporter: str = "reporter"           # who is out on location: Miles, or Tamsin on Full Time
     tag: str = ""                        # field scenes: LIVE, VOX POP, or nothing for a filmed piece
     resume_at: str = ""                  # overnight card: when programmes start again
     speaker: str | None = None
@@ -396,7 +397,7 @@ class Player:
         - Introducing a special: the same, showing its first location.
         - Bulletins cut between the wide desk shot and a close-up, line by line.
         """
-        handing_over = all(l.speaker not in ("reporter", "guest") for l in seg.lines[:self.line_idx + 1])
+        handing_over = all(l.speaker not in (*FIELD_REPORTERS, "guest") for l in seg.lines[:self.line_idx + 1])
         if seg.type in OUTSIDE and handing_over and v.backdrop:
             v.shot, v.wall_label = "wall", OUTSIDE[seg.type]
             v.presenter = v.speaker or v.presenter
@@ -424,7 +425,7 @@ class Player:
                 elif l.speaker == "guest" and not c:
                     if l.guest_name not in guests:
                         guests.append(l.guest_name)
-                elif l.speaker not in ("reporter", "weather") and (l.speaker, None) not in hosts:
+                elif l.speaker not in (*FIELD_REPORTERS, "weather") and (l.speaker, None) not in hosts:
                     hosts.append((l.speaker, None))
             stayed = seg.work.get("couch")
             guests = sorted(guests[:2], key=lambda g: g == stayed) if stayed else guests[:1]
@@ -453,6 +454,7 @@ class Player:
         cues, v.chapter_age_s = self._active_cues(elapsed)
         line = seg.lines[self.line_idx] if self.line_idx < len(seg.lines) else None
         v.speaker = line.speaker if line else None
+        v.reporter = next((l.speaker for l in seg.lines if l.speaker in FIELD_REPORTERS), "reporter")
         v.guest_name = line.guest_name if line else None
         as_presenter = self.world.presenter_named(v.guest_name) if v.speaker == "guest" else None
         if as_presenter:                     # a presenter as a guest is drawn as themselves,
@@ -490,13 +492,13 @@ class Player:
                 SegmentType.weather: "weather",
                 SegmentType.bulletin: "studio",
                 SegmentType.sofa: "studio",
-                SegmentType.field_report: "field" if v.speaker == "reporter" else "studio",
+                SegmentType.field_report: "field" if v.speaker in FIELD_REPORTERS else "studio",
                 SegmentType.advert: "advert",
                 SegmentType.ad_break: "advert",
                 SegmentType.continuity: "ident" if self._kind() == "ident" else "notice",
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop):
-                v.mode = "field" if line and line.speaker in ("reporter", "guest") else "studio"
+                v.mode = "field" if line and line.speaker in (*FIELD_REPORTERS, "guest") else "studio"
         if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport")):
             sports = seg.type is SegmentType.sport or seg.show == "sport"
             v.set, v.people = "sports" if sports else "interview", self._people(seg)

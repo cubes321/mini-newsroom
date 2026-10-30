@@ -267,29 +267,31 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         "sport", "FULL TIME", "SPORT", (40, 150, 90),
         # Fifteen minutes of local sport before Coastwide, from the sports corner: the Tides, the
         # Wreckers' rugby and the pub darts (sport.py, rugby.py, darts.py, so the scores are the same
-        # everywhere), Miles at the stadium, a guest on the sports desk, and the games coming up.
+        # everywhere), Tamsin Jago at the stadium and in a darts pub and asking the Wreckers' supporters
+        # at the Quarry Field, a guest on the sports desk, and the games coming up. Tamsin took the
+        # outside work from Miles on 2026-10-30, so he isn't on three shows an evening.
         # The rugby and the darts come before the wrap: fifteen minutes rarely gets past it.
         pattern=(
             T.bumper,
             I(T.sport, "open", brief="the headlines: the Tides' latest result or news, the Wreckers' rugby, the darts"),
-            I(T.field_report, brief="Miles at Tidewater Stadium or the training ground: the Tides this week"),
+            I(T.field_report, brief="Tamsin live at Tidewater Stadium or the training ground: the Tides this week"),
             I(T.sport, brief="the rugby: the Wreckers' last result, who scored the tries, the table, the next game"),
             I(T.interview, brief="a guest from the Tides, the Wreckers or the darts league, about the last game "
                                  "or match night and the next"),
-            I(T.sport, brief="the pub darts: the last match night's results, the 180s and the best checkout, the "
-                             "table, who plays next"),
+            I(T.field_report, brief="Tamsin live from a darts pub: the last match night's results, the 180s and the "
+                                    "best checkout, the table, who plays next, and the regulars at the bar"),
             # the order wraps back to here
             I(T.sport, brief="the rest of the football league: the other results from the last round and the table"),
-            I(T.vox_pop, brief="Miles asks supporters, outside the stadium or in the club shop, one question"),
+            I(T.vox_pop, brief="Tamsin asks Wreckers supporters at the Quarry Field one question"),
             I(T.sport, brief="the smaller clubs: bowls, rowing, the sea swimmers or the Gulls' Sunday side"),
             I(T.interview, brief="someone from one of the smaller clubs, or a young player coming through"),
         ),
         loop_from=6,
         closing=(I(T.sport, "close", brief="the games coming up, and over to Coastwide"),),
         target_s={T.bumper: 8.0, T.sport: 60.0, T.field_report: 100.0, T.interview: 180.0, T.vox_pop: 60.0},
-        cast=("sport", "reporter"), lead="sport",
+        cast=("sport", "sport_reporter"), lead="sport",
         cast_by_type={T.sport: ("sport",), T.interview: ("sport", "guest"),
-                      T.vox_pop: ("sport", "reporter", "guest"), T.field_report: ("sport", "reporter")},
+                      T.vox_pop: ("sport", "sport_reporter", "guest"), T.field_report: ("sport", "sport_reporter")},
         station="Full Time, the sport from Port Wexley and the Greymouth coast on channel 7",
         tone="quick, keen and local; proud of the clubs, honest about a bad result, never cruel",
         light=True,                  # no news threads from the sports desk: the scores come from sport.py

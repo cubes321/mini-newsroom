@@ -22,9 +22,11 @@ from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_mod
 from .locations import BACKDROP_IDS
 
 Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                  "historian", "guest"]
+                  "sport_reporter", "historian", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                             "historian", "guest")
+                             "sport_reporter", "historian", "guest")
+# Who goes out on location: Miles for the news and Coastwide, Tamsin for Full Time.
+FIELD_REPORTERS: tuple[str, ...] = ("reporter", "sport_reporter")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
 
 
@@ -123,9 +125,10 @@ class Rundown(BaseModel):
 # -------------------------------------------------------------- LLM outputs
 
 
-LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport"]
+LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
+                      "sport_reporter"]
 GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
-                       "guest"]
+                       "sport_reporter", "guest"]
 
 
 def _gender(v):

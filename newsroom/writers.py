@@ -75,6 +75,11 @@ invent a result, and never say how a match finished before the facts give its re
 the lighter end: pub teams, regulars, a good checkout. thread_id is null.
 """
 
+# Full Time's reporter at the grounds and in the pubs since 2026-10-30 (Miles had it, on top of the news
+# and Coastwide).
+_TAMSIN = (" Tamsin Jago is Full Time's reporter: twenty-five, Port Wexley born, played for the Tides' women's "
+           "side, knows everyone at the Quarry Field and in the darts pubs, and is a bit cheeky with Fran.")
+
 _SYSTEM: dict[SegmentType, str] = {
     SegmentType.weather: _COMMON_RULES + """
 This is the WEATHER segment. The weather presenter speaks (speaker id "weather"),
@@ -265,10 +270,11 @@ says, in its PLACE IN THE SHOW.
 headline = the piece in under 12 words. lower_third = "Full Time" plus a short tag.
 """,
     SegmentType.field_report: _COMMON_RULES + _SPORT_DESK + """
-This is a REPORT from a ground on Full Time. "sport" (Fran) hands to Miles in one line; "reporter"
-(Miles) reports from the place THIS ITEM names: the club this week, training, the mood, an injury,
-what people there said; "sport" thanks him in one line. Choose a backdrop id from the LOCATIONS list
-(the stadium for the Tides); location is the place in words, never an id.
+This is a LIVE REPORT on Full Time. "sport" (Fran) hands to Tamsin in one line; "sport_reporter"
+(Tamsin) reports from the place THIS ITEM names: the club this week, training, the mood, an injury,
+the darts regulars, what people there said; "sport" thanks her in one line.""" + _TAMSIN + """
+Choose a backdrop id from the LOCATIONS list (stadium for the Tides, quarry_field for the Wreckers,
+pub for the darts); location is the place in words, never an id.
 """,
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _SPORT_DESK + """
 This is the GUEST on the sports desk in Full Time. Fran ("sport") talks to one guest as THIS ITEM
@@ -279,8 +285,8 @@ manager, the coach and the darts regulars are in the FACTS: use those names.
 headline = the guest and the best thing they said, under 12 words. lower_third = a short caption.
 """,
     SegmentType.vox_pop: _COMMON_RULES + _SPORT_DESK + """
-This is the VOX POP on Full Time. Fran ("sport") hands over in one line; Miles ("reporter") asks
-supporters ONE question about the club; then three or four answer in a line or two each. Each is
+This is the VOX POP on Full Time. Fran ("sport") hands over in one line; Tamsin ("sport_reporter")
+asks supporters ONE question about the club; then three or four answer in a line or two each.""" + _TAMSIN + """ Each is
 speaker "guest" with their own guest_name (first name and surname), guest_gender and guest_age;
 different ages and moods, one of them funny. question = the question as a caption. Choose a
 backdrop id from the LOCATIONS list; location is the place in words.

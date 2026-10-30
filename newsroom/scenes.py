@@ -15,6 +15,7 @@ from functools import lru_cache
 import pygame
 
 from . import backdrops, locations, logo, schedule
+from .models import FIELD_REPORTERS
 from .player import View
 from .sprites import draw_character, draw_mic, guest_look
 
@@ -371,10 +372,10 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
         return _studio_close(canvas, v, t)
     _studio_bg(canvas, t)
     draw_character(canvas, 110, 134, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
-    if v.speaker == "reporter":                                   # anchor hands to the reporter box
+    if v.speaker in FIELD_REPORTERS:                              # anchor hands to the reporter box
         pygame.draw.rect(canvas, (20, 20, 20), (190, 40, 110, 80))
         pygame.draw.rect(canvas, (60, 90, 70), (194, 44, 102, 72))
-        draw_character(canvas, 245, 112, "reporter", v.mouth, t, scale=1)
+        draw_character(canvas, 245, 112, v.speaker, v.mouth, t, scale=1)
         text(canvas, "PHONE" if v.breaking else "LIVE", 198, 46, 8, (255, 80, 80))
 
 
@@ -406,16 +407,17 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
-    """Miles on location; when a resident speaks (a filmed piece, a vox pop) they take the frame."""
+    """The reporter on location (Miles, or Tamsin for Full Time); when a resident speaks (a filmed
+    piece, a vox pop) they take the frame."""
     backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     light = backdrops.person_light(v.backdrop, v.tod, v.weather)
-    if v.speaker not in (None, "reporter"):        # a resident, or a presenter interviewed as themselves
+    if v.speaker not in (None, v.reporter):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
         draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light)
-        draw_character(canvas, 62, FAR_Y, "reporter", 0.0, t, scale=1, light=light)
+        draw_character(canvas, 62, FAR_Y, v.reporter, 0.0, t, scale=1, light=light)
         draw_mic(canvas, 190, 116)
     else:
-        draw_character(canvas, 90, 160, "reporter", v.mouth if v.speaker == "reporter" else 0.0, t, scale=2,
+        draw_character(canvas, 90, 160, v.reporter, v.mouth if v.speaker == v.reporter else 0.0, t, scale=2,
                        light=light)
         draw_mic(canvas, 105, 118)
     if v.tag:
