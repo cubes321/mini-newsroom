@@ -460,16 +460,18 @@ headline = the point in under 12 words. lower_third = "The Inquiry" plus a short
 This is a FILMED REPORT in The Inquiry, on what THIS ITEM names. Structure:
 1. "mag_a" (Pat) introduces it in one line.
 2. "reporter" (Miles) tells it from the location; one person ("guest", named in guest_name with
-   guest_role and guest_gender) may speak two or three times: someone it affected, or who was there.
+   guest_role and guest_gender) may speak two or three times: someone it affected, or who was there,
+   never THE GUEST (they are saved for the studio).
 3. "mag_a" comes back with a one-line tag that sharpens the question.
 Choose a backdrop id from the LOCATIONS list; location is the place in words, never an id.
 """,
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _INQUIRY_RULES + """
 This is the STUDIO INTERVIEW in The Inquiry. Pat ("mag_a") and one guest in the armchair, as THIS
-ITEM says: THE GUEST named in tonight's brief, or for "the other side" someone else who sees it
-differently. Pat asks short, specific questions from THE QUESTIONS, follows up when an answer slides
-away ("That's not what I asked"), and quotes the record back. The guest defends their position as
-they would, with real reasons; no one collapses or confesses. Polite, firm, no shouting.
+ITEM says: THE GUEST named in tonight's brief when THIS ITEM is theirs; otherwise the person THIS
+ITEM describes, never THE GUEST (guest_name is someone else). Pat asks short, specific questions
+from THE QUESTIONS, follows up when an answer slides away ("That's not what I asked"), and quotes
+the record back. The guest defends their position as they would, with real reasons; no one
+collapses or confesses. Polite, firm, no shouting.
 headline = the guest and the key answer (or non-answer) in under 12 words. lower_third = a short caption.
 """,
     SegmentType.vox_pop: _COMMON_RULES + _INQUIRY_RULES + """
@@ -865,6 +867,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += "\n\n" + quiet
     if show.id == inquiry.SHOW:
         user += "\n\n" + inquiry.for_prompt(world)
+        guest = (inquiry.tonight(world) or {}).get("guest")
+        if guest and (part == "other" or seg_type is SegmentType.feature):
+            # Asked after the fact, the model booked THE GUEST again three times in one half hour (2026-10-31).
+            user += (f"\n\nNOT {guest} in this item: {guest} is THE GUEST, who has their own parts in the studio. "
+                     "guest_name is the person THIS ITEM describes, by name.")
     if show.id == panel.SHOW:
         user += "\n\n" + panel.for_prompt(world)
     if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
@@ -1259,11 +1266,19 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        rebooked = None if cont or booked else _rebooked(script, world)
+        # The Inquiry's "other" items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again.
+        # THE GUEST's own interview is booked for tonight however recently they were on elsewhere.
+        guest = (inquiry.tonight(world) or {}).get("guest") if show.id == inquiry.SHOW else None
+        taken = guest if seg.part == "other" else None
+        rebooked = None if cont or booked else _rebooked(script, world, taken)
+        if rebooked and guest and not taken and seg.type is SegmentType.interview and rebooked.lower() == guest.lower():
+            rebooked = None
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
                      if couch and rebooked.lower() == couch["name"].lower()
+                     else f"NOT {rebooked}: they are THE GUEST, with their own parts tonight. Book the person "
+                          "THIS ITEM describes." if taken and rebooked.lower() == taken.lower()
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
         # A guest booked of the writer's own accord who has been on before: ask again with what
@@ -1333,13 +1348,14 @@ def _keys_hint(schema) -> str:
     return f"\nOutput: one JSON object with exactly these keys: {keys(schema)}.\n"
 
 
-def _rebooked(script, world: World) -> str | None:
-    """The guest's name if they were just on. (Vox-pop passers-by may recur, and a presenter
-    may be a guest: Gordon runs the ghost tours. They appear as themselves.)"""
+def _rebooked(script, world: World, taken: str | None = None) -> str | None:
+    """The guest's name if they were just on, or are `taken` (booked for another part of the show).
+    (Vox-pop passers-by may recur, and a presenter may be a guest: Gordon runs the ghost tours.
+    They appear as themselves.)"""
     name = getattr(script, "guest_name", None)
     if not name or not any(l.speaker == "guest" for l in script.lines):
         return None
-    return name if name.lower() in {g.lower() for g in _recent_guests} else None
+    return name if name.lower() in {g.lower() for g in _recent_guests} | {(taken or "").lower()} - {""} else None
 
 
 def _remembered(script, world: World, skip: set) -> Person | None:

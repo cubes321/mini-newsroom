@@ -104,3 +104,9 @@ def test_the_evening_schedule():
     assert schedule.show_at(at(20, 10)).id == "inquiry" and schedule.show_end(at(20, 10)) == at(20, 30)
     assert schedule.show_at(at(20, 40)).id == "panel" and schedule.show_at(at(21, 10)).id == "news"
     assert "not answered" in schedule.get("inquiry").closing[0].brief
+
+
+def test_a_stand_in_title_is_cut_at_a_word():
+    title = inquiry._what_next("Harbour wall report due Friday, tenders could follow next spring")
+    assert title == "What Next for Harbour wall report due Friday, tenders could follow?" and len(title) <= 70
+    assert inquiry._what_next("A gull steals a pasty.") == "What Next for A gull steals a pasty?"

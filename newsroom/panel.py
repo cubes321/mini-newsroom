@@ -1,4 +1,4 @@
-"""The Panel: Dana Ferris chairs three panellists on three questions from the week's news at 20:30
+"""The Panel: Dana Ferris chairs three panellists on four questions from the week's news at 20:30
 (docs/SHOWS.md).
 
 From `[panel] commission_from`, in idle time, the back office picks the questions from the stories with
@@ -21,12 +21,13 @@ log = logging.getLogger(__name__)
 
 SHOW = "panel"
 STORIES = 6                     # the most-covered stories offered for questions
+QUESTIONS = 4                   # one debate each; three left the half hour a third empty (2026-10-30)
 RESIDENTS = 8                   # the most-seen residents offered as panellists
 SO_FAR_CHARS = 260
 
 _SYSTEM = """\
 You book THE PANEL, a half-hour debate on a small-town TV station in the FICTIONAL town in the
-briefing. Dana Ferris chairs three panellists on three questions from the week's news. Choose three
+briefing. Dana Ferris chairs three panellists on four questions from the week's news. Choose four
 questions from the STORIES that people in town genuinely disagree about (money, priorities, who
 decides, what the town should keep), phrased as Dana would put them. Choose three panellists from
 the PEOPLE who will DIFFER: one official, one worthy or business owner, one resident with a view; say
@@ -91,7 +92,7 @@ def commission(world: World) -> dict:
 
 def _record(world: World, lineup: PanelLineup | None) -> dict:
     if lineup is None:
-        stories, people = _stories(world)[:3], _people(world)
+        stories, people = _stories(world)[:QUESTIONS], _people(world)
         pick = ([p for p in people if p.kind == "official"][:1] + [p for p in people if p.kind == "worthy"][:1]
                 + [p for p in people if p.kind == "resident"][:1])
         pick += [p for p in people if p not in pick][:3 - len(pick)]

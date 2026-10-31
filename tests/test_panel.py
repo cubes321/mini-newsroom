@@ -1,4 +1,4 @@
-"""The Panel: Dana Ferris chairs three panellists on three questions, booked in the evening (never
+"""The Panel: Dana Ferris chairs three panellists on four questions, booked in the evening (never
 tonight's Inquiry guest), and seated at one long desk. The model is stubbed: no network."""
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _stub(monkeypatch, reply):
 
 
 def _lineup(*names):
-    return PanelLineup(questions=[PanelQuestion(question=f"Question {i}?") for i in range(3)],
+    return PanelLineup(questions=[PanelQuestion(question=f"Question {i}?") for i in range(4)],
                        panellists=[Panellist(name=n, stance="has a view") for n in names])
 
 
@@ -58,7 +58,7 @@ def test_a_failed_or_wrong_lineup_gets_a_stand_in(monkeypatch):
     _stub(monkeypatch, panel.llm.LLMError("down"))
     entry = panel.commission(w)
     kinds = [w.person_by_name(p["name"]).kind for p in entry["panellists"]]
-    assert entry["stand_in"] and kinds == ["official", "worthy", "resident"] and len(entry["questions"]) == 3
+    assert entry["stand_in"] and kinds == ["official", "worthy", "resident"] and len(entry["questions"]) == panel.QUESTIONS
     w.panels = []
     _stub(monkeypatch, _lineup("Ivy Marchetti", "Ivy Marchetti", "Nobody Known"))
     assert panel.commission(w)["stand_in"]

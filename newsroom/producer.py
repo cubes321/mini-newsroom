@@ -125,7 +125,9 @@ class Producer:
                 seg.work["stays_on"] = True               # no goodbye: they stay on the couch
         elif item.part == "couch":
             seg.work["first_part"] = seg.slot_id - 1      # the guest who stays on: their last part
-        if item.part not in ("cont", "couch") and item.type is not schedule.T.ad_break:
+        # A second part carries on the last interview, whatever came between: The Inquiry has a film
+        # and a vox pop before its guest's part two, which on 2026-10-30 was written as a fresh interview.
+        if item.type is schedule.T.interview and item.part not in ("cont", "couch"):
             self._first_part = seg.slot_id
         self.buffer.submit(seg)
         self.next_slot += 1

@@ -93,7 +93,7 @@ def _record(world: World, c: InquiryCommission | None) -> dict:
         t = pool[0] if pool else None
         guest = next((p.name for pid in t.people if (p := world.person(pid)) and p.kind == "official"), "") if t else ""
         entry = {"date": world.last_date, "thread_id": t.id if t else None,
-                 "title": (f"What Next for {t.title}?" if t else "What Is Port Wexley Waiting For?")[:70],
+                 "title": _what_next(t.title) if t else "What Is Port Wexley Waiting For?",
                  "angle": "How the story began, what the record shows, who decides, and what still isn't answered.",
                  "questions": ["Who decides, and when?", "What has been promised, and what has been done?"],
                  "guest": guest, "stand_in": True}
@@ -104,6 +104,16 @@ def _record(world: World, c: InquiryCommission | None) -> dict:
     log.info("inquiry: tonight %r on %s, guest %s%s", entry["title"], entry["thread_id"], entry["guest"] or "none",
              " (stand-in)" if entry.get("stand_in") else "")
     return entry
+
+
+def _what_next(title: str, limit: int = 70) -> str:
+    """The stand-in's title within `limit`, cut at a word rather than mid-word."""
+    out = "What Next for"
+    for word in title.rstrip(".?!").split():
+        if len(out) + len(word) + 2 > limit:
+            break
+        out += " " + word
+    return out.rstrip(",;:") + "?"
 
 
 def for_prompt(world: World) -> str:

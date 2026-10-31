@@ -625,8 +625,8 @@ class Panellist(BaseModel):
 
 
 class PanelLineup(BaseModel):
-    """Tonight's Panel (panel.py): three questions from the week's news and three panellists who differ."""
-    questions: list[PanelQuestion] = Field(min_length=3, max_length=3)
+    """Tonight's Panel (panel.py): four questions from the week's news and three panellists who differ."""
+    questions: list[PanelQuestion] = Field(min_length=4, max_length=4)
     panellists: list[Panellist] = Field(min_length=3, max_length=3)
 
 

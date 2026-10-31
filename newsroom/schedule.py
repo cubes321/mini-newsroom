@@ -488,7 +488,7 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
-        # Half an hour of debate: Dana Ferris chairs three panellists on three questions from the week's
+        # Half an hour of debate: Dana Ferris chairs three panellists on four questions from the week's
         # news, booked earlier in the evening (panel.py); a question from the public on the second.
         pattern=(
             T.bumper,
@@ -503,11 +503,31 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             T.ad_break,
             I(T.interview, brief="the THIRD of TONIGHT'S QUESTIONS: each answers, then the sharpest disagreement "
                                  "of the night; Dana presses whoever dodges"),
-            # the order wraps back to here
-            I(T.interview, brief="the quick-fire round: Dana's short questions on the week's smaller stories, a "
-                                 "line or two from each panellist", target_s=120.0),
+            I(T.interview, brief="the FOURTH of TONIGHT'S QUESTIONS: each answers, then they take each other on"),
+            T.ad_break,
+            # The order wraps back to here, taking the angles in `briefs` in turn: on 2026-10-30 a one-item
+            # loop ran ten quick-fire rounds in a row.
+            I(T.interview), I(T.interview), I(T.vox_pop), I(T.interview),
         ),
-        loop_from=7,
+        loop_from=9,
+        briefs={
+            T.interview: (
+                "the quick-fire round: Dana's short questions on the week's smaller stories not discussed tonight, a "
+                "line or two from each panellist",
+                "a viewer's email on one of TONIGHT'S QUESTIONS, read out by Dana and put to the panel; they answer "
+                "it and each other",
+                "back to the question that split them most tonight: Dana puts the others' arguments to each "
+                "panellist and asks whether anything has changed their mind",
+                "the week ahead: what each expects from the next council or harbour board meeting, and what they "
+                "would do in its place",
+                "one thing each would change in Port Wexley tomorrow, and the others say why it wouldn't work",
+            ),
+            T.vox_pop: (
+                "Miles asks people in town the question the panel argued over most tonight; the last of them puts "
+                "a challenge to one panellist by name",
+                "Miles asks people what the panel has missed tonight",
+            ),
+        },
         closing=(I(T.links, "close", brief="Dana thanks the panel and sums up where they agreed and where they "
                                            "didn't, in a few lines", target_s=40.0),),
         target_s={T.bumper: 8.0, T.links: 45.0, T.interview: 330.0, T.vox_pop: 60.0, T.ad_break: 60.0},
@@ -536,13 +556,37 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.vox_pop, brief="Miles asks the people most affected one question about it"),
             I(T.interview, "cont", brief="THE GUEST, part two: the questions not yet put; Pat holds them to what "
                                          "they said in part one and what the film and the papers showed"),
-            I(T.interview, brief="the other side: a resident, a campaigner or an expert who sees it differently "
-                                 "from THE GUEST", target_s=120.0),
-            # the order wraps back to here
-            I(T.feature, brief="Miles back on the ground tonight: what it looks like now, and who is waiting",
-              target_s=90.0),
+            T.ad_break,
+            # The order wraps back to here. Items come in near half their targets, so on 2026-10-30 the
+            # show reached a one-item loop ten minutes in and ran the same film seventeen times; these
+            # take the angles in `briefs` in turn instead. "other": anyone but THE GUEST (writers.py).
+            I(T.interview, "other"), I(T.feature), I(T.interview, "other"), I(T.feature), I(T.vox_pop),
         ),
         loop_from=9,
+        briefs={
+            T.interview: (
+                "the other side: a resident or a campaigner who sees it differently from THE GUEST",
+                "someone who knows how this works (an engineer, a surveyor, an accountant, a retired official): "
+                "what the record means, and what should happen",
+                "someone whose work or home it touches every day, not heard yet tonight: what it has cost them",
+                "a councillor or board member who will vote on it: what they will vote for, and why",
+                "someone who was there at the start: how it began, and what was promised then",
+                "someone who has changed their mind about it, and what changed it",
+            ),
+            T.feature: (
+                "Miles back on the ground tonight: what it looks like now, and who is waiting",
+                "the money: what it costs, who has paid so far, who is asked to pay, and what was promised",
+                "the timeline: the dates that matter from the first mention to the next deadline, and the gaps",
+                "one household, shop or crew, and what it changes for them day to day",
+                "what happens next: the meetings, votes and deadlines ahead, and who decides at each",
+                "how the town handled something like it before, from the record and the town's history",
+            ),
+            T.vox_pop: (
+                "Miles asks people somewhere else in town who should decide it, and who should pay",
+                "Miles asks people what they would ask THE GUEST, given the chance",
+                "Miles asks people whether they believe it will be sorted, and by when",
+            ),
+        },
         closing=(I(T.links, "close", brief="Pat to camera: what we found, what is still not answered, and who "
                                            "has to answer it next"),),
         target_s={T.bumper: 8.0, T.links: 60.0, T.feature: 150.0, T.interview: 210.0, T.vox_pop: 60.0,

@@ -144,8 +144,9 @@ isn't answered. The one serious show in an evening of light ones.
 
 ### The Panel (20:30, half an hour): the debate. BUILT 2026-10-30
 
-Dana Ferris chairs three panellists, from the town's officials, worthies and residents, on two or
-three questions from the week's news, with a question from the public on each. The panellists keep
+Dana Ferris chairs three panellists, from the town's officials, worthies and residents, on four
+questions from the week's news (three until 2026-10-31, when the half hour ran out at eleven minutes),
+with a question from the public. The panellists keep
 their positions from show to show, as the public figures do now.
 
 - **New:** a `panel` item: a chair and three guests in one discussion, and a set with four chairs.

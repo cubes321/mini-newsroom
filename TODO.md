@@ -61,14 +61,47 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] **Next: a night on the new back office** (Flash, with the Sonnet senior editor and fallback;
-  routed since 2026-10-30). Run it in its own PowerShell window, not a Claude app terminal tab (an app
-  update closed the 2026-10-29 night at 08:21), with `--log-llm`, both API keys from the User scope, and
-  a world.json backup first. Then check: does the memo break the convergence onto one meeting (count
-  "converge" in the desk notes, 11 of 24 on 2026-10-29), how many new stories the desk and the senior
-  editor seed under the new daily allowance (8) and whether they air, how often "falling back to" fires,
-  Tamsin's first Full Time, Coastwide's repeats, The Inquiry's and The Panel's first nights (the story, the lineup, four voices at the desk), and the night's cost against $0.55 (Flash) and $2.18 (all Claude).
-  The night run ends at 10:00, so the daytime shows need runs of their own: Have Your Say (`--clock
+- [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
+  targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire
+  rounds). Fixed 2026-10-31: both loops are blocks of bare items that take the angles in the show's `briefs`
+  in turn, and The Panel books four questions. The Inquiry's guest part two had been written as a fresh
+  interview (the producer pointed "cont" at the vox pop before it; now only interviews count), and its "other
+  side" booked THE GUEST: "other" items and its films are told not to, and checked after. A scratch run
+  (`data/scratch-evening-2026-10-31.log`, from 19:50) filled both: The Inquiry 25 items in 31 minutes with an
+  engineer, a councillor and a resident among its voices, The Panel four debates of 150 to 200 s, a vox pop, a
+  quick-fire round and a viewer's email.
+- [ ] **The Panel takes its questions out of order.** The vox pop briefed for the SECOND question took another
+  (the third on 2026-10-30, the third again on 10-31), and on 10-31 the auction question never aired while the
+  breathing sets ran twice. Put each question's text in its item's brief rather than "the SECOND of TONIGHT'S
+  QUESTIONS".
+- [ ] **A thread's people only grow.** `desk.py` appends the people the desk lists, so the prompt's
+  "at most four per thread" can never shrink a list: t220 has 22 people, t243 21, t248 16. The senior
+  editor asked for three a thread in four memos running, and the desk said it had complied. Replace
+  the list when the desk gives one.
+- [ ] **The auction became a thread.** `QUAY_LABEL` kept the quay off the leads, but an aired auction
+  item with no thread opens one (`World.update_thread`): t260 "Quay auction tops fifteen thousand", plus
+  four more the desk folded into it. 38 of 159 bulletins and 22 of 104 field reports on 2026-10-30
+  mentioned the auction or hake. Keep a quay figure from opening a thread, or close t260.
+- [ ] Pocket warned three times that a chunk passed its 50 tokens ("generation may skip words"): split
+  long lines at a sentence end before they reach it.
+- [x] **A night on the new back office** (Flash, the Sonnet senior editor and fallback, and the first
+  night on Pocket voices): 2026-10-30 21:00 to 10-31 12:29, `data/night-2026-10-30.log` and `-b.log`.
+  It stopped at 22:05 on a dropped advert's deleted audio (fixed in bc1e28b) and restarted at 22:09 with
+  `--clock 19:39`. 941 segments, 0 s filler, no traceback after the fix, no line fell to Kokoro; the
+  buffer's median was 661 s. The senior editor broke the convergence: 1 of 31 desk notes said
+  "converge" (11 of 24 on 2026-10-29), and the desk quoted its memos back ("Friday 6 Nov kept clear for
+  the wall report"). Its memos kept finding date pile-ups and duplicate threads, and merged 4. 16 new
+  threads were seeded (6 from guests' loose ends, 5 by the senior editor). "Falling back to" never
+  fired; Haiku's 22 failures were first attempts that passed on the retry, and only two adverts gave up.
+  Cost, scaled from the earlier nights' bills (DeepSeek's export not checked): about $1.10 over 15h20m,
+  Haiku $0.50, Flash $0.29, Sonnet $0.30; about $0.92 for the 12h50m span, against $0.55 (Flash
+  without the senior editor) and $2.18 (all Claude). The "documentary" at 18:30 was a 5-minute special
+  left over from an earlier run, airing at the next bumper as designed; the nightly documentary aired
+  at 21:01. Flash commissioned 9 specials overnight, about one an hour. Full Time had Tamsin at the
+  Tides' training and the Lantern's darts, and three Wreckers vox pops at the Quarry Field; its table
+  item came round three times. Coastwide repeated only its weather and a bond-letter scam warning (three
+  times). The "£" mojibake wasn't in the logs (the console's encoding).
+- [ ] The night run ends at 10:00, so the daytime shows need runs of their own: Have Your Say (`--clock
   09:45`: the booking, the callers' variety across the hour, ring-backs), Quayside, and Out and About
   (`--clock 14:50`: whether places rest a fortnight, revisits, an owner answering back on Coastwide),
   and Rock Pool (`--clock 15:52`: story time's legends across the hour, the makes, the visitors: the
