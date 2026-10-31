@@ -55,6 +55,16 @@ bottom with the date.
   2026-10-31 or the day after, once a night or two has shown how the senior editor and the story
   allowance end stories. The other six are built. The Kettle's On, Harbour Row and Wexley Wits go to
   the entertainment channel (`docs/ENGINE.md`).
+- [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
+  the station's teletext service cycles its pages under a music bed, as British TV filled the small
+  hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,
+  chunky block graphics, a page number and clock in the header row, and pages that turn on their own:
+  a news index and one page per story from the day's headlines (short excerpts in teletext's clipped
+  style, a few lines each, from the archive), the weather with a block-graphic map, the tides, the
+  sport results and Full Time's table, what's on Channel 7 tomorrow, and the town's notices. Drawn in
+  code on the 320 × 180 canvas like the rest; the text could come straight from the archive and
+  `world`, or from one cheap call per night to rewrite the stories as teletext pages. A silent item
+  (no TTS), so it costs nothing to voice and fills time the repeats leave over.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
 - [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
