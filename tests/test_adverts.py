@@ -88,7 +88,29 @@ def test_the_pool_drops_the_oldest_model_ads_and_keeps_the_seeds(pool, world, sm
         pool.add(ad)
     assert len(pool) == len(adverts.SEEDS) + 2
     assert "ad_0" not in pool and "ad_1" not in pool and "ad_3" in pool and "seed_bakery" in pool
-    assert not list(pool.dir.glob("ad_0*"))
+    assert not (pool.dir / "ad_0.json").exists() and list(pool.dir.glob("ad_0_*.wav"))   # a break may hold it
+    import time
+    pool.sweep(time.time() + adverts.RETIRE_S + 60)                  # an hour on: its audio goes too
+    assert not list(pool.dir.glob("ad_0*")) and list(pool.dir.glob("ad_3_*.wav"))
+    assert list(pool.dir.glob("seed_bakery_*.wav"))
+    assert len(adverts.AdPool(pool.dir)) == len(adverts.SEEDS) + 2    # a restart doesn't bring a dropped one back
+
+
+def test_a_line_whose_audio_has_gone_is_silence_not_a_crash(pool, world, tmp_path):
+    pl = Player(Buffer(), world, producer=None, audio=False)
+    played = []
+
+    class Channel:
+        def play(self, sound):
+            played.append(sound)
+    pl.audio, pl._voice = True, Channel()
+    pl._set_music = lambda vol: None                                  # no mixer in the tests
+    pl.current = Segment(slot_id=-1, type=SegmentType.advert, show="news",
+                         lines=[Line(speaker="voiceover", text="Walls mended.", duration_s=2.0,
+                                     wav_path=str(tmp_path / "gone.wav"))])
+    pl.line_idx = 0
+    pl._play_line(0.0)                                                # no FileNotFoundError
+    assert played == [] and pl.line_start == 0.0
 
 
 def test_the_model_writes_a_new_one_and_never_a_duplicate(pool, world, monkeypatch):

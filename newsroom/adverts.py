@@ -132,6 +132,9 @@ class Advert(BaseModel):
 # ------------------------------------------------------------------- the pool
 
 
+RETIRE_S = 3600.0      # a dropped advert's audio outlives any ad break already in the buffer
+
+
 class AdPool:
     """The voiced adverts on disk. The player picks from it on the main thread; the worker
     adds to it on its own, so everything goes through one lock."""
@@ -191,10 +194,26 @@ class AdPool:
             drop = spare[:max(0, len(self._ads) - CONFIG.adverts.pool_size)]
             for old in drop:
                 del self._ads[old.id]
-        for old in drop:                      # our own files: the JSON and its line WAVs
-            for f in self.dir.glob(f"{old.id}*"):
-                f.unlink(missing_ok=True)
+        for old in drop:                      # its JSON now, so nothing picks it again; its WAVs later
+            (self.dir / f"{old.id}.json").unlink(missing_ok=True)
             log.info("advert pool full: dropped %s (%s)", old.id, old.script.business)
+        self.sweep()
+
+    def sweep(self, now: float | None = None) -> None:
+        """Delete the line WAVs of dropped adverts once they're an hour old. A dropped advert may
+        already be in an ad break waiting in the buffer (up to ten minutes ahead): deleting its
+        audio at once crashed the 2026-10-30 night when that break came on air."""
+        now = now or time.time()
+        with self._lock:
+            live = set(self._ads)
+        for f in self.dir.glob("ad_*.wav") if self.dir.exists() else []:
+            ad_id = f.stem.rsplit("_", 1)[0]
+            if ad_id not in live and not (self.dir / f"{ad_id}.json").exists():
+                try:
+                    if now - f.stat().st_mtime > RETIRE_S:
+                        f.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def pick(self, now: float | None = None) -> Segment | None:
         """The advert aired least recently (never-aired first, in a random order), never the

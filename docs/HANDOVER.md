@@ -63,6 +63,16 @@ Copy-Item data\world.json "data\world.backup-$day-pre-night.json"
 cmd /c "uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 > data\night-$day.log 2>&1"
 ```
 
+To record the programmes (not the rolling news) with OBS, one file each in OBS's recording folder,
+start this in a second PowerShell window first, with OBS open, its WebSocket server on and a window
+capture of "Mini Newsroom" (`tools/obs_record.py`; it stops when the run ends):
+
+```powershell
+Set-Location 'E:\programming\mini newsroom'
+$day = Get-Date -Format 'yyyy-MM-dd'
+uv run --with obsws-python python tools/obs_record.py "data\night-$day.log"
+```
+
 What to check, against the 2026-10-29 night (`data/measure-deepseek-2026-10-29.log`) and the
 all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
 

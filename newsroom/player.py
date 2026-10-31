@@ -156,7 +156,11 @@ class Player:
         if self.audio and line.wav_path:
             import pygame
 
-            self._voice.play(pygame.mixer.Sound(str(line.wav_path)))
+            try:
+                self._voice.play(pygame.mixer.Sound(str(line.wav_path)))
+            except (FileNotFoundError, pygame.error) as e:      # a line's audio gone: silence, not a crash
+                log.warning("slot %d line %d: no audio (%s); the picture runs on", self.current.slot_id,
+                            self.line_idx + 1, e)
         if self.current.type is SegmentType.bumper or self._kind() == "ident":
             self._set_music(0.0)            # the tune is the sound
         elif self.current.type is SegmentType.testcard:
@@ -193,9 +197,9 @@ class Player:
             self.filler_since = None
         if seg.lines:
             self._play_line(now)
-        log.info("%s slot %d %s (%.1fs, %d lines)%s", "replaying" if replay else "playing",
-                 seg.slot_id, seg.type.value, seg.duration_s, len(seg.lines),
-                 f" — {seg.headline!r}" if seg.headline else "")
+        log.info("%s slot %d %s (%.1fs, %d lines) [%s]%s", "replaying" if replay else "playing",
+                 seg.slot_id, seg.type.value, seg.duration_s, len(seg.lines), seg.show or "-",
+                 f" — {seg.headline!r}" if seg.headline else "")      # [show]: tools/obs_record.py reads it
 
     def time_left(self, now: float) -> float:
         """Seconds left of the segment on air (the producer plans from the end of it)."""
