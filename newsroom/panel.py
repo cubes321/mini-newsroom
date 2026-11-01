@@ -10,6 +10,7 @@ If nothing was chosen in time, a stand-in lineup is made in code from the same s
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 
 from . import inquiry, llm, schedule
@@ -109,9 +110,24 @@ def _record(world: World, lineup: PanelLineup | None) -> dict:
     return entry
 
 
+def _booked(world: World) -> dict:
+    return tonight(world) or _record(world, None)    # nothing chosen by 20:30: the stand-in, recorded once, no call
+
+
+def brief_for(world: World, brief: str) -> str:
+    """An item's brief with tonight's questions in their own words: "{q2}" is the second. Told "the SECOND
+    of TONIGHT'S QUESTIONS", the vox pop took another question on three runs in a row (2026-10-30 to 31)."""
+    qs = _booked(world)["questions"]
+
+    def question(m: re.Match) -> str:
+        n = int(m.group(1)) - 1
+        return f"\"{qs[n]['question'].strip()}\"" if n < len(qs) else "one of TONIGHT'S QUESTIONS"
+    return re.sub(r"\{q(\d)\}", question, brief)
+
+
 def for_prompt(world: World) -> str:
     """Tonight's lineup for every item in the show, with what has been said so far."""
-    s = tonight(world) or _record(world, None)       # nothing chosen by 20:30: the stand-in, recorded once, no call
+    s = _booked(world)
     who = "\n".join(f"  - {p['name']}" + (f", {person.role}" if (person := world.person_by_name(p["name"])) else "")
                     + f": {p['stance']}" for p in s["panellists"])
     qs = "\n".join(f"  {i + 1}. {q['question']}" + (f" [thread {q['thread_id']}]" if q.get("thread_id") else "")

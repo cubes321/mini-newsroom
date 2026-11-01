@@ -80,10 +80,19 @@ bottom with the date.
   (`data/scratch-evening-2026-10-31.log`, from 19:50) filled both: The Inquiry 25 items in 31 minutes with an
   engineer, a councillor and a resident among its voices, The Panel four debates of 150 to 200 s, a vox pop, a
   quick-fire round and a viewer's email.
-- [ ] **The Panel takes its questions out of order.** The vox pop briefed for the SECOND question took another
-  (the third on 2026-10-30, the third again on 10-31), and on 10-31 the auction question never aired while the
-  breathing sets ran twice. Put each question's text in its item's brief rather than "the SECOND of TONIGHT'S
-  QUESTIONS".
+- [x] **The Panel takes its questions out of order.** The vox pop briefed for the SECOND question took another
+  (the third on 2026-10-30, the third again in the 10-31 scratch run, the first on the 10-31 night), and on the
+  night of 10-31 the loop after the four debates put the last question (hake and harbour dues) five more times:
+  the interview prompt made every item "ONE question THIS ITEM names", so "the week ahead" became hake too.
+  Fixed 2026-11-01: a brief's "{q2}" is the second question in its own words (`panel.brief_for`), the viewer's
+  email takes the first, and a round that names no question is that round, not a rerun.
+- [ ] **The Inquiry's "other" voices are THE GUEST again.** On the 2026-10-31 night Helen Strand was in the
+  chair for four of the six "other" interviews (slots 123, 125, 130, 135). `script_segment` caught her each
+  time and asked again, but the second answer isn't checked, and it named her too. Likely cause: the
+  interview prompt has Pat ask THE QUESTIONS, which are written for THE GUEST. Check the retry (and fall
+  back to someone named in the briefing), and give "other" items their own instruction instead of THE
+  QUESTIONS. Separately, slot 133's stock interview ("Dev Ramachandran on the week in town", 20 s) aired
+  in the middle of The Inquiry after two too-long answers.
 - [ ] **A thread's people only grow.** `desk.py` appends the people the desk lists, so the prompt's
   "at most four per thread" can never shrink a list: t220 has 22 people, t243 21, t248 16. The senior
   editor asked for three a thread in four memos running, and the desk said it had complied. Replace

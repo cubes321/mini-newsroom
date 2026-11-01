@@ -424,13 +424,17 @@ and where they agreed and where they didn't. No panellist speaks. thread_id is n
 headline = the point in under 12 words. lower_third = "The Panel" plus a short tag.
 """,
     SegmentType.interview: _COMMON_RULES + _PANEL_RULES + """
-This is ONE DEBATE on The Panel, on the ONE question THIS ITEM names; the other questions have their
-own debates elsewhere in the show, so do not put them, and do not end by moving on to the next. Dana
+This is ONE ROUND of The Panel, on what THIS ITEM says. When it names one of TONIGHT'S QUESTIONS, it
+is that debate: the other questions have their own elsewhere in the show, so do not put them, and do
+not end by moving on to the next. When it names none (a quick-fire round, the week ahead, one thing
+each would change), it is that round, not a rerun of a debate in SAID SO FAR TONIGHT unless it goes
+back to one. Dana
 ("anchor") puts it; each of the THREE panellists answers in turn (speaker "guest", guest_name their
 exact name); then they take each other on, short exchanges, Dana stepping in to bring the quiet one in
 or to press a dodge. Every panellist speaks at least twice. Set thread_id to the question's thread if
 it has one.
-headline = the question and the sharpest point, under 12 words. lower_third = the question, short.
+headline = the question or the round and the sharpest point, under 12 words. lower_third = the
+question or the round, short.
 """,
     SegmentType.vox_pop: _COMMON_RULES + _PANEL_RULES + """
 This is the QUESTION FROM THE PUBLIC on The Panel. Dana ("anchor") hands over in one line; Miles
@@ -850,6 +854,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += _FROM_THE_SCENE.format(id=scene.id, title=scene.title, status=scene.status,
                                        mins=int(max(0, (at_ts or schedule.now()) - scene.breaking_ts) // 60))
     elif brief:
+        if show.id == panel.SHOW:            # "{q2}": tonight's second question, in its own words
+            brief = panel.brief_for(world, brief)
         user += f"\n\nTHIS ITEM: {brief}."
     # Miles's reports on the news: not Meg's pieces to camera on Out and About.
     miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW

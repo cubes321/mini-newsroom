@@ -83,6 +83,28 @@ def test_it_is_booked_between_half_six_and_half_eight():
     assert schedule.show_at(at(20, 40)).id == "panel" and schedule.show_end(at(20, 40)) == at(21, 0)
 
 
+def test_each_debate_and_the_vox_pop_are_told_their_own_question(monkeypatch):
+    """Told "the SECOND of TONIGHT'S QUESTIONS", the vox pop took another one on three runs in a row, and
+    after the four debates the loop put the last question five more times (2026-10-31)."""
+    from newsroom import writers
+
+    w = _town()
+    _stub(monkeypatch, _lineup("Ivy Marchetti", "Marjorie Pell", "Bernard Moss"))
+    panel.commission(w)
+    show = schedule.get("panel")
+    items = [e for e in show.pattern if isinstance(e, schedule.Item)]
+    debates = [panel.brief_for(w, e.brief) for e in items if e.type is T.interview]
+    assert [i for b in debates for i in range(4) if f'"Question {i}?"' in b] == [0, 1, 2, 3]
+    vox = next(e for e in items if e.type is T.vox_pop)
+    _, user = writers.build_prompt(T.vox_pop, w, target_s=60, show=show, brief=vox.brief)
+    assert 'THIS ITEM: Miles asks people in town the SECOND question, "Question 1?";' in user
+    angles = [b for t in (T.interview, T.vox_pop) for b in show.briefs[t]]
+    assert all("{q" not in panel.brief_for(w, b) for b in [e.brief for e in items] + angles)
+
+    w.panels[-1]["questions"] = w.panels[-1]["questions"][:2]      # a stand-in from two stories
+    assert panel.brief_for(w, "the FOURTH question, {q4}") == "the FOURTH question, one of TONIGHT'S QUESTIONS"
+
+
 def test_the_four_sit_at_the_long_desk():
     w = _town()
     pl = Player(Buffer(), w, producer=None, audio=False)

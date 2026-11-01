@@ -489,21 +489,22 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
         "panel", "THE PANEL", "THE PANEL", (110, 70, 150),
         # Half an hour of debate: Dana Ferris chairs three panellists on four questions from the week's
-        # news, booked earlier in the evening (panel.py); a question from the public on the second.
+        # news, booked earlier in the evening (panel.py); a question from the public on the second. "{q2}"
+        # in a brief is the second question in its own words (panel.brief_for).
         pattern=(
             T.bumper,
             I(T.links, "open", brief="Dana opens The Panel: welcome, the three panellists by name and role, and "
-                                     "the first question", target_s=45.0),
-            I(T.interview, brief="the FIRST of TONIGHT'S QUESTIONS: Dana puts it, each panellist answers in turn, "
+                                     "the first question, {q1}", target_s=45.0),
+            I(T.interview, brief="the FIRST question, {q1}: Dana puts it, each panellist answers in turn, "
                                  "then they take each other on; Dana keeps it moving and fair"),
-            I(T.vox_pop, brief="Miles asks people in town the SECOND of TONIGHT'S QUESTIONS; the last of them "
+            I(T.vox_pop, brief="Miles asks people in town the SECOND question, {q2}; the last of them "
                                "puts it to the panel in their own words"),
-            I(T.interview, brief="the SECOND of TONIGHT'S QUESTIONS, picking up the member of the public's words: "
+            I(T.interview, brief="the SECOND question, {q2}, picking up the member of the public's words: "
                                  "each answers, then they argue it out"),
             T.ad_break,
-            I(T.interview, brief="the THIRD of TONIGHT'S QUESTIONS: each answers, then the sharpest disagreement "
+            I(T.interview, brief="the THIRD question, {q3}: each answers, then the sharpest disagreement "
                                  "of the night; Dana presses whoever dodges"),
-            I(T.interview, brief="the FOURTH of TONIGHT'S QUESTIONS: each answers, then they take each other on"),
+            I(T.interview, brief="the FOURTH question, {q4}: each answers, then they take each other on"),
             T.ad_break,
             # The order wraps back to here, taking the angles in `briefs` in turn: on 2026-10-30 a one-item
             # loop ran ten quick-fire rounds in a row.
@@ -514,7 +515,8 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             T.interview: (
                 "the quick-fire round: Dana's short questions on the week's smaller stories not discussed tonight, a "
                 "line or two from each panellist",
-                "a viewer's email on one of TONIGHT'S QUESTIONS, read out by Dana and put to the panel; they answer "
+                # "one of TONIGHT'S QUESTIONS" was the last one, five times over (2026-10-31)
+                "a viewer's email on the first question, {q1}, read out by Dana and put to the panel; they answer "
                 "it and each other",
                 "back to the question that split them most tonight: Dana puts the others' arguments to each "
                 "panellist and asks whether anything has changed their mind",
