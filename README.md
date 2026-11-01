@@ -36,12 +36,19 @@ vote.
 | Town Hall at night, graded for the last weather report | Gordon Pell and the weather map |
 | ![Special report title card](docs/screenshots/special_title_card.png) | ![Special report guest](docs/screenshots/special_guest.png) |
 | A special report opens | The harbourmaster, interviewed at the lifeboat station |
+| ![Have Your Say](docs/screenshots/phonein.png) | ![Quayside](docs/screenshots/quayside.png) |
+| A caller on the line to *Have Your Say* | Howard Lanyon opens *Quayside* on the fish auction's figures |
+| ![Quayside at the fish quay](docs/screenshots/quayside_field.png) | ![Out and About](docs/screenshots/outabout.png) |
+| Miles live from the fish quay | Meg Trethewey reviews a chippy on *Out and About* |
+| ![Rock Pool](docs/screenshots/rockpool.png) | ![Full Time](docs/screenshots/fulltime.png) |
+| Story time on *Rock Pool* with Poppy, Gully and Hugh Tremayne | Fran Kellaway on *Full Time* |
+| ![The Inquiry](docs/screenshots/inquiry.png) | ![The Panel](docs/screenshots/panel.png) |
+| The mayor in the chair on *The Inquiry* | *The Panel* |
+| ![The Chamber](docs/screenshots/chamber.png) | ![A councillor speaks](docs/screenshots/chamber_close.png) |
+| Full council live on *The Chamber* | A councillor on his feet |
 
 ![Six of the 26 locations](docs/screenshots/locations.png)
 *Six of the 26 locations, at the time of day and in the weather the broadcast is having.*
-
-The screenshots come from the first four shows; the newer programmes don't have theirs yet.
-
 ## How it works
 
 The one rule the whole design hangs on: **the broadcast never waits on the AI.**
