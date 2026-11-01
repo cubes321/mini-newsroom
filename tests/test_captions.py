@@ -22,6 +22,18 @@ def test_a_filled_in_field_report_validates():
     assert FieldReportScript.model_validate(REPLY).location == "the harbour front"
 
 
+def test_an_overlong_caption_is_cut_at_a_word_not_failed():
+    """On the 2026-10-31 night seven reports and vox pops failed on a location past 60 characters, and
+    the editor's call went to Sonnet over a 400-character reason. Captions and notes are cut instead."""
+    from newsroom.models import EditorDecision
+
+    place = "the harbour front, by the lifeboat station where the crews are tied up for the night"
+    s = FieldReportScript.model_validate({**REPLY, "location": place, "headline": "Harbour crews " * 8})
+    assert len(s.location) <= 60 and s.location.endswith("…") and place.startswith(s.location[:-1])
+    assert len(s.headline) <= 90 and s.headline.endswith("Harbour crews…")
+    assert len(EditorDecision(commission=False, reason="Not yet. " * 60).reason) == 400
+
+
 @pytest.mark.parametrize("field", ["headline", "location", "lower_third"])
 def test_a_blank_caption_fails_validation(field):
     for placeholder in ("", "x", "TBD"):

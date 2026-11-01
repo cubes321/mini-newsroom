@@ -202,6 +202,10 @@ def _clip_words(n: int) -> BeforeValidator:
 
 Status = Annotated[str | None, _clip(160)]
 Memo = Annotated[str | None, _clip(140)]       # a guest's memory (world.Person.memories), bookkeeping too
+# The headline and the captions on screen, cut at a word rather than failing the script: on the 2026-10-31
+# night seven reports and vox pops failed on a location past 60 characters, three more on a headline or caption.
+Headline = Annotated[str, _clip_words(90)]
+Caption = Annotated[str, _clip_words(60)]
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
 SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
 
@@ -222,15 +226,15 @@ class ScriptLine(BaseModel):
 
 class WeatherScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=1, max_length=8)
-    headline: str = Field(min_length=4, max_length=90)
+    headline: Headline = Field(min_length=4, max_length=90)
     map_state: Literal["sunny", "cloudy", "rain", "storm", "snow", "fog", "wind"]
     temp_c: int = Field(ge=-40, le=50)
 
 
 class BulletinScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=1, max_length=10)
-    headline: str = Field(min_length=4, max_length=90)
-    lower_third: str = Field(min_length=4, max_length=60)
+    headline: Headline = Field(min_length=4, max_length=90)
+    lower_third: Caption = Field(min_length=4, max_length=60)
     thread_id: str | None = Field(
         default=None, description="id of an existing thread this follows up, or null"
     )
@@ -248,10 +252,10 @@ class ChatterScript(BulletinScript):
 
 class FieldReportScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=2, max_length=12)
-    headline: str = Field(min_length=4, max_length=90)
-    location: str = Field(min_length=4, max_length=60, description="the place in words, e.g. 'the slipway behind the old cannery'")
+    headline: Headline = Field(min_length=4, max_length=90)
+    location: Caption = Field(min_length=4, max_length=60, description="the place in words, e.g. 'the slipway behind the old cannery'")
     backdrop: Backdrop
-    lower_third: str = Field(min_length=4, max_length=60)
+    lower_third: Caption = Field(min_length=4, max_length=60)
     thread_id: str | None = None
     thread_status: Status = Field(default=None, max_length=160)
 
@@ -287,8 +291,8 @@ class GuestLine(BaseModel):
 class InterviewScript(BaseModel):
     """A studio interview: a presenter and one guest in the armchair (the consumer slot may have none)."""
     lines: list[GuestLine] = Field(min_length=2, max_length=16)
-    headline: str = Field(min_length=4, max_length=90)
-    lower_third: str = Field(min_length=4, max_length=60)
+    headline: Headline = Field(min_length=4, max_length=90)
+    lower_third: Caption = Field(min_length=4, max_length=60)
     guest_name: str | None = Field(default=None, max_length=40, description="the guest's full name; required if 'guest' speaks")
     guest_role: str | None = Field(default=None, max_length=80, description="e.g. 'harbourmaster', 'retired cannery worker'")
     guest_gender: Gender = Field(default=None, description="for casting the guest's voice: 'f' or 'm'")
@@ -352,7 +356,7 @@ class CallScript(BaseModel):
     guest answering them. Two kinds of guest in one item: the caller is cast here, like a vox pop's
     passer-by; the studio guest is booked and named on their own lines."""
     lines: list[CallLine] = Field(min_length=3, max_length=14)
-    headline: str = Field(min_length=4, max_length=90)
+    headline: Headline = Field(min_length=4, max_length=90)
     # "Have Your Say: " and the whole question overran 60 in the first run, and a retry costs a call.
     lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
     caller_name: str = Field(min_length=3, max_length=40, description="the caller's first name and surname")
@@ -378,7 +382,7 @@ class CallScript(BaseModel):
 class FeatureScript(BaseModel):
     """A filmed magazine piece: Miles on location, optionally with one resident."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
-    headline: str = Field(min_length=4, max_length=90)
+    headline: Headline = Field(min_length=4, max_length=90)
     # On screen ("Report from ..."): cut at a word, not failed; a retry cost a whole feature on 2026-10-30.
     location: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60,
                                                       description="the place in words, never a backdrop id")
@@ -416,7 +420,7 @@ class ReviewScript(BaseModel):
     """Out and About's review (outabout.py): Meg visits a place to eat or a show and gives it stars out of
     five that the town remembers; the owner, the cook or one of the players may speak for it."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
-    headline: str = Field(min_length=4, max_length=90)
+    headline: Headline = Field(min_length=4, max_length=90)
     lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
     place: Annotated[str, _clip_words(40)] = Field(
         max_length=40, description="its name as on the sign or the poster: 'The Gull's Rest', 'Saltby Players'")
@@ -466,9 +470,9 @@ class VoxLine(BaseModel):
 class VoxPopScript(BaseModel):
     """Miles puts one question to several passers-by."""
     lines: list[VoxLine] = Field(min_length=4, max_length=12)
-    question: str = Field(max_length=90, description="the question Miles asks, as a caption")
-    headline: str = Field(min_length=4, max_length=90)
-    location: str = Field(min_length=4, max_length=60)
+    question: Annotated[str, _clip_words(90)] = Field(max_length=90, description="the question Miles asks, as a caption")
+    headline: Headline = Field(min_length=4, max_length=90)
+    location: Caption = Field(min_length=4, max_length=60)
     backdrop: Backdrop
 
 
@@ -481,7 +485,8 @@ class EditorDecision(BaseModel):
     thread_id: str | None = Field(default=None, description="the thread to cover, or null")
     working_title: str = Field(default="", max_length=80)
     angle: str = Field(default="", max_length=300, description="the question the piece answers")
-    reason: str = Field(default="", max_length=400, description="one or two sentences: why now, or why not")
+    # Bookkeeping: past 400 the editor's call failed twice on Flash and went to Sonnet (2026-11-01).
+    reason: Annotated[str, _clip(400)] = Field(default="", max_length=400, description="one or two sentences: why now, or why not")
 
 
 class SectionPlan(BaseModel):
@@ -527,7 +532,7 @@ class DocumentaryCommission(BaseModel):
     angle: str = Field(max_length=300, description="the question the documentary answers")
     search_terms: list[str] = Field(default_factory=list, max_length=6,
                                     description="words to search the archive for (names, places, things)")
-    reason: str = Field(default="", max_length=300, description="why this subject today")
+    reason: Annotated[str, _clip(300)] = Field(default="", max_length=300, description="why this subject today")
 
 
 class TimelineEntry(BaseModel):
@@ -539,7 +544,7 @@ class TimelineEntry(BaseModel):
 class Stakeholder(BaseModel):
     name: str = Field(max_length=40)
     role: str = Field(max_length=60)
-    stance: str = Field(max_length=240, description="what they want, or what they said")
+    stance: Annotated[str, _clip_words(240)] = Field(max_length=240, description="what they want, or what they said")
 
 
 class DocumentaryResearch(BaseModel):

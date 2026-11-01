@@ -97,6 +97,12 @@ bottom with the date.
   overnight repeats, and breakfast, the day and the evening had none left. Fixed 2026-11-01: none before
   `[story] seeds_from` (06:00), then `seeds_per_day` (raised to 10) released evenly over `seeds_over_h` (18),
   one every 1.8 hours (`World.seeds_left`).
+- [x] **Overlong captions failed whole scripts.** 30 attempts failed validation on the 2026-10-31 night: 7 on
+  a field report's or vox pop's `location` past 60 characters, 3 on a reason, 4 on a headline, caption, vox
+  pop question or stance. One sent the editor to Sonnet. Fixed 2026-11-01: headlines, captions, locations,
+  the vox pop's question and the documentary's stances are cut at a word (`Headline`, `Caption` in
+  `models.py`), and the reasons are clipped like status notes. An empty headline (8 that night) still fails
+  and gets the retry, on purpose (`test_captions.py`).
 - [ ] **A pool for long-running stories** (the user's idea, 2026-11-01). Most threads fade within a day or
   two, but a few run for days and pull everything in: t220 (the harbour wall, open since 10-28) was covered
   117 times. After a few days and enough beats, a story could move to a running-stories pool: covered less
