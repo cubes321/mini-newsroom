@@ -19,7 +19,7 @@ from datetime import datetime
 from . import llm, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan
-from .world import Thread, World
+from .world import THREAD_PEOPLE, Thread, World
 
 log = logging.getLogger(__name__)
 
@@ -211,9 +211,11 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         t.phase = u.phase
         t.next_development = u.next_development.strip()
         t.updated = world.last_date if u.phase == "closed" else t.updated
-        for pid in _resolve_people(world, u.people):
-            if pid not in t.people:
-                t.people.append(pid)
+        # The desk's list replaces the old one: appended to, "at most four" could never shrink a list, and
+        # t220 kept 22 names through eight senior editor memos asking for three (2026-10-31).
+        named = list(dict.fromkeys(_resolve_people(world, u.people)))
+        if named:
+            t.people = named[:THREAD_PEOPLE]
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
     for nt in p.new_threads[: seed_room(world, len(world.open_threads()))]:
         seed(world, nt)

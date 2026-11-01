@@ -46,6 +46,7 @@ MAX_THREADS_IN_PROMPT = 5
 MAX_HEADLINES_IN_PROMPT = 10
 MAX_ARCHIVE = 1000
 MAX_THREADS = 120               # closed, then faded, threads beyond this are dropped; open ones never are
+THREAD_PEOPLE = 4               # a thread's people, as the desk lists them; appended to, t220 reached 22 (2026-10-31)
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
@@ -431,9 +432,9 @@ class World:
             if not p.first_seen:
                 p.first_seen = self.last_date
         t = self.thread(thread_id)
-        if t:
+        if t:                         # fills a short list; the desk decides who stays on a full one
             for pid in named:
-                if pid not in t.people:
+                if pid not in t.people and len(t.people) < THREAD_PEOPLE:
                     t.people.append(pid)
         self.archive.append({
             "date": self.last_date, "day": self.broadcast_day, "type": seg_type,
@@ -492,7 +493,7 @@ class World:
             return False
         keep.beats = sorted(keep.beats + dup.beats, key=lambda b: b.get("day", 0))[-12:]
         keep.mentions += dup.mentions
-        keep.people += [pid for pid in dup.people if pid not in keep.people]
+        keep.people = (keep.people + [pid for pid in dup.people if pid not in keep.people])[:THREAD_PEOPLE]
         keep.next_development = keep.next_development or dup.next_development
         if dup.moved_ts > keep.moved_ts:              # the latest word on it
             keep.status = dup.status or keep.status

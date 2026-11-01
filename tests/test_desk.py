@@ -43,6 +43,27 @@ def test_an_empty_plan_is_asked_again(monkeypatch):
     assert all(t.planned_ts > 0 and t.next_development == "It moves on." for t in todo)
 
 
+def test_the_desks_people_replace_a_threads_list_and_nothing_else_grows_it_past_four():
+    """t220 kept 22 names through eight senior editor memos asking for three: the desk's list was added to
+    the old one, and every aired item and merge added more (2026-10-31)."""
+    w = _world()
+    t, other = w.seed_thread("Harbour wall", "so far", "", []), w.seed_thread("The wall", "so far", "", [])
+    people = w.people[:8]
+    t.people = [p.id for p in people[:6]]
+    update = ThreadUpdate(thread_id=t.id, phase="developing", next_development="On.",
+                          people=[people[4].name, people[5].name, people[4].name])
+    desk.apply(w, StoryPlan(updates=[update]))
+    assert t.people == [people[4].id, people[5].id]
+    desk.apply(w, StoryPlan(updates=[update.model_copy(update={"people": []})]))     # none named: kept
+    assert t.people == [people[4].id, people[5].id]
+
+    w.record_aired("bulletin", "The wall", t.id, " and ".join(p.name for p in people[:4]) + " spoke.")
+    assert t.people == [people[4].id, people[5].id, people[0].id, people[1].id]   # filled to four, no more
+    assert w.archive[-1]["people"] == [p.id for p in people[:4]]                  # still counted as on air
+    other.people = [people[6].id, people[7].id]
+    assert w.merge_thread(other.id, t.id) and len(t.people) == world_mod.THREAD_PEOPLE
+
+
 def test_out_of_turn_updates_only_count_as_empty(monkeypatch):
     w = _world()
     stray = StoryPlan(updates=[ThreadUpdate(thread_id="t999", phase="peak", next_development="Elsewhere.")])

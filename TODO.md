@@ -96,10 +96,11 @@ bottom with the date.
   week in town", 20 s) aired in the middle of The Inquiry after two too-long answers; a failed "other" item
   now lands there too. Give The Inquiry a stock item of its own (Pat to camera on the questions still
   open), or skip to the next item.
-- [ ] **A thread's people only grow.** `desk.py` appends the people the desk lists, so the prompt's
+- [x] **A thread's people only grow.** `desk.py` appends the people the desk lists, so the prompt's
   "at most four per thread" can never shrink a list: t220 has 22 people, t243 21, t248 16. The senior
-  editor asked for three a thread in four memos running, and the desk said it had complied. Replace
-  the list when the desk gives one.
+  editor asked for three a thread in four memos running (all eight on the 2026-10-31 night), and the desk
+  said it had complied. Fixed 2026-11-01: the desk's list replaces the old one, and an aired item or a
+  merge only fills a list up to `THREAD_PEOPLE` (four). The long lists shrink as the desk next plans them.
 - [ ] **The auction became a thread.** `QUAY_LABEL` kept the quay off the leads, but an aired auction
   item with no thread opens one (`World.update_thread`): t260 "Quay auction tops fifteen thousand", plus
   four more the desk folded into it. 38 of 159 bulletins and 22 of 104 field reports on 2026-10-30
