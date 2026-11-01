@@ -645,9 +645,18 @@ class World:
         return t
 
     @_locked
-    def seeds_left(self) -> int:
-        """How many more stories the desk and the senior editor may seed today."""
-        return max(0, CONFIG.story.seeds_per_day - self.seeded.count(self.last_date))
+    def seeds_left(self, now: float | None = None) -> int:
+        """How many more stories the desk and the senior editor may seed now: none before `[story] seeds_from`,
+        then the day's allowance released evenly over `seeds_over_h`, on the broadcast clock."""
+        s = CONFIG.story
+        t = datetime.fromtimestamp(now or schedule.now())
+        h, m = (int(x) for x in s.seeds_from.split(":"))
+        start = t.replace(hour=h, minute=m, second=0, microsecond=0)
+        if t < start:
+            return 0
+        every_s = s.seeds_over_h * 3600 / s.seeds_per_day
+        released = min(s.seeds_per_day, 1 + int((t - start).total_seconds() // every_s))
+        return max(0, released - self.seeded.count(self.last_date))
 
     @_locked
     def ensure_person(self, name: str, role: str | None, kind: str = "resident", gender: str | None = None,

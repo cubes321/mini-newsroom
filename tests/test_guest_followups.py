@@ -28,6 +28,7 @@ def _remembered_town():
 
 def test_the_desk_sees_loose_ends_and_may_make_one_news(monkeypatch):
     w = _remembered_town()
+    monkeypatch.setattr(w, "seeds_left", lambda now=None: 1)       # at any hour (none overnight, really)
     seeded = NewThread(title="Stadium gig sells out for Saturday", status="Tickets gone in a day.",
                        next_development="Saturday: the gig.", from_guest="Hollis Byrne")
     calls = _stub(monkeypatch, desk, [StoryPlan(new_threads=[seeded])])

@@ -117,7 +117,9 @@ class PhoneInCfg:
 class StoryCfg:
     plan_every_s: float = 1200.0
     thin_board: int = 8                  # below this many open the desk may seed two new stories a round, else one
-    seeds_per_day: int = 8               # planned new stories a day, the desk's and the senior editor's together
+    seeds_per_day: int = 10              # planned new stories a day, the desk's and the senior editor's together,
+    seeds_from: str = "06:00"            # none before this (the overnight repeats), then released evenly
+    seeds_over_h: float = 18.0           # over this many hours: one every 1.8 h, the last by midnight
     batch: int = 8                       # threads the desk plans per call, least recently planned first
     review_every_s: float = 7200.0       # the senior editor reviews the desk's board this often (0: never)
     max_live_threads: int = 40           # past this many open, the stalest fade (world.fade_threads)

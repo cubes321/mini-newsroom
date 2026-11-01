@@ -98,8 +98,12 @@ plan_every_s = 1800     # every 30 min: the desk is the biggest cost on any prov
 # New stories the desk plans itself: one a round, two while fewer than thin_board are open, and no more
 # than seeds_per_day a day with the senior editor's. Until 2026-10-30 the desk seeded only while fewer
 # than 8 threads were open, and the writers keep 11 to 17 open, so it was told to seed none all night.
+# The day's allowance comes a few at a time from seeds_from, none overnight: on 2026-11-01 all eight went
+# between midnight and half past three, into the repeats, and the day's shows had none.
 thin_board = 8
-seeds_per_day = 8
+seeds_per_day = 10
+seeds_from = "06:00"
+seeds_over_h = 18
 batch = 8                # threads planned per desk call; the whole board in one reply overran max_tokens
 # The senior editor (senior.py) reads the whole board and the desk's recent plans every two hours and
 # leaves the desk a memo (and merges duplicates itself): on 2026-10-29 Flash steered 11 of 24 plans onto

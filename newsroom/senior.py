@@ -62,8 +62,10 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
         f"There are {open_n} open threads. " + (
-            f"{left} of today's {CONFIG.story.seeds_per_day} new stories are left, for you and the desk.\n\n"
-            if left else "Today's new stories are used up: new_thread must be null.\n\n")
+            f"{left} new {'story' if left == 1 else 'stories'} may be opened now, for you and the desk (the day's "
+            f"{CONFIG.story.seeds_per_day} come a few at a time from {CONFIG.story.seeds_from}).\n\n"
+            if left else "No new story may be opened now (none overnight, and the day's come a few at a time): "
+                         "new_thread must be null.\n\n")
         + f"THE DESK'S RECENT ROUNDS, oldest first:\n{_rounds(world)}\n\n"
         + (f"YOUR LAST MEMO ({world.senior_memo_at}):\n{world.senior_memo}\n\n" if world.senior_memo else "")
         + "Write the memo for the desk's next rounds."

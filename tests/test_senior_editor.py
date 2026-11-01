@@ -3,7 +3,9 @@ desk's cap, and leaves a memo the desk reads on its next rounds.
 
 The model is stubbed: no network.
 """
-from newsroom import desk, senior, world as world_mod
+import time
+
+from newsroom import desk, schedule, senior, world as world_mod
 from newsroom.config import CONFIG
 from newsroom.models import NewThread, SeniorMemo, StoryPlan, ThreadMerge, ThreadUpdate
 
@@ -52,6 +54,7 @@ def test_desk_notes_keep_the_last_dozen(monkeypatch):
 
 
 def test_a_review_merges_seeds_past_the_cap_and_leaves_the_memo(monkeypatch):
+    monkeypatch.setattr(schedule, "now", lambda: _at(12))
     w = _world(CONFIG.story.thin_board + 2)                    # a full board
     a, b = w.open_threads()[:2]
     w.desk_notes = [{"at": "2026-10-30 19:30", "planned": [a.id], "new": 0, "merges": 0,
@@ -95,7 +98,25 @@ def test_the_senior_editor_is_routed_to_sonnet():
     assert CONFIG.story.review_every_s == 7200
 
 
-def test_the_desk_may_seed_one_a_round_two_on_a_thin_board_within_the_days_allowance():
+def _at(h, m=0):
+    lt = time.localtime()
+    return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, m, 0, 0, 0, -1))
+
+
+def test_no_new_stories_overnight_then_the_days_come_a_few_at_a_time(monkeypatch):
+    """All eight of 2026-11-01's new stories went between midnight and half past three, into the
+    overnight repeats, and the day's shows had none."""
+    w = _world()
+    assert w.seeds_left(_at(0, 5)) == 0 and w.seeds_left(_at(5, 59)) == 0
+    assert w.seeds_left(_at(6)) == 1 and w.seeds_left(_at(12)) == 4 and w.seeds_left(_at(23, 59)) == 10
+    w.seeded = [w.last_date] * 3
+    assert w.seeds_left(_at(12)) == 1 and w.seeds_left(_at(9)) == 0
+    monkeypatch.setattr(schedule, "now", lambda: _at(3, 30))
+    assert desk.seed_room(w, 3) == 0
+
+
+def test_the_desk_may_seed_one_a_round_two_on_a_thin_board_within_the_days_allowance(monkeypatch):
+    monkeypatch.setattr(schedule, "now", lambda: _at(12))           # four of the day's released by noon
     w = _world(CONFIG.story.thin_board + 4)                    # the board the writers keep: 11 to 17 open
     assert desk.seed_room(w, len(w.open_threads())) == 1       # was 0 all night on 2026-10-29
     assert desk.seed_room(w, CONFIG.story.thin_board - 1) == 2

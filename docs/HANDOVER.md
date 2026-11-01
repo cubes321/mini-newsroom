@@ -78,7 +78,7 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
 
 - **The senior editor**: its memos ("senior editor:" lines) and whether the desk's notes stop
   converging on one meeting (11 of 24 rounds said "converge" on 2026-10-29).
-- **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 8 a day,
+- **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 10 a day, none before 06:00 and the rest released through the day (since 2026-11-01),
   and whether they air.
 - **The fallback**: how often "falling back to" fires, and why.
 - **The Inquiry** (20:00): the story and guest it booked ("inquiry: tonight"), and whether Pat's

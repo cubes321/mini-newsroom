@@ -92,6 +92,17 @@ bottom with the date.
   had Pat ask THE QUESTIONS, which are written for THE GUEST. Fixed 2026-11-01: anyone else is asked about
   what THIS ITEM says they bring, the retry names someone else on the story (`_other_voice`), and THE
   GUEST booked a second time fails the item.
+- [x] **The day's new stories were all seeded in the small hours.** On 2026-11-01 all eight went between
+  00:04 and 03:34 station time (a green bottle, frost on the Salting path, kippers for the Tides), into the
+  overnight repeats, and breakfast, the day and the evening had none left. Fixed 2026-11-01: none before
+  `[story] seeds_from` (06:00), then `seeds_per_day` (raised to 10) released evenly over `seeds_over_h` (18),
+  one every 1.8 hours (`World.seeds_left`).
+- [ ] **A pool for long-running stories** (the user's idea, 2026-11-01). Most threads fade within a day or
+  two, but a few run for days and pull everything in: t220 (the harbour wall, open since 10-28) was covered
+  117 times. After a few days and enough beats, a story could move to a running-stories pool: covered less
+  often (a weekly beat, or when its NEXT development comes due), planned by the desk once a day rather than
+  every round, kept out of the live count and the thin-board test, and never faded by the quiet timer.
+  Build it once a night or two has shown how the spread-out seeding shapes the board.
 - [ ] **Quayside says "this morning's auction" at the weekend.** It airs every day at 13:00, but the auction
   is weekdays only, so on Saturday and Sunday the figures are Friday's (`schedule.py`, its open and the
   quay report's briefs). Say "the latest auction", or name the day.
