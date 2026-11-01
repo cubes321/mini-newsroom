@@ -87,6 +87,12 @@ def _cast() -> dict[str, dict]:
     return _POCKET[key]
 
 
+def kokoro_voice(voice: str) -> str:
+    """The Kokoro voice that speaks for `voice`: itself, or, for a voice designed outside Kokoro (the council, some
+    presenters: DramaBox clips with no Kokoro original), the one voices.toml names as its stand-in."""
+    return _cast().get(voice, {}).get("kokoro", voice)
+
+
 def clip_for(voice: str, lang: str, age: str | None = None) -> Path | None:
     """The reference clip Pocket clones `voice` from when it speaks with pronunciation `lang`, if
     Pocket is the backend and the voice has one (the presenters and the local guests do; visitors not yet).
@@ -236,7 +242,7 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
     the telephone band, for a caller on the line. `age`: a guest's, for Pocket's clips. A voice
     written "bm_fable@puppet" is that voice raised a third, spoken slower to keep its pace: a puppet's, and nobody else's. A voice with a
     reference clip (`clip_for`) is Pocket's, unless it carries an effect; Kokoro takes the line if
-    Pocket fails, so a bad line costs a voice, never the air."""
+    Pocket fails (a designed voice through its stand-in, `kokoro_voice`), so a bad line costs a voice, never the air."""
     voice, _, effect = voice.partition("@")
     pitch = PUPPET if effect == "puppet" else 1.0
     speed /= pitch
@@ -253,7 +259,7 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
             except Exception:  # noqa: BLE001
                 log.exception("pocket failed on %s; Kokoro takes the line", clip.name)
         if audio is None:
-            audio, engine = _kokoro(text, voice, speed, lang), "kokoro"
+            audio, engine = _kokoro(text, kokoro_voice(voice), speed, lang), "kokoro"
     if pitch != 1.0:
         audio = raise_pitch(audio, pitch)
     if phone:

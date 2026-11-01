@@ -5,11 +5,21 @@ bottom with the date.
 
 ## Art
 
-- [ ] Howard Lanyon's voice, by ear: am_echo with British pronunciation at 0.95 for now (PROVISIONAL in
-  config.toml), with Tamsin's on the same listening page. The new shows' own bumper arrangements too
-  (Quayside, The Inquiry, The Panel, Have Your Say and Out and About use the news one). Meg Trethewey's
-  too: af_river with British pronunciation for now (PROVISIONAL in config.toml); she left the guest pool,
-  which is down to eight female voices.
+- [x] Voices by ear for Howard Lanyon, Tamsin Jago, Meg Trethewey, the six councillors and Helen Strand (2026-11-01):
+  DramaBox designs (`bf_jago`, `bm_lanyon`, `bf_trethewey`, `council.VOICES`), cloned live by Pocket, each with a
+  Kokoro stand-in in voices.toml (`tts.kokoro_voice`). Qwen3-TTS VoiceDesign was tried first and every "West
+  Country" voice came out American (Pocket keeps whatever accent its reference has); Kokoro blends of its eight
+  British voices were British but all one family. Listening pages: data/voice-samples/council-presenters/.
+- [x] **The local guests recast with DramaBox** (2026-11-01). The 13 Qwen clips had made every "local" guest American
+  since Pocket went live (2026-10-30). Now 24 DramaBox voices, four per gender and age (the 13 under their old keys,
+  11 new: Wenna, Tamara, Jenifer, Elowen, Morwen, Jowan, Kit, Hedley, Ross, Jory, Bernard), all kept by ear. A new
+  guest is cast by gender, age and name (`world.guest_pool`); a town saved before is spread once (`GUEST_CAST`,
+  `_recast_guests`): 473 of the real town's 528 moved, nobody changed gender, and bf_isabella's nine residents
+  left the announcer's voice. Listening page: data/voice-samples/guests-dramabox/.
+- [ ] Visitors' voices: someone "from away" (`accent` american) still speaks Kokoro's American voices with no clip.
+  DramaBox could design a few `.a.wav` visitors the same way, if they should sound less like Kokoro.
+- [ ] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say and Out and About
+  use the news one).
 - [ ] Art for Rock Pool's set (`studio_kids`): painted in code for now, a sea-green wall with painted waves
   and bunting, a painted rock pool with a crab and a starfish, a craft table at the front. Gully stays
   code-drawn (`sprites.draw_gully`), like every character. Rock Pool's own bumper arrangement too.
@@ -22,10 +32,6 @@ bottom with the date.
   a wide screen and the channel 7 ident; the other studio sets have ComfyUI art.
 - [ ] A fish quay backdrop for Quayside (boxes on ice, the auctioneer's chalk board, the fish vans):
   Miles reports the auction from the harbour until then.
-- [ ] Tamsin Jago's voice, by ear: she has af_sarah with British pronunciation for now (PROVISIONAL in
-  config.toml). Every English female Kokoro voice is taken by a presenter or the guest pool; try
-  af_sarah against af_bella, af_nova and af_sky on a listening page, as for Fran. Whichever she gets
-  leaves GUEST_VOICES_F, and guests who had it are recast automatically.
 - [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start).
@@ -63,8 +69,6 @@ bottom with the date.
   ran about two minutes against 330 s, so the loop came round three times with the same items ("SO FAR
   TONIGHT" is now as strict as Coastwide's); if it still repeats, shorter debate targets with more loop
   angles, or more motions.
-- [ ] The councillors' voices by ear: all six come from the guest pools for now (contact sheet and
-  listening, as for the presenters).
 - [x] "Later on Channel 7" once an hour in the rolling news (the user's idea, 2026-11-01): the programme
   card was baked every hour but aired only in a gap, and on 2026-10-31 the buffer never ran dry. It now
   also airs ahead of a news bumper when an hour has passed since it last aired (`continuity.PROGRAMMES_EVERY_S`).
@@ -268,9 +272,7 @@ bottom with the date.
   thread, cloning from a few seconds of audio). Wired in that night: presenters clone their own Kokoro
   voices (judged more natural by ear), the 13 local guest voices clone Qwen3-TTS VoiceDesign clips
   (`assets/voices/`, `voices.toml`), cast by gender and age. Left: visitors' clips (`.a.wav`, they're
-  still Kokoro's American voices); more guest voices than Kokoro's thirteen, cast per person rather
-  than by Kokoro voice (two old men who share a voice share a clip); the announcer (`bf_isabella`, who
-  is also the mayor's voice); per-person speed, which Pocket ignores; and throughput if the buffer
+  still Kokoro's American voices); per-person speed, which Pocket ignores; and throughput if the buffer
   runs short, since lines are voiced one at a time (Pocket is single-threaded, so two could run on
   two cores if its model state is safe to share). Weights are gated (accept the terms on
   huggingface.co/kyutai/pocket-tts, then `hf auth login`) and CC-BY-4.0.

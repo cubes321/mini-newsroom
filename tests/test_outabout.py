@@ -36,7 +36,7 @@ def _review(w, **kw):
 def test_meg_is_a_presenter_with_a_voice_nobody_else_has():
     w = world_mod.seed()
     meg = w.character("travel")
-    assert meg.name == "Meg Trethewey" and meg.voice == "af_river" and meg.lang == "b"
+    assert meg.name == "Meg Trethewey" and meg.voice == "bf_trethewey" and meg.lang == "b"
     assert meg.voice not in world_mod.GUEST_VOICES and all(p.voice != meg.voice for p in w.people)
     saved = world_mod._to_dict(w)
     saved["characters"] = [c for c in saved["characters"] if c["id"] != "travel"]   # a world from before her

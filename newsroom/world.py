@@ -73,12 +73,18 @@ port wexley town harbour harbor local""".split())
 
 # Voices for residents who are not seeded officials; chosen by name so a
 # guest sounds the same if they come back. Officials have explicit voices.
-# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_sarah Tamsin's, am_echo Howard's,
-# af_river Meg's, af_bella Poppy's. Gully's "bm_fable@puppet" is Fable raised a third (tts.py), so Fable stays here.
-GUEST_VOICES_F = ["af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky", "af_alloy"]
-GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam"]
+# bf_isabella is the continuity announcer's alone, af_jessica Fran's, am_santa Hugh's, af_bella Poppy's. af_sarah,
+# am_echo and af_river were Tamsin's, Howard's and Meg's until they got DramaBox voices (2026-11-01) and are Kokoro
+# stand-ins for them now. Gully's "bm_fable@puppet" is Fable raised a third (tts.py), so Fable stays here.
+# Since 2026-11-01 every one is a DramaBox clip (assets/voices, voices.toml gives its gender and age); the second
+# half of each list has no Kokoro original.
+GUEST_VOICES_F = ["af_nicole", "bf_emma", "af_kore", "af_aoede", "af_nova", "af_sky", "af_alloy",
+                  "bf_wenna", "bf_tamara", "bf_jenifer", "bf_elowen", "bf_morwen"]
+GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "am_adam",
+                  "bm_jowan", "bm_kit", "bm_hedley", "bm_ross", "bm_jory", "bm_bernard"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
+GUEST_CAST = "2026-11-01"       # the town's guests spread over the voices by gender, age and name (_recast_guests)
 # A guest's speaking speed: the old a little slower, the young a little quicker.
 SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
           "": [0.92, 0.97, 1.0, 1.04, 1.08]}
@@ -175,6 +181,7 @@ class World:
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
     chambers: list[dict] = field(default_factory=list)    # The Chamber's agendas: {date, motions (votes, result, applied)}
+    guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
     reviews: list[dict] = field(default_factory=list)     # Out and About's verdicts: {date, place, kind, where, stars, verdict, owner}
     # The nightly documentary: what each one established (its research timeline and sections), so the
@@ -689,9 +696,7 @@ class World:
                 p.age = age
             return p
         h = _name_hash(name)
-        pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)
-        if gender == "m" and age == "old":
-            pool = pool + OLD_VOICES_M
+        pool = guest_pool(gender, age)
         speeds = SPEEDS.get(age or "", SPEEDS[""])
         p = Person(
             id=self._new_person_id(), name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
@@ -786,7 +791,7 @@ def seed_people() -> list[Person]:
     """Port Wexley's public figures and local worthies. Specific on purpose."""
     today = date.today().isoformat()
     rows = [
-        ("Helen Strand", "Mayor of Port Wexley", "official", "bf_isabella", 1.0,
+        ("Helen Strand", "Mayor of Port Wexley", "official", "bf_strand", 1.0,
          ["brisk", "never misses a ribbon-cutting"], "running for a third term next spring"),
         ("Raymond Doyle", "Chief Inspector, Port Wexley police", "official", "bm_daniel", 0.95,
          ["weary", "precise"], "dislikes being asked about the cannery"),
@@ -824,17 +829,22 @@ def seed() -> World:
         people=seed_people(),
     )
     _seat_council(w)
+    w.guest_cast = GUEST_CAST            # cast by gender and age from the start
     return w
 
 
 def _seat_council(w: World) -> None:
     """The six councillors (council.py), as officials with their wards and leanings: added to a town saved
-    before The Chamber, and Gerald Thorne, whom the desk made up as a resident, promoted. Their voices
-    come from the guest pools, like any new guest's, until they are chosen by ear."""
+    before The Chamber, and Gerald Thorne, whom the desk made up as a resident, promoted. They and the
+    mayor speak in their own voices (`council.VOICES`), British, whatever they were first cast with."""
     for name, role, gender, age, leaning in council.COUNCILLORS:
         p = w.ensure_person(name, role, kind="official", gender=gender, age=age, accent="british")
         if p and (p.kind, p.role, p.notes) != ("official", role[:50], leaning):
             p.kind, p.role, p.notes = "official", role[:50], leaning
+    for name, voice in council.VOICES.items():
+        p = w.person_by_name(name)
+        if p and (p.voice, p.accent) != (voice, "british"):
+            p.voice, p.accent = voice, "british"
 
 
 def seed_characters() -> list[Character]:
@@ -866,17 +876,17 @@ def seed_characters() -> list[Character]:
                   ["quick and keen", "played for the county until her knee went", "knows everyone at the club"]),
         # Full Time's reporter at the grounds and the pubs, so Miles isn't on three shows an evening.
         Character("sport_reporter", "Tamsin Jago", "sports reporter (Full Time: the grounds, the clubs and the pubs)",
-                  CONFIG.tts.voices.get("sport_reporter", "af_sarah"),
+                  CONFIG.tts.voices.get("sport_reporter", "bf_jago"),
                   ["twenty-five and Port Wexley born", "played for the Tides' women's side",
                    "knows everyone at the Quarry Field and every darts pub", "a bit cheeky with Fran"], lang="b"),
         # Quayside's presenter at 13:00: the town's money, the quay's prices, its firms and jobs.
         Character("business", "Howard Lanyon", "business presenter (Quayside at 13:00)",
-                  CONFIG.tts.voices.get("business", "am_echo"),
+                  CONFIG.tts.voices.get("business", "bm_lanyon"),
                   ["ran the Harrow Street bank branch for thirty years", "knows who owes whom",
                    "dry wit", "reads the figures like tea leaves"], speed=0.95, lang="b"),
         # Out and About's presenter at 15:00: days out along the coast, the town's culture, and food.
         Character("travel", "Meg Trethewey", "presenter, Out and About at 15:00 (days out, culture and food)",
-                  CONFIG.tts.voices.get("travel", "af_river"),
+                  CONFIG.tts.voices.get("travel", "bf_trethewey"),
                   ["twenty years a ranger on the Greymouth coast path", "knows every stile, tide table and tea room",
                    "practical and honest: is it worth the walk?", "laughs at the weather"], lang="b"),
         # Rock Pool's presenter at 16:00, and Gully, the herring-gull puppet on her arm, who speaks for himself.
@@ -918,11 +928,53 @@ def _from_dict(d: dict) -> World:
         if c.id not in have:
             w.characters.append(c)
             log.info("world migrated: new presenter %s (%s)", c.name, c.id)
-        elif have[c.id].role != c.role:    # a presenter who took on another show (Jonah, Have Your Say)
-            have[c.id].role = c.role
+        else:
+            if have[c.id].role != c.role:  # a presenter who took on another show (Jonah, Have Your Say)
+                have[c.id].role = c.role
+            if have[c.id].voice != c.voice:   # recast by ear in config.toml (Tamsin, Howard, Meg on 2026-11-01)
+                log.info("world migrated: %s's voice %s -> %s", c.name, have[c.id].voice, c.voice)
+                have[c.id].voice = c.voice
     _seat_council(w)
+    _recast_guests(w)
     _recast_presenter_voices(w)
     return w
+
+
+@functools.cache
+def _voice_ages() -> dict[str, str]:
+    """Each guest voice's age, as its clip was designed (voices.toml)."""
+    import tomllib
+
+    f = CONFIG.paths.assets / "voices" / "voices.toml"
+    cast = tomllib.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    return {v: c["age"] for v, c in cast.items() if c.get("age")}
+
+
+def guest_pool(gender: str | None, age: str | None) -> list[str]:
+    """The voices a new guest is cast from: their gender's, narrowed to their age (four of each since 2026-11-01)."""
+    pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)
+    if gender == "m" and age == "old":
+        pool = pool + OLD_VOICES_M
+    ages = _voice_ages()
+    return ([v for v in pool if ages.get(v) == age] or pool) if age else pool
+
+
+def _recast_guests(w: World) -> None:
+    """A town cast before GUEST_CAST had 528 people on thirteen voices, by gender alone: spread them over the
+    pool by gender, age and name, as `ensure_person` casts a newcomer now. Once; the seeded figures keep theirs.
+    Every local voice changed that day anyway (the clips became British), so nobody is heard to change twice."""
+    if w.guest_cast == GUEST_CAST:
+        return
+    keep, n = {p.name for p in seed_people()} | set(council.VOICES), 0
+    for p in w.people:                     # bf_isabella's nine residents too, cast before she was the announcer's
+        if p.name in keep or p.voice[1:2] not in ("f", "m"):
+            continue
+        pool = guest_pool(p.voice[1:2], p.age or None)
+        voice = pool[_name_hash(p.name) % len(pool)]
+        if voice != p.voice:
+            p.voice, n = voice, n + 1
+    w.guest_cast = GUEST_CAST
+    log.info("world migrated: %d guests recast over %d voices by gender and age", n, len(GUEST_VOICES))
 
 
 def _recast_presenter_voices(w: World) -> None:

@@ -44,6 +44,40 @@ def test_an_old_guest_speaks_slower_and_looks_it():
     assert guest_look(p.name, p.voice, "resident", p.age).hair in GREYS
 
 
+def test_a_guest_is_cast_from_voices_of_their_gender_and_age():
+    """Since 2026-11-01: 24 DramaBox clips, four for each gender and age, each with a clip and a Kokoro voice."""
+    from newsroom import tts
+
+    cast = tts._cast()
+    for g in ("f", "m"):
+        for age in ("young", "middle", "old"):
+            pool = world_mod.guest_pool(g, age)
+            assert len(pool) == 4 and all(cast[v]["gender"] == g and cast[v]["age"] == age for v in pool)
+    for v in world_mod.GUEST_VOICES:
+        assert (tts.VOICES_DIR / f"{v}.b.wav").exists(), v
+        assert tts.kokoro_voice(v)[:3] in ("af_", "bf_", "am_", "bm_") and tts.kokoro_voice(v) in (
+            v, *(c["kokoro"] for c in [cast[v]] if "kokoro" in c))
+    w = world_mod.seed()
+    old = {w.ensure_person(f"Jory Tonkin {i}", "net mender", gender="m", age="old").voice for i in range(40)}
+    assert old == set(world_mod.guest_pool("m", "old"))
+
+
+def test_a_town_cast_on_thirteen_voices_is_spread_once_and_nobody_changes_gender():
+    w = world_mod.seed()
+    people = [w.ensure_person(f"Wenna Pascoe {i}", "baker", gender="f", age="young") for i in range(40)]
+    for i, p in enumerate(people):
+        p.voice = "bf_isabella" if i < 3 else "af_kore"       # as a town saved before 2026-11-01 had them
+    w.guest_cast = ""
+    doyle = w.person_by_name("Raymond Doyle").voice           # a seeded figure keeps his voice
+    world_mod._recast_guests(w)
+    assert {p.voice for p in people} == set(world_mod.guest_pool("f", "young")) and w.guest_cast
+    assert w.person_by_name("Raymond Doyle").voice == doyle
+    people[0].voice = "af_kore"
+    world_mod._recast_guests(w)                               # once only: a later change is left alone
+    assert people[0].voice == "af_kore"
+    assert all(p.voice[1] == "f" for p in people)              # the look's gender comes from the voice
+
+
 def test_the_continuity_announcer_is_never_a_guest():
     assert "bf_isabella" not in world_mod.GUEST_VOICES
 

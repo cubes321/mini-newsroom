@@ -4,8 +4,8 @@ Full council meets every other Thursday (from `[chamber] first_meeting`, every `
 those nights The Chamber (chamber.py) takes 20:00 to 21:00 from The Inquiry and The Panel. The desk is
 told the next meetings, so council business heads for nights that exist instead of Thursdays it makes
 up. Helen Strand, the mayor, chairs, with the casting vote; six councillors sit with her, each for a
-ward and with a leaning, so a vote splits the way the town would expect. Their voices come from the
-guest pools until they are chosen by ear.
+ward and with a leaning, so a vote splits the way the town would expect. Each has a voice of their own
+(`VOICES`): a DramaBox design, chosen by ear on 2026-11-01 and cloned live by Pocket (assets/voices).
 
 `NEWSROOM_COUNCIL_NIGHT=1` makes any night a council night (for a test run), `0` none (the tests).
 """
@@ -34,6 +34,11 @@ COUNCILLORS: tuple[tuple[str, str, str, str, str], ...] = (
     ("Tom Nancarrow", "Councillor, Saltby ward", "m", "old",
      "across the estuary and proud of it: keeps the old ways, the ferry, and a sharp eye on Port Wexley"),
 )
+# Their own voices, the chair's included: reference clips in assets/voices (voices.toml names each one's
+# Kokoro stand-in). Named the Kokoro way, bf_/bm_, since a guest's look takes its gender from the voice.
+VOICES = {CHAIR: "bf_strand", "Gerald Thorne": "bm_thorne", "Alan Penhaligon": "bm_penhaligon",
+          "Colin Tregarthen": "bm_tregarthen", "Sandra Okoye": "bf_okoye", "Lucy Hammond": "bf_hammond",
+          "Tom Nancarrow": "bm_nancarrow"}
 
 
 def meets_on(day: date) -> bool:

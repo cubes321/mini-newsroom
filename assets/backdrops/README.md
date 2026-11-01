@@ -48,6 +48,7 @@ reaches about 74 px above their baseline.
 | `studio_sports` | host (92, 144), guest (228, 150) | the sports corner of the main studio: a small desk the presenter stands behind (its top's back edge just above the host's baseline); a swivel chair behind the guest; the stadium on a big screen and a results board with blank rows above and between their heads; the trophy cabinet on the left, scarves on the right |
 | `studio_wide` | anchor (110, 134) | the desk top at about y 130, across the frame |
 | `weather_wall` | presenter (270, 152) | the two screens at the rectangles above |
+| `council_chamber` | host (160, 104, scale 1), guest and panel_1 (60, 140), panel_2 (276, 140), panel_3 (204, 154) | the other way round: the art came first and the marks were placed on it (approved 2026-11-01). The chair sits small in the high seat under the crest; the councillors stand in front of the horseshoe desks |
 
 The placeholder painters in `backdrops.py` draw the furniture on these marks;
 `--bake studio_interview studio_sofa studio_late studio_sports` gives you templates with them in place.

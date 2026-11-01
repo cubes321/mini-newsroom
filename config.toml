@@ -279,9 +279,11 @@ mag_a = "bf_alice"       # Coastwide (early-evening magazine)
 mag_b = "am_liam"
 late_host = "am_onyx"    # The Last Ferry (late-night talk show)
 sport = "af_jessica"     # Fran Kellaway, sport (the news, and Full Time at 18:45)
-sport_reporter = "af_sarah"   # Tamsin Jago, Full Time's reporter: PROVISIONAL, to be chosen by ear (2026-10-30)
-business = "am_echo"         # Howard Lanyon, Quayside: PROVISIONAL, to be chosen by ear (2026-10-30)
-travel = "af_river"          # Meg Trethewey, Out and About: PROVISIONAL, British pronunciation, by ear (2026-10-30)
+sport_reporter = "bf_jago"    # Tamsin Jago, Full Time's reporter: a DramaBox design, chosen by ear (2026-11-01)
+business = "bm_lanyon"       # Howard Lanyon, Quayside: a DramaBox design, chosen by ear (2026-11-01)
+travel = "bf_trethewey"      # Meg Trethewey, Out and About: a DramaBox design, chosen by ear (2026-11-01)
+# The three above have no Kokoro original: Pocket clones assets/voices/<voice>.b.wav, and voices.toml
+# names the Kokoro voice that stands in if Pocket fails or the backend is "kokoro".
 kids = "af_bella"            # Poppy Tregenza, Rock Pool: chosen by ear (2026-10-30)
 gully = "bm_fable@puppet"    # Gully the puppet: Fable raised a third (tts.PUPPET), chosen by ear (2026-10-30)
 historian = "am_santa"   # Hugh Tremayne, the history documentaries (and the entertainment channel's)
