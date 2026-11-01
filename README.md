@@ -4,18 +4,23 @@
 
 Port Wexley has a mayor, a stopped Town Hall clock, ghost tours at the old
 cannery and a baker who renames his treacle tart after the news. None of it is
-real. An LLM writes the scripts, Kokoro voices the presenters on the CPU, and a
-Pygame window plays it out like a small local station on a daily schedule:
-*Morning Tide* on the breakfast sofa, the news through the day with bumpers,
-weather, bulletins, on-site reports and studio interviews, *Coastwide* (an
-early-evening magazine with filmed features, a studio guest, vox pops and a
-consumer slot), *The Last Ferry* (a late-night talk show), a test card and
-repeats overnight and, when the editor thinks a story has earned it, a
-five-minute special report with residents interviewed on location.
+real. An LLM writes the scripts, Pocket TTS and Kokoro voice the presenters on
+the CPU, and a Pygame window plays it out like a small local station, Channel 7,
+on a daily schedule of eleven programmes: *Morning Tide* on the breakfast
+sofa, a news phone-in, a business half hour with the fish quay's prices, days
+out, children's television with a seagull puppet, local sport, the
+*Coastwide* magazine, an investigation, a debate, a late-night talk show and,
+every other Thursday, the town council live. The news runs in between, a
+fifteen-minute documentary airs every night, and the test card and repeats
+fill the small hours.
 
-Stories develop over days. A story desk plans what happens next, public
-figures recur with their own voices, and everything that airs goes into the
-town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
+Stories develop over days. A story desk plans what happens next, a senior
+editor reviews its whole board, public figures recur with their own voices,
+and everything that airs goes into the town's archive so tomorrow's bulletin
+can say "as we reported on Tuesday". The facts a model would get wrong are
+worked out in code instead: the tides and the foot ferry, the football, rugby
+and darts results, the fish auction's prices and the count of every council
+vote.
 
 | | |
 |---|---|
@@ -35,6 +40,8 @@ town's archive so tomorrow's bulletin can say "as we reported on Tuesday".
 ![Six of the 26 locations](docs/screenshots/locations.png)
 *Six of the 26 locations, at the time of day and in the weather the broadcast is having.*
 
+The screenshots come from the first four shows; the newer programmes don't have theirs yet.
+
 ## How it works
 
 The one rule the whole design hangs on: **the broadcast never waits on the AI.**
@@ -42,42 +49,61 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
 ```
  producer ──plans slots ahead──▶ priority queue ──▶ worker thread ──▶ buffer ──▶ player (wall clock)
                                       ▲                 │                            │
-                                      │        LLM script + Kokoro voice             ▼
-                              story desk / editor                     adverts, then filler, when dry
-                              local adverts (idle time only)
+                                      │         LLM script + voices                  ▼
+                     story desk / senior editor / bookings          continuity and adverts, then
+                     specials, documentary, adverts (idle time)     filler, when dry
 ```
 
 - **Producer** keeps about ten minutes of unplayed content planned, working out
   when each slot will start from what is really queued. The schedule
   (`schedule.py`) decides which show each slot belongs to. The news loops a
-  short pattern; breakfast does too, but hands every sofa chat and report a
-  different angle; *Coastwide* and *The Last Ferry* run a written-out hour
-  with a brief per item. The shows with an order sign off just before the
-  next one starts.
+  short pattern; the other shows run a written-out order with a brief per
+  item, handed out in turn so each lap of the hour has new angles, and sign
+  off just before the next show starts.
+- **Bookings**: the evening and phone-in shows are booked ahead by the back
+  office in idle time: the phone-in's question, guest and callers from 08:30;
+  *The Inquiry*'s story, questions and guest, *The Panel*'s questions and
+  panellists, and on council nights *The Chamber*'s four motions, all from
+  18:30. A booked vote is counted in code, so the debate reads the result it
+  was given and the story moves on with it. A show with nothing booked in time
+  airs a stand-in.
 - **Worker** scripts each slot with the LLM (strict JSON, validated with
-  pydantic, one retry, canned template as a last resort), voices every line
-  with Kokoro, and stores a mouth envelope for lip-sync.
+  pydantic, one retry, canned template as a last resort), voices every line,
+  and stores a mouth envelope for lip-sync. Overlong captions are cut at a
+  word rather than failing the script.
 - **Player** consumes finished segments on the clock, never cutting audio
-  mid-sentence. When nothing is ready it airs local adverts (up to three in a
-  row), then filler and, after a while, a replay of the last weather. Breaking
-  news cuts in at the next sentence and the programme resumes afterwards.
+  mid-sentence. When nothing is ready it airs continuity (an ident, the
+  "Later on Channel 7" card, the tides and ferry, community notices, trails for
+  a finished special) in turn with local adverts, then filler and, after a
+  while, a replay of the last weather. The programme card also airs once an
+  hour in the news anyway. Breaking news cuts in at the next sentence and the
+  programme resumes afterwards.
 - **Adverts** for the town's shops and services (`adverts.py`, kept in
   `data/ads/`) are voiced in advance, so they are there when the model is
   slow. Eight hand-written ones are voiced on the first idle moments; the
   model writes another every half hour in idle time, up to forty. An owner
-  who speaks in their advert joins the town's cast. *Morning Tide*,
-  *Coastwide* and *The Last Ferry* also have planned breaks of two adverts in
-  their running orders (between a talk-show guest's two parts).
+  who speaks in their advert joins the town's cast. Most of the programmes
+  also have planned breaks of two adverts in their running orders (on *The
+  Last Ferry*, between a guest's two parts).
 - **Tip-line**: anyone can add a line to `data/tipline.txt`. Plain tips go to
   the next bulletins; a line starting `BREAKING:` interrupts whatever is on,
   with a sting and Dana at the news desk.
 - **Story desk** and **editor** run only when the worker is idle and the live
   buffer is healthy. The desk gives each thread a phase and a planned next
-  development; the editor occasionally commissions a special, which is written
-  in resumable stages that interleave with live work.
+  development, and starts up to ten new stories a day, a few at a time from
+  06:00 (none overnight). Every two hours the senior editor reads the whole
+  board and leaves the desk a memo. The editor occasionally commissions a
+  special, which is written in resumable stages that interleave with live work.
+- **Sound**: Channel 7 has a sonic logo written down as notes (`jingle.py`),
+  arranged for each show's bumper and ident, with music beds made from it
+  (`station_audio.py`). Presenters and local guests are voiced by Pocket TTS
+  cloning reference clips; Kokoro voices everyone else, and phone-in callers
+  come through a telephone band.
 - **Scenes** are drawn on a 320×180 canvas and scaled up with nearest
-  neighbour, which is where the pixel look comes from. Writers choose from 24
-  locations (Port Wexley and its countryside) and the studio has its own sets.
+  neighbour, which is where the pixel look comes from. Writers choose from 26
+  locations (Port Wexley and its countryside, the council chamber among them)
+  and the studio has eight sets, from the breakfast sofa to the panel set and
+  the *Rock Pool* set.
   Each is hand-checked pixel art (`assets/backdrops/`, made with ComfyUI),
   graded in code for the time of day (a sunset tint at dusk; hand-made night
   pictures for the harbour, high street and Town Hall) and for the last
@@ -89,24 +115,29 @@ The one rule the whole design hangs on: **the broadcast never waits on the AI.**
 Model routing is config-driven. Any OpenAI-compatible endpoint works (LM
 Studio and llama.cpp locally, Moonshot's Kimi in the cloud), plus the Anthropic
 SDK. The shipped config uses Claude Haiku 5.5 for live segments and DeepSeek
-Flash (thinking) for the editor, the story desk and specials, with Claude
-Sonnet 5.5 as the senior editor over the desk and as Flash's fallback; Kimi
-k2.6 and k3 did those jobs before and are still declared.
+Flash (thinking) for the back office (the editor, the story desk, specials,
+the documentary and the evening shows' bookings), with Claude Sonnet 5.5 as
+the senior editor over the desk and as Flash's fallback; Kimi k2.6 and k3 did
+those jobs before and are still declared. The night run of 31 October, from
+the evening shows to the next morning, cost under a dollar in model calls.
 
 ## Status
 
-Early and working. The longest runs so far are hour-long runs with real Kimi
-scripts across *Coastwide* and *The Last Ferry*, with no failed segments,
-almost no filler, and each show signing off within seconds of the hour; it has
-not yet been left on overnight. Things that exist: a daily schedule with
-breakfast, the news, a magazine and a talk show; studio interviews, filmed
-features, vox pops and specials; breaking news from a viewer tip-line; the
-story bible and desk; provider switching, caching, failure recovery, and
-backdrop art for every location; code-drawn presenters, and a look of their
-own for every guest from their name, voice and role; tides and a foot ferry
-worked out by arithmetic; local adverts that cover the gaps and fill ad
-breaks in the light shows; a nightly fifteen-minute documentary researched
-from the town's archive, with clips of earlier coverage as archive footage.
+Working, and left on overnight. It runs from the evening through to the next
+morning with almost no filler, and nights are recorded with OBS
+(`tools/obs_record.py` starts a new file for each programme) or streamed to
+YouTube (`docs/STREAMING.md`). Each night's log is reviewed the next day and
+the fixes go in before the next run. Things that exist: the full schedule
+below; studio interviews, filmed features, vox pops, phone-in calls, debates
+and specials; breaking news from a viewer tip-line; the story bible, the desk
+and the senior editor; provider switching, caching, failure recovery and a
+stand-in for every show; backdrop art for every location, with night
+pictures; code-drawn presenters, and a look of their own for every guest from
+their name, voice and role; the station's music; continuity and local adverts
+that cover the gaps and fill ad breaks; a nightly fifteen-minute documentary
+researched from the town's archive, with clips of earlier coverage as archive
+footage. `docs/SHOWS.md` has every programme in detail and `docs/ENGINE.md`
+the plan to reuse the engine for a second channel.
 
 ## A normal day
 
@@ -116,11 +147,27 @@ Unless breaking news cuts in, the station runs this schedule:
 |---|---|---|
 | 00:00 | overnight | the test card and repeats of the day's segments (not breakfast's); no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats (the papers, a viewer's question, on this day in town history…), Gordon's weather, Miles's reports, and a goodbye before the news |
-| 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, and specials |
+| 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, Fran Kellaway's sport, specials, and "Later on Channel 7" once an hour |
+| 10:00 | *Have Your Say* | Jonah Pike's news phone-in: one question from the day's news, viewers ringing in, and the official at the heart of the story in the studio |
+| 11:00 | the news | |
+| 13:00 | *Quayside* | Howard Lanyon on business, with the morning fish auction's prices and the jobs board |
+| 13:30 | the news | |
+| 15:00 | *Out and About* | Meg Trethewey on days out, culture and food: her walk for the weekend, reviews and features |
+| 15:45 | the news | |
+| 16:00 | *Rock Pool* | children's television with Poppy Tregenza and Gully the herring gull: makes, animal visitors, letters and story time |
+| 16:45 | the news | |
+| 18:45 | *Full Time* | Fran Kellaway and Tamsin Jago on fifteen minutes of local sport: the Tides, the rugby and the darts league |
 | 19:00 | *Coastwide* | the early-evening magazine in the spirit of *Nationwide*, with Pat Holloway and Clive Ashdown: an hour of links and banter, filmed features from Miles, studio guests, vox pops, the consumer slot and Gordon's weather, each item with its own angle |
-| 20:00 | the news | |
-| 22:00 | *The Last Ferry* | Vincent Marr's late-night talk show on the interview set with the lights down: a monologue, then guests who stay for two parts, late-night vox pops and a goodnight |
+| 20:00 | *The Inquiry* | Pat Holloway takes one running story in depth: the questions still open, and the person who has to answer them |
+| 20:30 | *The Panel* | Dana chairs three panellists on four questions from the week's news |
+| 21:00 | the news | *Port Wexley Stories*, the nightly documentary, airs at the first bumper |
+| 22:00 | *The Last Ferry* | Vincent Marr's late-night talk show with the lights down: a monologue, then guests who stay for two parts, late-night vox pops and a goodnight |
 | 23:00 | the news | the late news |
+
+Every other Thursday, from 5 November 2026, **The Chamber** takes 20:00 to
+21:00 instead: full council live from the council chamber, the mayor in the
+chair, six councillors debating four motions booked from the day's stories,
+the public gallery, and the votes filed to the stories they decide.
 
 Breakfast, the magazine and the talk show are **lighter** than the news: warm,
 everyday local stories and what's on. The exception is one big running story
@@ -166,7 +213,7 @@ Flags: `--debug` draws slot/buffer status, `--minutes N` auto-exits,
 one line at a time), `--snap DIR` saves a frame every 10 s, `--special-now` has the editor consider
 a special immediately, `--documentary-now` commissions today's documentary at
 once (it still airs in its slot), `--clock HH:MM` pretends the local time is HH:MM,
-`--log-llm` writes every model prompt and reply, with token counts, to
+`--scratch` runs on a copy of the town (below), `--log-llm` writes every model prompt and reply, with token counts, to
 `data/llm_calls/<date>.jsonl` (or set `log_calls = true` under `[llm]`).
 Token counts are always on each call's log line, and running totals per
 provider are logged every ten minutes and at exit (`LLM USAGE`).
@@ -180,7 +227,9 @@ the copy with an empty cache (the path is logged; delete it when done;
 same overrides work as environment variables, `NEWSROOM_WORLD`,
 `NEWSROOM_CACHE` and `NEWSROOM_TIPLINE`, and those also cover the module CLIs
 (`newsroom.world`, `newsroom.workers`, `newsroom.desk`, ...). Every run logs
-the world and cache it is using. For a template smoke test:
+the world and cache it is using. `NEWSROOM_COUNCIL_NIGHT=1` (or `0`) makes
+any day a council night (or not), so *The Chamber* can be tried with `--clock
+18:20`. For a template smoke test:
 `NEWSROOM_LLM=off uv run python -m newsroom --no-window --minutes 2 --scratch`.
 
 Expected cold start: filler card → bumper → an advert or a short filler while Kokoro loads →
@@ -192,19 +241,26 @@ stays ahead and there is no more filler.
 `data/world.json` is the town's memory and cast list. It is not in git and
 nothing backs it up, so test runs should use `--scratch` (above):
 
-- **Presenters**: Dana Ferris (anchor), Gordon Pell (weather), Miles Okafor
-  (field reporter); Rosie Treloar and Jonah Pike (breakfast); Pat Holloway and
-  Clive Ashdown (*Coastwide*); Vincent Marr (*The Last Ferry*), with fixed
-  voices. Each show's prompt and JSON schema allow only its own cast.
+- **Presenters**: Dana Ferris (anchor, and *The Panel*), Gordon Pell
+  (weather), Miles Okafor (field reporter); Rosie Treloar and Jonah Pike
+  (breakfast; Jonah also has the phone-in); Pat Holloway and Clive Ashdown
+  (*Coastwide*; Pat also has *The Inquiry*); Vincent Marr (*The Last Ferry*);
+  Fran Kellaway and Tamsin Jago (sport); Howard Lanyon (*Quayside*); Meg
+  Trethewey (*Out and About*); Poppy Tregenza and Gully (*Rock Pool*); Hugh
+  Tremayne (the history documentaries), with fixed voices. Each show's prompt
+  and JSON schema allow only its own cast.
 - **People**: seeded public figures and worthies (the mayor, police and fire
   chiefs, the MP, the harbourmaster, a head teacher, the lifeboat coxswain,
-  the historical society chair) plus residents promoted from special-report
-  guests. Each has a stable voice, speaking speed and look so they can recur.
-  Appearances are counted whenever a script names them.
+  the historical society chair, six town councillors with their wards and
+  leanings) plus residents promoted from guests, callers and advertisers.
+  Each has a stable voice, speaking speed and look so they can recur, and
+  guests remember what they said last time. Appearances are counted whenever
+  a script names them.
 - **Threads**: story lines with a phase (emerging → developing → peak →
   resolving → closed), the beats aired so far, the people involved and a
   planned NEXT development. Writers see the NEXT in their briefing and are told
-  a follow-up must deliver it, so stories move instead of repeating.
+  a follow-up must deliver it, so stories move instead of repeating. A thread
+  names at most four people.
   The board keeps 40 threads: a new one drops the quietest closed thread,
   never an open one (with all 40 open it grows and logs a warning). Template
   scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads,
@@ -216,9 +272,13 @@ nothing backs it up, so test runs should use `--scratch` (above):
 
 The **story desk** (`desk.py`) runs every `plan_every_s` when the worker is
 idle and the live buffer is healthy. It assigns phases, writes next
-developments, closes finished threads and occasionally seeds a new one. Each
-call plans a batch of threads (`[story] batch`, the least recently planned
-first), so the reply stays small as the town grows and the board rotates.
+developments, closes finished threads and seeds new ones (`[story]
+seeds_per_day`, released a few at a time from `seeds_from`, none overnight).
+Each call plans a batch of threads (`[story] batch`, the least recently
+planned first), so the reply stays small as the town grows and the board
+rotates. Every two hours the **senior editor** (`senior.py`) reads the whole
+board and leaves the desk a memo: threads to merge, people to trim, a story
+that needs a new angle.
 
 ```bash
 uv run python -m newsroom.desk plan --dry      # see what the desk would do
@@ -283,19 +343,29 @@ uv run python -m newsroom.special make --documentary --thread t030   # make one 
 | `llm.py` | one `complete_json()` door; OpenAI-compatible or Anthropic; strict JSON + one retry |
 | `writers.py` | prompts per show and segment type, studio guests, template fallbacks |
 | `special.py` | the editor decision and the resumable special-report stages |
+| `documentary.py` | *Port Wexley Stories*: the pick, the research notes, the archive clips, the overnight repeat |
 | `desk.py` | the story desk: phases, next developments, new threads |
+| `senior.py` | the senior editor's memo on the whole board |
+| `phonein.py` / `inquiry.py` / `panel.py` / `chamber.py` | the booked shows: each one's booking, stand-in and briefing |
+| `outabout.py` | *Out and About*'s reviews: stars out of five, remembered, and an owner may answer back on *Coastwide* |
+| `council.py` | the council calendar and the six councillors |
+| `tides.py` / `sport.py` / `rugby.py` / `darts.py` / `quay.py` | facts worked out in code: tides and ferry, results and tables, the fish auction |
 | `tipline.py` | the viewer tip-line file: new lines, pending tips, the CLI |
 | `breaking.py` | breaking news: sorting tip-line lines, scripting and stinging the interrupt |
+| `adverts.py` | the local advert pool and the planned ad breaks |
+| `continuity.py` | idents, "Later on Channel 7", the tides card, notices and trails |
 | `tts.py` | Pocket TTS cloning `assets/voices/`, else Kokoro, on CPU → 24 kHz WAV + mouth envelope |
-| `assets.py` | bakes the placeholder bumpers, breaking sting and music bed on first run |
+| `jingle.py` / `station_audio.py` | the station's sonic logo, its arrangements and the music stems |
+| `assets.py` | bakes the bumpers, breaking sting and music bed |
 | `buffer.py` | priority intake queue + ready-by-slot dictionary + pockets for specials and breaking news |
 | `schedule.py` | the shows, the daily schedule and the broadcast clock |
 | `producer.py` | plans slots ahead from the schedule and the show's running order; closings and hand-overs |
-| `workers.py` | generation thread, content cache, watchdog, idle editorial work |
+| `workers.py` | generation thread, content cache, watchdog, idle editorial work and bookings |
 | `player.py` | consumes the buffer, drives audio, applies timed cues, builds the `View` |
 | `locations.py` | the places a picture can be set, and where people stand on the studio sets |
-| `backdrops.py` | backdrop art or placeholder, time-of-day and weather grading, animated touches |
-| `scenes.py` / `sprites.py` | draws the `View` on a 320×180 canvas scaled up |
+| `backdrops.py` / `skies.py` | backdrop art, time-of-day and weather grading, drifting skies and animated touches |
+| `scenes.py` / `sprites.py` / `logo.py` | draws the `View` on a 320×180 canvas scaled up, with the station bug |
+| `tools/obs_record.py` | follows a run's log and records each programme to its own file in OBS |
 
 ## Dev commands
 
@@ -316,6 +386,10 @@ uv run python -m newsroom.backdrops --sheet sheet.png  # every backdrop at day, 
 uv run python -m newsroom.sprites --sheet people.png   # every presenter and a crowd of guests
 uv run python -m newsroom.tides 2026-11-02             # that day's tides and foot ferry
 uv run python -m newsroom.adverts                      # the advert pool (--make writes and voices one)
+uv run python -m newsroom.continuity                   # the continuity pool (--bake bakes what's due)
+uv run python -m newsroom.sport                        # the football: results, fixtures and the table
+uv run python -m newsroom.quay                         # the fish auction's latest prices
+uv run --with obsws-python python tools/obs_record.py data/night.log   # record each programme in OBS
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
 ```
