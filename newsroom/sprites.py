@@ -401,7 +401,15 @@ def _body(p: _Pen, L: Look) -> None:
         p.rows(L.extra_col, [(r, -12, -4) for r in range(18, 22)] + [(r, 3, 11) for r in range(18, 22)])
 
 
-def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
+# How a line is said, drawn in the face: the brows, the eyes and the mouth when it is shut. A brow is
+# three pixels, (outer, middle, inner) rows up (-) or down (+) from its usual place; the inner end is
+# the one by the nose. "" is the face as it always was.
+MOODS = ("", "happy", "laughing", "sad", "surprised", "cross", "worried", "smug", "embarrassed")
+_BROW = {"sad": (0, 0, -1), "worried": (0, -1, -1), "cross": (0, 1, 1), "surprised": (-1, -1, -1)}
+BLUSH = (230, 90, 100)
+
+
+def _head(p: _Pen, L: Look, mouth: float, blink: bool, mood: str = "") -> None:
     skin = L.skin
     p(skin, -3, 14, 6, 3)                                     # neck
     p(_dark(skin, 0.82), -3, 14, 2, 3)
@@ -429,10 +437,32 @@ def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
     # eyes: the white on the far side, the pupil looking the way they face
     brow = _dark(L.hair, 0.8) if L.hair[0] > 120 else L.hair
     by = 4 if L.brows == "raised" else 5
+    lid = _dark(skin, 0.55)
+    if mood == "embarrassed":                                 # pink in both cheeks, under the eyes
+        p(_mix(skin, BLUSH, 0.45), 3, 9, 3, 1); p(_mix(skin, BLUSH, 0.35), -6, 9, 2, 1)
     for ex in (-3, 3):
-        p(brow, ex - 1, by, 3, 1)
-        if blink:
-            p(_dark(skin, 0.55), ex - 1, 7, 3, 1)
+        step = 1 if ex < 0 else -1                            # towards the nose
+        lift = _BROW.get(mood, (0, 0, 0))
+        if mood == "smug" and ex > 0:
+            lift = (-1, -1, -1)                               # one brow up, the near one
+        for k, dy in enumerate(lift):
+            p(brow, ex - step + k * step, by + dy)
+        if blink and mood != "laughing":
+            p(lid, ex - 1, 7, 3, 1)
+        elif mood == "laughing":                              # shut tight, curved up: ^ ^
+            p(lid, ex - 1, 7); p(lid, ex, 6); p(lid, ex + 1, 7)
+        elif mood == "surprised":                             # wide: the white all round a small pupil
+            p(WHITE, ex - 1, 5, 3, 3); p(EYE, ex, 6)
+        elif mood == "cross":                                 # narrowed under the lowered brow
+            p(WHITE, ex - 1, 7); p(EYE, ex, 7)
+        elif mood in ("sad", "embarrassed"):                  # looking down
+            p(WHITE, ex - 1, 6, 2, 1); p(WHITE, ex - 1, 7); p(EYE, ex, 7)
+        elif mood == "worried":                               # looking away, to the far side
+            p(WHITE, ex, 6, 1, 2); p(EYE, ex - 1, 6, 1, 2)
+        elif mood == "smug":                                  # half-lidded
+            p(lid, ex - 1, 6, 2, 1); p(WHITE, ex - 1, 7); p(EYE, ex, 7)
+        elif mood == "happy":                                 # smiling eyes, pushed up by the cheeks
+            p(WHITE, ex - 1, 6); p(EYE, ex, 6); p(_dark(skin, 0.8), ex - 1, 7, 3, 1)
         else:
             p(WHITE, ex - 1, 6, 1, 2)
             p(EYE, ex, 6, 1, 2)
@@ -442,8 +472,32 @@ def _head(p: _Pen, L: Look, mouth: float, blink: bool) -> None:
         p(L.hair, -2, 10, 6, 1)
     lip = _mix(_dark(skin, 0.75), (170, 60, 70), 0.35)
     if mouth > 0.08:                                          # open with the audio
-        p(INNER, -1, 11, 4, max(1, round(mouth * 3)))
-        p(lip, -1, 11 + max(1, round(mouth * 3)), 4, 1)
+        h = max(1, round(mouth * 3))
+        wide = mood == "laughing"
+        p(INNER, -2 if wide else -1, 11, 6 if wide else 4, h)
+        p(lip, -2 if wide else -1, 11 + h, 6 if wide else 4, 1)
+        if mood in ("happy", "laughing"):                     # the corners up
+            p(lip, -3 if wide else -2, 10); p(lip, 4 if wide else 3, 10)
+        elif mood in ("sad", "worried"):                      # the corners down
+            p(lip, -2, 11 + h); p(lip, 3, 11 + h)
+    elif mood == "happy":                                     # a grin, wider than a resting smile
+        p(lip, -2, 11, 6, 1); p(lip, -3, 10); p(lip, 4, 10)
+    elif mood == "embarrassed":
+        p(lip, -1, 11, 4, 1); p(lip, -2, 10, 1, 1); p(lip, 3, 10, 1, 1)
+    elif mood == "laughing":                                  # open wide, the top teeth showing
+        p(INNER, -2, 11, 6, 2); p(WHITE, -1, 11, 4, 1); p(lip, -2, 13, 6, 1)
+        p(lip, -3, 10); p(lip, 4, 10)
+    elif mood == "sad":
+        p(lip, -1, 11, 4, 1); p(lip, -2, 12); p(lip, 3, 12)
+    elif mood == "surprised":                                 # a small round O
+        p(INNER, 0, 11, 2, 2); p(lip, 0, 13, 2, 1)
+    elif mood == "cross":                                     # pressed flat and wide
+        p(_dark(lip, 0.75), -2, 11, 6, 1)
+    elif mood == "worried":                                   # wavering
+        for d, r in ((-2, 11), (-1, 12), (0, 11), (1, 12), (2, 11)):
+            p(lip, d, r)
+    elif mood == "smug":
+        p(lip, -1, 11, 4, 1); p(lip, 3, 10)
     elif L.mouth == "smile":
         p(lip, -1, 11, 4, 1); p(lip, -2, 10, 1, 1); p(lip, 3, 10, 1, 1)
     elif L.mouth == "smirk":
@@ -572,11 +626,12 @@ def _hand(p: _Pen, L: Look, up: float, t: float, beat: float) -> None:
 def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: float, t: float,
                    *, scale: int = 1, facing: int = 1, look: Look | None = None,
                    light: tuple[float, float, float] | None = None,
-                   gesture: tuple[str, float] | None = None) -> None:
+                   gesture: tuple[str, float] | None = None, mood: str = "") -> None:
     """Head-and-shoulders character with the bottom at (x, y) baseline. mouth in 0..1.
     `look` overrides the presenter's own (guests pass guest_look(...)); `light` multiplies
     every colour, to sit them in a location's light (backdrops.person_light). `gesture` fixes
-    one for a contact sheet; otherwise talking and listening choose (`_gesture`)."""
+    one for a contact sheet; otherwise talking and listening choose (`_gesture`). `mood` (MOODS)
+    is in the face, and a sad or embarrassed head hangs a pixel."""
     if who == "gully":
         return draw_gully(canvas, x, y, mouth, t, scale=scale, facing=facing, light=light)
     L = look or LOOKS.get(who, LOOKS["guest"])
@@ -584,12 +639,13 @@ def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: floa
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
     top = y - 37 * scale + bob
     p = _Pen(canvas, x, top, scale, facing, light)
-    hp = _Pen(canvas, x, top + scale, scale, facing, light) if kind == "nod" else p   # the head dips
+    hangs = kind == "nod" or mood in ("sad", "embarrassed")
+    hp = _Pen(canvas, x, top + scale, scale, facing, light) if hangs else p   # the head dips
     _hair_back(hp, L)
     _body(p, L)
     if kind == "hand":
         _hand(p, L, up, t, _beat(who, look))
-    _head(hp, L, mouth, _blinking(who, look, t))
+    _head(hp, L, mouth, _blinking(who, look, t), mood)
     _hair_front(hp, L)
 
 
