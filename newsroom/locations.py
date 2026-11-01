@@ -124,12 +124,13 @@ MARKS: dict[str, dict[str, Mark]] = {
                     "guest_near": (204, 150, 2, -1), "guest_far": (268, 150, 2, -1)},
     "studio_sports": {"host": (92, 144, 2, 1), "guest": (228, 150, 2, -1)},   # host stands at the desk
     # The Panel: the chair at the left end of a long desk, three panellists facing her, all behind it
-    "studio_panel": {"host": (58, 138, 2, 1), "guest": (152, 138, 2, -1),
-                     "panel_1": (152, 138, 2, -1), "panel_2": (212, 138, 2, -1), "panel_3": (272, 138, 2, -1)},
+    # (the art's desk top has its back edge at y 132, so they sit 3 px below it)
+    "studio_panel": {"host": (58, 135, 2, 1), "guest": (152, 135, 2, -1),
+                     "panel_1": (152, 135, 2, -1), "panel_2": (212, 135, 2, -1), "panel_3": (272, 135, 2, -1)},
     # The Chamber: the mayor at the chair at the back (further off, so smaller), the speakers at the horseshoe
     "council_chamber": {"host": (160, 104, 1, 1), "guest": (60, 140, 2, 1),
                         "panel_1": (60, 140, 2, 1), "panel_2": (276, 140, 2, -1), "panel_3": (204, 154, 2, -1)},
-    # Rock Pool: Poppy, Gully on her arm turned to her, and a visitor's seat across the craft table
+    # Rock Pool: Poppy, Gully on her arm turned to her, and a visitor standing across the craft table
     "studio_kids": {"host": (78, 150, 2, 1), "gully": (134, 158, 2, -1), "guest": (250, 152, 2, -1)},
 }
 
