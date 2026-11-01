@@ -61,7 +61,8 @@ bottom with the date.
 - [ ] The councillors' voices by ear: all six come from the guest pools for now (contact sheet and
   listening, as for the presenters).
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
-  would place her in the room.
+  would place her in the room. And a debate that falls to the stock interview (anchor and a guest) puts
+  her in the mayor's chair: the vote is still filed, but the picture is wrong.
 - [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
   the station's teletext service cycles its pages under a music bed, as British TV filled the small
   hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,

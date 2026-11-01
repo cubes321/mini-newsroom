@@ -1526,6 +1526,11 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         same = next((t for t in world.open_threads() if t.title == script.headline[:80]), None)
         if same:
             seg.thread_id = world.update_thread(same.id, script.headline, None)
+        # A council motion whose debate fell to the stock script was still voted on: its story takes the
+        # result, or the desk would leave it alone until midnight.
+        n = seg.work.get("motion") if seg.show == chamber.SHOW else None
+        if n is not None and (tid := chamber.settle(world, n)):
+            seg.thread_id = world.update_thread(tid, script.headline, chamber.status_of(world, n))
     else:
         # A council motion files under its own story with the vote as booked, whatever the model set.
         motion = seg.work.get("motion") if seg.show == chamber.SHOW else None

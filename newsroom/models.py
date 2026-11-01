@@ -646,7 +646,9 @@ class Motion(BaseModel):
     motion: Annotated[str, _clip_words(220)] = Field(
         max_length=220, description="the motion as the clerk reads it: 'That the council ...'")
     mover: str = Field(description="the councillor who moves it: an exact name from the COUNCIL")
-    votes: list[CouncilVote] = Field(min_length=6, max_length=6, description="every councillor's vote, one each")
+    # Six asked for; a short list still books (chamber._votes counts a councillor left out as abstaining)
+    # rather than failing all four motions for the stand-in agenda.
+    votes: list[CouncilVote] = Field(min_length=3, max_length=8, description="every councillor's vote, one each")
     if_carried: Annotated[str, _clip_words(200)] = Field(
         max_length=200, description="what happens next if it is carried: a dated step, one sentence")
     if_lost: Annotated[str, _clip_words(200)] = Field(

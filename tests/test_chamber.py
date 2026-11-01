@@ -96,6 +96,9 @@ def test_the_agenda_is_booked_with_every_vote_and_the_result_counted(monkeypatch
     assert (m[1]["for"], m[1]["against"], m[1]["carried"], m[1]["casting"]) == (3, 3, False, True)   # the chair's vote
     assert m[2]["carried"] is False
     assert [v["councillor"] for v in m[3]["votes"]] == NAMES and m[3]["votes"][-1]["vote"] == "abstain"
+    short = _motion(ids[0], 4)
+    short.votes = short.votes[:4]                                             # two left out: they abstain
+    assert [v["vote"] for v in chamber._votes(w, short.votes)] == ["for"] * 4 + ["abstain"] * 2
     brief = chamber.brief_for(w, "the SECOND motion, {m2}")
     assert f"[{ids[1]}]" in brief and "casting vote goes against" in brief and "LOST" in brief
     assert "From the public: a trader" in brief
@@ -124,6 +127,20 @@ def test_a_debate_files_its_vote_with_the_story_once(monkeypatch):
     mentions = t.mentions
     writers._apply_to_world(seg, script, w)                                   # filed again: no second vote
     assert t.mentions == mentions + 1 and t.phase == "resolving"
+
+
+def test_a_debate_on_the_stock_script_still_files_its_vote(monkeypatch):
+    w = _town()
+    _stub(monkeypatch, ChamberAgenda(motions=[_motion(t.id, 2) for t in chamber.candidates(w)[:4]]))
+    chamber.commission(w)
+    tid = chamber.tonight(w)["motions"][1]["thread_id"]
+    seg = Segment(slot_id=7, type=T.interview, show="chamber", target_s=330, brief="the SECOND motion, {m2}")
+    seg.work["motion"] = 1
+    script = writers._template(T.interview, w, writers.random.Random(1), schedule.get("chamber"), "", seg.work)
+    writers._apply_to_world(seg, script, w, template=True)
+    t = w.thread(tid)
+    assert seg.thread_id == tid and t.status.startswith("Full council voted 2-4, motion lost")
+    assert t.next_development == f"{tid} waits for spring." and tid not in chamber.on_agenda(w)
 
 
 def test_a_failed_booking_still_gives_the_hour_its_business(monkeypatch):
