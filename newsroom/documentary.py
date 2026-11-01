@@ -400,7 +400,7 @@ def load_repeat(world: World) -> Segment | None:
     """Last night's documentary from the cache, to air again: labelled a repeat, and not recorded
     as an airing (special.mark_aired). Marks it repeated even if it can't be loaded, so a missing
     file doesn't get looked for at every test card."""
-    from .special import SPECIAL_SLOT_BASE
+    from .special import REPEAT_SLOT
 
     h = world.last_documentary_hash
     world.last_documentary_repeated = h
@@ -412,7 +412,7 @@ def load_repeat(world: World) -> Segment | None:
     if not seg.lines or not all(l.wav_path and Path(l.wav_path).exists() for l in seg.lines):
         log.warning("documentary repeat: %s is missing audio", h)
         return None
-    seg.slot_id, seg.repeat, seg.content_hash = SPECIAL_SLOT_BASE + 900_000, True, h
+    seg.slot_id, seg.repeat, seg.content_hash = REPEAT_SLOT, True, h
     seg.work["strand"] = f"{seg.work.get('strand') or strand()} · REPEAT"
     log.info("documentary repeat: %r", seg.headline)
     return seg

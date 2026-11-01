@@ -319,9 +319,10 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         # (quay.py, so the figures agree everywhere), local firms, jobs and prices (docs/SHOWS.md).
         pattern=(
             T.bumper,
-            I(T.links, "open", brief="Howard opens Quayside: the morning's auction in a few figures, and what's "
+            # "The latest": at the weekend it is Friday's, and QUAY FACTS say so ("this morning" was wrong).
+            I(T.links, "open", brief="Howard opens Quayside: the latest auction in a few figures, and what's "
                                      "coming up"),
-            I(T.field_report, brief="Miles on the fish quay: this morning's auction, the boats that went out "
+            I(T.field_report, brief="Miles on the fish quay: the latest auction, the boats that went out "
                                     "and those that stayed in, a skipper or a buyer"),
             I(T.interview, brief="a local business in the armchair: a firm, a shop opening or closing, a trader "
                                  "with a problem"),

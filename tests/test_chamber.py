@@ -137,6 +137,8 @@ def test_a_debate_on_the_stock_script_still_files_its_vote(monkeypatch):
     seg = Segment(slot_id=7, type=T.interview, show="chamber", target_s=330, brief="the SECOND motion, {m2}")
     seg.work["motion"] = 1
     script = writers._template(T.interview, w, writers.random.Random(1), schedule.get("chamber"), "", seg.work)
+    assert script.guest_name == "Helen Strand" and {l.speaker for l in script.lines} == {"guest"}   # not Dana
+    assert "2 for, 4 against, 0 abstaining. The motion is lost" in script.lines[-1].text
     writers._apply_to_world(seg, script, w, template=True)
     t = w.thread(tid)
     assert seg.thread_id == tid and t.status.startswith("Full council voted 2-4, motion lost")

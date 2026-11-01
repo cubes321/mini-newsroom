@@ -61,8 +61,7 @@ bottom with the date.
 - [ ] The councillors' voices by ear: all six come from the guest pools for now (contact sheet and
   listening, as for the presenters).
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
-  would place her in the room. And a debate that falls to the stock interview (anchor and a guest) puts
-  her in the mayor's chair: the vote is still filed, but the picture is wrong.
+  would place her in the room.
 - [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
   the station's teletext service cycles its pages under a music bed, as British TV filled the small
   hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,
@@ -117,10 +116,13 @@ bottom with the date.
   often (a weekly beat, or when its NEXT development comes due), planned by the desk once a day rather than
   every round, kept out of the live count and the thin-board test, and never faded by the quiet timer.
   Build it once a night or two has shown how the spread-out seeding shapes the board.
-- [ ] **Quayside says "this morning's auction" at the weekend.** It airs every day at 13:00, but the auction
+- [x] **Quayside says "this morning's auction" at the weekend.** Fixed 2026-11-01: its briefs say "the latest
+  auction", and QUAY FACTS give the day. It airs every day at 13:00, but the auction
   is weekdays only, so on Saturday and Sunday the figures are Friday's (`schedule.py`, its open and the
   quay report's briefs). Say "the latest auction", or name the day.
-- [ ] **The Inquiry's stock interview is off the story.** Slot 133 on 2026-10-31 ("Dev Ramachandran on the
+- [x] **The Inquiry's stock interview is off the story.** Fixed 2026-11-01: Pat to camera on the questions
+  still open; The Chamber's is Helen Strand reading the booked vote. The recorder also skips the
+  documentary's overnight repeat now (`special.REPEAT_SLOT`). Slot 133 on 2026-10-31 ("Dev Ramachandran on the
   week in town", 20 s) aired in the middle of The Inquiry after two too-long answers; a failed "other" item
   now lands there too. Give The Inquiry a stock item of its own (Pat to camera on the questions still
   open), or skip to the next item.

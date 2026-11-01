@@ -17,7 +17,8 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, chamber, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides, tipline
+from . import (breaking, chamber, council, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides,
+               tipline)
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -250,7 +251,8 @@ headline = the point in under 12 words. lower_third = "Quayside" plus a short ta
 """,
     SegmentType.field_report: _COMMON_RULES + _QUAYSIDE_RULES + """
 This is a REPORT from the fish quay on Quayside. "business" (Howard) hands to Miles in one line;
-"reporter" (Miles) reports from the quay as THIS ITEM says: the morning's auction, the boats out and
+"reporter" (Miles) reports from the quay as THIS ITEM says: the latest auction (on the day QUAY FACTS
+give, which at the weekend is Friday), the boats out and
 those kept in, what a skipper or a buyer said; "business" thanks him in one line. The backdrop is
 harbour; location is the place in words.
 """,
@@ -1176,6 +1178,35 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             headline="The day in Port Wexley, briefly",
             lower_third="The Last Ferry",
         )
+    if show.id == inquiry.SHOW and seg_type is SegmentType.interview:
+        # The stock interview below is off the story: "Dev Ramachandran on the week in town" aired in the
+        # middle of The Inquiry on 2026-10-31. Pat to camera on the questions still open stays on it.
+        s = inquiry.tonight(world) or {}
+        qs = (s.get("questions") or []) + ["Who decides, and when?", "What has been promised, and what has been done?"]
+        return InterviewScript(
+            lines=[GuestLine(speaker="mag_a", text="Before our next guest, the questions tonight's inquiry is still asking."),
+                   GuestLine(speaker="mag_a", text=qs[0]), GuestLine(speaker="mag_a", text=qs[1]),
+                   GuestLine(speaker="mag_a", text="Nobody has answered those yet. We'll keep asking.")],
+            headline=f"{s.get('title') or 'The Inquiry'}: the questions still open"[:90],
+            lower_third="The Inquiry: still to answer")
+    if show.id == chamber.SHOW and seg_type is SegmentType.interview:
+        # Helen Strand alone, reading the vote as booked: the stock interview put Dana in the mayor's chair.
+        motions = (chamber.tonight(world) or {}).get("motions") or []
+        n = (work or {}).get("motion")
+        if n is not None and n < len(motions):
+            m = motions[n]
+            how = (f"the votes are tied, {m['for']} each, and on my casting vote the motion is lost" if m["casting"]
+                   else f"{m['for']} for, {m['against']} against, {m['abstain']} abstaining. The motion is "
+                        + ("carried" if m["carried"] else "lost"))
+            say = [f"The next item: {m['motion']}. Moved by Councillor {m['mover'].split()[-1]}.",
+                   "We have heard the arguments, and I'll put it to the vote. Those in favour? Those against? Abstentions?",
+                   f"Thank you. {how[0].upper() + how[1:]}."]
+            headline = f"Full council {'carries' if m['carried'] else 'rejects'}: {m['motion'].removeprefix('That the council ')}"[:90]
+        else:
+            say = ["Order, please. Any other business? Then we'll move on.", "Thank you, councillors."]
+            headline = "Full council moves on"
+        return InterviewScript(lines=[GuestLine(speaker="guest", text=t) for t in say], headline=headline,
+                               lower_third="Full council", guest_name=council.CHAIR, guest_role="Mayor of Port Wexley")
     if seg_type in (SegmentType.interview, SegmentType.consumer):
         host = other if seg_type is SegmentType.consumer else lead
         p = next((p for p in world.people if p.kind == "resident"), None) or world.people[0]

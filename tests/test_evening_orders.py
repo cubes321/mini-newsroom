@@ -84,6 +84,19 @@ def test_the_inquirys_other_voices_are_never_its_guest(monkeypatch):
     assert len(asked) == 1 and writers._last_interview["inquiry"]["name"] == "Ivy Marchetti"
 
 
+def test_the_inquirys_stock_item_stays_on_the_story():
+    """"Dev Ramachandran on the week in town" aired in the middle of The Inquiry (slot 133, 2026-10-31)."""
+    import random
+
+    w = world_mod.seed()
+    w.inquiries = [{"date": w.last_date, "thread_id": None, "title": "Who Pays for the Wall?", "angle": "a",
+                    "questions": ["Who signed the survey?", "Where is the money?"], "guest": "Ivy Marchetti"}]
+    s = writers._template(T.interview, w, random.Random(1), schedule.get("inquiry"))
+    assert {l.speaker for l in s.lines} == {"mag_a"} and [l.text for l in s.lines[1:3]] == [
+        "Who signed the survey?", "Where is the money?"]
+    assert s.headline == "Who Pays for the Wall?: the questions still open"
+
+
 def test_asked_again_and_still_the_inquirys_guest_the_other_voice_is_dropped(monkeypatch):
     """On 2026-10-31 Helen Strand sat in four of the six "other" chairs: told NOT her, the model named her
     again, and the second answer wasn't checked. Now the retry names someone else on the story, and a

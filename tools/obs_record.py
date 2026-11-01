@@ -8,7 +8,8 @@ programme starts recording at its first segment (its own bumper) and stops at th
 so the news between programmes isn't recorded. Overnight, a programme's leftover segments fill the loop
 between test cards; only a bumper (or a documentary) starts a recording, so those aren't recorded. Adverts, ad breaks, continuity and a breaking-news
 interruption leave the recording as it is, so a programme stays in one file. The documentary (Port
-Wexley Stories, which airs inside the news) is recorded as a programme of its own. OBS's connection
+Wexley Stories, which airs inside the news) is recorded as a programme of its own, but not its overnight
+repeat, which made a second file of the same film on 2026-11-01. OBS's connection
 (port, password) is read from its own obs-websocket config; turn the WebSocket server on in OBS.
 `--dry-run` prints what it would do without touching OBS; `--from-start` reads the log from the top.
 """
@@ -25,8 +26,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from newsroom import schedule  # noqa: E402
+from newsroom.special import REPEAT_SLOT  # noqa: E402
 
-PLAYING = re.compile(r"(?:playing|replaying) slot -?\d+ (\w+) \([^)]*\) \[([\w-]+)\]")
+PLAYING = re.compile(r"(?:playing|replaying) slot (-?\d+) (\w+) \([^)]*\) \[([\w-]+)\]")
 KEEP = {"advert", "ad_break", "continuity", "breaking", "filler"}      # never start or stop a recording
 OPENERS = {"bumper", "documentary"}      # a programme starts at its bumper; the documentary has none
 NOT_PROGRAMMES = {"news", "overnight"}
@@ -128,11 +130,14 @@ def main() -> int:
             if "exit: worst p99" in line:                   # the run has ended
                 break
             m = PLAYING.search(line)
-            if not m or m.group(1) in KEEP:
+            if not m or m.group(2) in KEEP:
                 continue
-            prog = programme(m.group(1), m.group(2))
+            slot, seg_type, show = int(m.group(1)), m.group(2), m.group(3)
+            if seg_type == "documentary" and slot == REPEAT_SLOT:   # last night's again: recorded when it first aired
+                continue
+            prog = programme(seg_type, show)
             if prog != rec.now:
-                if prog and m.group(1) not in OPENERS:      # a leftover filling the overnight loop, not on air
+                if prog and seg_type not in OPENERS:        # a leftover filling the overnight loop, not on air
                     continue
                 if rec.now:
                     rec.stop()

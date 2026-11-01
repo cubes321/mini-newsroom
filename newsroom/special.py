@@ -56,6 +56,7 @@ from .world import World
 log = logging.getLogger(__name__)
 
 SPECIAL_SLOT_BASE = 1_000_000      # specials live outside the rundown's slot numbering
+REPEAT_SLOT = SPECIAL_SLOT_BASE + 900_000   # the documentary's overnight repeat (documentary.load_repeat)
 VOICE_LINES_PER_TURN = 10          # lines voiced per worker turn
 _special_counter = 0
 
