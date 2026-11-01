@@ -59,6 +59,9 @@ Tone: {tone}. Specific, concrete details (street names, prices, a quote from a r
 - Quote the listed public figures by name where natural; do not invent a new mayor, chief or
   councillor when a listed one fits. Respect the dates in the briefing.
 - Stay within the word budget. Return ONLY JSON matching the schema; no commentary.
+- A line's mood is drawn in the speaker's face: set it only where the line really is said that way (a
+  laugh, a sad memory, a surprise, a cross word, a tease), on two or three lines in an item at most; the
+  rest are null. A face that is always laughing says nothing.
 """
 
 _GUEST_RULES = """\
@@ -1415,7 +1418,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
         return getattr(script, "guest_role", None)
     seg.lines = [Line(speaker=l.speaker, text=l.text.strip(),
                       guest_name=(name := _guest_of(l, script, stayed, studio)),
-                      guest_role=role(name) if l.speaker == "guest" else None)
+                      guest_role=role(name) if l.speaker == "guest" else None,
+                      mood=getattr(l, "mood", None))
                  for l in script.lines if l.text.strip()]
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch

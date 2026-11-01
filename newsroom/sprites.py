@@ -404,9 +404,12 @@ def _body(p: _Pen, L: Look) -> None:
 # How a line is said, drawn in the face: the brows, the eyes and the mouth when it is shut. A brow is
 # three pixels, (outer, middle, inner) rows up (-) or down (+) from its usual place; the inner end is
 # the one by the nose. "" is the face as it always was.
-MOODS = ("", "happy", "laughing", "sad", "surprised", "cross", "worried", "smug", "embarrassed")
+MOODS = ("", "happy", "laughing", "sad", "surprised", "cross", "worried", "smug", "embarrassed")   # models.MOOD_NAMES
 _BROW = {"sad": (0, 0, -1), "worried": (0, -1, -1), "cross": (0, 1, 1), "surprised": (-1, -1, -1)}
 BLUSH = (230, 90, 100)
+# How the others on screen take a line said in a mood: they smile at a laugh or someone's embarrassment,
+# share a surprise or a sad memory; a cross, worried or smug line leaves them as they are.
+REACT = {"laughing": "happy", "embarrassed": "happy", "surprised": "surprised", "sad": "sad"}
 
 
 def _head(p: _Pen, L: Look, mouth: float, blink: bool, mood: str = "") -> None:

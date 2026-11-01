@@ -70,6 +70,7 @@ class View:
     guests: dict = field(default_factory=dict)   # every guest in shot: name -> (voice, role, age), for their look
     mouth: float = 0.0
     talking: bool = False
+    mood: str = ""                       # the line's (models.MOOD_NAMES): the speaker's face, and the listeners'
     lower_third: tuple[str, str] | None = None
     ticker: list[str] = field(default_factory=list)
     map_state: str | None = None
@@ -483,6 +484,7 @@ class Player:
         cues, v.chapter_age_s = self._active_cues(elapsed)
         line = seg.lines[self.line_idx] if self.line_idx < len(seg.lines) else None
         v.speaker = line.speaker if line else None
+        v.mood = (line.mood or "") if line else ""
         v.reporter = next((l.speaker for l in seg.lines if l.speaker in FIELD_REPORTERS), "reporter")
         v.guest_name = line.guest_name if line else None
         as_presenter = self.world.presenter_named(v.guest_name) if v.speaker == "guest" else None

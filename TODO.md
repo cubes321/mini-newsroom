@@ -68,11 +68,15 @@ bottom with the date.
 - [x] "Later on Channel 7" once an hour in the rolling news (the user's idea, 2026-11-01): the programme
   card was baked every hour but aired only in a gap, and on 2026-10-31 the buffer never ran dry. It now
   also airs ahead of a news bumper when an hour has passed since it last aired (`continuity.PROGRAMMES_EVERY_S`).
-- [ ] Moods on air: eight faces are drawn (`sprites.MOODS`, chosen on a contact sheet 2026-11-01) but
-  nothing sets them yet. A `mood` per script line from that list, asked for in the writers' prompts, and the
-  player passing the speaker's to the sprite; the listeners could react too (a laugh at a joke). In a wide shot
-  only laughing, surprised and a hanging head read: body poses (arms up, a slump) would carry it there.
-  Movement (entrances, crossing to a mark) waits for *Harbour Row* on the entertainment channel.
+- [x] Moods on air (2026-11-01): eight faces (`sprites.MOODS`, chosen on a contact sheet), a `mood` on every
+  live script line (`models.Mood`; the model's own words mapped to the nearest, or dropped), and the player
+  passing the line's to the speaker's face; the others on screen react (`sprites.REACT`: a smile at a laugh).
+  Asked for on two or three lines an item: the first try had Ada Quarrie laughing on four lines of twelve
+  and Vincent smiling on four more.
+- [ ] Moods, next: watch a night for how often they come and whether the news anchors use them where they
+  shouldn't. In a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
+  would carry it there. Movement (entrances, crossing to a mark) waits for *Harbour Row* on the
+  entertainment channel.
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
   would place her in the room.
 - [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,

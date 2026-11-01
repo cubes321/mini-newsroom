@@ -17,7 +17,12 @@ import pygame
 from . import backdrops, locations, logo, schedule
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
-from .sprites import draw_character, draw_mic, guest_look
+from .sprites import REACT, draw_character, draw_mic, guest_look
+
+
+def _mood(v, speaking: bool) -> str:
+    """The speaker's face says the line's mood; whoever is listening takes it (sprites.REACT)."""
+    return v.mood if speaking else REACT.get(v.mood, "")
 
 CANVAS = (320, 180)
 LOWER_THIRD_Y = 128                             # the banner's top edge; it runs the width of the frame
@@ -230,7 +235,8 @@ def _studio_close(canvas: pygame.Surface, v: View, t: float) -> None:
         _studio_buf = pygame.Surface(CANVAS)
     _studio_bg(_studio_buf, t)
     pygame.transform.scale(_studio_buf.subsurface(CLOSE_CROP), CANVAS, canvas)
-    draw_character(canvas, (110 - CLOSE_CROP.x) * 2, (134 - CLOSE_CROP.y) * 2, "anchor", v.mouth, t, scale=4)
+    draw_character(canvas, (110 - CLOSE_CROP.x) * 2, (134 - CLOSE_CROP.y) * 2, "anchor", v.mouth, t, scale=4,
+                   mood=_mood(v, v.speaker == "anchor"))
 
 
 def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -247,7 +253,8 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, ln, WALL_PANEL.x + 4, y, 8, (220, 220, 230))
         y += 10
     who = v.presenter or "anchor"
-    draw_character(canvas, 270, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2)
+    draw_character(canvas, 270, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2,
+                   mood=_mood(v, v.speaker == who))
 
 
 LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a little dimmer and cooler
@@ -298,7 +305,8 @@ def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     late = v.show == "late"
     for who, name, (x, y, scale, facing) in _interview_marks(v):
         draw_character(canvas, x, y, who, v.mouth if _speaking(v, who, name) else 0.0, t, scale=scale, facing=facing,
-                       look=_guest(v, name) if who == "guest" else None, light=LATE_LIGHT if late else None)
+                       look=_guest(v, name) if who == "guest" else None, light=LATE_LIGHT if late else None,
+                       mood=_mood(v, _speaking(v, who, name)))
 
 
 _interview_buf: pygame.Surface | None = None
@@ -367,7 +375,7 @@ def _sofa_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, "studio_sofa")
     for who, ((x, y, scale, facing), name) in _sofa_marks(v).items():
         draw_character(canvas, x, y, who, v.mouth if v.speaker == who else 0.0, t, scale=scale, facing=facing,
-                       look=_guest(v, name) if who == "guest" else None)
+                       look=_guest(v, name) if who == "guest" else None, mood=_mood(v, v.speaker == who))
 
 
 def draw_sofa(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -403,11 +411,12 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
     if v.shot == "close":
         return _studio_close(canvas, v, t)
     _studio_bg(canvas, t)
-    draw_character(canvas, 110, 134, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2)
+    draw_character(canvas, 110, 134, "anchor", v.mouth if v.speaker == "anchor" else 0.0, t, scale=2,
+                   mood=_mood(v, v.speaker == "anchor"))
     if v.speaker in FIELD_REPORTERS:                              # anchor hands to the reporter box
         pygame.draw.rect(canvas, (20, 20, 20), (190, 40, 110, 80))
         pygame.draw.rect(canvas, (60, 90, 70), (194, 44, 102, 72))
-        draw_character(canvas, 245, 112, v.speaker, v.mouth, t, scale=1)
+        draw_character(canvas, 245, 112, v.speaker, v.mouth, t, scale=1, mood=v.mood)
         text(canvas, "PHONE" if v.breaking else "LIVE", 198, 46, 8, (255, 80, 80))
 
 
@@ -433,9 +442,10 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
         pygame.draw.rect(canvas, (20, 20, 30), (236, 24, 70, 40))
         text(canvas, f"{v.temp_c}°C", 271, 44, 14, center=True)
         text(canvas, (v.map_state or "").upper(), 271, 58, 8, (200, 200, 120), center=True)
-    draw_character(canvas, 270, 152, "weather", v.mouth if v.speaker == "weather" else 0.0, t, scale=2)
+    draw_character(canvas, 270, 152, "weather", v.mouth if v.speaker == "weather" else 0.0, t, scale=2,
+                   mood=_mood(v, v.speaker == "weather"))
     if v.speaker not in (None, "weather"):                       # whoever handed over, small at the left
-        draw_character(canvas, 30, FAR_Y, v.speaker, v.mouth, t, scale=1)
+        draw_character(canvas, 30, FAR_Y, v.speaker, v.mouth, t, scale=1, mood=v.mood)
 
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
@@ -445,12 +455,13 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     light = backdrops.person_light(v.backdrop, v.tod, v.weather)
     if v.speaker not in (None, v.reporter):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
-        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light)
-        draw_character(canvas, 62, FAR_Y, v.reporter, 0.0, t, scale=1, light=light)
+        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light,
+                       mood=v.mood)
+        draw_character(canvas, 62, FAR_Y, v.reporter, 0.0, t, scale=1, light=light, mood=_mood(v, False))
         draw_mic(canvas, 190, 116)
     else:
         draw_character(canvas, 90, 160, v.reporter, v.mouth if v.speaker == v.reporter else 0.0, t, scale=2,
-                       light=light)
+                       light=light, mood=_mood(v, v.speaker == v.reporter))
         draw_mic(canvas, 105, 118)
     if v.tag:
         w = font(8).size(v.tag)[0] + 8
@@ -502,11 +513,12 @@ def draw_special(canvas: pygame.Surface, v: View, t: float) -> None:
     who = v.speaker if v.speaker in ("reporter", "historian") else host
     if v.speaker == "guest":
         draw_character(canvas, 215, 152, "guest", v.mouth, t, scale=2, facing=-1, look=_guest(v, v.guest_name),
-                       light=light)
-        draw_character(canvas, 62, FAR_Y, host, 0.0, t, scale=1, light=light)
+                       light=light, mood=v.mood)
+        draw_character(canvas, 62, FAR_Y, host, 0.0, t, scale=1, light=light, mood=_mood(v, False))
         draw_mic(canvas, 72, FAR_Y - 26)
     else:
-        draw_character(canvas, 90, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2, light=light)
+        draw_character(canvas, 90, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2, light=light,
+                       mood=_mood(v, v.speaker == who))
         draw_mic(canvas, 105, 110)
     if v.archive:                                    # archive footage: black and white with a warm cast
         canvas.blit(pygame.transform.grayscale(canvas), (0, 0))

@@ -77,6 +77,7 @@ class Line(BaseModel):
     duration_s: float | None = None
     mouth_env: list[float] = Field(default_factory=list)
     archive: str | None = None             # archive footage in a documentary: its caption ("Archive · ...")
+    mood: str | None = None                # MOOD_NAMES: drawn in the speaker's face (sprites.py)
 
 
 class VisualCue(BaseModel):
@@ -183,6 +184,32 @@ def _accent(v):
 Age = Annotated[Literal["young", "middle", "old"] | None, BeforeValidator(_age)]
 Accent = Annotated[Literal["british", "american"] | None, BeforeValidator(_accent)]
 
+# How a line is said, drawn in the speaker's face (sprites.MOODS, the same eight). A word the model
+# picks that isn't one of them is mapped to the nearest, or dropped: a face is never worth a retry.
+MOOD_NAMES = ("happy", "laughing", "sad", "surprised", "cross", "worried", "smug", "embarrassed")
+_MOOD_WORDS = (("laugh", "laughing"), ("giggl", "laughing"), ("chuckl", "laughing"),
+               ("amus", "happy"), ("cheer", "happy"), ("excit", "happy"), ("delight", "happy"), ("warm", "happy"),
+               ("glad", "happy"), ("joy", "happy"), ("angr", "cross"), ("annoy", "cross"), ("irrit", "cross"),
+               ("indign", "cross"), ("frustr", "cross"), ("anxi", "worried"), ("nerv", "worried"),
+               ("concern", "worried"), ("uneas", "worried"), ("shock", "surprised"), ("astonish", "surprised"),
+               ("amaz", "surprised"), ("proud", "smug"), ("teas", "smug"), ("wry", "smug"), ("sly", "smug"),
+               ("sheepish", "embarrassed"), ("shy", "embarrassed"), ("awkward", "embarrassed"),
+               ("upset", "sad"), ("sorr", "sad"), ("glum", "sad"), ("wistful", "sad"), ("grie", "sad"))
+
+
+def _mood(v):
+    if isinstance(v, str):
+        v = v.strip().lower()
+        if v in MOOD_NAMES:
+            return v
+        return next((m for stem, m in _MOOD_WORDS if stem in v), None)
+    return v
+
+
+Mood = Annotated[Literal[*MOOD_NAMES] | None, BeforeValidator(_mood)]
+_MOOD_HELP = ("how the line is said, shown on the speaker's face: " + ", ".join(MOOD_NAMES)
+              + "; null for a plain line, which most are")
+
 
 def _clip(n: int) -> BeforeValidator:
     """Status notes are bookkeeping, not speech: cut an overlong one (Kimi overruns them)
@@ -214,6 +241,7 @@ class LiveLine(BaseModel):
     """A line in a live segment: only the station's own presenters (script_schema narrows to one show)."""
     speaker: LiveSpeaker = Field(validation_alias=SPEAKER_KEY)
     text: str = Field(min_length=1, max_length=900)
+    mood: Mood = Field(default=None, description=_MOOD_HELP)
 
 
 class ScriptLine(BaseModel):
@@ -286,6 +314,7 @@ class GuestLine(BaseModel):
     """A line where a guest may speak; the guest is named once on the script."""
     speaker: GuestSpeaker = Field(validation_alias=SPEAKER_KEY)
     text: str = Field(min_length=1, max_length=900)
+    mood: Mood = Field(default=None, description=_MOOD_HELP)
 
 
 class InterviewScript(BaseModel):
@@ -455,6 +484,7 @@ class ReviewScript(BaseModel):
 class VoxLine(BaseModel):
     speaker: GuestSpeaker = Field(validation_alias=SPEAKER_KEY)
     text: str = Field(min_length=1, max_length=600)
+    mood: Mood = Field(default=None, description=_MOOD_HELP)
     guest_name: str | None = Field(default=None, max_length=40, description="required when speaker is 'guest'")
     guest_gender: Gender = None
     guest_age: Age = None
