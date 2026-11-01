@@ -285,6 +285,7 @@ person = 'Tamsin Jago'
 kokoro = 'af_sarah'
 description = 'A young woman of twenty-five with a light Cornish accent, a cheeky, energetic local sports reporter, speaks brightly and excitedly'
 line = "And it's the Tides who take it, two goals to one, with the winner in the ninetieth minute. The Quarry Field hasn't been this loud all season!"
+pace = "reference sped up 8% with pitch kept (WSOLA), 2026-11-01: she read too slowly, and Pocket follows its reference's pace"
 
 [bm_lanyon]
 person = 'Howard Lanyon'
