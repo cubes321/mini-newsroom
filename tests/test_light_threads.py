@@ -33,6 +33,23 @@ def test_a_late_show_guest_opens_no_thread_but_may_follow_one_up():
     assert seg.thread_id == tid and w.thread(tid).mentions == 2
 
 
+def test_the_auction_never_opens_a_thread_but_may_follow_one_up():
+    """t260 "Quay auction tops fifteen thousand" (2026-10-30), then t313 "...as Auction Takes Fifteen
+    Thousand Pounds" (2026-11-01): the auction is background, the same figures until the next one."""
+    w = _town()
+
+    def bulletin(headline, thread_id=None):
+        return BulletinScript(lines=[LiveLine(speaker="anchor", text="The boats are in.")], headline=headline,
+                              lower_third="Quay", thread_id=thread_id)
+    seg = Segment(slot_id=1, type=SegmentType.bulletin, show="news")
+    writers._apply_to_world(seg, bulletin("Harbour Crews Tie Down as Auction Takes Fifteen Thousand Pounds"), w)
+    assert seg.thread_id is None and w.threads == []
+    tid = w.update_thread(None, "Harbour crews tie down for winter", "gales due")
+    seg = Segment(slot_id=2, type=SegmentType.bulletin, show="news")
+    writers._apply_to_world(seg, bulletin("Fish market fetches more as crews tie down", tid), w)
+    assert seg.thread_id == tid and len(w.threads) == 1
+
+
 def test_the_news_still_opens_threads_and_breaking_news_does_on_any_show():
     w = _town()
     seg = Segment(slot_id=1, type=SegmentType.interview, show="news")

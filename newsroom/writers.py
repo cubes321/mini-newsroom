@@ -1483,8 +1483,10 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         # The light shows follow stories up but never open one: on 2026-10-27 every Last Ferry and
         # Coastwide guest became a news story (Priya Anand's cat, Sadie Quill's rabbit), 44 of the
         # 108 open threads. What a guest talks about goes into their memory instead.
+        # The auction is background: it never opens a story of its own (quay.about_the_auction).
         opens = seg.type is SegmentType.breaking or (
-            seg.type in THREAD_OPENERS and not schedule.get(seg.show).light)
+            seg.type in THREAD_OPENERS and not schedule.get(seg.show).light
+            and not quay.about_the_auction(script.headline))
         if tid not in known and opens and seg.type is not SegmentType.breaking:
             # Not a new story if an open (or faded) thread already has its headline: on 2026-10-27
             # the fire station's case for a second engine ran as twelve threads.

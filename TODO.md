@@ -101,10 +101,13 @@ bottom with the date.
   editor asked for three a thread in four memos running (all eight on the 2026-10-31 night), and the desk
   said it had complied. Fixed 2026-11-01: the desk's list replaces the old one, and an aired item or a
   merge only fills a list up to `THREAD_PEOPLE` (four). The long lists shrink as the desk next plans them.
-- [ ] **The auction became a thread.** `QUAY_LABEL` kept the quay off the leads, but an aired auction
+- [x] **The auction became a thread.** `QUAY_LABEL` kept the quay off the leads, but an aired auction
   item with no thread opens one (`World.update_thread`): t260 "Quay auction tops fifteen thousand", plus
   four more the desk folded into it. 38 of 159 bulletins and 22 of 104 field reports on 2026-10-30
-  mentioned the auction or hake. Keep a quay figure from opening a thread, or close t260.
+  mentioned the auction or hake (33 of 166 news items on the 10-31 night). The desk closed t260 on
+  10-31, but t313 "...as Auction Takes Fifteen Thousand Pounds" opened the next morning. Fixed 2026-11-01:
+  an auction headline may follow a story up but never opens one (`quay.about_the_auction`), and the
+  label says "the latest auction", since at the weekend it is Friday's.
 - [ ] Pocket warned three times that a chunk passed its 50 tokens ("generation may skip words"): split
   long lines at a sentence end before they reach it.
 - [x] **A night on the new back office** (Flash, the Sonnet senior editor and fallback, and the first

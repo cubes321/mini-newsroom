@@ -744,8 +744,9 @@ def fade_after_s(t: Thread) -> float:
 
 # The morning's auction is the same all day: offered to every writer as news, it led every bulletin (a
 # scratch run on 2026-10-30 had the same "up 62 percent" headline six bulletins out of nine).
-QUAY_LABEL = ("Quay, this morning's auction (BACKGROUND, the same all day: a figure to drop into a money, harbour or "
-              "fishing item, never a bulletin's lead or a headline of its own): ")
+# At the weekend the latest is Friday's, so not "this morning's".
+QUAY_LABEL = ("Quay, the latest auction (BACKGROUND, the same until the next one: a figure to drop into a money, "
+              "harbour or fishing item, never a bulletin's lead or a headline of its own): ")
 
 
 def _name_hash(name: str | None) -> int:

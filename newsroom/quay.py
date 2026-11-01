@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
@@ -125,6 +126,17 @@ def _change(now: float, then: float) -> str:
 
 def _money(x: float) -> str:
     return f"£{x:,.0f}" if x >= 100 else f"£{x:.2f}"
+
+
+# The auction is background (world.QUAY_LABEL), never a story of its own: aired, an auction headline opened
+# t260 "Quay auction tops fifteen thousand" (2026-10-30), and t313 "...as Auction Takes Fifteen Thousand
+# Pounds" two days later.
+_ABOUT = re.compile(r"\bauction|\bfish market\b", re.I)
+
+
+def about_the_auction(headline: str | None) -> bool:
+    """A headline on the auction, which may follow a story up but never opens one (writers.py)."""
+    return bool(_ABOUT.search(headline or ""))
 
 
 def summary(now: datetime) -> str:
