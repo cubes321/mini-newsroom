@@ -92,6 +92,9 @@ bottom with the date.
   had Pat ask THE QUESTIONS, which are written for THE GUEST. Fixed 2026-11-01: anyone else is asked about
   what THIS ITEM says they bring, the retry names someone else on the story (`_other_voice`), and THE
   GUEST booked a second time fails the item.
+- [ ] **Quayside says "this morning's auction" at the weekend.** It airs every day at 13:00, but the auction
+  is weekdays only, so on Saturday and Sunday the figures are Friday's (`schedule.py`, its open and the
+  quay report's briefs). Say "the latest auction", or name the day.
 - [ ] **The Inquiry's stock interview is off the story.** Slot 133 on 2026-10-31 ("Dev Ramachandran on the
   week in town", 20 s) aired in the middle of The Inquiry after two too-long answers; a failed "other" item
   now lands there too. Give The Inquiry a stock item of its own (Pat to camera on the questions still
