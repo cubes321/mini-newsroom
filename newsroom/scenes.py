@@ -263,7 +263,8 @@ def _interview_set(v: View) -> str:
     other show uses the armchairs."""
     if v.set == "sports":
         return "studio_sports"
-    return {"late": "studio_late", "panel": "studio_panel", "rockpool": "studio_kids"}.get(v.show, "studio_interview")
+    return {"late": "studio_late", "panel": "studio_panel", "rockpool": "studio_kids",
+            "chamber": "council_chamber"}.get(v.show, "studio_interview")
 
 
 def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:

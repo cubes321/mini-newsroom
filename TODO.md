@@ -50,11 +50,18 @@ bottom with the date.
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
   their fixes (no repeated title, notices for the public, slide lines cut at a word past 190
   characters), and a special waiting for its hour and then airing.
-- [ ] The Chamber, the last of the 2026-10-30 brainstorm's seven new shows (`docs/SHOWS.md`): the council
-  meeting live on council nights, with a council calendar and votes that settle stories. Put off to
-  2026-10-31 or the day after, once a night or two has shown how the senior editor and the story
-  allowance end stories. The other six are built. The Kettle's On, Harbour Row and Wexley Wits go to
-  the entertainment channel (`docs/ENGINE.md`).
+- [x] The Chamber, the last of the 2026-10-30 brainstorm's seven new shows (`docs/SHOWS.md`): built
+  2026-11-01, full council live every other Thursday from 5 November, with a council calendar, six
+  councillors and booked votes that settle stories. All seven are built. The Kettle's On, Harbour Row and
+  Wexley Wits go to the entertainment channel (`docs/ENGINE.md`).
+- [ ] The Chamber's first night (Thursday 5 November, or a test run with `NEWSROOM_COUNCIL_NIGHT=1`):
+  whether the agenda picks stories really due at council, the debates read their booked results
+  exactly, the votes split believably, the hour fills without the loop repeating itself, and what the
+  desk does with the stories afterwards (resolving, then closed?).
+- [ ] The councillors' voices by ear: all six come from the guest pools for now (contact sheet and
+  listening, as for the presenters).
+- [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
+  would place her in the room.
 - [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
   the station's teletext service cycles its pages under a music bed, as British TV filled the small
   hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,

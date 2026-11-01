@@ -59,8 +59,8 @@ def candidates(world: World) -> list[Thread]:
 
 def should_commission(world: World, now: float | None = None) -> bool:
     now = now or schedule.now()
-    return tonight(world) is None and _at(CONFIG.inquiry.commission_from, now) <= now < _at(
-        CONFIG.inquiry.airs_at, now)
+    return (tonight(world) is None and _at(CONFIG.inquiry.commission_from, now) <= now < _at(
+        CONFIG.inquiry.airs_at, now) and schedule.show_at(_at(CONFIG.inquiry.airs_at, now)).id == SHOW)
 
 
 def _row(world: World, t: Thread) -> str:

@@ -44,6 +44,7 @@ story_desk = "deepseek_flash_think"      # plans how threads develop, seeds new 
 inquiry = "deepseek_flash_think"         # picks tonight's story for The Inquiry, its questions and its guest
 panel = "deepseek_flash_think"           # books The Panel: three questions and three panellists who differ
 phonein = "deepseek_flash_think"         # books Have Your Say: the day's question, the studio guest, the callers
+chamber = "deepseek_flash_think"         # books The Chamber: four motions and every councillor's vote
 senior_editor = "claude_sonnet"   # reviews the desk's board every [story] review_every_s and leaves it a memo
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
@@ -90,6 +91,16 @@ airs_at = "20:30"
 [phonein]
 commission_from = "08:30"
 airs_at = "10:00"
+
+# The Chamber (chamber.py, council.py): full council live from 20:00 to 21:00 every other Thursday from
+# first_meeting, instead of The Inquiry and The Panel. The agenda (four motions from the stories due at
+# council) and every councillor's vote are booked in idle time from commission_from. For a test run on
+# any night: NEWSROOM_COUNCIL_NIGHT=1.
+[chamber]
+first_meeting = "2026-11-05"
+every_days = 14
+commission_from = "18:30"
+airs_at = "20:00"
 
 # The story desk gives threads a phase and a planned next development, closes
 # finished ones and occasionally seeds a new story, so follow-ups move things on.

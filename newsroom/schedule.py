@@ -30,6 +30,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date
 
+from . import council
 from .models import SegmentType as T
 
 RGB = tuple[int, int, int]
@@ -541,6 +542,72 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
         repeats_overnight=False,     # tonight's questions, tonight
     ),
     Show(
+        "chamber", "THE CHAMBER", "COUNCIL", (46, 104, 78),
+        # Full council, live, on council nights (council.py) in place of The Inquiry and The Panel: Helen
+        # Strand in the chair, six councillors, four motions booked earlier in the evening from the stories
+        # due at council, with every councillor's vote (chamber.py). Dana is in the press seats, Miles in
+        # the public gallery. "{m2}" in a brief is the second motion and its result (chamber.brief_for).
+        pattern=(
+            T.bumper,
+            I(T.links, "open", brief="Dana opens The Chamber from the press seats: good evening from the council "
+                                     "chamber, full council is in session, and tonight's agenda in a line each",
+              target_s=45.0),
+            I(T.interview, brief="the FIRST motion, {m1}"),
+            I(T.vox_pop, brief="Miles in the public gallery asks the people who came for the first motion what they "
+                               "make of the vote"),
+            I(T.interview, brief="the SECOND motion, {m2}; a member of the public speaks on it first, at the "
+                                 "lectern, before the councillors"),
+            T.ad_break,
+            I(T.interview, brief="the THIRD motion, {m3}"),
+            I(T.links, brief="Dana in the press seats: the three votes so far and what they settle, and the last "
+                             "motion to come"),
+            I(T.interview, brief="the FOURTH motion, {m4}"),
+            T.ad_break,
+            # The order wraps back to here once the agenda is done, taking the angles in `briefs` in turn
+            # (items come in near half their targets, as The Inquiry's and The Panel's did).
+            I(T.interview), I(T.vox_pop), I(T.interview), I(T.links),
+        ),
+        loop_from=10,
+        briefs={
+            T.interview: (
+                "public question time: a member of the public at the lectern puts a question to the mayor about "
+                "one of tonight's votes, what happens now and when; Helen Strand and the motion's mover answer",
+                "a councillor's question to the mayor on something in their ward that isn't on tonight's agenda; "
+                "Helen Strand answers, and another councillor comes in",
+                "any other business: a councillor raises something small and local; one or two others have a "
+                "view; Helen Strand moves it on",
+                "public question time: a resident asks the council about one of the week's stories that isn't on "
+                "the agenda; Helen Strand answers, and the ward councillor adds to it",
+                "a report to note: an officer's update the council receives without a vote (the harbour office, "
+                "the clerk, the town's accounts); two councillors question it, Helen Strand moves on",
+                "a petition handed in: a resident presents it from the lectern, the ward councillor speaks for "
+                "it, Helen Strand says which committee it goes to",
+            ),
+            T.vox_pop: (
+                "Miles in the public gallery: what the people who came tonight make of the votes so far",
+                "Miles in the corridor outside the chamber: people who came for one motion, and what brought them",
+                "Miles in the public gallery: what people wish the council would put on its next agenda",
+            ),
+            T.links: (
+                "Dana in the press seats: where the meeting has got to, the votes so far and what they settle",
+                "Dana in the press seats: who has had a good night in the chamber and who hasn't, fairly put",
+                "Dana in the press seats: what tonight's votes mean for people at home, in plain words",
+            ),
+        },
+        closing=(I(T.links, "close", brief="Dana closes from the press seats: tonight's votes and what each "
+                                           "settles, in a few lines, and when full council meets next",
+                   target_s=40.0),),
+        target_s={T.bumper: 8.0, T.links: 45.0, T.interview: 330.0, T.vox_pop: 60.0, T.ad_break: 60.0},
+        cast=("anchor", "reporter"), lead="anchor",
+        # The debates are the chamber's own: the mayor and the councillors, every one a named guest.
+        cast_by_type={T.links: ("anchor",), T.interview: ("guest",), T.vox_pop: ("anchor", "reporter", "guest")},
+        station="The Chamber, channel 7's live coverage of Port Wexley Town Council, with Dana Ferris in the "
+                "press seats",
+        tone="the council as it is: procedure, local passions and real disagreement, the odd point of order; "
+             "fair to every side",
+        repeats_overnight=False,     # tonight's votes, tonight
+    ),
+    Show(
         "inquiry", "THE INQUIRY", "INQUIRY", (150, 46, 46),
         # Half an hour on one running story, chosen earlier in the evening with Pat's questions and the
         # guest who has to answer them (inquiry.py). The only serious show of the evening.
@@ -634,6 +701,7 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (23, "news"),           # the late news
 )
 STAND_INS: dict[str, str] = {}          # schedule slots whose show isn't built yet -> what airs instead
+COUNCIL_NIGHT_OFF = ("inquiry", "panel")   # on a council night (council.py) The Chamber has their hour
 
 
 def hour_min(start: int | str) -> tuple[int, int]:
@@ -656,6 +724,8 @@ def slot_at(ts: float) -> str:
     for start, show_id in SCHEDULE:
         if at >= hour_min(start):
             current = show_id
+    if current in COUNCIL_NIGHT_OFF and council.council_night(date.fromtimestamp(ts)):
+        return "chamber"
     return current
 
 

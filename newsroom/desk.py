@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import datetime
 
-from . import llm, schedule
+from . import chamber, llm, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan
 from .world import THREAD_PEOPLE, Thread, World
@@ -53,7 +53,10 @@ def batch(world: World) -> list[Thread]:
     Planning every open thread in one reply grew past max_tokens and the timeout
     as the town grew, so each call plans a few and the board rotates.
     """
-    open_ = world.open_threads()                   # most recently updated first, kept for ties
+    # Tonight's council motions wait for their votes (chamber.py): a NEXT rewritten after the booking
+    # would leave a motion about a story that has moved on.
+    agenda = chamber.on_agenda(world)
+    open_ = [t for t in world.open_threads() if t.id not in agenda]   # most recently updated first, kept for ties
     return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
 
 

@@ -635,6 +635,31 @@ class PanelLineup(BaseModel):
     panellists: list[Panellist] = Field(min_length=3, max_length=3)
 
 
+class CouncilVote(BaseModel):
+    councillor: str = Field(description="an exact name from the COUNCIL")
+    vote: Literal["for", "against", "abstain"]
+    why: Annotated[str, _clip_words(160)] = Field(max_length=160, description="their reason, one short sentence")
+
+
+class Motion(BaseModel):
+    thread_id: str = Field(description="the story it settles, by id from the STORIES")
+    motion: Annotated[str, _clip_words(220)] = Field(
+        max_length=220, description="the motion as the clerk reads it: 'That the council ...'")
+    mover: str = Field(description="the councillor who moves it: an exact name from the COUNCIL")
+    votes: list[CouncilVote] = Field(min_length=6, max_length=6, description="every councillor's vote, one each")
+    if_carried: Annotated[str, _clip_words(200)] = Field(
+        max_length=200, description="what happens next if it is carried: a dated step, one sentence")
+    if_lost: Annotated[str, _clip_words(200)] = Field(
+        max_length=200, description="what happens next if it is lost: a dated step, one sentence")
+    public: Annotated[str, _clip_words(160)] = Field(
+        default="", max_length=160, description="a member of the public who would speak on it: who and what they want")
+
+
+class ChamberAgenda(BaseModel):
+    """Tonight's full council (chamber.py): four motions from the stories due at council, and every vote."""
+    motions: list[Motion] = Field(min_length=4, max_length=4)
+
+
 class PhoneInBooking(BaseModel):
     """Today's Have Your Say (phonein.py): one question from the day's news and the guest who answers it."""
     thread_id: str = Field(description="the story's id from STORIES")

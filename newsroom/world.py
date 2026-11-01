@@ -36,7 +36,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-from . import quay, schedule, sport
+from . import council, quay, schedule, sport
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -174,6 +174,7 @@ class World:
     seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
+    chambers: list[dict] = field(default_factory=list)    # The Chamber's agendas: {date, motions (votes, result, applied)}
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
     reviews: list[dict] = field(default_factory=list)     # Out and About's verdicts: {date, place, kind, where, stars, verdict, owner}
     # The nightly documentary: what each one established (its research timeline and sections), so the
@@ -192,12 +193,21 @@ class World:
     # ------------------------------------------------------------ prompt views
 
     def _people_lines(self, kinds: tuple[str, ...], limit: int) -> str:
-        rows = [p for p in self.people if p.kind in kinds]
+        # The councillors have their own line (_council_line), so they don't push the figures off this one.
+        seats = {name for name, *_ in council.COUNCILLORS}
+        rows = [p for p in self.people if p.kind in kinds and p.name not in seats]
         rows.sort(key=lambda p: (-p.appearances, p.name))
         # The most seen make the list, in a fixed order: re-sorting by appearances after every segment
         # would change the cached head of the briefing (see llm.CACHE_BREAK).
         rows = sorted(rows[:limit], key=lambda p: p.name)
         return "\n".join(f"  - {p.name}, {p.role}" + (f"; {p.notes}" if p.notes else "") for p in rows) or "  (none yet)"
+
+    @staticmethod
+    def _council_line() -> str:
+        """The town council in a fixed line, for the cached head of the briefings."""
+        return (f"Town council: {council.CHAIR} (the mayor) chairs; the councillors are "
+                + "; ".join(f"{name} ({role.removeprefix('Councillor, ')})" for name, role, *_ in council.COUNCILLORS)
+                + ".\n")
 
     def _history(self, *, full: bool) -> str:
         """What the documentaries established, so later pieces keep to it: the invented background
@@ -255,11 +265,13 @@ class World:
             f"Use these dates; do not invent how much time has passed.\n"
             f"Presenters (the ONLY allowed speaker ids in live segments):\n{chars}\n"
             f"Public figures who may be quoted or interviewed (by name, in the text):\n"
-            f"{self._people_lines(('official', 'worthy'), 10)}\n{self._history(full=False)}{CACHE_BREAK}"
+            f"{self._people_lines(('official', 'worthy'), 10)}\n{self._council_line()}"
+            f"{self._history(full=False)}{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             + (f"{QUAY_LABEL}{q}\n" if (q := quay.summary(datetime.fromtimestamp(schedule.now()))) else "") +
+            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
@@ -282,7 +294,8 @@ class World:
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
         return (
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
-            f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{CACHE_BREAK}"
+            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
+            f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{self._council_line()}{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n"
             f"Recently faded off the air (revive one only if something new would really happen):\n{faded}\n"
@@ -798,7 +811,7 @@ def seed_people() -> list[Person]:
 def seed() -> World:
     """A fresh town. Deliberately specific so the model has hooks to riff on."""
     rng = random.Random(42)
-    return World(
+    w = World(
         town="Port Wexley",
         region="on the Greymouth coast",
         population=rng.randint(18_000, 24_000),
@@ -810,6 +823,18 @@ def seed() -> World:
         characters=seed_characters(),
         people=seed_people(),
     )
+    _seat_council(w)
+    return w
+
+
+def _seat_council(w: World) -> None:
+    """The six councillors (council.py), as officials with their wards and leanings: added to a town saved
+    before The Chamber, and Gerald Thorne, whom the desk made up as a resident, promoted. Their voices
+    come from the guest pools, like any new guest's, until they are chosen by ear."""
+    for name, role, gender, age, leaning in council.COUNCILLORS:
+        p = w.ensure_person(name, role, kind="official", gender=gender, age=age, accent="british")
+        if p and (p.kind, p.role, p.notes) != ("official", role[:50], leaning):
+            p.kind, p.role, p.notes = "official", role[:50], leaning
 
 
 def seed_characters() -> list[Character]:
@@ -895,6 +920,7 @@ def _from_dict(d: dict) -> World:
             log.info("world migrated: new presenter %s (%s)", c.name, c.id)
         elif have[c.id].role != c.role:    # a presenter who took on another show (Jonah, Have Your Say)
             have[c.id].role = c.role
+    _seat_council(w)
     _recast_presenter_voices(w)
     return w
 

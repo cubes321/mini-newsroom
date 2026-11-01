@@ -126,6 +126,9 @@ MARKS: dict[str, dict[str, Mark]] = {
     # The Panel: the chair at the left end of a long desk, three panellists facing her, all behind it
     "studio_panel": {"host": (58, 138, 2, 1), "guest": (152, 138, 2, -1),
                      "panel_1": (152, 138, 2, -1), "panel_2": (212, 138, 2, -1), "panel_3": (272, 138, 2, -1)},
+    # The Chamber: the mayor at the chair at the back (further off, so smaller), the speakers at the horseshoe
+    "council_chamber": {"host": (160, 104, 1, 1), "guest": (60, 140, 2, 1),
+                        "panel_1": (60, 140, 2, 1), "panel_2": (276, 140, 2, -1), "panel_3": (204, 154, 2, -1)},
     # Rock Pool: Poppy, Gully on her arm turned to her, and a visitor's seat across the craft table
     "studio_kids": {"host": (78, 150, 2, 1), "gully": (134, 158, 2, -1), "guest": (250, 152, 2, -1)},
 }

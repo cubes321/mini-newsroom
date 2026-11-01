@@ -155,7 +155,7 @@ their positions from show to show, as the public figures do now.
   public.
 - **Size:** medium.
 
-### The Chamber (council nights, 20:00 to 21:00): the council, live
+### The Chamber (council nights, 20:00 to 21:00): the council, live. BUILT 2026-11-01
 
 The town's stories already head for "Monday's council". On a council night the meeting itself is on
 air: Dana in the press seats, Helen Strand in the chair, Miles in the public gallery. Items come from
@@ -168,6 +168,26 @@ reach an end instead of waiting at the council door.
   and breaking news already take over the news).
 - **Reuses:** the council chamber backdrop, the officials and their positions, the desk.
 - **Size:** large, and the most distinctive.
+- **Built** (`council.py`, `chamber.py`, `schedule.py`, `writers._CHAMBER`): full council meets every other
+  Thursday from 5 November 2026 (`[chamber] first_meeting`, `every_days`), and on those nights The Chamber
+  has 20:00 to 21:00 instead of The Inquiry and The Panel, which are not booked. The desk, the editors and
+  the writers are told the next two meetings, so council business heads for nights that exist. Helen
+  Strand chairs, with the casting vote (against, by convention); six councillors sit with her, each for a
+  ward and with a leaning: Gerald Thorne (Harbour, the budget committee; the desk had made him up),
+  Alan Penhaligon (the Salting), Colin Tregarthen (Quay), Sandra Okoye (Harrow Street), Lucy Hammond
+  (Cannery) and Tom Nancarrow (Saltby). They are officials with their own line in the briefings; their
+  voices come from the guest pools until chosen by ear. From 18:30 the back office (`[chamber]`, route
+  `chamber`) books four motions from the stories due at council, the mover, every councillor's vote and
+  why, what follows if carried or lost, and a member of the public for each; the result is counted in code.
+  Until its vote the desk leaves an agenda story alone. Each debate is an interview with `PanelScript`
+  written towards its booked vote: Helen calls it, the mover and two or three others speak, Helen reads the
+  result; when it is filed, the story takes the vote as its status and what follows as its NEXT, and a
+  carried motion starts it resolving. On the council chamber backdrop: the mayor small in her chair at the
+  back, three councillors at the horseshoe. Running order: Dana's open, the four motions with Miles in the
+  public gallery and Dana's recap between them, then a loop of public question time, councillors'
+  questions, reports to note, petitions, Miles in the gallery and Dana's notes, and Dana's close. Dana's
+  links use the news desk for now, not the press seats. A failed booking gets a stand-in agenda (reports
+  noted). For a test run on any night: `NEWSROOM_COUNCIL_NIGHT=1`.
 
 ## New pieces, shared
 
@@ -187,8 +207,7 @@ reach an end instead of waiting at the council door.
 3. **The Panel**: built 2026-10-30.
 4. **Have Your Say**: built 2026-10-30, with the call item.
 5. **Out and About**: built 2026-10-30, with Meg Trethewey and the review item.
-6. **The Chamber**: the calendar and the votes, once the senior editor and the new story allowance
-   have been watched for a night or two (it changes how stories end).
+6. **The Chamber**: built 2026-11-01, with the council calendar, six councillors and booked votes.
 7. **Rock Pool**: built 2026-10-30, with Poppy and Gully. The Chamber waits a night or two after it.
 
 New presenters' voices wait until they can be chosen by ear; a show can be built and tested with a

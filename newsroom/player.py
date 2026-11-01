@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, continuity, documentary, schedule
+from . import adverts, continuity, council, documentary, schedule
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -439,8 +439,10 @@ class Player:
                 elif l.speaker not in (*FIELD_REPORTERS, "weather") and (l.speaker, None) not in hosts:
                     hosts.append((l.speaker, None))
             stayed = seg.work.get("couch")
+            if seg.show == "chamber":         # the mayor in her chair first, then up to three at the horseshoe
+                guests = sorted(guests, key=lambda g: g != council.CHAIR)
             guests = (sorted(guests[:2], key=lambda g: g == stayed) if stayed
-                      else guests[:3] if seg.show == "panel" else guests[:1])
+                      else guests[:4] if seg.show == "chamber" else guests[:3] if seg.show == "panel" else guests[:1])
             if seg.show == "rockpool":       # Gully is always on Poppy's arm; Hugh or a visitor takes the third seat
                 hosts = [("kids", None), ("gully", None)] + [h for h in hosts if h[0] not in ("kids", "gully")]
                 self._cast_of = (seg.id, (hosts + [("guest", g) for g in guests])[:3])

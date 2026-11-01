@@ -17,7 +17,7 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import breaking, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides, tipline
+from . import breaking, chamber, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides, tipline
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -445,6 +445,44 @@ caption. Choose a backdrop id from the LOCATIONS list; location is the place in 
 """,
 }
 
+# The Chamber (chamber.py): full council live; every item gets the council and tonight's agenda. Dana
+# (anchor) is in the press seats, Miles in the public gallery; the debates are the chamber's own voices.
+_CHAMBER_RULES = """
+This is part of THE CHAMBER: full council, live from the council chamber, as FULL COUNCIL IN SESSION
+gives it. Real procedure, small-town scale: the clerk's wording, points of order, ward loyalties,
+long memories, the odd dry joke from the chair. Facts come from the briefing; nobody accused of
+anything the record doesn't show. Keep to the council's members and their leanings.
+"""
+
+_CHAMBER: dict[SegmentType, str] = {
+    SegmentType.links: _COMMON_RULES + _CHAMBER_RULES + """
+These are Dana's words TO CAMERA from the press seats ("anchor" alone), as THIS ITEM and the PLACE IN
+THE SHOW say: the agenda at the open, where the meeting has got to and what the votes settle in the
+middle, the night's decisions at the close. No councillor speaks. thread_id is null.
+headline = the point in under 12 words. lower_third = "The Chamber" plus a short tag.
+""",
+    SegmentType.interview: _COMMON_RULES + _CHAMBER_RULES + """
+This is the council at work, on what THIS ITEM says. Every speaker is speaker "guest" with guest_name
+their exact name: Helen Strand in the chair, the councillors in THE COUNCIL, and a member of the public
+only when THIS ITEM has one (a first name and surname; they speak from the lectern). Dana is not in it.
+When THIS ITEM is a MOTION: Helen Strand calls it and the mover speaks for it; two or three others
+speak for or against, each true to how THIS ITEM says they vote and why; then Helen Strand puts it to
+the vote and reads the result EXACTLY as THIS ITEM gives it, the numbers and carried or lost, and what
+follows. Set thread_id to the motion's story. Otherwise it is the business THIS ITEM describes, and no
+vote is taken. Helen keeps order: brisk and fair. Every "guest" line names its speaker.
+headline = the decision, or the business, in under 12 words. lower_third = "Full council" plus the
+business, short.
+""",
+    SegmentType.vox_pop: _COMMON_RULES + _CHAMBER_RULES + """
+This is MILES AMONG THE PUBLIC at the council meeting, as THIS ITEM says. Dana ("anchor") hands over in
+one line from the press seats; Miles ("reporter") asks THIS ITEM's question quietly in the gallery or
+the corridor; three or four people who came tonight answer in a line or two each. Each is speaker
+"guest" with their own guest_name (first name and surname), guest_gender and guest_age; different
+views, in their own words. question = the question as a caption. Backdrop: the council chamber, or the
+town hall for the corridor; location is the place in words.
+""",
+}
+
 # The Inquiry (inquiry.py): Pat (mag_a) on one story in depth; every item gets TONIGHT'S INQUIRY.
 _INQUIRY_RULES = """
 This is part of THE INQUIRY, a half-hour investigation into ONE story, given as TONIGHT'S INQUIRY
@@ -646,6 +684,13 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "": _MIDDLE.format(title="The Panel", extra=""),
     },
     ("panel", SegmentType.interview): {"": _MIDDLE.format(title="The Panel", extra="")},
+    ("chamber", SegmentType.links): {
+        "open": "PLACE IN THE SHOW: this OPENS The Chamber: a brief good evening from the council chamber, then "
+                "tonight's agenda.",
+        "": _MIDDLE.format(title="The Chamber", extra=""),
+    },
+    ("chamber", SegmentType.interview): {"": _MIDDLE.format(title="The Chamber", extra="")},
+    ("chamber", SegmentType.vox_pop): {"": _MIDDLE.format(title="The Chamber", extra="")},
     ("rockpool", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS Rock Pool: a big hello to the children watching, then what's on.",
         "": _MIDDLE.format(title="Rock Pool", extra=""),
@@ -818,7 +863,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     show = show or schedule.get("news")
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
-             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "phonein": _PHONEIN,
+             "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "chamber": _CHAMBER, "phonein": _PHONEIN,
              "outabout": _OUTABOUT, "rockpool": _ROCKPOOL}.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
@@ -858,6 +903,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     elif brief:
         if show.id == panel.SHOW:            # "{q2}": tonight's second question, in its own words
             brief = panel.brief_for(world, brief)
+        elif show.id == chamber.SHOW:        # "{m2}": the second motion, every vote and the result
+            brief = chamber.brief_for(world, brief)
         user += f"\n\nTHIS ITEM: {brief}."
     # Miles's reports on the news: not Meg's pieces to camera on Out and About.
     miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW
@@ -884,6 +931,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                 user += " Pat asks them about what THIS ITEM says, not THE QUESTIONS PAT PUTS to THE GUEST."
     if show.id == panel.SHOW:
         user += "\n\n" + panel.for_prompt(world)
+    if show.id == chamber.SHOW:
+        user += "\n\n" + chamber.for_prompt(world)
     if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
         user += "\n\n" + phonein.for_prompt(world, seg_type)
     if show.id == outabout.SHOW:
@@ -908,7 +957,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                      "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop,
                       SegmentType.review) and (
-            show.id not in (inquiry.SHOW, panel.SHOW, phonein.SHOW)):   # their guests are booked, however recent
+            show.id not in (inquiry.SHOW, panel.SHOW, chamber.SHOW, phonein.SHOW)):   # their guests are booked, however recent
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
@@ -1267,7 +1316,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
             log.info("field_report slot %d: Miles reports from the scene of %s", seg.slot_id, scene)
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
-    debate = seg.type is SegmentType.interview and show.id == panel.SHOW     # three panellists, booked tonight
+    # The Panel's three panellists, booked tonight; the council's members in The Chamber.
+    debate = seg.type is SegmentType.interview and show.id in (panel.SHOW, chamber.SHOW)
+    if debate and show.id == chamber.SHOW and (n := chamber.motion_in(seg.brief)) is not None:
+        seg.work["motion"] = n                # its vote goes to the story when it is filed (_apply_to_world)
     # The phone-in's studio guest is booked for the morning (phonein.py) and stays in the armchair all hour.
     studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
     booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW)
@@ -1475,6 +1527,11 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         if same:
             seg.thread_id = world.update_thread(same.id, script.headline, None)
     else:
+        # A council motion files under its own story with the vote as booked, whatever the model set.
+        motion = seg.work.get("motion") if seg.show == chamber.SHOW else None
+        booked = (chamber.tonight(world) or {}).get("motions", [])[motion:motion + 1] if motion is not None else []
+        if booked and not booked[0].get("applied"):
+            script.thread_id, script.thread_status = booked[0]["thread_id"], chamber.status_of(world, motion)
         # Breaking news always opens its own thread, even when the model names a related one
         # (an aground boat is not a follow-up of the lifeboat's old logbooks).
         tid = None if seg.type is SegmentType.breaking else seg.work.get("scene") or getattr(script, "thread_id", None)
@@ -1483,10 +1540,11 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         # The light shows follow stories up but never open one: on 2026-10-27 every Last Ferry and
         # Coastwide guest became a news story (Priya Anand's cat, Sadie Quill's rabbit), 44 of the
         # 108 open threads. What a guest talks about goes into their memory instead.
-        # The auction is background: it never opens a story of its own (quay.about_the_auction).
+        # The auction is background: it never opens a story of its own (quay.about_the_auction). Nor does
+        # the council's other business: only its motions move stories, and those have one already.
         opens = seg.type is SegmentType.breaking or (
             seg.type in THREAD_OPENERS and not schedule.get(seg.show).light
-            and not quay.about_the_auction(script.headline))
+            and not quay.about_the_auction(script.headline) and seg.show != chamber.SHOW)
         if tid not in known and opens and seg.type is not SegmentType.breaking:
             # Not a new story if an open (or faded) thread already has its headline: on 2026-10-27
             # the fire station's case for a second engine ran as twelve threads.
@@ -1497,6 +1555,8 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                          script.headline[:60], tid, ", ".join(sorted(same[1])))
         if tid in known or opens:
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
+        if booked:
+            chamber.settle(world, motion)       # what follows the vote is the story's NEXT, once
     # Guests join the recurring cast (a stable voice and look), and the writers avoid rebooking them.
     if getattr(script, "guest_name", None) and any(l.speaker == "guest" for l in seg.lines):
         world.ensure_person(script.guest_name, script.guest_role, gender=script.guest_gender,

@@ -108,13 +108,11 @@ Tregenza (`kids`, af_bella) and Gully, a herring-gull puppet drawn in code and v
 to 2026-10-31 or the day after, once a night or two has shown how the senior editor and the story
 allowance end stories:
 
-1. **The Chamber** (council nights, 20:00 to 21:00): the council meeting, live. Dana in the press
-   seats, Helen Strand in the chair, Miles in the public gallery; items from the threads due at
-   council, the public speaking, and votes that settle the stories (the desk takes each result as
-   the thread's next development). Needs a council calendar, a `vote` result the desk applies, and
-   a show that takes over the evening slot on those nights (as the documentary and breaking news
-   take over the news). Do it after a night or two of watching the senior editor and the new
-   story allowance: it changes how stories end. Large.
+1. **The Chamber** (council nights, 20:00 to 21:00): BUILT 2026-11-01 (`council.py`, `chamber.py`; the
+   details are in SHOWS.md). Full council every other Thursday from 5 November, with four booked
+   motions and every councillor's vote, the result filed to each story. To see it on any night, run
+   with `$env:NEWSROOM_COUNCIL_NIGHT = '1'` and `--clock 18:15` (the agenda is booked from 18:30), after
+   backing up `data\world.json`: the votes move real stories.
 The day's schedule leaves the news at 09:00, 11:00, 13:30, 15:45, 16:45, 21:00 and 23:00 once all
 seven are on. *The Kettle's On*, *Harbour Row* and *Wexley Wits* are kept for the entertainment
 channel (`docs/ENGINE.md`).

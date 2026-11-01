@@ -48,7 +48,8 @@ def tonight(world: World) -> dict | None:
 
 def should_commission(world: World, now: float | None = None) -> bool:
     now = now or schedule.now()
-    return tonight(world) is None and _at(CONFIG.panel.commission_from, now) <= now < _at(CONFIG.panel.airs_at, now)
+    return (tonight(world) is None and _at(CONFIG.panel.commission_from, now) <= now < _at(CONFIG.panel.airs_at, now)
+            and schedule.show_at(_at(CONFIG.panel.airs_at, now)).id == SHOW)     # not on a council night
 
 
 def _not_tonight(world: World) -> tuple[set[str], set[str]]:
