@@ -181,6 +181,14 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     h = content_hash(seg, world)
     seg.content_hash = h
 
+    if seg.type is SegmentType.teletext:
+        from .teletext import segment as teletext_segment
+
+        ready = teletext_segment(seg, world)          # pages from the world, made fresh each time: no cache
+        if buffer:
+            buffer.mark(ready, SegmentState.ready)
+        return ready
+
     if seg.type is SegmentType.ad_break:
         # Filled from the advert pool as it airs (player.py): built now, up to the planning horizon
         # ahead, it could find the pool still empty at startup, and the gap adverts would lose

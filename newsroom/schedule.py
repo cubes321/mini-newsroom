@@ -670,8 +670,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
     Show(
         "overnight", "PORT WEXLEY NEWS", "OVERNIGHT", (90, 90, 140),
-        pattern=(T.testcard, T.repeat),
-        target_s={T.testcard: 60.0, T.repeat: 75.0},
+        # SEVENTEXT's pages (teletext.py) every other pair of repeats: thirteen pages, ten seconds each.
+        pattern=(T.testcard, T.repeat, T.repeat, T.teletext, T.repeat, T.repeat),
+        target_s={T.testcard: 60.0, T.repeat: 75.0, T.teletext: 130.0},
         # The editor keeps working overnight, so a special it commissions airs after a test
         # card rather than waiting for the 09:00 news (which a night's worth would flood).
         airs_specials=True,

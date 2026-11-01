@@ -79,7 +79,10 @@ bottom with the date.
   entertainment channel.
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
   would place her in the room.
-- [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
+- [x] Built 2026-11-01 as SEVENTEXT (`teletext.py`): thirteen pages from the world in code, a block of
+  about two minutes every eight overnight, the first two blocks a night recorded (`obs_record.py --teletext`).
+  Still open: a model-written page or two (a "from the archive" page), and whether eight minutes is too often.
+  Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
   the station's teletext service cycles its pages under a music bed, as British TV filled the small
   hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,
   chunky block graphics, a page number and clock in the header row, and pages that turn on their own:

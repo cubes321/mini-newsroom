@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, continuity, council, documentary, schedule
+from . import adverts, continuity, council, documentary, schedule, teletext
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -51,6 +51,8 @@ WAVE_WINDOWS = 24          # the caller's waveform: this many envelope windows, 
 OUTSIDE = {SegmentType.field_report: "LIVE", SegmentType.feature: "REPORT", SegmentType.vox_pop: "VOX POP"}
 FORGET_BEHIND = 6          # drop finished slots this far behind the head
 _BREAKS = (SegmentType.bumper, SegmentType.testcard)   # a ready special may air after these
+CARDS = (SegmentType.testcard, SegmentType.teletext)   # overnight's silent screens: the bed is the sound,
+                                                       # and breaking news cuts in at once
 GAP = (SegmentType.advert, SegmentType.continuity)    # cover a gap: outside the rundown, nothing to resume
 
 
@@ -93,6 +95,7 @@ class View:
     breaking: bool = False               # breaking news: red captions, and the BREAKING card over the sting
     advert: dict | None = None           # an advert's end card: business, tagline, where, owner, colour
     continuity: dict | None = None       # an ident, the programme card or a notice: kind, title, lines
+    teletext: dict | None = None         # SEVENTEXT: the page up, the one before, how long it's been up, the clock
     caller: tuple[str, str] | None = None   # a phone-in caller on the line: (name, where from)
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
     verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
@@ -165,7 +168,7 @@ class Player:
                             self.line_idx + 1, e)
         if self.current.type is SegmentType.bumper or self._kind() == "ident":
             self._set_music(0.0)            # the tune is the sound
-        elif self.current.type is SegmentType.testcard:
+        elif self.current.type in CARDS:
             self._set_music(0.25)       # the card's line is silence; the bed is the sound
         elif self.current.type in (SegmentType.documentary, SegmentType.advert, SegmentType.ad_break,
                                    SegmentType.continuity):
@@ -217,14 +220,14 @@ class Player:
         seg = self.current
         left = sum(l.duration_s or 0.0 for l in seg.lines[self.line_idx:])
         return (self.stash is None and seg.type not in (SegmentType.breaking, SegmentType.bumper)
-                and (left >= LET_FINISH_S or seg.type is SegmentType.testcard) and self.buffer.breaking_ready())
+                and (left >= LET_FINISH_S or seg.type in CARDS) and self.buffer.breaking_ready())
 
     def _interrupt(self, now: float) -> None:
         """Set the segment on air aside (or end it: a replay, the test card) and air breaking news."""
         seg = self.current
         if self.audio and self._voice is not None:
             self._voice.stop()
-        if seg.type is SegmentType.testcard:
+        if seg.type in CARDS:
             self._finish(now)                    # the card just ends early
         elif self.replaying or seg.type in GAP:     # nothing to come back to
             self.current, self.replaying = None, False
@@ -297,7 +300,7 @@ class Player:
                     self._play_line(now)
                 else:
                     self._finish(now)
-            elif self.current.type is SegmentType.testcard and self._breaking_due():
+            elif self.current.type in CARDS and self._breaking_due():
                 self._interrupt(now)
             if self.current is not None:
                 return
@@ -519,6 +522,10 @@ class Player:
         elif seg.type is SegmentType.testcard:
             v.mode, v.speaker = "testcard", None
             v.show, v.resume_at = on_air.id, schedule.next_start(on_air.id)
+        elif seg.type is SegmentType.teletext:
+            page, prev, since = teletext.on_screen(seg.work.get("teletext") or {}, elapsed)
+            v.mode, v.speaker, v.show = "teletext", None, on_air.id
+            v.teletext = {"page": page, "prev": prev, "since": since, "now": now}
         else:
             v.mode = {
                 SegmentType.bumper: "bumper",

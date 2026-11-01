@@ -78,10 +78,29 @@ def queue_text(s: str, size: int, color, at: tuple[int, int], clip: pygame.Rect 
     _layer.append((s, size, tuple(color), at, clip))
 
 
+_pictures: list[tuple[object, object, tuple[int, int]]] = []   # this frame's full-size pictures: (key, make, at)
+_made: dict = {}                                               # each made once per key and window size
+MADE_MAX = 64
+
+
+def queue_picture(key, make, at: tuple[int, int]) -> None:
+    """Draw make(k), a Surface at the window's size (k = window / canvas), at canvas position `at`
+    when the frame is presented, under the text. Made once per `key` and kept: a teletext page is
+    a thousand letters, too many to draw every frame."""
+    _pictures.append((key, make, at))
+
+
 def present(canvas: pygame.Surface, screen: pygame.Surface) -> None:
     """Scale the canvas to `screen` and draw this frame's text on it at full size."""
     pygame.transform.scale(canvas, screen.get_size(), screen)
     k = screen.get_width() / canvas.get_width()
+    for key, make, (x, y) in _pictures:
+        n = max(1, round(k))
+        if (key, n) not in _made:
+            if len(_made) >= MADE_MAX:
+                _made.clear()
+            _made[key, n] = make(n)
+        screen.blit(_made[key, n], (round(x * k), round(y * k)))
     for s, size, color, (x, y), clip in _layer:
         if clip:
             screen.set_clip(pygame.Rect(round(clip.x * k), round(clip.y * k), round(clip.w * k), round(clip.h * k)))
@@ -654,9 +673,20 @@ def draw_clock(canvas: pygame.Surface, v: View) -> None:
         text(canvas, "REPEAT" if v.repeat else "REPLAY", w - 24, 22, 8, (255, 200, 80), center=True)
 
 
+def draw_teletext(canvas: pygame.Surface, v: View, t: float) -> None:
+    """SEVENTEXT overnight (teletext.py): the page up now, its letters at the window's size."""
+    from datetime import datetime
+
+    from . import teletext
+
+    tt = v.teletext or {}
+    teletext.draw(canvas, tt.get("page") or {}, tt.get("prev", 100), tt.get("since", 99.0),
+                  datetime.fromtimestamp(tt.get("now") or schedule.now()), queue_picture)
+
+
 SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "weather": draw_weather,
           "field": draw_field, "special": draw_special, "breaking": draw_breaking,
-          "advert": draw_advert, "ident": draw_bumper, "notice": draw_notice}
+          "advert": draw_advert, "ident": draw_bumper, "notice": draw_notice, "teletext": draw_teletext}
 
 
 PROGRAMMES = ("studio", "weather", "field", "special")
@@ -670,10 +700,13 @@ def shows_bug(v: View) -> bool:
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
     _layer.clear()
+    _pictures.clear()
     if v.mode == "testcard":
         draw_test_card(canvas, t, v)
         if v.resume_at:
             draw_clock(canvas, v)
+    elif v.mode == "teletext":
+        draw_teletext(canvas, v, t)                  # the page is the whole screen, its own clock included
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
         if v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):

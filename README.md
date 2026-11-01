@@ -152,7 +152,7 @@ Unless breaking news cuts in, the station runs this schedule:
 
 | from | show | what's on |
 |---|---|---|
-| 00:00 | overnight | the test card and repeats of the day's segments (not breakfast's); no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
+| 00:00 | overnight | the test card, repeats of the day's segments (not breakfast's) and SEVENTEXT, the station's teletext pages turning under a music bed (news, weather, tides, sport, the fish quay, the day's programmes, notices); no live model calls, but the story desk and editor keep working, and a special made overnight airs after the test card |
 | 06:00 | *Morning Tide* | breakfast on the sofa with Rosie Treloar and Jonah Pike: the headlines, sofa chats (the papers, a viewer's question, on this day in town history…), Gordon's weather, Miles's reports, and a goodbye before the news |
 | 09:00 | the news | Dana Ferris, Gordon and Miles: weather, bulletins, field reports, a studio interview every third loop, Fran Kellaway's sport, specials, and "Later on Channel 7" once an hour |
 | 10:00 | *Have Your Say* | Jonah Pike's news phone-in: one question from the day's news, viewers ringing in, and the official at the heart of the story in the studio |

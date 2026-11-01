@@ -9,7 +9,9 @@ so the news between programmes isn't recorded. Overnight, a programme's leftover
 between test cards; only a bumper (or a documentary) starts a recording, so those aren't recorded. Adverts, ad breaks, continuity and a breaking-news
 interruption leave the recording as it is, so a programme stays in one file. The documentary (Port
 Wexley Stories, which airs inside the news) is recorded as a programme of its own, but not its overnight
-repeat, which made a second file of the same film on 2026-11-01. OBS's connection
+repeat, which made a second file of the same film on 2026-11-01. SEVENTEXT, the overnight teletext
+pages, is recorded a little: the night's first `--teletext` blocks (two by default, about four minutes),
+each a file of its own that ends at the next repeat or test card. OBS's connection
 (port, password) is read from its own obs-websocket config; turn the WebSocket server on in OBS.
 `--dry-run` prints what it would do without touching OBS; `--from-start` reads the log from the top.
 """
@@ -30,15 +32,18 @@ from newsroom.special import REPEAT_SLOT  # noqa: E402
 
 PLAYING = re.compile(r"(?:playing|replaying) slot (-?\d+) (\w+) \([^)]*\) \[([\w-]+)\]")
 KEEP = {"advert", "ad_break", "continuity", "breaking", "filler"}      # never start or stop a recording
-OPENERS = {"bumper", "documentary"}      # a programme starts at its bumper; the documentary has none
+OPENERS = {"bumper", "documentary", "teletext"}    # a programme starts at its bumper; these have none
 NOT_PROGRAMMES = {"news", "overnight"}
 DOCUMENTARY = "Port Wexley Stories"
+TELETEXT = "Seventext"
 
 
 def programme(seg_type: str, show: str) -> str | None:
     """The programme a segment belongs to, or None for the rolling news (and the overnight repeats)."""
     if seg_type == "documentary":
         return DOCUMENTARY
+    if seg_type == "teletext":
+        return TELETEXT
     if show in NOT_PROGRAMMES or show == "-":
         return None
     try:
@@ -122,8 +127,10 @@ def main() -> int:
     ap.add_argument("log", type=Path)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--from-start", action="store_true")
+    ap.add_argument("--teletext", type=int, default=2, help="record this many blocks of SEVENTEXT (default 2)")
     a = ap.parse_args()
     rec = Recorder(a.dry_run)
+    teletext_left = a.teletext
     print(f"following {a.log}", flush=True)
     try:
         for line in follow(a.log, a.from_start):
@@ -135,6 +142,12 @@ def main() -> int:
             slot, seg_type, show = int(m.group(1)), m.group(2), m.group(3)
             if seg_type == "documentary" and slot == REPEAT_SLOT:   # last night's again: recorded when it first aired
                 continue
+            if rec.now == TELETEXT and seg_type != "teletext":
+                rec.stop()                                  # the pages end at the next repeat or card
+            if seg_type == "teletext":
+                if rec.now == TELETEXT or teletext_left <= 0:
+                    continue
+                teletext_left -= 1
             prog = programme(seg_type, show)
             if prog != rec.now:
                 if prog and seg_type not in OPENERS:        # a leftover filling the overnight loop, not on air

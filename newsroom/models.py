@@ -40,6 +40,7 @@ class SegmentType(StrEnum):
     sofa = "sofa"                # breakfast: the two hosts chatting
     repeat = "repeat"            # overnight: an earlier segment from the cache
     testcard = "testcard"        # overnight: the card, music only
+    teletext = "teletext"        # overnight: SEVENTEXT's pages turning, music only (teletext.py)
     interview = "interview"      # a studio guest in the armchair (news, magazine, talk show)
     links = "links"              # magazine: the two presenters' links and banter
     feature = "feature"          # magazine: a filmed piece, introduced at the big-picture wall
