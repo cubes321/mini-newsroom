@@ -71,6 +71,7 @@ def test_the_inquirys_other_voices_are_never_its_guest(monkeypatch):
     writers.script_segment(seg, w)
     assert len(asked) == 2 and "NOT Ivy Marchetti: they are THE GUEST" in asked[1]
     assert "NOT Ivy Marchetti in this item" in asked[0]                  # told before the first attempt too
+    assert "not THE QUESTIONS PAT PUTS to THE GUEST" in asked[0]
     assert writers._last_interview["inquiry"]["name"] == "Ruth Abney"
     assert schedule.get("inquiry").briefs[T.interview][0].startswith("the other side")
 
@@ -81,3 +82,30 @@ def test_the_inquirys_other_voices_are_never_its_guest(monkeypatch):
                   brief="THE GUEST in the studio, part one")
     writers.script_segment(one, w)
     assert len(asked) == 1 and writers._last_interview["inquiry"]["name"] == "Ivy Marchetti"
+
+
+def test_asked_again_and_still_the_inquirys_guest_the_other_voice_is_dropped(monkeypatch):
+    """On 2026-10-31 Helen Strand sat in four of the six "other" chairs: told NOT her, the model named her
+    again, and the second answer wasn't checked. Now the retry names someone else on the story, and a
+    second booking of THE GUEST is a failed item."""
+    w = world_mod.seed()
+    tid = w.update_thread(None, "Harbour wall report due Friday", "so far")
+    crane = w.ensure_person("Dougal Crane", "harbour engineer")
+    w.thread(tid).people = [w.person_by_name("Ivy Marchetti").id, crane.id]
+    w.inquiries = [{"date": w.last_date, "thread_id": tid, "title": "Who Pays for the Wall?", "angle": "a",
+                    "questions": ["q1", "q2"], "guest": "Ivy Marchetti"}]
+    monkeypatch.setattr(writers, "_recent_guests", writers.deque(maxlen=8))
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate({
+            "headline": "Who pays for the wall", "lower_third": "The Inquiry", "guest_name": "Ivy Marchetti",
+            "guest_role": "harbourmaster", "guest_gender": "f",
+            "lines": [{"speaker": "mag_a", "text": "Who pays?"}, {"speaker": "guest", "text": "The county."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=42, type=T.interview, show="inquiry", part="other", target_s=210,
+                  brief="someone who knows how this works")
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and "Dougal Crane (harbour engineer) is on this story" in asked[1]
+    assert all(l.guest_name != "Ivy Marchetti" for l in seg.lines)

@@ -472,8 +472,10 @@ Choose a backdrop id from the LOCATIONS list; location is the place in words, ne
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _INQUIRY_RULES + """
 This is the STUDIO INTERVIEW in The Inquiry. Pat ("mag_a") and one guest in the armchair, as THIS
 ITEM says: THE GUEST named in tonight's brief when THIS ITEM is theirs; otherwise the person THIS
-ITEM describes, never THE GUEST (guest_name is someone else). Pat asks short, specific questions
-from THE QUESTIONS, follows up when an answer slides away ("That's not what I asked"), and quotes
+ITEM describes, never THE GUEST (guest_name is someone else). With THE GUEST, Pat asks short,
+specific questions from THE QUESTIONS; anyone else is asked about what THIS ITEM says they bring
+(their side, what they know, what it has cost them), not THE QUESTIONS, which are THE GUEST's to
+answer. Either way she follows up when an answer slides away ("That's not what I asked"), and quotes
 the record back. The guest defends their position as they would, with real reasons; no one
 collapses or confesses. Polite, firm, no shouting.
 headline = the guest and the key answer (or non-answer) in under 12 words. lower_third = a short caption.
@@ -878,6 +880,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             # Asked after the fact, the model booked THE GUEST again three times in one half hour (2026-10-31).
             user += (f"\n\nNOT {guest} in this item: {guest} is THE GUEST, who has their own parts in the studio. "
                      "guest_name is the person THIS ITEM describes, by name.")
+            if part == "other":           # THE QUESTIONS are put to THE GUEST, so the model sat them in the chair
+                user += " Pat asks them about what THIS ITEM says, not THE QUESTIONS PAT PUTS to THE GUEST."
     if show.id == panel.SHOW:
         user += "\n\n" + panel.for_prompt(world)
     if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
@@ -1284,9 +1288,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
                      if couch and rebooked.lower() == couch["name"].lower()
                      else f"NOT {rebooked}: they are THE GUEST, with their own parts tonight. Book the person "
-                          "THIS ITEM describes." if taken and rebooked.lower() == taken.lower()
+                          "THIS ITEM describes." + _other_voice(world, taken)
+                     if taken and rebooked.lower() == taken.lower()
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
+            # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
+            if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
+                raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
         known = None if cont or booked else _remembered(script, world, {seg.work.get("return_guest"),
@@ -1362,6 +1370,18 @@ def _rebooked(script, world: World, taken: str | None = None) -> str | None:
     if not name or not any(l.speaker == "guest" for l in script.lines):
         return None
     return name if name.lower() in {g.lower() for g in _recent_guests} | {(taken or "").lower()} - {""} else None
+
+
+def _other_voice(world: World, guest: str) -> str:
+    """Someone on tonight's Inquiry story who isn't THE GUEST and hasn't just been on, to name when the
+    model books THE GUEST for an item that isn't theirs: "NOT them" alone wasn't enough (2026-10-31)."""
+    tid = (inquiry.tonight(world) or {}).get("thread_id")
+    t = world.thread(tid) if tid else None
+    skip = {guest.lower()} | {g.lower() for g in _recent_guests}
+    for p in (world.person(pid) for pid in (t.people if t else [])):
+        if p and p.name.lower() not in skip:
+            return f" {p.name} ({p.role}) is on this story and hasn't been on tonight: book them, or another named person."
+    return ""
 
 
 def _remembered(script, world: World, skip: set) -> Person | None:

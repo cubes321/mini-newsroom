@@ -86,13 +86,16 @@ bottom with the date.
   the interview prompt made every item "ONE question THIS ITEM names", so "the week ahead" became hake too.
   Fixed 2026-11-01: a brief's "{q2}" is the second question in its own words (`panel.brief_for`), the viewer's
   email takes the first, and a round that names no question is that round, not a rerun.
-- [ ] **The Inquiry's "other" voices are THE GUEST again.** On the 2026-10-31 night Helen Strand was in the
+- [x] **The Inquiry's "other" voices are THE GUEST again.** On the 2026-10-31 night Helen Strand was in the
   chair for four of the six "other" interviews (slots 123, 125, 130, 135). `script_segment` caught her each
-  time and asked again, but the second answer isn't checked, and it named her too. Likely cause: the
-  interview prompt has Pat ask THE QUESTIONS, which are written for THE GUEST. Check the retry (and fall
-  back to someone named in the briefing), and give "other" items their own instruction instead of THE
-  QUESTIONS. Separately, slot 133's stock interview ("Dev Ramachandran on the week in town", 20 s) aired
-  in the middle of The Inquiry after two too-long answers.
+  time and asked again, but the second answer wasn't checked, and it named her too: the interview prompt
+  had Pat ask THE QUESTIONS, which are written for THE GUEST. Fixed 2026-11-01: anyone else is asked about
+  what THIS ITEM says they bring, the retry names someone else on the story (`_other_voice`), and THE
+  GUEST booked a second time fails the item.
+- [ ] **The Inquiry's stock interview is off the story.** Slot 133 on 2026-10-31 ("Dev Ramachandran on the
+  week in town", 20 s) aired in the middle of The Inquiry after two too-long answers; a failed "other" item
+  now lands there too. Give The Inquiry a stock item of its own (Pat to camera on the questions still
+  open), or skip to the next item.
 - [ ] **A thread's people only grow.** `desk.py` appends the people the desk lists, so the prompt's
   "at most four per thread" can never shrink a list: t220 has 22 people, t243 21, t248 16. The senior
   editor asked for three a thread in four memos running, and the desk said it had complied. Replace
