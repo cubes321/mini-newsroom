@@ -105,6 +105,7 @@ class Player:
         self.cont = cont if cont is not None else continuity.pool()
         self.ads_in_row = 0                  # adverts since the last real segment
         self.gap_n = 0                       # how far through continuity.GAP_PATTERN this gap is
+        self.programmes_at = 0.0             # when "Later on Channel 7" last aired, in a gap or before a bumper
         self.ads_played = 0
         self.next_slot = 0
         self.current: Segment | None = None
@@ -186,6 +187,8 @@ class Player:
         self.current, self.line_idx, self.seg_start, self.replaying = seg, 0, now, replay
         if seg.type not in GAP:
             self.ads_in_row = self.gap_n = 0
+        if (seg.work.get("continuity") or {}).get("kind") == "programmes":
+            self.programmes_at = now
         if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
             if seg.headline:
@@ -339,6 +342,14 @@ class Player:
             return
         seg = self.buffer.get_ready(self.next_slot)
         if seg is not None:
+            # "Later on Channel 7" once an hour in the news, ahead of a bumper: only in a gap, it was
+            # baked twenty times on 2026-10-31 and never aired, the buffer never ran dry.
+            if (seg.type is SegmentType.bumper and seg.show == "news"
+                    and now - self.programmes_at >= continuity.PROGRAMMES_EVERY_S):
+                card = self.cont.pick("programmes", "news", now)
+                if card is not None:
+                    self._start(card, now)
+                    return
             if seg.type is SegmentType.ad_break and not seg.lines:
                 seg = adverts.break_segment(seg, self.ads)     # its adverts are picked as it airs
             self._start(seg, now)

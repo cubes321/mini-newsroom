@@ -359,12 +359,6 @@ class WorkerPool:
                 senior.review(self.world)     # a memo on the whole board for the desk's next rounds
                 world_mod.save(self.world)
                 return
-            if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
-                d = documentary.decide(self.world)
-                world_mod.save(self.world)
-                if d is not None:
-                    self.buffer.submit_special(documentary.commission(self.world, d))
-                return
             if phonein.should_commission(self.world):
                 phonein.commission(self.world)    # Have Your Say's question, studio guest and callers
                 world_mod.save(self.world)
@@ -380,6 +374,14 @@ class WorkerPool:
             if chamber.should_commission(self.world):
                 chamber.commission(self.world)    # a council night: The Chamber's four motions and every vote
                 world_mod.save(self.world)
+                return
+            # After the evening's bookings, which are one call each and due by 20:00: started at 19:40, the
+            # documentary's eight stages kept the workers busy until The Chamber opened on its stand-in (2026-11-01).
+            if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
+                d = documentary.decide(self.world)
+                world_mod.save(self.world)
+                if d is not None:
+                    self.buffer.submit_special(documentary.commission(self.world, d))
                 return
             if continuity.should_make(self.world, self.buffer):
                 continuity.make(self.world, self.buffer)   # a trail for a finished piece, or a community notice

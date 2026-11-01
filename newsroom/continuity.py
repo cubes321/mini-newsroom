@@ -4,6 +4,7 @@ Four kinds, all voiced by the continuity announcer:
 - ident: the logo builds to the station tune (the show's arrangement), then a line from the
   announcer ("This is Channel 7."). Rebuilt when the show's tune stem changes.
 - programmes: "Later on Channel 7": the next shows and their times, valid until the next one starts.
+  It also airs ahead of a news bumper once an hour (`PROGRAMMES_EVERY_S`), gap or not.
 - notice: a 70s information slide read out. The daily tides and the Saltby ferry from
   tides.py (rebuilt each day), a few hand-written ones from the town, and community notices the
   model writes from the day's open stories (`[continuity] notice_every_s`, valid until midnight).
@@ -46,6 +47,7 @@ SHOWS = ("news", "breakfast", "magazine", "late", "sport")
 # In a gap: ident, advert, a card (programmes, a trail or a notice), advert, advert, ident... then the filler card.
 GAP_PATTERN = ("ident", "advert", "card", "advert", "advert", "ident", "card")
 CARDS = ("programmes", "trail", "notice")       # a "card" in the gap, first first when none has aired
+PROGRAMMES_EVERY_S = 3600.0     # the programme card also airs ahead of a news bumper this often (player.py)
 
 IDENT_LINES = {
     "news": ["This is Channel 7.", "Channel 7, for Port Wexley and the Greymouth coast."],

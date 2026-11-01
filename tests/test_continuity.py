@@ -10,7 +10,7 @@ import soundfile as sf
 
 from newsroom import adverts, assets, continuity, schedule, tts, world as world_mod
 from newsroom.buffer import Buffer
-from newsroom.models import Segment, SegmentState, SegmentType
+from newsroom.models import Line, Segment, SegmentState, SegmentType
 from newsroom.player import Player
 from newsroom.producer import Producer
 from newsroom.tts import SynthResult
@@ -120,6 +120,44 @@ def test_no_ident_straight_after_a_bumper_and_the_count_resets_on_a_programme(co
     assert pl._gap_item(now).type is SegmentType.advert
     pl._start(Segment(slot_id=0, type=SegmentType.weather, state=SegmentState.ready), now)
     assert pl.gap_n == 0 and pl.ads_in_row == 0
+
+
+def test_the_programme_card_airs_ahead_of_a_news_bumper_once_an_hour(cont, monkeypatch):
+    now = _ts("10:00")
+    monkeypatch.setattr(schedule, "now", lambda: now)
+    w = world_mod.seed()
+    while continuity.bake_one(w, now):
+        pass
+    pl = _player(cont, _Ads(0), last=SegmentType.bulletin)
+
+    def bumper(slot, show="news"):
+        sting = [Line(speaker="voiceover", text="", duration_s=8.0)]      # with no lines it would end at once
+        pl.buffer.mark(Segment(slot_id=slot, type=SegmentType.bumper, state=SegmentState.ready, show=show, lines=sting),
+                       SegmentState.ready)
+
+    def kind():
+        return pl._kind() or pl.current.type.value
+
+    bumper(0)
+    pl.update(now)
+    assert kind() == "programmes" and pl.next_slot == 0          # outside the rundown: the bumper still to come
+    pl.current = None
+    pl.update(now + 10)
+    assert kind() == "bumper"
+    pl._finish(now + 15)
+    bumper(1)
+    pl.update(now + 1800)
+    assert kind() == "bumper"                                    # not again within the hour
+    pl._finish(now + 1810)
+    bumper(2, show="magazine")
+    pl.update(now + 3700)
+    assert kind() == "bumper"                                    # the rolling news only
+    pl._finish(now + 3710)
+    while continuity.bake_one(w, now + 3720):                   # the 10:00 card ran out at eleven: the next one
+        pass
+    bumper(3)
+    pl.update(now + 3720)
+    assert kind() == "programmes"
 
 
 # ------------------------------------------------------------------ promos

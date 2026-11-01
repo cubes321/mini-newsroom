@@ -202,7 +202,11 @@ def for_prompt(world: World) -> str:
     with world.lock:
         aired = [e for e in world.archive if e["date"] == world.last_date and e.get("show") == SHOW
                  and e["type"] != SegmentType.ad_break.value]
-    done = ("\nSO FAR TONIGHT (don't repeat it; build on it):\n" + "\n".join(
+    # "Don't repeat it" wasn't enough: on 2026-11-01 the loop came round three times with the same
+    # Gull's Rest debate, the same Christmas-lights petition and the same three vox pops.
+    done = ("\nSO FAR TONIGHT (do NOT do any of these again, even when this kind of item comes round: no motion "
+            "debated twice, and a different question, petition, report, speaker and subject; a callback is fine):\n"
+            + "\n".join(
         f"  - {e['type'].replace('_', ' ')}: {e['headline']}: {e['text'][:SO_FAR_CHARS]}" for e in aired)) if aired else ""
     return (f"FULL COUNCIL IN SESSION, live from the council chamber.\nTHE COUNCIL (speak as speaker \"guest\" with "
             f"guest_name their exact name):\n{_council_rows(world)}\nTONIGHT'S AGENDA, in this order:\n{agenda}{done}")

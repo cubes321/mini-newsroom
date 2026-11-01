@@ -57,9 +57,17 @@ bottom with the date.
 - [ ] The Chamber's first night (Thursday 5 November, or a test run with `NEWSROOM_COUNCIL_NIGHT=1`):
   whether the agenda picks stories really due at council, the debates read their booked results
   exactly, the votes split believably, the hour fills without the loop repeating itself, and what the
-  desk does with the stories afterwards (resolving, then closed?).
+  desk does with the stories afterwards (resolving, then closed?). The 2026-11-01 test run (started at
+  19:40) opened on the stand-in, the documentary's stages ahead of the booking (the bookings now come
+  first); a booking made by hand on the same world split 4-1-1, 3-2-1, 3-2-1 and 2-3-1 lost. Its debates
+  ran about two minutes against 330 s, so the loop came round three times with the same items ("SO FAR
+  TONIGHT" is now as strict as Coastwide's); if it still repeats, shorter debate targets with more loop
+  angles, or more motions.
 - [ ] The councillors' voices by ear: all six come from the guest pools for now (contact sheet and
   listening, as for the presenters).
+- [x] "Later on Channel 7" once an hour in the rolling news (the user's idea, 2026-11-01): the programme
+  card was baked every hour but aired only in a gap, and on 2026-10-31 the buffer never ran dry. It now
+  also airs ahead of a news bumper when an hour has passed since it last aired (`continuity.PROGRAMMES_EVERY_S`).
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
   would place her in the room.
 - [ ] Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
