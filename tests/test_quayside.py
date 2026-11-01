@@ -5,8 +5,8 @@ from __future__ import annotations
 import time
 from datetime import date, datetime, timedelta
 
-from newsroom import quay, schedule, world as world_mod, writers
-from newsroom.models import SegmentType as T
+from newsroom import locations, quay, schedule, world as world_mod, writers
+from newsroom.models import FieldReportScript, LiveLine, Segment, SegmentType as T
 
 FRIDAY = datetime(2026, 10, 30, 13, 0)
 
@@ -47,3 +47,64 @@ def test_quayside_is_at_one_with_howard_and_the_facts():
     user = writers.build_prompt(T.field_report, w, target_s=100.0, show=show, at_ts=FRIDAY.timestamp())[1]
     assert "QUAY FACTS" in user and "Fish auction" not in user.split("QUAY FACTS")[0][-40:]
     assert show.cast_for(T.links) == ("business",) and "reporter" in show.cast_for(T.field_report)
+
+
+def _report(backdrop, lead="business"):
+    return FieldReportScript(
+        lines=[LiveLine(speaker=lead, text="Miles is on the quay."),
+               LiveLine(speaker="reporter", text="Eleven boats out, and bass fetched the most.")],
+        headline="Bass tops the auction", location="the fish quay", backdrop=backdrop,
+        lower_third="Miles Okafor on the fish quay", thread_id=None)
+
+
+def _backdrop(seg):
+    return next(c.payload["backdrop"] for c in seg.cues if c.kind == "backdrop")
+
+
+def test_the_auction_report_is_on_the_fish_quay(monkeypatch):
+    assert quay.BACKDROP in {loc.id for loc in locations.LOCATIONS}
+    w = world_mod.seed()
+    monkeypatch.setattr(writers.llm, "complete_json", lambda *a, **k: _report("harbour"))   # the model's own pick
+    seg = Segment(slot_id=3, type=T.field_report, show="quayside", target_s=100.0, nominal_start_ts=FRIDAY.timestamp())
+    writers.script_segment(seg, w)
+    assert _backdrop(seg) == "fish_quay"
+
+    def down(*a, **k):
+        raise writers.llm.LLMError("no model")
+    monkeypatch.setattr(writers.llm, "complete_json", down)                                 # the template too
+    seg = Segment(slot_id=4, type=T.field_report, show="quayside", target_s=100.0, nominal_start_ts=FRIDAY.timestamp())
+    writers.script_segment(seg, w)
+    assert _backdrop(seg) == "fish_quay"
+
+
+def test_with_no_model_miles_still_reports_the_auction(monkeypatch):
+    def down(*a, **k):
+        raise writers.llm.LLMError("no model")
+    monkeypatch.setattr(writers.llm, "complete_json", down)
+    sunday = datetime(2026, 11, 1, 13, 5)
+    seg = Segment(slot_id=4, type=T.field_report, show="quayside", target_s=100.0, nominal_start_ts=sunday.timestamp())
+    writers.script_segment(seg, world_mod.seed())
+    a, said = quay.latest(sunday), " ".join(l.text for l in seg.lines)
+    top = a.lots[0]
+    assert a.day == FRIDAY.date() and "Friday's auction" in said and "this morning" not in said
+    assert f"{top.kilos:,} kilos" in said and a.best_boat[0] in said and "cannery" not in said
+    assert [l.speaker for l in seg.lines] == ["business", "reporter", "business"]
+    assert top.species in seg.headline.lower()
+
+
+def test_breaking_news_still_sends_miles_to_the_scene(monkeypatch):
+    w = world_mod.seed()
+    tid = w.update_thread(None, "Chandlery fire on the quay", "smoke reported, crews on the way")
+    w.mark_breaking(tid, schedule.now() - 300)
+    monkeypatch.setattr(writers.llm, "complete_json", lambda *a, **k: _report("loading_dock"))
+    seg = Segment(slot_id=5, type=T.field_report, show="quayside", target_s=100.0, nominal_start_ts=schedule.now())
+    writers.script_segment(seg, w)
+    assert seg.work["scene"] == tid and _backdrop(seg) == "loading_dock"
+
+
+def test_other_shows_choose_their_own_backdrop(monkeypatch):
+    w = world_mod.seed()
+    monkeypatch.setattr(writers.llm, "complete_json", lambda *a, **k: _report("harbour", "anchor"))
+    seg = Segment(slot_id=6, type=T.field_report, show="news", target_s=90.0, nominal_start_ts=schedule.now())
+    writers.script_segment(seg, w)
+    assert _backdrop(seg) == "harbour"

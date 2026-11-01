@@ -69,6 +69,9 @@ LOCATIONS: tuple[Location, ...] = (
              "town", (125, 170, 210), (100, 95, 85), water=True),
     Location("loading_dock", "the loading dock", "the harbour loading dock: a crane, containers, pallets",
              "town", (130, 165, 200), (85, 85, 90), water=True),
+    Location("fish_quay", "the fish quay", "the fish quay, where the weekday auction is held: fish boxes on ice "
+             "under the market canopy, the auctioneer's board, fish vans, boats behind",
+             "town", (125, 170, 210), (110, 108, 104), water=True),
     Location("lighthouse", "the Greymouth lighthouse", "the Greymouth lighthouse on the point: rocks, the tower",
              "town", (120, 170, 220), (95, 100, 90), water=True),
     Location("lifeboat_station", "the lifeboat station", "the lifeboat station: the boathouse, the launch ramp",

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 QUAY = "the fish quay"
+BACKDROP = "fish_quay"                  # locations.py: Quayside's auction report is always here
 AUCTION = time(6, 30)
 RESULTS = time(7, 30)                   # the hammer's down and the prices are chalked up
 AUCTION_DAYS = range(5)                 # Monday to Friday
@@ -154,6 +155,27 @@ def summary(now: datetime) -> str:
     if mack and mack not in (top, dear):
         parts.append(f"mackerel {_money(mack.price)} a kilo")
     return f"The fish auction on the quay ({a.day:%A %d %B}): " + "; ".join(parts) + "."
+
+
+def report(now: datetime) -> tuple[str, str] | None:
+    """Miles's auction report in his own words, and a headline, for when no model writes it (writers.py)."""
+    a = latest(now)
+    if not a:
+        return None
+    prev = _week_before(a)
+    top, dear = a.lots[0], max(a.lots, key=lambda l: l.price)
+    kept_in = [b[0] for b in FLEET if b not in a.boats]
+    when = "this morning's" if a.day == now.date() else f"{a.day:%A}'s"
+    words = [f"{len(a.boats)} of the {len(FLEET)} boats went out for {when} auction"
+             + (", a rough day that kept the small boats in" if a.rough else "")
+             + f", and {_money(a.total)} of fish was sold" + (f", {_change(a.total, prev.total)}" if prev else "") + ".",
+             f"{top.species.capitalize()} earned the most: {top.kilos:,} kilos at {_money(top.price)} a kilo."]
+    if dear is not top:
+        words.append(f"The dearest was {dear.species}, at {_money(dear.price)} a kilo.")
+    words.append(f"The best day was {a.best_boat[1]}'s on the {a.best_boat[0]}, about {_money(a.best_boat[2])}.")
+    if kept_in:
+        words.append(f"The {' and the '.join(kept_in[:2])} stayed in" + (" with a few others." if len(kept_in) > 2 else "."))
+    return f"{when.capitalize()} auction: {top.species} earned the most", " ".join(words)
 
 
 def for_prompt(now: datetime) -> str:

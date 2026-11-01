@@ -52,6 +52,8 @@ WATER: dict[str, list[tuple[int, int, int, int]]] = {
     "cannery": [(200, 124, 120, 56)],
     "slipway": [(100, 106, 220, 74)],
     "loading_dock": [(0, 100, W, 12)],
+    # off the shed's blue post, the blue fish box on the pallet and the van's blue stripe
+    "fish_quay": [(210, 92, 72, 9), (234, 101, 48, 11)],
     "lighthouse": [(0, 100, 175, 16)],
     "lifeboat_station": [(0, 104, 190, 12), (270, 104, 50, 8)],
     "seafront": [(0, 84, W, 22)],
@@ -494,6 +496,49 @@ def _loading_dock(p: _Paint) -> None:
     for x in (16, 34):
         p.rect((140, 100, 60), x, 116, 14, 5)
     p.lamp(130, 72, ground=112)
+
+
+@_painter("fish_quay")
+def _fish_quay(p: _Paint) -> None:
+    _hills(p, 94, (105, 125, 115), 7, 2.0)
+    _water(p, 0, 96, W, 18)
+    p.rect((120, 115, 105), 236, 92, W - 236, 4)                 # the far harbour wall
+    _boat(p, 222, 98, (50, 90, 150))
+    _boat(p, 262, 102)
+    _ground(p, 112)
+    p.rect(_shade(p.loc.ground, 1.12), 0, 112, W, 2)             # the quay's edge
+    shade, roof = (78, 76, 74), (150, 155, 160)
+    p.rect(shade, 0, 56, 206, 56)                                # under the canopy
+    p.rect((95, 92, 88), 0, 62, 206, 30)                         # the back wall of the shed
+    p.poly(roof, [(0, 56), (0, 42), (206, 42), (214, 56)])       # corrugated roof
+    for x in range(4, 210, 6):
+        p.rect(_shade(roof, 0.85), x, 43, 2, 13)
+    p.rect(_shade(roof, 0.7), 0, 56, 214, 3)                     # gutter
+    for x in (2, 54, 124, 204):                                  # posts, none behind the reporter
+        p.rect((60, 70, 85), x, 59, 4, 53)
+    for row, y in enumerate((100, 106)):                         # fish boxes on ice, in rows
+        for x in range(8 + row * 6, 198, 15):
+            if x + 13 >= 62 and x <= 118:                        # the reporter stands here
+                continue
+            p.rect((50, 110, 170), x, y, 13, 6)
+            p.rect((225, 235, 240), x + 1, y, 11, 2)
+            p.rect((175, 185, 195), x + 3, y, 6, 1)
+    p.rect((35, 45, 40), 132, 70, 30, 20)                        # the auctioneer's board, blank
+    p.rect((120, 95, 70), 131, 69, 32, 1)
+    p.rect((120, 95, 70), 133, 90, 2, 16)
+    p.rect((120, 95, 70), 159, 90, 2, 16)
+    for y in (104, 108):                                         # pallets
+        p.rect((170, 135, 85), 236, y, 26, 2)
+    for x in (236, 248, 260):
+        p.rect((140, 105, 65), x, 106, 2, 6)
+    p.rect((50, 110, 170), 240, 98, 13, 6)                       # boxes waiting on them
+    p.rect((225, 235, 240), 241, 98, 11, 2)
+    p.rect((235, 235, 235), 284, 88, 30, 22)                     # a fish van, side on, at the edge
+    p.rect((235, 235, 235), 314, 96, 6, 14)
+    p.rect((50, 110, 170), 284, 100, 36, 3)
+    for x in (292, 316):
+        p.circle((30, 30, 32), x, 111, 4)
+    p.lamp(214, 84, ground=112)
 
 
 @_painter("lighthouse")

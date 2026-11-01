@@ -257,7 +257,7 @@ This is a REPORT from the fish quay on Quayside. "business" (Howard) hands to Mi
 "reporter" (Miles) reports from the quay as THIS ITEM says: the latest auction (on the day QUAY FACTS
 give, which at the weekend is Friday), the boats out and
 those kept in, what a skipper or a buyer said; "business" thanks him in one line. The backdrop is
-harbour; location is the place in words.
+fish_quay; location is the place in words.
 """,
     SegmentType.interview: _COMMON_RULES + _GUEST_RULES + _QUAYSIDE_RULES + """
 This is the GUEST in the armchair on Quayside. Howard ("business") talks to one guest as THIS ITEM
@@ -1005,7 +1005,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
 
 
 def _template(seg_type: SegmentType, world: World, rng: random.Random, show: schedule.Show, part_: str = "",
-              work: dict | None = None):
+              work: dict | None = None, at_ts: float | None = None):
     """Canned scripts fronted by the show's lead; every LLM-scripted type needs one."""
     wx_states = ["sunny", "cloudy", "rain", "fog", "wind"]
     lead = show.lead
@@ -1114,6 +1114,16 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
     if show.id == outabout.SHOW and seg_type in (SegmentType.field_report, SegmentType.feature,
                                                  SegmentType.review, SegmentType.vox_pop):
         return _outabout_template(seg_type, part_)
+    if (seg_type is SegmentType.field_report and show.id == "quayside" and not (work or {}).get("scene")
+            and (auction := quay.report(datetime.fromtimestamp(at_ts or schedule.now())))):
+        headline, words = auction             # the figures every other show quotes, in Miles's words
+        return FieldReportScript(
+            lines=[LiveLine(speaker=lead, text="Now to the fish quay, and Miles Okafor has the latest auction. Miles?"),
+                   LiveLine(speaker="reporter", text=f"Thanks {lead_name}. {words}"),
+                   LiveLine(speaker=lead, text="Thanks Miles. Those figures again at the end of the programme.")],
+            headline=headline, location="the fish quay, Port Wexley harbour", backdrop=quay.BACKDROP,
+            lower_third="Quayside: the fish auction",
+        )
     if seg_type is SegmentType.field_report:
         return FieldReportScript(
             lines=[
@@ -1398,12 +1408,17 @@ def script_segment(seg: Segment, world: World) -> Segment:
             tipline.consume(tips[used - 1])
     except llm.LLMError as e:
         log.warning("%s slot %d: using template (%s)", seg.type.value, seg.slot_id, e)
-        script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work)
+        script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work,
+                           seg.nominal_start_ts)
         source = "template"
         # With NEWSROOM_LLM=off the template is the content; otherwise it stands in for a model
         # that was unreachable, and the cache and the overnight repeats must not keep it.
         seg.fallback = llm.provider_for(seg.type.value) != "off"
 
+    # Quayside's report is the auction, so it is on the fish quay whatever the model (or the template)
+    # picked; breaking news still sends Miles to the scene instead.
+    if seg.type is SegmentType.field_report and show.id == "quayside" and not seg.work.get("scene"):
+        script.backdrop = quay.BACKDROP
     stayed = couch["name"] if couch and source == "llm" else None
 
     call = isinstance(script, CallScript)
