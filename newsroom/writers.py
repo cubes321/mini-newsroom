@@ -1327,6 +1327,25 @@ def _outabout_template(seg_type: SegmentType, part: str):
 # ------------------------------------------------------------------ public
 
 
+# The prompt asks for two or three moods an item, and a long script forgets: on 2026-11-01 Morning Tide's
+# interviews averaged 5.4 and one on the late show had 8. So a script keeps at most this many, the rarer
+# faces first (the model reaches for these three), and the newsreader's last line is a plain sign-off.
+MOODS_PER_ITEM = 3
+COMMON_MOODS = ("laughing", "happy", "smug")
+
+
+def ration_moods(lines: list[Line]) -> list[Line]:
+    """Clear the moods past MOODS_PER_ITEM, the common faces and the later lines first; never a retry."""
+    if lines and lines[-1].speaker == "anchor":
+        lines[-1].mood = None
+    moody = [i for i, l in enumerate(lines) if l.mood]
+    keep = set(sorted(moody, key=lambda i: (lines[i].mood in COMMON_MOODS, i))[:MOODS_PER_ITEM])
+    for i in moody:
+        if i not in keep:
+            lines[i].mood = None
+    return lines
+
+
 def script_segment(seg: Segment, world: World) -> Segment:
     """Fill `seg.lines`, `seg.cues`, `seg.headline`; mark `scripted`. Updates world."""
     if seg.type not in SCRIPT_SCHEMAS:
@@ -1436,6 +1455,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
                       guest_role=role(name) if l.speaker == "guest" else None,
                       mood=getattr(l, "mood", None))
                  for l in script.lines if l.text.strip()]
+    ration_moods(seg.lines)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
     seg.work.pop("studio_guest", None)

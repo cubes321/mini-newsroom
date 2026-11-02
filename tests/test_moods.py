@@ -44,6 +44,29 @@ def test_the_mood_goes_from_the_script_to_the_line_on_air(monkeypatch):
     assert [l.mood for l in seg.lines] == [None, "happy", "laughing"]
 
 
+def test_a_script_keeps_three_moods_and_the_rarer_faces_win():
+    moods = ["laughing", None, "smug", "laughing", None, "worried", "happy", None, "laughing", "sad"] + [None] * 6
+    lines = [Line(speaker="host_b" if i % 2 else "guest", text="Well.", mood=m) for i, m in enumerate(moods)]
+    writers.ration_moods(lines)
+    assert [(i, l.mood) for i, l in enumerate(lines) if l.mood] == [(0, "laughing"), (5, "worried"), (9, "sad")]
+    few = [Line(speaker="mag_a", text="Oh?", mood="smug"), Line(speaker="mag_b", text="Yes.", mood="laughing")]
+    assert [l.mood for l in writers.ration_moods(few)] == ["smug", "laughing"]     # under the cap: untouched
+
+
+def test_the_newsreaders_sign_off_is_a_plain_line(monkeypatch):
+    w = world_mod.seed()
+
+    def write(task, schema, system, user):
+        assert "smug is a gloat or a dig" in str(schema.model_json_schema())
+        return schema.model_validate({
+            "headline": "Honey on the market stall", "lower_third": "Harrow Street market",
+            "lines": [{"speaker": "anchor", "text": "A fourth jar of honey has turned up at Gwen Pascoe's stall."},
+                      {"speaker": "anchor", "text": "Bring your own spoon, Gwen says.", "mood": "smug"}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = writers.script_segment(Segment(slot_id=8, type=T.bulletin, show="news", target_s=45), w)
+    assert [l.mood for l in seg.lines] == [None, None]
+
+
 def test_the_view_carries_the_lines_mood_and_the_listeners_react():
     buf = Buffer()
     pl = Player(buf, world_mod.seed(), Producer(buf, 600), audio=False)

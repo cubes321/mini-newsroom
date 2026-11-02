@@ -208,7 +208,9 @@ def _mood(v):
 
 
 Mood = Annotated[Literal[*MOOD_NAMES] | None, BeforeValidator(_mood)]
+# Smug is the face of a gloat or a dig: on 2026-11-01 Dana's dry sign-offs were 53 of her 78 moods, all "smug".
 _MOOD_HELP = ("how the line is said, shown on the speaker's face: " + ", ".join(MOOD_NAMES)
+              + " (smug is a gloat or a dig at someone, never a dry aside or a thank-you)"
               + "; null for a plain line, which most are")
 
 
