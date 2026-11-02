@@ -184,7 +184,7 @@ def _on_air(w):
     return pl, seg
 
 
-def test_the_caller_is_a_box_and_a_waveform_and_the_guest_stays_in_the_armchair():
+def test_the_caller_is_a_box_and_a_waveform_and_the_guest_stays_at_the_desk():
     w = _town()
     pl, seg = _on_air(w)
     assert pl._people(seg) == [("host_b", None), ("guest", "Helen Strand")]
@@ -208,6 +208,31 @@ def test_the_scene_draws_the_caller_box():
     scenes.render(canvas, pl.view(), 1.0)
     box = scenes.CALLER_BOX
     assert canvas.get_at((box.x + 2, box.bottom - 4))[:3] == (26, 34, 56)   # the box is up
+
+
+def test_jonah_and_the_studio_guest_sit_at_the_phone_in_desk_clear_of_the_caller_box(monkeypatch):
+    import pygame
+
+    from newsroom import backdrops, scenes
+    from newsroom.locations import MARKS
+    from newsroom.sprites import draw_character
+
+    w = _town()
+    pl, _ = _on_air(w)
+    drawn, people = [], []
+    monkeypatch.setattr(backdrops, "draw", lambda canvas, bid, *a, **k: drawn.append(bid))
+    monkeypatch.setattr(scenes, "draw_character", lambda c, x, y, who, *a, **k: people.append((who, x, y)))
+    pygame.font.init()
+    scenes.render(pygame.Surface(scenes.CANVAS), pl.view(), 1.0)
+    desk = MARKS["studio_phonein"]
+    assert drawn == ["studio_phonein"]
+    assert people == [("host_b", *desk["host"][:2]), ("guest", *desk["guest"][:2])]
+    head = pygame.Surface(scenes.CANVAS)                      # the guest's head, drawn on its own
+    draw_character(head, *desk["guest"][:2], "guest", 0.0, 1.0, scale=2, facing=-1)
+    rows = [y for y in range(scenes.CANVAS[1]) if any(head.get_at((x, y))[:3] != (0, 0, 0) for x in range(320))]
+    assert rows[0] > scenes.CALLER_BOX.inflate(4, 4).bottom   # the box sits above their head, not on it
+    alone = scenes.View(mode="studio", set="interview", show="phonein", people=[("host_b", None)])
+    assert scenes._interview_marks(alone)[0][2] == desk["host"]   # no studio guest: Jonah still sits at the desk
 
 
 def test_only_the_caller_goes_down_the_phone_line(monkeypatch, tmp_path):

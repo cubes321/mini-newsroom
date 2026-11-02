@@ -137,7 +137,7 @@ def for_prompt(world: World, seg_type: SegmentType | None = None) -> str:
                  and e["type"] != SegmentType.ad_break.value]
     calls = sum(e["type"] == SegmentType.call.value for e in aired)
     out = (f"TODAY'S QUESTION: \"{s['question']}\"" + (f" (thread [{s['thread_id']}])" if s["thread_id"] else "")
-           + (f"\nTHE STUDIO GUEST, in the armchair all hour: {s['guest']}" + (f", {guest.role}" if guest else "")
+           + (f"\nTHE STUDIO GUEST, at the desk with Jonah all hour: {s['guest']}" + (f", {guest.role}" if guest else "")
               + f": {s['guest_stance']}" if s["guest"] else "\nNo studio guest today: Jonah answers callers himself.")
            + f"\nThe number to ring: {NUMBER}.")
     if aired:

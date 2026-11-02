@@ -7,6 +7,7 @@ changed, and on Coastwide an owner may come on to answer back.
 """
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from .models import ReviewScript
@@ -16,6 +17,21 @@ SHOW = "outabout"
 REST_DAYS = 14                  # a place isn't reviewed again within this
 SHOWN = 8                       # the reviews a writer is shown
 ANSWER_BACK_DAYS = 7            # how recent a review an owner may answer back on Coastwide
+
+# Where a review is set, by what the place is (ReviewScript.kind): Meg reviews indoors. The darts pub
+# isn't one of them: its oche and scoreboard say darts night, not supper.
+INTERIORS: tuple[tuple[re.Pattern, str], ...] = (
+    (re.compile(r"caf[eé]|tea ?(room|shop)|coffee|bakery|patisserie|cake", re.I), "tea_room"),
+    (re.compile(r"\bpubs?\b|\binn\b|restaurant|bistro|brasserie|dining|tavern|carvery|supper", re.I), "dining_room"),
+    (re.compile(r"\bplays?\b|theat|drama|panto|concert|music|\bgig|choir|comedy|musical|recital|ceilidh|opera|"
+                r"\bshows?\b", re.I), "village_hall"),
+)
+
+
+def backdrop_for(kind: str, picked: str) -> str:
+    """The interior that fits the place: a café's tea room, a pub's dining room, a show's village hall.
+    Anything else (a takeaway, a gallery, a farm shop) keeps the writer's pick."""
+    return next((bid for pattern, bid in INTERIORS if pattern.search(kind or "")), picked)
 
 
 def record(world: World, script: ReviewScript) -> dict:

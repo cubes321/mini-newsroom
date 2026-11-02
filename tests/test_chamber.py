@@ -162,3 +162,56 @@ def test_the_hour_fills_and_keeps_finding_new_business(monkeypatch):
     items = [(s.type, s.brief) for s in slots if s.type not in (T.bumper, T.ad_break)]
     assert all(a != b for a, b in zip(items, items[1:]))
     assert max(Counter(items).values()) <= 3, Counter(items).most_common(2)
+
+
+def _on_air(seg, idx):
+    from newsroom.buffer import Buffer
+    from newsroom.player import Player
+    pl = Player(Buffer(), _town(), producer=None, audio=False)
+    pl.current, pl.line_idx = seg, idx
+    pl.seg_start = pl.line_start = schedule.now() - 0.5
+    return pl.view()
+
+
+def _drawn(monkeypatch, v):
+    import pygame
+    from newsroom import backdrops, scenes
+    drawn, people = [], []
+    monkeypatch.setattr(backdrops, "draw", lambda canvas, bid, *a, **k: drawn.append(bid))
+    monkeypatch.setattr(scenes, "draw_character", lambda c, x, y, who, *a, **k: people.append((who, x, y)))
+    pygame.font.init()
+    scenes.render(pygame.Surface(scenes.CANVAS), v, 0.5)
+    return drawn, people
+
+
+def test_dana_talks_from_the_press_seats_and_the_council_debates_in_the_chamber(monkeypatch):
+    from newsroom.locations import MARKS
+    from newsroom.models import Line
+    say = lambda who, name=None: Line(speaker=who, guest_name=name, text="...", duration_s=2.0, mouth_env=[0.5] * 40)
+    x, y = MARKS["chamber_press"]["host"][:2]
+    link = Segment(slot_id=3, type=T.links, show="chamber", target_s=45, lines=[say("anchor"), say("anchor")])
+    for idx in (0, 1):                                            # wide, then the close shot
+        drawn, people = _drawn(monkeypatch, _on_air(link, idx))
+        assert drawn == ["chamber_press"]
+        if idx == 0:
+            assert people == [("anchor", x, y)]                  # at the bench, not in the horseshoe
+    debate = Segment(slot_id=4, type=T.interview, show="chamber", target_s=330,
+                     lines=[say("guest", council.CHAIR), say("guest", NAMES[0])])
+    drawn, people = _drawn(monkeypatch, _on_air(debate, 0))
+    assert drawn == ["council_chamber"] and ("guest", *MARKS["council_chamber"]["host"][:2]) in people
+    from newsroom.player import View
+    for odd in ([], [("anchor", None), ("mag_a", None)]):               # nobody, or two presenters: the chamber
+        drawn, _ = _drawn(monkeypatch, View(mode="studio", show="chamber", set="interview", people=odd))
+        assert drawn == ["council_chamber"], odd
+
+
+def test_dana_hands_to_miles_from_the_press_seats_not_the_studio_wall(monkeypatch):
+    from newsroom.models import Line, VisualCue
+    say = lambda who, name=None: Line(speaker=who, guest_name=name, text="...", duration_s=2.0, mouth_env=[0.5] * 40)
+    vox = Segment(slot_id=5, type=T.vox_pop, show="chamber", target_s=60,
+                  cues=[VisualCue(at_s=0.0, kind="backdrop", payload={"backdrop": "council_chamber"})],
+                  lines=[say("anchor"), say("reporter"), say("guest", "Jean Hocking")])
+    v = _on_air(vox, 0)
+    assert v.mode == "studio" and v.shot != "wall" and v.people == [("anchor", None)]
+    assert _drawn(monkeypatch, v)[0] == ["chamber_press"]
+    assert _on_air(vox, 1).mode == "field"                       # then Miles in the gallery

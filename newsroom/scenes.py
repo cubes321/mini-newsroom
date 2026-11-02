@@ -286,11 +286,14 @@ def _guest(v: View, name: str | None):
 
 def _interview_set(v: View) -> str:
     """The Last Ferry has its own desk-and-couch set, the sport its corner of the studio; every
-    other show uses the armchairs."""
+    other show uses the armchairs. On The Chamber, Dana talks from the press seats and the
+    council debates in the chamber itself."""
     if v.set == "sports":
         return "studio_sports"
+    if v.show == "chamber" and len(v.people) == 1 and v.people[0][0] != "guest":
+        return "chamber_press"                                  # its one mark is Dana's: anyone else, the chamber
     return {"late": "studio_late", "panel": "studio_panel", "rockpool": "studio_kids",
-            "chamber": "council_chamber"}.get(v.show, "studio_interview")
+            "chamber": "council_chamber", "phonein": "studio_phonein"}.get(v.show, "studio_interview")
 
 
 def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:
@@ -301,8 +304,8 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
         return [(who, name, marks[seat.get(who, "guest")]) for who, name in v.people[:3]]
     if len(v.people) == 1:
         who, name = v.people[0]
-        if v.show == "late" or v.set == "sports":               # the monologue, the sports desk
-            return [(who, name, marks["host"])]
+        if v.show == "late" or v.set == "sports" or _interview_set(v) in ("chamber_press", "studio_phonein"):
+            return [(who, name, marks["host"])]     # the monologue, the sports desk, the press bench, Jonah's desk
         return [(who, name, (160, 156, 2, 1))]                  # alone: centre stage, standing
     if len(v.people) >= 2 and "panel_1" in marks:               # The Panel: the chair and up to three
         slots = [marks["host"], marks["panel_1"], marks["panel_2"], marks["panel_3"]]
@@ -351,7 +354,8 @@ def draw_interview(canvas: pygame.Surface, v: View, t: float) -> None:
         _caller_box(canvas, v)
 
 
-CALLER_BOX = pygame.Rect(214, 22, 98, 50)       # top right, under the clock, clear of the armchair guest's head
+CALLER_BOX = pygame.Rect(214, 18, 98, 44)       # top right, under the clock, clear of the studio guest's head
+CALLER_WAVE = 5                                 # the waveform's half-height, under where they're ringing from
 
 
 def _caller_box(canvas: pygame.Surface, v: View) -> None:
@@ -365,12 +369,12 @@ def _caller_box(canvas: pygame.Surface, v: View) -> None:
     name, where = v.caller
     text(canvas, name, box.x + 4, box.y + 14, 8, maxw=box.w - 8)
     text(canvas, where, box.x + 4, box.y + 24, 8, (170, 180, 200), maxw=box.w - 8)
-    mid, n = box.bottom - 10, len(v.wave)
+    mid, n = box.bottom - CALLER_WAVE - 2, len(v.wave)
     colour = (120, 220, 160) if any(x > 0.08 for x in v.wave) else (80, 100, 120)
     for k in range(WAVE_BARS):
         x = box.x + 4 + k * (box.w - 8) // WAVE_BARS
         val = v.wave[k - WAVE_BARS + n] if k >= WAVE_BARS - n else 0.0      # the newest on the right
-        h = max(1, int(val * 8))
+        h = max(1, int(val * CALLER_WAVE))
         pygame.draw.rect(canvas, colour, (x, mid - h, 2, 2 * h))
 
 

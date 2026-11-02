@@ -88,6 +88,12 @@ LOCATIONS: tuple[Location, ...] = (
              "town", (140, 180, 225), (85, 140, 70)),
     Location("pub", "a darts pub", "inside a pub on darts night: the dartboard and the oche, the chalk scoreboard, the bar",
              "town", (110, 70, 45), (80, 55, 40), interior=True),
+    # Out and About reviews indoors where the place is (outabout.INTERIORS): a café, a pub's dining room
+    # (not the darts pub, whose oche and scoreboard say darts night), a play or a concert
+    Location("tea_room", "a tea room", "inside a seaside tea room: the cake counter, little tables with cloths, the "
+             "sea through the bay window", "town", (200, 220, 215), (150, 110, 80), interior=True),
+    Location("dining_room", "a pub dining room", "inside a country pub's dining room: beams, an inglenook fire, tables "
+             "laid for supper", "town", (120, 90, 60), (110, 100, 90), interior=True),
     # ---- country
     Location("coast_road", "the coast road", "the coast road along the cliffs: a stone wall, the sea far below",
              "country", (130, 180, 230), (110, 140, 80), water=True),
@@ -97,6 +103,8 @@ LOCATIONS: tuple[Location, ...] = (
              "country", (155, 185, 215), (120, 115, 85), water=True),
     Location("village", "Saltby village", "Saltby, the neighbouring village: a green, the church spire, a pub",
              "country", (140, 185, 230), (95, 140, 75)),
+    Location("village_hall", "the village hall", "inside Saltby village hall: the stage with its curtains open, rows "
+             "of chairs, bunting", "country", (150, 120, 90), (150, 105, 65), interior=True),
     # ---- studio (scenes only)
     Location("studio_wide", "the studio", "the main news desk, wide shot", "studio", (28, 34, 60), (80, 60, 50)),
     Location("weather_wall", "the weather wall", "the weather presenter's wall", "studio", (36, 42, 70), (40, 40, 50)),
@@ -112,6 +120,10 @@ LOCATIONS: tuple[Location, ...] = (
              "studio", (30, 32, 52), (58, 48, 46)),
     Location("studio_kids", "the Rock Pool set", "Rock Pool's set: a sea-green wall, a painted rock pool, a craft table",
              "studio", (86, 186, 186), (238, 210, 150)),
+    Location("studio_phonein", "the phone-in desk", "Have Your Say's desk: the call board, the telephone, a headset",
+             "studio", (30, 36, 60), (58, 50, 50)),
+    Location("chamber_press", "the press seats", "the press bench at the side of the council chamber, the horseshoe "
+             "and the mayor's chair behind", "studio", (120, 85, 60), (90, 60, 45)),
 )
 
 # Where people go on the studio sets: (x, baseline y, sprite scale, facing).
@@ -133,6 +145,11 @@ MARKS: dict[str, dict[str, Mark]] = {
     # The Chamber: the mayor at the chair at the back (further off, so smaller), the speakers at the horseshoe
     "council_chamber": {"host": (160, 104, 1, 1), "guest": (60, 140, 2, 1),
                         "panel_1": (60, 140, 2, 1), "panel_2": (276, 140, 2, -1), "panel_3": (204, 154, 2, -1)},
+    # Have Your Say: Jonah and the studio guest behind the phone-in desk, low enough that their heads stay
+    # clear of the caller's box (scenes.CALLER_BOX); the call board on the wall between them
+    "studio_phonein": {"host": (92, 144, 2, 1), "guest": (228, 144, 2, -1)},
+    # The Chamber's press seats: Dana at the press bench, the chamber behind her (she sits behind the bench)
+    "chamber_press": {"host": (84, 138, 2, 1)},
     # Rock Pool: Poppy, Gully on her arm turned to her, and a visitor standing across the craft table
     "studio_kids": {"host": (78, 150, 2, 1), "gully": (134, 158, 2, -1), "guest": (250, 152, 2, -1)},
 }

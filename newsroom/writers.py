@@ -385,7 +385,7 @@ to the phones; at the close, what callers said and thanks. Several short lines. 
 headline = the point in under 12 words. lower_third = "Have Your Say" plus a short tag.
 """,
     SegmentType.interview: _COMMON_RULES + _PHONEIN_RULES + """
-This is Jonah ("host_b") with THE STUDIO GUEST in the armchair, as THIS ITEM says. The guest is
+This is Jonah ("host_b") with THE STUDIO GUEST at the phone-in desk, as THIS ITEM says. The guest is
 speaker "guest", with guest_name their exact name and guest_role their role. Jonah puts today's
 question, or the callers' points from SAID SO FAR; the guest answers from where they stand, with real
 reasons, and may concede a point a caller made. Short questions; the guest talks more than Jonah.
@@ -1383,7 +1383,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     debate = seg.type is SegmentType.interview and show.id in (panel.SHOW, chamber.SHOW)
     if debate and show.id == chamber.SHOW and (n := chamber.motion_in(seg.brief)) is not None:
         seg.work["motion"] = n                # its vote goes to the story when it is filed (_apply_to_world)
-    # The phone-in's studio guest is booked for the morning (phonein.py) and stays in the armchair all hour.
+    # The phone-in's studio guest is booked for the morning (phonein.py) and stays at the desk all hour.
     studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
     booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW)
     chatter = show.id == "rockpool"           # Poppy and Gully (and a visitor): many short lines
@@ -1438,6 +1438,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
     # picked; breaking news still sends Miles to the scene instead.
     if seg.type is SegmentType.field_report and show.id == "quayside" and not seg.work.get("scene"):
         script.backdrop = quay.BACKDROP
+    # A review is indoors where the place is (a café, a pub's dining room, a play's village hall),
+    # whatever exterior the model (or the template) chose near it.
+    if isinstance(script, ReviewScript):
+        script.backdrop = outabout.backdrop_for(script.kind, script.backdrop)
     stayed = couch["name"] if couch and source == "llm" else None
 
     call = isinstance(script, CallScript)
@@ -1460,7 +1464,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         seg.work["couch"] = stayed            # the player seats them further down the couch
     seg.work.pop("studio_guest", None)
     if studio:
-        seg.work["studio_guest"] = studio     # in the armchair all hour (player.py), even when a caller speaks
+        seg.work["studio_guest"] = studio     # at the desk all hour (player.py), even when a caller speaks
     if call:
         seg.work["caller"], seg.work["caller_from"] = script.caller_name, script.caller_from   # on the phone
     seg.headline = script.headline

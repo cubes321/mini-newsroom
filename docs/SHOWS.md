@@ -56,13 +56,13 @@ answers. Between calls come the travel news and the bulletin headlines.
   earlier day may ring again. If nothing is booked by 10:00, the day's most-covered story and an official
   stand in. A call (`CallScript`) casts its caller like a vox pop's passer-by and names the studio
   guest on their own lines; the caller is voiced through a telephone band (`tts.telephone`) and shown as a
-  box with their name, where they're ringing from and their voice's waveform, while the guest stays in the
-  armchair all hour. A call files under the question's thread without moving it, and never opens one.
+  box with their name, where they're ringing from and their voice's waveform, while the guest stays at the
+  phone-in desk all hour. A call files under the question's thread without moving it, and never opens one.
   Running order: Jonah's open, the guest on the question, two calls, then a quarter-hour loop of Dana's
   headlines from the news desk, calls, Jonah's travel (with the tides), a break, back to the guest with
   the callers' points, more calls; Jonah's close. Calls of about a minute, with the guest answering in
-  most. A viewer tip can become a caller. The bumper uses the news arrangement, and the set is the interview armchairs, until each has
-  its own.
+  most. A viewer tip can become a caller. The bumper uses the news arrangement until it has its own. The set is the phone-in desk
+  (`studio_phonein`): Jonah and the guest behind it, the call board on the wall between them.
 
 ### Quayside (13:00, half an hour): business. BUILT 2026-10-30
 
@@ -95,7 +95,9 @@ backdrops.
   are field reports (the open, her walk for the weekend with the tides, what's on, the close); features
   have a local showing her round; a review (`ReviewScript`) visits a place to eat or a show and gives it
   stars out of five, with the owner, cook or a player speaking for it, and the stars go up on a card as
-  she gives them; one a lap, four or five an afternoon. The town keeps every review (`World.reviews`): a place rests a fortnight before it is
+  she gives them. A review is indoors where the place is, by its kind (`outabout.INTERIORS`): a café in
+  the tea room (`tea_room`), a pub or a restaurant in a pub dining room (`dining_room`, not the darts pub), a
+  play or a concert in the village hall (`village_hall`); anything else at the writer's pick. One a lap, four or five an afternoon. The town keeps every review (`World.reviews`): a place rests a fortnight before it is
   reviewed again, an older one may be revisited, and on Coastwide an owner reviewed in the last week may
   answer back. The show is light but not the news: no big running story, no threads, and breaking news
   never sends Meg. Her voice is provisional (af_river, British); the bumper uses the news arrangement.
@@ -186,7 +188,8 @@ reach an end instead of waiting at the council door.
   back, three councillors at the horseshoe. Running order: Dana's open, the four motions with Miles in the
   public gallery and Dana's recap between them, then a loop of public question time, councillors'
   questions, reports to note, petitions, Miles in the gallery and Dana's notes, and Dana's close. Dana's
-  links use the news desk for now, not the press seats. A failed booking gets a stand-in agenda (reports
+  links, and her handover to Miles, come from the press seats (`chamber_press`), a press bench at the
+  side of the chamber. A failed booking gets a stand-in agenda (reports
   noted). For a test run on any night: `NEWSROOM_COUNCIL_NIGHT=1`.
 
 ## New pieces, shared

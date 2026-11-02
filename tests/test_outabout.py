@@ -156,3 +156,37 @@ def test_the_verdict_card_shows_the_stars():
     box = scenes.VERDICT_CARD
     star = lambda k: canvas.get_at((box.x + 24 + k * 22, box.y + 24))[:3]      # each star's centre
     assert [star(k) for k in range(5)] == [scenes.STAR_GOLD] * 4 + [scenes.STAR_EMPTY]
+
+
+def test_a_review_is_indoors_where_the_place_is():
+    assert outabout.backdrop_for("cafe", "village") == "tea_room"
+    assert outabout.backdrop_for("Tea Room", "seafront") == "tea_room"
+    assert outabout.backdrop_for("bakery", "main_street") == "tea_room"
+    assert outabout.backdrop_for("pub", "village") == "dining_room"          # supper, not the darts pub
+    assert outabout.backdrop_for("restaurant", "harbour") == "dining_room"
+    assert outabout.backdrop_for("play", "village") == "village_hall"
+    assert outabout.backdrop_for("music night", "village") == "village_hall"
+    assert outabout.backdrop_for("takeaway", "seafront") == "seafront"       # anything else: the writer's pick
+    assert outabout.backdrop_for("gallery", "main_street") == "main_street"
+    assert outabout.backdrop_for("public garden", "park") == "park"            # a word inside a word isn't one
+    assert outabout.backdrop_for("playground", "park") == "park"
+    assert outabout.backdrop_for("car showroom", "main_street") == "main_street"
+    from newsroom import backdrops, locations
+    for _, bid in outabout.INTERIORS:
+        assert bid in locations.BACKDROP_IDS and locations.BY_ID[bid].interior and backdrops.has_art(bid)
+
+
+def test_the_review_goes_indoors_whatever_the_model_or_the_template_picked(monkeypatch):
+    w = _town()
+    for kind, picked, want in (("cafe", "village", "tea_room"), ("pub", "harbour", "dining_room"),
+                               ("takeaway", "seafront", "seafront")):
+        monkeypatch.setattr(writers.llm, "complete_json",
+                            lambda *a, k=kind, b=picked, **kw: _review(w, kind=k, backdrop=b, place=f"The {k}"))
+        seg = Segment(slot_id=4, type=T.review, show="outabout", target_s=120)
+        writers.script_segment(seg, w)
+        assert [c.payload["backdrop"] for c in seg.cues if c.kind == "backdrop"] == [want], kind
+    monkeypatch.setattr(writers.llm, "complete_json",
+                        lambda *a, **k: (_ for _ in ()).throw(writers.llm.LLMError("down")))
+    seg = Segment(slot_id=5, type=T.review, show="outabout", target_s=120)
+    writers.script_segment(seg, w)                                         # the canned tea room on the seafront
+    assert [c.payload["backdrop"] for c in seg.cues if c.kind == "backdrop"] == ["tea_room"]

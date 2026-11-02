@@ -391,6 +391,39 @@ def _council_chamber(p: _Paint) -> None:
         p.rect((130, 95, 65), x, y, w, 2)
 
 
+def _press_bench(p: _Paint) -> None:
+    """The press bench along the front of the press seats: Dana sits behind it at her mark, a desk
+    microphone and her notes beside her, an empty place further along."""
+    x, base = MARKS["chamber_press"]["host"][:2]
+    top = base - 3                                               # the bench top's back edge
+    wood, edge = (96, 62, 40), (150, 108, 70)
+    leather = (40, 100, 62)                                      # an empty press chair further along
+    p.rect((70, 44, 28), x + 70, top - 26, 30, 26)               # its oak frame
+    p.ellipse((70, 44, 28), x + 70, top - 34, 30, 16)
+    p.rect(leather, x + 73, top - 24, 24, 24)
+    p.ellipse(leather, x + 73, top - 31, 24, 12)
+    for sx in range(x + 75, x + 97, 5):                          # brass studs round the back
+        p.rect((200, 170, 90), sx, top - 27 + abs(sx - x - 85) // 4, 1, 1)
+    p.rect(wood, 0, top, x + 120, H - top)                       # the bench front, panelled
+    p.rect(edge, 0, top, x + 120, 4)
+    for px in range(6, x + 112, 34):
+        p.rect(_shade(wood, 0.82), px, top + 10, 26, H - top - 14)
+    p.rect((228, 226, 210), x + 76, top + 1, 18, 3)              # the empty place's notepad
+    p.rect((228, 226, 210), x - 30, top + 1, 20, 3)              # Dana's notes
+    p.rect((40, 40, 44), x + 34, top - 1, 12, 3)                 # the desk microphone
+    p.rect((60, 60, 66), x + 39, top - 16, 2, 15)
+    p.rect((30, 30, 34), x + 37, top - 21, 6, 6)
+    p.rect((200, 40, 40), x + 44, top - 2, 2, 1)
+    p.rect((170, 200, 225), x + 54, top - 7, 4, 7)               # a glass of water
+
+
+@_painter("chamber_press")
+def _chamber_press(p: _Paint) -> None:
+    """The council chamber seen from the press seats, until it has art of its own."""
+    _council_chamber(p)
+    _press_bench(p)
+
+
 @_painter("market")
 def _market(p: _Paint) -> None:
     for i, c in enumerate(((180, 160, 140), (160, 150, 170), (190, 180, 150), (150, 140, 120), (175, 165, 160),
@@ -755,6 +788,131 @@ def _pub(p: _Paint) -> None:
         p.rect((230, 190, 110), x - 4, y, 9, 4)                  # warm shades, always on indoors
 
 
+@_painter("tea_room")
+def _tea_room(p: _Paint) -> None:
+    """A seaside tea room: duck-egg walls, the sea through a bay window, the cake counter on the right."""
+    wall, rail = (200, 222, 214), (240, 236, 222)
+    p.rect(wall, 0, 0, W, 112)
+    p.rect((232, 226, 206), 0, 70, W, 42)                        # cream tongue-and-groove below the rail
+    for x in range(0, W, 6):
+        p.rect((214, 206, 186), x, 70, 1, 42)
+    p.rect(rail, 0, 68, W, 3)
+    p.rect((130, 90, 60), 0, 112, W, H - 112)                    # boards
+    for y in range(116, H, 7):
+        p.rect((116, 80, 54), 0, y, W, 1)
+    p.rect((240, 238, 230), 92, 14, 84, 62)                      # the bay window, the sea beyond
+    p.rect((150, 200, 235), 96, 18, 76, 30)
+    p.rect((60, 120, 170), 96, 48, 76, 24)
+    for x in (120, 146):
+        p.rect((240, 238, 230), x, 18, 3, 54)
+    p.rect((240, 238, 230), 96, 46, 76, 2)
+    for x in range(98, 172, 12):                                 # bunting along the window top
+        p.poly(((230, 90, 90), (90, 160, 210), (240, 200, 80))[(x // 12) % 3], [(x, 14), (x + 8, 14), (x + 4, 21)])
+    p.rect((150, 100, 70), 200, 84, 120, 42)                     # the cake counter, a glass case on it
+    p.rect((180, 130, 90), 200, 82, 120, 3)
+    p.rect((210, 230, 236), 206, 62, 108, 20)
+    for i, x in enumerate(range(212, 306, 24)):                  # cakes in the case
+        p.rect(((240, 200, 210), (150, 90, 60), (250, 230, 170), (200, 80, 90))[i % 4], x, 70, 14, 10)
+        p.rect((250, 250, 245), x - 1, 80, 16, 2)
+    p.rect((150, 110, 80), 210, 30, 104, 3)                      # a shelf of teapots
+    for i, x in enumerate(range(214, 306, 18)):
+        p.ellipse(((230, 120, 120), (120, 170, 210), (250, 250, 245), (110, 170, 120))[i % 4], x, 18, 12, 12)
+    p.rect((240, 240, 236), 130, 96, 44, 4)                      # a little table, gingham cloth, a cake stand
+    for x in range(130, 174, 4):
+        p.rect((220, 120, 130), x, 96, 2, 4)
+    p.rect((240, 240, 236), 134, 100, 36, 14)
+    p.rect((200, 200, 205), 151, 80, 2, 16)
+    for y, w in ((84, 16), (92, 22)):
+        p.rect((250, 250, 245), 152 - w // 2, y, w, 2)
+        p.rect((240, 190, 200), 152 - w // 2 + 2, y - 3, w - 4, 3)
+    for x in (24, 60):                                           # pendant lamps
+        p.rect((60, 60, 60), x, 0, 1, 10)
+        p.poly((240, 230, 200), [(x - 5, 16), (x + 6, 16), (x + 3, 10), (x - 2, 10)])
+
+
+@_painter("dining_room")
+def _dining_room(p: _Paint) -> None:
+    """A country pub's dining room: whitewashed walls under black beams, an inglenook fire between Meg and her
+    guest, tables laid for supper, a blank chalk menu board. Nothing of the darts pub."""
+    lime, beam = (226, 218, 196), (50, 36, 28)
+    p.rect(lime, 0, 0, W, 116)
+    for x in (0, 96, 196, 296):
+        p.rect(beam, x, 0, 10, 116)
+    p.rect(beam, 0, 0, W, 10)
+    p.rect(beam, 0, 46, W, 6)
+    p.rect((120, 104, 92), 0, 116, W, H - 116)                   # flagstones
+    for y in range(122, H, 12):
+        p.rect((96, 84, 74), 0, y, W, 1)
+        for x in range((y // 12) % 2 * 18, W, 36):
+            p.rect((96, 84, 74), x, y, 1, 12)
+    p.rect((150, 140, 128), 124, 52, 64, 64)                     # the inglenook, stone, a fire in it
+    p.rect((40, 30, 26), 136, 70, 40, 46)
+    p.rect(beam, 118, 52, 76, 8)                                 # the bressummer beam
+    for k, c in enumerate(((250, 200, 80), (240, 130, 40), (200, 60, 30))):
+        p.poly(c, [(144 + k * 3, 112), (156, 84 + k * 8), (168 - k * 3, 112)])
+    p.rect((70, 50, 36), 140, 110, 32, 4)                        # logs
+    for x in range(126, 186, 10):                                # horse brasses on the beam
+        p.circle((210, 170, 70), x + 4, 56, 3)
+    p.rect((40, 42, 40), 22, 16, 44, 30)                         # a chalk menu board, blank
+    p.rect((120, 90, 60), 20, 14, 48, 2)
+    p.rect((120, 90, 60), 20, 46, 48, 2)
+    p.rect((150, 170, 160), 222, 18, 44, 26)                     # a small leaded window
+    for x in range(226, 266, 8):
+        p.rect((80, 80, 80), x, 18, 1, 26)
+    p.rect((80, 80, 80), 222, 30, 44, 1)
+    for x0, w in ((228, 92), (0, 40)):                           # tables laid for supper
+        p.rect((245, 245, 240), x0, 100, w, 6)
+        p.rect((230, 230, 225), x0, 106, w, 10)
+        p.rect((100, 70, 50), x0 + 6, 116, 3, 10)
+        p.rect((100, 70, 50), x0 + w - 9, 116, 3, 10)
+    for x in (240, 270, 300):
+        p.rect((200, 220, 230), x, 92, 3, 8)                     # glasses
+        p.rect((250, 250, 245), x + 6, 97, 6, 3)                 # napkins
+    p.rect((60, 90, 60), 284, 86, 4, 14)                         # a candle in a bottle
+    p.rect((250, 240, 200), 285, 82, 2, 4)
+
+
+@_painter("village_hall")
+def _village_hall(p: _Paint) -> None:
+    """Saltby village hall: the stage at the back with its red curtains open on a painted garden, footlights,
+    bunting across the hall, rows of chairs on the right. Meg stands at the front on the left."""
+    wood = (170, 120, 70)
+    p.rect((214, 200, 170), 0, 0, W, 116)                        # painted walls, a wooden dado
+    p.rect(wood, 0, 84, W, 32)
+    for x in range(4, W, 22):
+        p.rect(_shade(wood, 0.85), x, 88, 18, 24)
+    for x in (20, 284):                                          # high windows
+        p.rect((180, 210, 230), x, 10, 22, 36)
+        p.rect((240, 240, 236), x + 10, 10, 2, 36)
+    p.rect((190, 140, 80), 0, 116, W, H - 116)                   # parquet
+    for y in range(120, H, 6):
+        p.rect((170, 122, 68), 0, y, W, 1)
+    p.rect((90, 60, 40), 64, 6, 192, 8)                          # the proscenium
+    p.rect((120, 170, 110), 84, 14, 152, 70)                     # the painted garden backdrop
+    p.rect((150, 200, 230), 84, 14, 152, 34)
+    for x in range(92, 232, 26):
+        p.circle((70, 130, 70), x, 50, 12)
+    p.rect((160, 30, 40), 64, 14, 24, 84)                        # curtains, drawn open
+    p.rect((160, 30, 40), 232, 14, 24, 84)
+    for x in (68, 76, 236, 244):
+        p.rect((120, 20, 30), x, 14, 2, 84)
+    p.rect((140, 30, 40), 64, 14, 192, 10)                       # pelmet
+    p.rect((150, 100, 60), 64, 84, 192, 6)                       # the stage floor and its front
+    p.rect((120, 80, 50), 64, 90, 192, 24)
+    for x in range(72, 256, 16):
+        p.rect((250, 230, 150), x, 88, 4, 2)                     # footlights
+    p.line((60, 60, 60), (0, 20), (W, 26))                       # bunting across the hall
+    for x in range(4, W, 12):
+        y = 20 + x * 6 // W
+        p.poly(((230, 70, 70), (70, 120, 200), (250, 210, 70), (250, 250, 245))[(x // 12) % 4],
+               [(x, y), (x + 8, y), (x + 4, y + 7)])
+    for row, y in enumerate((128, 146)):                         # rows of chairs on the right, from behind
+        for x in range(176 + row * 6, W, 22):
+            p.rect((60, 90, 140), x, y, 16, 14)
+            p.rect((50, 50, 56), x + 1, y + 14, 2, 10)
+            p.rect((50, 50, 56), x + 13, y + 14, 2, 10)
+
+
 @_painter("coast_road")
 def _coast_road(p: _Paint) -> None:
     _water(p, 150, 72, W - 150, H - 72)
@@ -904,6 +1062,50 @@ def _studio_panel(p: _Paint) -> None:
     for x, _, _, _ in (marks[k] for k in ("host", "panel_1", "panel_2", "panel_3")):
         p.rect((210, 210, 214), x - 9, top + 8, 18, 6)           # a name card at each place
         p.rect((170, 200, 225), x + 12, top - 6, 3, 6)           # a glass of water
+
+
+@_painter("studio_phonein")
+def _studio_phonein(p: _Paint) -> None:
+    """Have Your Say: a desk Jonah and the studio guest sit behind, the call board on the wall between
+    their heads, a headset on its stand between them and the telephone at the desk's far end, past the
+    lower third. The wall under the caller's box is left plain. Painted until it has art of its own."""
+    host, guest = (MARKS["studio_phonein"][k] for k in ("host", "guest"))
+    top = host[1] - 3                                            # the desk top's back edge
+    p.rect(p.loc.sky, 0, 0, W, H)
+    for x in range(4, W, 20):                                    # padded acoustic panels
+        for y in range(10, top - 20, 20):
+            p.rect(_shade(p.loc.sky, 1.18), x, y, 16, 16)
+    for x in range(20, W, 50):                                   # ceiling spots
+        p.rect((96, 96, 106), x, 0, 6, 4)
+    p.rect((16, 16, 22), 114, 14, 92, 60)                        # the call board: a lamp and a blank strip per line
+    p.rect((30, 34, 48), 118, 18, 84, 52)
+    for i, lamp in enumerate(((80, 220, 120), (250, 190, 60), (230, 60, 60), (80, 220, 120), (60, 64, 72), (250, 190, 60))):
+        y = 22 + i * 8
+        p.circle(lamp, 125, y + 3, 2)
+        p.rect((190, 196, 204) if lamp != (60, 64, 72) else (80, 86, 96), 131, y + 1, 50, 4)
+        p.rect((20, 22, 30), 185, y + 1, 13, 4)
+    p.circle((200, 40, 40), 46, 46, 12)                          # the channel 7 ident, top left
+    p.rect((240, 240, 240), 40, 39, 12, 3)
+    p.poly((240, 240, 240), [(49, 42), (52, 42), (46, 54), (43, 54)])
+    p.rect(p.loc.ground, 0, top, W, H - top)
+    desk, edge = (70, 58, 76), (160, 140, 100)
+    p.rect(desk, 14, top, W - 28, H - top)                       # the desk
+    p.rect(edge, 14, top, W - 28, 3)
+    p.rect((230, 120, 40), 14, top + 12, W - 28, 2)              # a stripe in the show's colour
+    x = (host[0] + guest[0]) // 2                                # the headset on its stand, between them
+    p.rect((40, 40, 46), x - 5, top - 2, 10, 2)
+    p.rect((60, 60, 66), x - 1, top - 24, 2, 22)
+    pygame.draw.arc(p.s, (30, 30, 34), (x - 9, top - 34, 18, 16), 0, math.pi, 2)
+    p.rect((30, 30, 34), x - 10, top - 28, 5, 8)
+    p.rect((30, 30, 34), x + 5, top - 28, 5, 8)
+    p.rect((30, 30, 34), x + 6, top - 21, 1, 6)                  # the mouthpiece arm
+    px = 274                                                     # the telephone and its line buttons, far right
+    p.rect((200, 40, 40), px, top - 12, 30, 12)
+    p.rect((150, 30, 30), px + 2, top - 18, 26, 6)               # the handset on its cradle
+    p.rect((230, 230, 225), px + 8, top - 8, 14, 5)              # its keypad, blank
+    p.rect((50, 52, 60), px - 22, top - 6, 16, 6)                # the line console
+    for k in range(3):
+        p.rect(((80, 220, 120), (250, 190, 60), (60, 64, 72))[k], px - 20 + k * 5, top - 4, 3, 2)
 
 
 @_painter("studio_kids")

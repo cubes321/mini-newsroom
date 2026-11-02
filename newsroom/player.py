@@ -421,7 +421,7 @@ class Player:
         - Bulletins cut between the wide desk shot and a close-up, line by line.
         """
         handing_over = all(l.speaker not in (*FIELD_REPORTERS, "guest") for l in seg.lines[:self.line_idx + 1])
-        if seg.type in OUTSIDE and handing_over and v.backdrop:
+        if seg.type in OUTSIDE and handing_over and v.backdrop and seg.show != "chamber":   # Dana stays in the room
             v.shot, v.wall_label = "wall", OUTSIDE[seg.type]
             v.presenter = v.speaker or v.presenter
         elif seg.type is SegmentType.documentary and self.line_idx == 0:
@@ -438,7 +438,7 @@ class Player:
     def _people(self, seg: Segment) -> list:
         """Who sits on the interview set: the presenters who speak, then the guest (on the late
         couch, the new guest and then the one who stayed on and moved down). On the phone-in, the
-        studio guest sits in the armchair all hour, and a caller is on the phone, not on the set."""
+        studio guest sits at the desk all hour, and a caller is on the phone, not on the set."""
         if self._cast_of[0] != seg.id:
             hosts: list = []
             guests: list = [g for g in (seg.work.get("studio_guest"),) if g]
@@ -539,7 +539,8 @@ class Player:
             }.get(seg.type, "studio")
             if seg.type in (SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
                 v.mode = "field" if line and line.speaker in (*FIELD_REPORTERS, "guest") else "studio"
-        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport", "inquiry", "quayside", "panel")):
+        if seg.type in INTERVIEW_SET or (v.mode == "studio" and seg.show in ("magazine", "late", "sport", "inquiry", "quayside", "panel",
+                                                                             "chamber")):
             sports = seg.type is SegmentType.sport or seg.show == "sport"
             v.set, v.people = "sports" if sports else "interview", self._people(seg)
             if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident

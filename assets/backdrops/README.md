@@ -29,9 +29,17 @@ Lookup order is the time-of-day file, then `<id>.png`, then the placeholder.
 - **No people, no text.** Captions are drawn live, and signs would need to change
   with the story.
 - **Studio backdrops** (`studio_wide`, `weather_wall`, `studio_interview`, `studio_sofa`,
-  `studio_late`, `studio_sports`, `studio_panel`, `studio_kids`) are never tinted. The weather scene draws its map at (40, 20, 180, 120) and its side
+  `studio_late`, `studio_sports`, `studio_panel`, `studio_kids`, `studio_phonein`, `chamber_press`) are never tinted. The weather scene draws its map at (40, 20, 180, 120) and its side
   panel at (234, 20, 76, 124); the same screen shows a location for the big-picture
   wall shot.
+
+## Interiors
+
+`council_chamber`, `market_shed`, `pub` (the darts pub), and the three where Out and About reviews
+(`tea_room`, `dining_room`, `village_hall`, picked by the place's kind in `outabout.INTERIORS`) have no
+sky and are never graded for time of day or weather. They follow the location rules above: Meg stands at
+the reporter's place on the left, an owner or a player at about (215, 156), and the review's verdict card
+covers (176, 24, 136, 62) on her last line, so the place's best piece sits between them.
 
 ## Studio sets: who goes where
 
@@ -48,12 +56,14 @@ reaches about 74 px above their baseline.
 | `studio_sports` | host (92, 144), guest (228, 150) | the sports corner of the main studio: a small desk the presenter stands behind (its top's back edge just above the host's baseline); a swivel chair behind the guest; the stadium on a big screen and a results board with blank rows above and between their heads; the trophy cabinet on the left, scarves on the right |
 | `studio_panel` | host (58, 135), panel_1 and guest (152, 135), panel_2 (212, 135), panel_3 (272, 135) | The Panel: one long desk across the front whose top's back edge is at y 132, 3 px above all four baselines (the chair at the left end, three panellists); a name card on its front at each place; the red channel 7 ident above the chair; a wide screen with the town's skyline behind the panellists |
 | `studio_kids` | host (78, 150), gully (134, 158), guest (250, 152) | Rock Pool: a sea-green wall with painted waves and bunting; a painted rock pool with a crab and a starfish, up to the right; a sandy floor from y 140; a craft table with paint pots and an egg box between Gully and the visitor. Nobody sits: Poppy and the visitor stand, Gully comes up from below frame |
+| `studio_phonein` | host (92, 144), guest (228, 144) | Have Your Say: one long desk across the frame whose top's back edge is at y 141, 3 px above both baselines; the call board (six lines, a lamp and a blank strip each) on the wall between their heads; a headset on its stand on the desk between them; the red telephone and the line console at the desk's right end, past the lower third; the wall at the top right left plain for the caller's box (`scenes.CALLER_BOX`), which sits above the guest's head |
 | `studio_wide` | anchor (110, 134) | the desk top at about y 130, across the frame |
 | `weather_wall` | presenter (270, 152) | the two screens at the rectangles above |
 | `council_chamber` | host (160, 104, scale 1), guest and panel_1 (60, 140), panel_2 (276, 140), panel_3 (204, 154) | the other way round: the art came first and the marks were placed on it (approved 2026-11-01). The chair sits small in the high seat under the crest; the councillors stand in front of the horseshoe desks |
+| `chamber_press` | host (84, 138) | The Chamber's press seats, from the approved `council_chamber` art: a panelled press bench across the left of the frame whose top's back edge is at y 135, 3 px above Dana's baseline; a desk microphone, a glass of water and notepads on it; an empty press chair further along; the dais, the mayor's chair and the horseshoe behind as in the chamber |
 
 The placeholder painters in `backdrops.py` draw the furniture on these marks;
-`--bake studio_interview studio_sofa studio_late studio_sports studio_panel studio_kids` gives you templates with them in place.
+`--bake studio_interview studio_sofa studio_late studio_sports studio_panel studio_kids studio_phonein chamber_press` gives you templates with them in place.
 
 ## Tools
 
