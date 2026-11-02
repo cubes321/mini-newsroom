@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -144,11 +145,44 @@ def _pocket_voice(clip: Path):
     return model, _POCKET[key]
 
 
+# Pocket voices a line in chunks of up to 50 tokens, and a longer chunk "may skip words" (six warnings
+# on 2026-11-01). It splits a long sentence only at a comma, semicolon or colon, so a dash, or a long
+# run with no comma ("Dev ... stopped by with a bag of rolls and wanted everyone to know ..."), stayed whole.
+POCKET_TOKENS = 46                   # under the 50: joining pieces into a chunk can add a token or three
+_DASH = re.compile(r"\s+[—–]\s+|\s*—\s*")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_CLAUSE_END = re.compile(r"(?<=[,;:])\s+")
+_JOINS = {"and", "but", "so", "with", "which", "who", "where", "when", "while", "before", "after", "because",
+          "until", "since", "though", "then"}
+
+
+def pocket_text(text: str, count) -> str:
+    """`text` with a breath where Pocket can split it: a dash becomes a comma, and a clause still past
+    POCKET_TOKENS (by `count`, Pocket's tokenizer) gets a comma before its joining word nearest the middle."""
+    return " ".join(_breathe(s, count) for s in _SENTENCE_END.split(_DASH.sub(", ", text.strip())))
+
+
+def _breathe(sentence: str, count) -> str:
+    out = []
+    for clause in _CLAUSE_END.split(sentence):
+        words = clause.split()
+        at = [i for i, w in enumerate(words) if 3 <= i <= len(words) - 3 and w.lower() in _JOINS
+              and not words[i - 1].endswith((",", ";", ":"))]
+        if count(clause) <= POCKET_TOKENS or not at:
+            out.append(clause)
+            continue
+        i = min(at, key=lambda i: abs(i - len(words) / 2))
+        out += [_breathe(" ".join(words[:i]) + ",", count), _breathe(" ".join(words[i:]), count)]
+    return " ".join(out)
+
+
 def _pocket_speak(text: str, clip: Path) -> np.ndarray:
     """One line in the voice cloned from `clip`, at the station's rate. Caller holds _SYNTH_LOCK."""
     import torch
 
     model, state = _pocket_voice(clip)
+    tokenizer = model.flow_lm.conditioner.tokenizer
+    text = pocket_text(text, lambda s: len(tokenizer(s)[0]))
     torch.set_num_threads(1)
     try:
         audio = model.generate_audio(state, text).numpy().astype(np.float32)

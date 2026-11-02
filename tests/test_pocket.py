@@ -127,3 +127,15 @@ def test_if_pocket_wont_load_it_is_tried_once_and_kokoro_speaks(monkeypatch, tmp
     monkeypatch.setattr(tts, "_POCKET", {"model": None})                 # the load failed earlier
     tts.synthesize("Fifty-one years.", "bm_lewis", tmp_path / "a.wav", lang="b")
     assert used == [("kokoro", "bm_lewis")]
+
+
+def test_a_long_line_gets_a_breath_where_pocket_can_split_it():
+    words = lambda s: len(s.split()) * 3                      # about three tokens a word, as Pocket counts
+    dash = "The repair is costed at one point four million pounds — and the tender goes out to four firms."
+    assert tts.pocket_text(dash, words) == dash.replace(" —", ",")
+    long = ("Dev Ramachandran from the Harrow Street market stopped by with a bag of rolls and wanted everyone "
+            "to know the fourth jar of honey is still on the table.")
+    assert tts.pocket_text(long, words) == long.replace("rolls and", "rolls, and")
+    assert all(words(c) <= tts.POCKET_TOKENS for c in tts.pocket_text(long, words).split(", "))
+    short = "Thanks, Miles. The ferry stops between 17:33 and 19:13 – so check first."
+    assert tts.pocket_text(short, words) == short.replace(" –", ",")   # a time keeps its colon

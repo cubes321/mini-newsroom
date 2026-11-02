@@ -18,20 +18,20 @@ bottom with the date.
   left the announcer's voice. Listening page: data/voice-samples/guests-dramabox/.
 - [ ] Visitors' voices: someone "from away" (`accent` american) still speaks Kokoro's American voices with no clip.
   DramaBox could design a few `.a.wav` visitors the same way, if they should sound less like Kokoro.
-- [ ] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say and Out and About
-  use the news one).
-- [ ] Art for Rock Pool's set (`studio_kids`): painted in code for now, a sea-green wall with painted waves
-  and bunting, a painted rock pool with a crab and a starfish, a craft table at the front. Gully stays
-  code-drawn (`sprites.draw_gully`), like every character. Rock Pool's own bumper arrangement too.
+- [ ] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say, Out and About
+  and Rock Pool use the news one).
+- [x] Art for Rock Pool's set (`studio_kids`), 2026-11-01 (701e449): ComfyUI art, a sea-green wall with painted
+  waves and bunting, a rock pool with a crab and a starfish, a craft table. Gully stays code-drawn
+  (`sprites.draw_gully`), like every character.
 - [ ] Interiors for Out and About's reviews: a cafe or tea room, a pub dining room, a village hall stage.
   Meg reviews from the nearest exterior (the village, the seafront, the market) until then.
 - [ ] A phone-in desk for Have Your Say: Jonah and the studio guest sit in the interview armchairs
   (`studio_interview`) for now; a desk with a phone, a headset and a call board behind would say
   phone-in at a glance. The caller box (`scenes._caller_box`) is drawn in code and can stay.
-- [ ] Art for The Panel's set (`studio_panel`): it is painted in code for now, a long desk with four places,
-  a wide screen and the channel 7 ident; the other studio sets have ComfyUI art.
-- [ ] A fish quay backdrop for Quayside (boxes on ice, the auctioneer's chalk board, the fish vans):
-  Miles reports the auction from the harbour until then.
+- [x] Art for The Panel's set (`studio_panel`), 2026-11-01 (701e449): ComfyUI art, a long desk with four places,
+  a wide screen and the channel 7 ident; its marks moved up three pixels to sit at the desk.
+- [x] A fish quay backdrop for Quayside, 2026-11-01 (e977fc2): boxes on ice, the auctioneer's chalk board, the
+  fish vans (`fish_quay`). Quayside's field report is always there, unless breaking news sends Miles out.
 - [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start).
@@ -77,15 +77,23 @@ bottom with the date.
   passing the line's to the speaker's face; the others on screen react (`sprites.REACT`: a smile at a laugh).
   Asked for on two or three lines an item: the first try had Ada Quarrie laughing on four lines of twelve
   and Vincent smiling on four more.
-- [ ] Moods, next: watch a night for how often they come and whether the news anchors use them where they
-  shouldn't. In a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
+- [x] Moods, watched on the 2026-11-01 night (2026-11-02, 2103b55). The news kept to about one an item, but
+  Dana's were 53 "smug" of 78, mostly on dry sign-offs, and the long two-handers ran past "two or three an
+  item" (Morning Tide's interviews 5.4, one on the late show 8). Coastwide's clashing pair, Pat and Clive,
+  was the most watchable thing on air. Now a script keeps three (`writers.ration_moods`, the rarer faces
+  first), the newsreader's last line is plain, and the mood help says smug is a gloat or a dig. Replayed
+  on that night's scripts, Dana's smug faces fall from 47 to 24 on the cap alone; check the next night
+  for what the new help does.
+- [ ] Moods, next: in a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
   would carry it there. Movement (entrances, crossing to a mark) waits for *Harbour Row* on the
   entertainment channel.
 - [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
   would place her in the room.
 - [x] Built 2026-11-01 as SEVENTEXT (`teletext.py`): thirteen pages from the world in code, a block of
   about two minutes every eight overnight, the first two blocks a night recorded (`obs_record.py --teletext`).
-  Still open: a model-written page or two (a "from the archive" page), and whether eight minutes is too often.
+  Still open: a model-written page or two (a "from the archive" page), and whether eight minutes is too often:
+  on the 2026-11-01 night it aired 46 times, 130 s about every 7 minutes, near a third of the small hours
+  (the two recorded blocks are in E:\recordings, 02-34 and 02-46).
   Teletext pages overnight (the user's idea, 2026-10-31): between the test card and the repeats,
   the station's teletext service cycles its pages under a music bed, as British TV filled the small
   hours in the 1980s. A 40 × 24 character grid in the eight teletext colours, double-height headings,
@@ -162,8 +170,10 @@ bottom with the date.
   10-31, but t313 "...as Auction Takes Fifteen Thousand Pounds" opened the next morning. Fixed 2026-11-01:
   an auction headline may follow a story up but never opens one (`quay.about_the_auction`), and the
   label says "the latest auction", since at the weekend it is Friday's.
-- [ ] Pocket warned three times that a chunk passed its 50 tokens ("generation may skip words"): split
-  long lines at a sentence end before they reach it.
+- [x] Pocket warned that a chunk passed its 50 tokens ("generation may skip words"), six times on the
+  2026-11-01 night. Fixed 2026-11-02: Pocket splits a long sentence only at a comma, semicolon or colon, so a
+  dash now becomes a comma and a clause still past 46 tokens gets a comma before its joining word nearest the
+  middle (`tts.pocket_text`). All six lines then fit, by Pocket's own tokenizer.
 - [x] **A night on the new back office** (Flash, the Sonnet senior editor and fallback, and the first
   night on Pocket voices): 2026-10-30 21:00 to 10-31 12:29, `data/night-2026-10-30.log` and `-b.log`.
   It stopped at 22:05 on a dropped advert's deleted audio (fixed in bc1e28b) and restarted at 22:09 with
@@ -270,9 +280,10 @@ bottom with the date.
 - [ ] Pocket TTS, what's left. Tried 2026-10-30 against Kokoro, Qwen3-TTS, Chatterbox and NeuTTS
   (samples in data/voice-samples/tts-bakeoff/): the user chose Pocket (Kyutai, CPU, 0.23 RTF on one
   thread, cloning from a few seconds of audio). Wired in that night: presenters clone their own Kokoro
-  voices (judged more natural by ear), the 13 local guest voices clone Qwen3-TTS VoiceDesign clips
-  (`assets/voices/`, `voices.toml`), cast by gender and age. Left: visitors' clips (`.a.wav`, they're
-  still Kokoro's American voices); per-person speed, which Pocket ignores; and throughput if the buffer
+  voices (judged more natural by ear), the local guests clone DramaBox clips since 2026-11-01 (24 of
+  them, `assets/voices/`, `voices.toml`), cast by gender and age. Pocket ignores `speed` but keeps its
+  reference's pace, so a voice is quickened by stretching its clip (Tamsin's, 8%, pitch kept). Left:
+  visitors' clips (`.a.wav`, they're still Kokoro's American voices); and throughput if the buffer
   runs short, since lines are voiced one at a time (Pocket is single-threaded, so two could run on
   two cores if its model state is safe to share). Weights are gated (accept the terms on
   huggingface.co/kyutai/pocket-tts, then `hf auth login`) and CC-BY-4.0.
