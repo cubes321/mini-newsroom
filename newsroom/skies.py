@@ -34,6 +34,20 @@ class Sky:
         return any(c.any() for _, c in self.layers)
 
 
+def capped(sky: Sky, a: np.ndarray, floor: int) -> Sky:
+    """`sky` with nothing at or below row `floor` lifted as cloud or open to the clouds: for a night or
+    dusk picture drawn over its day art, whose horizon is the day's (`find` can read a lit sea as sky)."""
+    mask, clean = sky.mask.copy(), sky.clean.copy()
+    mask[:, floor:] = False
+    clean[:, floor:] = a[:, floor:]
+    layers = []
+    for rgb, cloud in sky.layers:
+        cloud = cloud.copy()
+        cloud[:, floor:] = False
+        layers.append((rgb, cloud))
+    return Sky(mask, min(sky.floor, floor), clean, layers)
+
+
 def grow(seed: np.ndarray, ok: np.ndarray) -> np.ndarray:
     """Flood fill: everything in ok joined to seed by 4-neighbour steps."""
     m = seed & ok

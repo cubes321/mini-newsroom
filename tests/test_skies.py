@@ -66,3 +66,16 @@ def test_the_still_keeps_its_painted_clouds_for_studio_screens():
     painted = pygame.surfarray.array3d(backdrops.surface("harbour", "day", None))
     clean = pygame.surfarray.array3d(backdrops.surface("harbour", "day", None, clean=True))
     assert (painted != clean).any() and (painted[:, 120:] == clean[:, 120:]).all()
+
+
+def test_a_night_picture_keeps_its_day_horizon():
+    """The lifeboat station's night sea has lit highlights the finder reads as sky (its floor came out at
+    116 against the day's 94): over the day art's own horizon, nothing is lifted to drift as cloud."""
+    path = backdrops.ART_DIR / "lifeboat_station_night.png"
+    a = pygame.surfarray.array3d(pygame.image.load(str(path)))
+    day = backdrops._sky_of(backdrops.ART_DIR / "lifeboat_station.png").floor
+    assert any(c[:, day:].any() for _, c in skies.find(a).layers)      # the finder alone lifts the sea
+    sky = backdrops._sky_of(path)
+    assert sky.floor <= day and not sky.mask[:, day:].any()
+    assert not any(c[:, day:].any() for _, c in sky.layers)
+    assert np.array_equal(sky.clean[:, day:], a[:, day:])

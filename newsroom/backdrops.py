@@ -1604,7 +1604,12 @@ _cloud_buf: pygame.Surface | None = None
 def _sky_of(path: Path) -> skies.Sky:
     s = _skies.get(path)
     if s is None:
-        s = _skies[path] = skies.find(pygame.surfarray.array3d(_load(path)))
+        a = pygame.surfarray.array3d(_load(path))
+        s = skies.find(a)
+        day = path.with_name(path.stem.rsplit("_", 1)[0] + path.suffix)
+        if path.stem.endswith(("_night", "_dusk")) and day.exists():
+            s = skies.capped(s, a, _sky_of(day).floor)     # drawn over the day's art: its horizon too
+        _skies[path] = s
     return s
 
 
