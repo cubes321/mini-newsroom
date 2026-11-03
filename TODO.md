@@ -69,6 +69,7 @@ bottom with the date.
     - Where the pictures sit on each set without covering the marks or the lower third.
     - Whether they repeat overnight, like the segments do.
   - **Fallback:** when ComfyUI is down, the scene draws a simple code-drawn stand-in, or nothing.
+  - **Testing:** once it's built, an overnight run (not on the night it's built) shows whether it works well.
 
 ## Content
 

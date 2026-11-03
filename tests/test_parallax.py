@@ -110,6 +110,18 @@ def test_the_drift_eases_in_when_a_shot_goes_into_layers(layers):
     assert scenes._par.s == pytest.approx(1.0)
 
 
+def test_water_that_moves_as_a_piece_keeps_its_shimmer(layers):
+    """The coast road's sea is pieces, under the hillside sliding over it: the shimmer rides them too."""
+    feet = parallax._grey(layers / "fish_quay_feet.png").astype(np.uint8)
+    for x0, y0, w, h in backdrops.WATER["fish_quay"]:
+        feet[P + x0:P + x0 + w, P + y0:P + y0 + h] = np.where(feet[P + x0:P + x0 + w, P + y0:P + y0 + h] > 0, 140 + P, 0)
+    _save(feet, layers / "fish_quay_feet.png")
+    parallax.reset()
+    sc = parallax.scene("fish_quay", "day", None, K, wait=True)
+    for t in (0.0, 1.3, 2.7):
+        assert np.array_equal(_window(sc, 0.0, t), _flat_window("fish_quay", t))
+
+
 def test_the_ground_shears_and_the_sky_stays(layers):
     sc = parallax.scene("fish_quay", "day", None, K, wait=True)
     assert sc.shift(80, 1.0) == 0 and sc.shift(180, 1.0) == round(parallax.NEAR * K) == -sc.shift(180, -1.0)

@@ -208,7 +208,8 @@ class Scene:
         self.water = (min(a for a, _ in water), max(b for _, b in water)) if water else None   # screen rows
         self.cloud_rows = min(H, backdrops._sky_of(art).floor + 1)
         self._clouds: tuple[tuple, pygame.Surface | None] = ((), None)  # scaled, until they drift a pixel
-        self._shimmer: tuple[int, pygame.Surface | None] = (-1, None)
+        self._shimmer: tuple = (-1, None, None)        # (step, the ground's shimmer, each piece's share)
+        self._wet_masks: list | None = None             # which pieces have water in them (_find_wet)
 
         pieces = []                     # (foot as a screen row, order, surface, (x, y) in the plate)
         for f in np.unique(feet[upright]):
@@ -267,14 +268,60 @@ class Scene:
                 buf = _buffer()
                 buf.fill((0, 0, 0, 0))
                 backdrops._shimmer(buf, self.loc.id, self.tod, t)
-                self._shimmer = (step, pygame.transform.scale(buf.subsurface((0, y0, W, y1 - y0)),
-                                                              (W * k, (y1 - y0) * k)))
+                big = pygame.transform.scale(buf.subsurface((0, y0, W, y1 - y0)), (W * k, (y1 - y0) * k))
+                self._shimmer = (step, big, self._wet(big))
             for r, n, dx in bands:                       # the shimmer rides the water it's on
                 a, b = max(r - PAD, y0), min(r - PAD + n, y1)
                 if a < b:
                     screen.blit(self._shimmer[1], (dx, a * k), pygame.Rect(0, (a - y0) * k, W * k, (b - a) * k))
-        for f, surf, (x, y) in self.pieces:
-            screen.blit(surf, ((x - PAD) * k + self.shift(f, s), (y - PAD) * k))
+        wet = self._shimmer[2] if self.water else None
+        for i, (f, surf, (x, y)) in enumerate(self.pieces):
+            at = ((x - PAD) * k + self.shift(f, s), (y - PAD) * k)
+            screen.blit(surf, at)
+            if wet and wet[i]:
+                part, ox, oy = wet[i]
+                screen.blit(part, (at[0] + ox, at[1] + oy))
+
+    def _wet(self, big: pygame.Surface) -> list[tuple[pygame.Surface, int, int] | None]:
+        """Each piece's share of the shimmer, cut to its own pixels, to ride along with it: water that
+        moves as a piece (the coast road's sea, under the hillside sliding over it), or a water-coloured
+        pixel a boat's mask took. None for a dry piece. Remade with the shimmer, ten times a second."""
+        if self._wet_masks is None:
+            self._wet_masks = self._find_wet()
+        k, (y0, _) = self.k, self.water
+        out: list[tuple[pygame.Surface, int, int] | None] = []
+        for wet in self._wet_masks:
+            if wet is None:
+                out.append(None)
+                continue
+            r, ox, oy, dry = wet
+            part = big.subsurface(r.move(0, -y0 * k)).copy()
+            alpha = pygame.surfarray.pixels_alpha(part)
+            alpha[dry] = 0
+            del alpha
+            out.append((part, ox, oy))
+        return out
+
+    def _find_wet(self) -> list[tuple[pygame.Rect, int, int, np.ndarray] | None]:
+        """Once per scene: the pieces with water in them (the art's water inside the WATER rects), each
+        with where it meets the shimmer's rows and which of those pixels aren't its own."""
+        k, (y0, y1) = self.k, self.water
+        water = pygame.surfarray.array_alpha(backdrops._water_mask(self.loc.id)) > 0
+        water = water.repeat(k, 0).repeat(k, 1)
+        rows = pygame.Rect(0, y0 * k, W * k, (y1 - y0) * k)
+        out: list[tuple[pygame.Rect, int, int, np.ndarray] | None] = []
+        for _, surf, (x, y) in self.pieces:
+            sx, sy = (x - PAD) * k, (y - PAD) * k
+            r = pygame.Rect(sx, sy, *surf.get_size()).clip(rows)
+            if not r.w or not r.h:
+                out.append(None)
+                continue
+            own = pygame.surfarray.array_alpha(surf.subsurface(r.move(-sx, -sy))) > 0
+            if not (own & water[r.x:r.right, r.y:r.bottom]).any():
+                out.append(None)
+                continue
+            out.append((r, r.x - sx, r.y - sy, ~own))
+        return out
 
 
 _buf: pygame.Surface | None = None
