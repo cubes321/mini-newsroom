@@ -121,6 +121,18 @@ the sketch above, and why:
 
 ### 3. Pilot (main session)
 
+**Done 2026-11-03.** A windowed `--scratch --parallax --clock 12:58` run, log
+`data/day-parallax-pilot-2026-11-03.log`, recorded as `E:\recordings\2026-11-03 15-42 Quayside.mp4` (excerpt
+in `E:\recordings\parallax-trial\pilot\`).
+- Clean: 34 segments, no filler, no failed builds.
+- The median STATS p99 was 2.3 ms, the same as the flat Quayside run on 11-02.
+- On air, the fish quay's water row drifted ±7.5 px at 1080p over the 8 s period, as the engine gives it.
+- The harbour wasn't on screen while recording.
+- The user approved both layer sets, and they are committed. Still to judge on a later run: the harbour on
+  air, and whether the fish quay earns its place.
+
+The original step:
+
 Convert the trial's harbour and fish quay into the PNG format and run a `--scratch` evening with the switch
 on, recorded by OBS, field reports included. The user watches it, and checks the frame times in the log.
 Main Street stays flat, as the comparison.

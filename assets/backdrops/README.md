@@ -65,6 +65,30 @@ reaches about 74 px above their baseline.
 The placeholder painters in `backdrops.py` draw the furniture on these marks;
 `--bake studio_interview studio_sofa studio_late studio_sports studio_panel studio_kids studio_phonein chamber_press` gives you templates with them in place.
 
+## Parallax layers
+
+`parallax/` holds the layers for exteriors that drift on a field shot when `[broadcast] parallax` is on
+(`newsroom/parallax.py`, `docs/PARALLAX.md`). Each piece slides by how far its foot is below the horizon.
+
+- **The art itself is unchanged.** A backdrop without layers, or a time of day whose art has no plate
+  (the night, for now), stays flat.
+- **Per art file** (`harbour`, `harbour_night`):
+  - `<art>_plate.png`: the art padded 10 px all round (340×200), with fill behind the near pieces and in
+    the border.
+  - `<art>_near.png` (optional): the near pieces in their own colours (RGBA).
+- **Per backdrop:**
+  - `<id>_feet.png`: each plate pixel's foot as a padded row (grey, 0 = sky). Ground pixels stand on their
+    own row.
+  - `<id>_near_feet.png`: the near pieces' feet, the same way.
+  - `parallax.json`: the horizon row.
+- **Inside the frame the plate is the art pixel for pixel**, except under a near piece. At rest the
+  layered shot is the flat one.
+- **Up to 5 px of the border can show** at the bottom corners at full swing, so the border follows the
+  same rules as the art (no people, no text).
+- **Layers are approved like the art,** from a clip and a layer sheet. The harbour and the fish quay were
+  approved on 2026-11-03 after the pilot. `python -m newsroom.parallax import LAYERS.npz ID` writes them
+  from a trial's layers.
+
 ## Tools
 
 ```
