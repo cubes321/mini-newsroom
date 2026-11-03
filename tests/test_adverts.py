@@ -96,6 +96,27 @@ def test_the_pool_drops_the_oldest_model_ads_and_keeps_the_seeds(pool, world, sm
     assert len(adverts.AdPool(pool.dir)) == len(adverts.SEEDS) + 2    # a restart doesn't bring a dropped one back
 
 
+def test_an_old_advert_dropped_now_keeps_its_audio_for_an_hour(pool, world, small_pool_size):
+    """Its WAVs were voiced days ago; the hour a waiting break may need counts from the drop."""
+    import os
+    import time
+    while adverts.seed_one(world):
+        pass
+    for i in range(3):
+        s = AdvertScript(business=f"Shop {i}", tagline="t", where="w", backdrop="harbour",
+                         lines=[{"speaker": "voiceover", "text": "Buy it."}, {"speaker": "voiceover", "text": "Now."}])
+        ad = adverts.build(f"ad_{i}", s, world)
+        ad.made = f"2026-10-2{i}"
+        if i == 0:
+            voiced = time.time() - 3 * 86400
+            for f in pool.dir.glob("ad_0_*.wav"):
+                os.utime(f, (voiced, voiced))
+        pool.add(ad)
+    assert "ad_0" not in pool and list(pool.dir.glob("ad_0_*.wav"))    # dropped, but a break may still hold it
+    pool.sweep(time.time() + adverts.RETIRE_S + 60)
+    assert not list(pool.dir.glob("ad_0_*.wav"))
+
+
 def test_a_line_whose_audio_has_gone_is_silence_not_a_crash(pool, world, tmp_path):
     pl = Player(Buffer(), world, producer=None, audio=False)
     played = []

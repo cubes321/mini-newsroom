@@ -24,6 +24,7 @@ and look are the same wherever they turn up next.
 from __future__ import annotations
 
 import logging
+import os
 import random
 import threading
 import time
@@ -196,6 +197,11 @@ class AdPool:
                 del self._ads[old.id]
         for old in drop:                      # its JSON now, so nothing picks it again; its WAVs later
             (self.dir / f"{old.id}.json").unlink(missing_ok=True)
+            for f in self.dir.glob(f"{old.id}_*.wav"):
+                try:                          # sweep() counts its hour from the WAV's time: from now, not when it was voiced
+                    os.utime(f)
+                except OSError:
+                    pass
             log.info("advert pool full: dropped %s (%s)", old.id, old.script.business)
         self.sweep()
 
