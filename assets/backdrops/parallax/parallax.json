@@ -2,6 +2,9 @@
   "cannery": {
     "horizon": 92.0
   },
+  "coast_road": {
+    "horizon": 70.0
+  },
   "estuary": {
     "horizon": 90.0
   },
@@ -16,6 +19,9 @@
   },
   "lifeboat_station": {
     "horizon": 94.0
+  },
+  "lighthouse": {
+    "horizon": 99.0
   },
   "loading_dock": {
     "horizon": 93.0
