@@ -139,7 +139,7 @@ EVENTS: tuple[Event, ...] = (
     Event("the Blessing of the Fleet", _day(lambda y: nth(y, 5, 6, 1)),
           "the vicar and the harbourmaster bless the boats from the quay, the fleet dressed in bunting",
           (NEWS, QUAYSIDE, BREAKFAST, MAGAZINE)),
-    Event("the local elections", _day(lambda y: nth(y, 5, 3, 1) if y >= 2027 and (y - 2027) % 4 == 0 else None),
+    Event("the local elections", _day(council.election_day),
           "the town votes for its council; Helen Strand is standing for a third term",
           (NEWS, PHONEIN, PANEL, INQUIRY, MAGAZINE)),
     Event("mayor-making", _day(lambda y: _meeting(date(y, 5, 10), date(y, 6, 7))),

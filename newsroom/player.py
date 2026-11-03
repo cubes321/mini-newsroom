@@ -99,6 +99,8 @@ class View:
     caller: tuple[str, str] | None = None   # a phone-in caller on the line: (name, where from)
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
     verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
+    bonfire: bool = False                # a special night out on location (schedule.SPECIAL_NIGHTS): a bonfire
+    fireworks: bool = False              # and fireworks overhead, in their window on the clock
 
 
 class Player:
@@ -424,6 +426,19 @@ class Player:
                     chapter_at = c.at_s
         return active, elapsed - chapter_at
 
+    @staticmethod
+    def _on_location(seg: Segment, v: View) -> None:
+        """A special night's show, all of it out on location (Coastwide at the Bonfire): every link, guest
+        and film at the one place, the presenters there instead of the studio, the fireworks in their window."""
+        v.mode, v.backdrop, v.bonfire = "field", seg.work["location"], bool(seg.work.get("bonfire"))
+        v.tod = seg.work.get("tod") or v.tod
+        if not any(l.speaker in FIELD_REPORTERS for l in seg.lines):
+            v.reporter = schedule.get(seg.show).lead             # Pat holds the mic; Clive comes and goes
+        if seg.type not in (SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
+            v.tag = v.tag or "LIVE"
+        start, end = seg.work.get("fireworks") or ("", "")
+        v.fireworks = bool(start) and start <= v.clock < end
+
     def _studio_shot(self, seg: Segment, v: View) -> None:
         """Pick the studio framing for the current line.
 
@@ -568,6 +583,8 @@ class Player:
             v.verdict = seg.work["review"]   # the stars go up as she gives them, never over the owner's head
         if seg.show == "outabout" and v.mode == "studio":
             v.mode = "field"                 # no studio on Out and About, even between lines
+        if seg.work.get("location") and v.mode in ("studio", "field"):
+            self._on_location(seg, v)
         if seg.type is SegmentType.continuity:
             v.continuity = dict(seg.work.get("continuity") or {})
         if seg.type in (SegmentType.advert, SegmentType.ad_break):

@@ -42,6 +42,7 @@ class Producer:
         self.on_air_left: Callable[[float], float] | None = None   # the player: seconds left on air
         self._planned_until = self.cursor_ts
         self._show: str | None = None
+        self._on: schedule.Show | None = None    # that show itself: a special night's variant has its id
         self._pos = 0                      # position within the current show's pattern
         self._ends = 0.0                   # when the current show's time in the schedule is up
         self._closing: list[schedule.Item] = []    # closing items still to plan
@@ -54,7 +55,7 @@ class Producer:
         only then asks the schedule what is next, at the later of the cursor and that end:
         the cursor is an estimate that can move back across the hour (a segment ran short), and a
         show once left must stay left."""
-        cur = schedule.SHOWS.get(self._show or "")
+        cur = self._on
         if cur is None:
             return schedule.show_at(self.cursor_ts)
         if self._closing:
@@ -106,7 +107,7 @@ class Producer:
             if self._show is not None:
                 log.info("schedule: %s -> %s from slot %d", self._show, show.id, self.next_slot)
             self._ends = schedule.show_end(max(self.cursor_ts, self._ends))
-            self._show, self._pos, self._closing, self._closed = show.id, 0, [], False
+            self._show, self._on, self._pos, self._closing, self._closed = show.id, show, 0, [], False
             self._briefs_given = {}
         item = self._next_item(show)
         seg = Segment(
@@ -119,6 +120,14 @@ class Producer:
             part=item.part,
             brief=item.brief,
         )
+        if show.location:                                 # a special night: the whole show out there
+            seg.work["location"] = show.location
+            if show.fireworks:
+                seg.work["fireworks"] = list(show.fireworks)
+            if show.tod:
+                seg.work["tod"] = show.tod
+            if show.bonfire:
+                seg.work["bonfire"] = True
         if item.part == "cont":
             seg.work["first_part"] = self._first_part     # the guest's first part, before any break
             if not self._closing and show.item(self._pos).part == "couch":

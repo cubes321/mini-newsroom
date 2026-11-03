@@ -26,11 +26,12 @@ The broadcast clock is `now()`, which is `time.time()` plus an offset that
 """
 from __future__ import annotations
 
+import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 
-from . import council
+from . import calendar, council
 from .models import SegmentType as T
 
 RGB = tuple[int, int, int]
@@ -64,6 +65,10 @@ class Show:
     loop_from: int = 0               # where the order wraps when it runs out
     closing: tuple[T | Item, ...] = ()   # planned once as the show's time runs out
     briefs: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # angles, in turn, per type
+    location: str = ""               # a backdrop id: the whole show is out there, no studio (a special night)
+    fireworks: tuple[str, str] = ()  # ("19:30", "19:50"): fireworks overhead then, on location
+    tod: str = ""                    # the location's grade whatever the clock says ("night": it's dark by seven)
+    bonfire: bool = False            # a bonfire burning on the location (scenes.draw_bonfire)
 
     def cast_for(self, seg_type: T) -> tuple[str, ...]:
         return self.cast_by_type.get(seg_type, self.cast)
@@ -679,6 +684,80 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
     ),
 )}
 
+# Special nights (agreed 2026-11-03): on a calendar event's day (calendar.py) a slot takes a variant of its
+# show, with the same id, so its music, its writers' rules and its look carry over. Bonfire Night: Coastwide
+# goes out live from the town bonfire on the Salting, all of it, on the estuary set graded to night (the user
+# picked it over dusk), and the fireworks go up over it at half past seven (scenes.draw_fireworks). Gordon's weather stays in the studio.
+# The writers are told the fireworks by the clock, not by the order (writers._on_location).
+BONFIRE = replace(
+    SHOWS["magazine"],
+    title="COASTWIDE AT THE BONFIRE",
+    pattern=(
+        T.bumper,
+        I(T.links, "open", brief="the bonfire is about to be lit: the crowd, the guy on top, and what's on tonight"),
+        I(T.vox_pop, brief="the crowd arriving at the bonfire: what makes a good bonfire night"),
+        I(T.interview, brief="Bea Kowalczyk, Station Officer at Port Wexley fire station, on bonfire and firework "
+                             "safety, at the bonfire"),
+        I(T.feature, brief="the guy competition: the children's guys lined up by the bonfire, and the winner chosen"),
+        I(T.links, brief="the bonfire is lit and roaring: the heat, the crowd, the smell of toffee apples"),
+        I(T.weather, brief="Gordon in the studio: the forecast for the fireworks and the night ahead"),
+        T.ad_break,
+        # the rest of the hour; the order wraps back to here
+        T.links,
+        I(T.feature, brief="Dev Ramachandran at his stall by the bonfire, and what he has renamed his parkin to tonight"),
+        I(T.interview, brief="someone who has helped build the town bonfire for years"),
+        I(T.vox_pop, brief="children and families at the bonfire: the best bit of the night"),
+        T.ad_break,
+        T.links,
+        I(T.feature, brief="the volunteers who run the night: the stewards, the first-aiders and the lifeboat crew "
+                           "with their collecting tins"),
+        I(T.interview, brief="a public figure off duty at the bonfire"),
+        I(T.consumer, brief="sparklers, fireworks and toffee apples: what they cost this year, and the firework code"),
+        T.ad_break,
+    ),
+    loop_from=8,
+    closing=(I(T.links, "close", brief="goodnight from the bonfire as it burns down, and what's on next"),),
+    station="Coastwide at the Bonfire, live from Port Wexley's town bonfire on the Salting, on channel 7",
+    tone="warm, excited and gently funny, a regional magazine out on location on a cold, smoky night",
+    location="estuary",
+    fireworks=("19:30", "19:50"),
+    tod="night",
+    bonfire=True,
+)
+SPECIAL_NIGHTS: dict[str, tuple[str, Show]] = {"magazine": ("Bonfire Night", BONFIRE)}
+
+
+def special_night(slot: str, day: date) -> Show | None:
+    """The slot's special-night show on `day`, if the calendar has its event then. NEWSROOM_SPECIAL_NIGHT=1
+    makes every day a special night (for a test run), 0 none (the tests)."""
+    if slot not in SPECIAL_NIGHTS:
+        return None
+    event, show = SPECIAL_NIGHTS[slot]
+    forced = os.environ.get("NEWSROOM_SPECIAL_NIGHT", "")
+    if forced in ("0", "1"):
+        return show if forced == "1" else None
+    return show if any(o.event.name == event for o in calendar.events_on(day)) else None
+
+
+def on_location(show: Show, ts: float) -> str:
+    """For the writers of a show out on location: no studio, where it is, the fireworks by the clock (the
+    order can't promise which item lands at half past seven), and what follows the show."""
+    hhmm = time.strftime("%H:%M", time.localtime(ts))
+    out = [f"ON LOCATION: {show.station}. All of it is out there tonight: no studio, no armchair and no "
+           "big-picture wall. The presenters' links, the guests (standing with Pat, not sitting) and the filmed "
+           f"pieces and vox pops are all at the one place, backdrop \"{show.location}\"; only the weather comes "
+           "from the studio."]
+    if show.fireworks:
+        start, end = show.fireworks
+        out.append(f"The fireworks go up at {start}: not yet." if hhmm < start else
+                   f"THE FIREWORKS ARE GOING UP OVERHEAD RIGHT NOW (until {end}): talk over them, the bangs and "
+                   "the crowd's oohs." if hhmm < end else f"The fireworks are over: they went up at {start}.")
+    end_ts = show_end(ts)
+    out.append(f"After the programme, at {time.strftime('%H:%M', time.localtime(end_ts))}: "
+               f"{show_at(end_ts).title.title()}.")
+    return " ".join(out)
+
+
 # A normal day, without breaking news: (start, show id), in order; the last entry at or
 # before the time wins. A start is a whole hour, or "HH:MM" for a show that starts on the
 # quarter. A show that isn't built yet airs its stand-in.
@@ -746,7 +825,7 @@ def starts(ts: float, days: int = 2) -> list[tuple[float, str]]:
 
 def show_at(ts: float) -> Show:
     slot = slot_at(ts)
-    return SHOWS[STAND_INS.get(slot, slot)]
+    return special_night(slot, date.fromtimestamp(ts)) or SHOWS[STAND_INS.get(slot, slot)]
 
 
 def show_end(ts: float) -> float:

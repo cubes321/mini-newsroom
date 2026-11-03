@@ -7,6 +7,9 @@ up. Helen Strand, the mayor, chairs, with the casting vote; six councillors sit 
 ward and with a leaning, so a vote splits the way the town would expect. Each has a voice of their own
 (`VOICES`): a DramaBox design, chosen by ear on 2026-11-01 and cloned live by Pocket (assets/voices).
 
+No meeting falls on New Year's Eve or on election day (the first Thursday in May, from 2027 every four
+years): that one is cancelled, not moved, and the next is a fortnight on as usual (agreed 2026-11-03).
+
 `NEWSROOM_COUNCIL_NIGHT=1` makes any night a council night (for a test run), `0` none (the tests).
 """
 from __future__ import annotations
@@ -41,11 +44,24 @@ VOICES = {CHAIR: "bf_strand", "Gerald Thorne": "bm_thorne", "Alan Penhaligon": "
           "Tom Nancarrow": "bm_nancarrow"}
 
 
+def election_day(y: int) -> date | None:
+    """The local elections: the first Thursday in May, in 2027 and every four years after."""
+    if y < 2027 or (y - 2027) % 4:
+        return None
+    may = date(y, 5, 1)
+    return may + timedelta(days=(3 - may.weekday()) % 7)
+
+
+def cancelled(day: date) -> bool:
+    """No meeting on New Year's Eve or on election day."""
+    return (day.month, day.day) == (12, 31) or day == election_day(day.year)
+
+
 def meets_on(day: date) -> bool:
-    """The calendar: every `every_days` from `first_meeting`, and never before it."""
+    """The calendar: every `every_days` from `first_meeting`, never before it, and none on a cancelled day."""
     cfg = CONFIG.chamber
     gap = (day - date.fromisoformat(cfg.first_meeting)).days
-    return gap >= 0 and gap % cfg.every_days == 0
+    return gap >= 0 and gap % cfg.every_days == 0 and not cancelled(day)
 
 
 def council_night(day: date) -> bool:

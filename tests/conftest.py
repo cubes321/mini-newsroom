@@ -17,4 +17,5 @@ os.environ["NEWSROOM_CONTINUITY"] = os.path.join(_TMP, "continuity")
 os.environ["NEWSROOM_LLM_CALLS"] = os.path.join(_TMP, "llm_calls")
 os.environ["NEWSROOM_LLM"] = "off"
 os.environ["NEWSROOM_COUNCIL_NIGHT"] = "0"     # 20:00 is The Inquiry whatever the date; council tests set "1"
+os.environ["NEWSROOM_SPECIAL_NIGHT"] = "0"     # 19:00 is the studio Coastwide even on 5 November (test_special_nights)
 os.environ.pop("NEWSROOM_LLM_LOG", None)

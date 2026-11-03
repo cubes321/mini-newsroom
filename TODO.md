@@ -130,6 +130,33 @@ bottom with the date.
   those days; `calendar.due` reads the date back for the long-running pool. SEVENTEXT page 180 is What's
   On. Bonfire Night falls on the first council night (Thu 5 Nov); the fortnightly council also lands on New
   Year's Eve and on election day 2027, left for the user to decide.
+- [x] **Special nights**, the user's idea (2026-11-03): New Year's Eve and election day get programmes of
+  their own, and Bonfire Night too. Draft agreed the same day, built in order. Done 2026-11-03: council
+  doesn't meet on New Year's Eve or election day (`council.cancelled`; the meeting is dropped, not moved).
+  **Coastwide at the Bonfire** takes 19:00 to 20:00 on 5 November, every year (`schedule.BONFIRE`, a
+  variant of Coastwide with its id, chosen by the calendar through `SPECIAL_NIGHTS`). It is all on
+  location: the estuary set as the Salting, graded to night (the user picked it over dusk on a contact
+  sheet), with a bonfire and, from 19:30 to 19:50 on the clock, fireworks drawn in code
+  (`scenes.draw_bonfire`, `draw_fireworks`). Running order: the lighting, a crowd vox pop, Bea Kowalczyk on
+  safety, the guy competition, Gordon's forecast from the studio, Dev's renamed parkin, the bonfire
+  builders, the volunteers, the cost of sparklers. The writers are told it's on location and where the
+  fireworks have got to by the clock (`schedule.on_location`). `NEWSROOM_SPECIAL_NIGHT=1` forces it for a
+  test run. A template scratch run at 19:24 showed it live at the bonfire and the fireworks up from 19:31;
+  the briefs still need a live run with the model.
+- [ ] **New Year's Eve: The Last Ferry: New Year's Eve** (build in December): 22:00 to half past
+  midnight in place of The Last Ferry and the 23:00 news. Vincent and the house band; a monologue on the
+  year; Port Wexley's Year (the most-covered stories, told back by Dana from the archive); guests from the
+  year back; Gordon's forecast for the fireworks; Miles at the harbour wall from 23:30; the countdown, the
+  Town Hall clock striking twelve, fireworks off the harbour wall. Needs an item the player holds to the
+  real clock so midnight lands on the second (the producer only changes shows at segment boundaries), and
+  the chimes and the band's midnight number on a listening page first. Reuse `SPECIAL_NIGHTS`, `location`
+  and `draw_fireworks`.
+- [ ] **Election night: Port Wexley Decides** (build in spring 2027, for Thu 6 May): 22:00 to 02:00. Dana
+  anchors, Miles at the count in the Town Hall, Gordon on the swingometer; results declared ward by ward,
+  worked out in code like the football (candidates, votes, turnout from a seeded draw on each ward's
+  leanings), Helen Strand's seat last. No campaign coverage while the polls are open (07:00 to 22:00).
+  Each ward's slate goes to the user for approval first. Still to decide: whether seats can change hands
+  (a new councillor needs a voice by ear, and the council roll would change with the date).
 
 - [x] **The 2026-11-02 night and daytime runs, reviewed 2026-11-03** (0481941, 57046c4). The night ran clean: 968
   segments, no filler or templates, and the mood ration held (Dana 18 smug faces on air, none on a closing line).

@@ -10,6 +10,7 @@ on the canvas but draws it at the window's size, in `present()`, because an
 from __future__ import annotations
 
 import math
+import random
 from functools import lru_cache
 
 import pygame
@@ -475,6 +476,10 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     """The reporter on location (Miles, or Tamsin for Full Time); when a resident speaks (a filmed
     piece, a vox pop) they take the frame."""
     backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
+    if v.fireworks:
+        draw_fireworks(canvas, t)
+    if v.bonfire:
+        draw_bonfire(canvas, t)
     light = backdrops.person_light(v.backdrop, v.tod, v.weather)
     if v.speaker not in (None, v.reporter):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
@@ -492,6 +497,59 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, v.tag, 8 + w // 2, 13, 8, center=True)
     if v.verdict:
         _verdict_card(canvas, v.verdict)
+
+
+BONFIRE_AT = (150, 104)                          # the far bank of the estuary set, between the presenters
+FIREWORK_COLOURS = ((255, 80, 80), (255, 210, 70), (120, 220, 255), (200, 120, 255), (120, 255, 140),
+                    (255, 255, 255))
+SHELLS, SHELL_S = 4, 2.6                         # shells in the air at once, and each one's life
+
+
+def draw_bonfire(canvas: pygame.Surface, t: float) -> None:
+    """The town bonfire on Bonfire Night, small on the far bank: a glow, the stack and flickering flames."""
+    x, y = BONFIRE_AT
+    glow = pygame.Surface((72, 40), pygame.SRCALPHA)
+    pulse = int(8 * math.sin(t * 7))
+    for k in range(6):                                    # soft at the edge, brighter in the middle
+        w, h = 72 - k * 11, 40 - k * 6
+        pygame.draw.ellipse(glow, (255, 140, 50, 14 + k * 4 + pulse // 2), ((72 - w) // 2, (40 - h) // 2, w, h))
+    canvas.blit(glow, (x - 36, y - 28))
+    pygame.draw.polygon(canvas, (58, 38, 28), [(x - 11, y), (x + 11, y), (x + 2, y - 7), (x - 2, y - 7)])
+    rng = random.Random(int(t * 10))                      # the flames change ten times a second
+    for i in range(7):
+        h = 5 + rng.randint(0, 9) + (4 if 2 <= i <= 4 else 0)
+        fx = x - 9 + i * 3 + rng.randint(-1, 1)
+        colour = (255, 200, 60) if h > 11 else (255, 120, 30) if h > 7 else (220, 60, 20)
+        pygame.draw.polygon(canvas, colour, [(fx - 2, y - 3), (fx + 2, y - 3), (fx + rng.randint(-1, 1), y - 3 - h)])
+
+
+def draw_fireworks(canvas: pygame.Surface, t: float) -> None:
+    """Fireworks over the location: SHELLS staggered shells, each a rising trail and then a burst of sparks
+    that spreads, falls a little and fades. The same `t` always draws the same sky."""
+    for k in range(SHELLS):
+        phase = (t + k * SHELL_S / SHELLS) / SHELL_S
+        n, f = int(phase), phase - int(phase)
+        rng = random.Random(f"firework|{k}|{n}")
+        cx, cy = rng.randint(24, 296), rng.randint(14, 58)
+        colour = rng.choice(FIREWORK_COLOURS)
+        if f < 0.22:                                      # the trail going up
+            ty = 100 - (100 - cy) * f / 0.22
+            pygame.draw.line(canvas, (255, 228, 180), (cx, int(ty)), (cx, int(ty) + 4))
+            continue
+        g = (f - 0.22) / 0.78
+        r, fade, drop = 4 + 24 * math.sqrt(g), 1 - g, 7 * g * g
+        c = tuple(int(v * (0.35 + 0.65 * fade)) for v in colour)
+        tail = tuple(v // 2 for v in c)
+        size = 2 if fade > 0.45 else 1
+        for i in range(20):                               # each spark with a short tail back towards the centre
+            a = 2 * math.pi * i / 20 + rng.random() * 0.25
+            reach = r * (0.75 + 0.25 * ((i * 7) % 4) / 3)
+            px, py = cx + reach * math.cos(a), cy + reach * math.sin(a) + drop
+            qx, qy = cx + reach * 0.8 * math.cos(a), cy + reach * 0.8 * math.sin(a) + drop * 0.8
+            pygame.draw.line(canvas, tail, (int(qx), int(qy)), (int(px), int(py)))
+            pygame.draw.rect(canvas, c, (int(px), int(py), size, size))
+        if g < 0.3:                                       # the flash at the heart of the burst
+            pygame.draw.circle(canvas, (255, 250, 220), (cx, cy), int(3 * (1 - g / 0.3)) + 1)
 
 
 VERDICT_CARD = pygame.Rect(176, 24, 136, 62)    # top right of the location, clear of the clock and Meg
