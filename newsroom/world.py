@@ -1012,9 +1012,11 @@ def save(w: World | None = None, path: Path | None = None) -> None:
     if w is None:
         return
     path = path or CONFIG.paths.world
-    with w.lock:                              # a consistent snapshot; the disk write is outside it
-        text = json.dumps(_to_dict(w), indent=2, ensure_ascii=False)
-    with _SAVE_LOCK:                          # two workers saving at once would share the .tmp file
+    # The snapshot is taken inside the save lock: taken outside it, two savers could snapshot in one
+    # order and write in the other, leaving the older town on disk (PROJECT_REVIEW.md, 2026-11-02).
+    with _SAVE_LOCK:                          # two workers saving at once would share the .tmp file too
+        with w.lock:                          # a consistent snapshot; the disk write is outside it
+            text = json.dumps(_to_dict(w), indent=2, ensure_ascii=False)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
         tmp.write_text(text, encoding="utf-8")

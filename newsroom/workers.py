@@ -241,6 +241,7 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
 # ----------------------------------------------------------------- threads
 
 SPECIAL_RETRIES = 1                 # a failed special stage is tried again this many times before it is dropped
+SHUTDOWN_WAIT_S = 30.0              # how long exit waits for the workers to finish their jobs
 
 
 class WorkerPool:
@@ -409,8 +410,16 @@ class WorkerPool:
         except Exception:  # noqa: BLE001
             log.exception("idle editorial work failed")
 
-    def shutdown(self) -> None:
+    def shutdown(self, wait_s: float | None = None) -> None:
+        """Stop taking jobs and give the workers up to `wait_s` between them to finish the one in
+        hand, so the final save comes after their world writes. One still busy after that (a slow
+        model call) is a daemon thread, and its job dies with the process."""
         self.stop.set()
+        deadline = time.monotonic() + (SHUTDOWN_WAIT_S if wait_s is None else wait_s)
+        for t in list(self._threads):
+            t.join(max(0.0, deadline - time.monotonic()))
+            if t.is_alive():
+                log.warning("%s still busy at exit: its job is dropped", t.name)
 
 
 # --------------------------------------------------------------------- CLI
