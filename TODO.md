@@ -50,6 +50,25 @@ bottom with the date.
   the pilot evening with `--parallax` on the trial's harbour and fish quay.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
+- [ ] **Brainstorm: graphics made live by ComfyUI when it's running** (the user's idea, 2026-11-03). The back
+  office could draw pictures for what the scripts talk about, and the station would carry on exactly as now
+  without them when ComfyUI isn't there. The user's example is Rock Pool's objects: the egg-box make, the
+  animal visitor, a child's drawing, the thing in Hugh's story.
+  - **Other uses:** an object a guest brings into the studio; a picture for the big-picture wall; a
+    documentary's archive "photo"; a still for an advert's business; the item on Out and About's review card.
+  - **How it could work:** a writer's script names the object (a new optional field). In idle time, a
+    worker sends a prompt in the house style (the Qwen pixel-art recipe in the art pipeline notes), gets a
+    small sprite or card back, and caches it by its words. The scene shows it on a mark, or nothing if it
+    isn't ready, so it never blocks the buffer.
+  - **Questions:**
+    - The GPU is shared, so it needs a way to tell whether ComfyUI is up and has room (memory: GPU is shared).
+    - How long each picture takes, against the buffer's ten minutes.
+    - No people and no text in the pictures.
+    - Whether anything made live needs the user's eye first, as all the art so far has. A filter for broken
+      results could stand in on air.
+    - Where the pictures sit on each set without covering the marks or the lower third.
+    - Whether they repeat overnight, like the segments do.
+  - **Fallback:** when ComfyUI is down, the scene draws a simple code-drawn stand-in, or nothing.
 
 ## Content
 
