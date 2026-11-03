@@ -1,8 +1,20 @@
 {
+  "farm": {
+    "horizon": 91.0
+  },
   "fish_quay": {
     "horizon": 80.0
   },
   "harbour": {
+    "horizon": 98.0
+  },
+  "lifeboat_station": {
+    "horizon": 94.0
+  },
+  "seafront": {
+    "horizon": 80.0
+  },
+  "slipway": {
     "horizon": 98.0
   }
 }

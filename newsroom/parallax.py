@@ -114,9 +114,11 @@ def _graded(a: np.ndarray, loc: locations.Location, tod: str, wx: str | None, ow
 
 
 def _sky_rows(art: Path, size: tuple[int, int]) -> np.ndarray:
-    """The sky behind everything: each row's sky colour across the whole plate, from the art with its
-    clouds lifted out (skies.py), so the clouds can drift over it as they do on the flat art. A row
-    with no sky in it takes the one above, and the padding the nearest row of the frame."""
+    """The sky behind everything, from the art with its clouds lifted out (skies.py), so the clouds can
+    drift over it as they do on the flat art: the art's own sky where it shows, and each row's sky
+    colour behind the buildings and in the padding (a row with no sky in it takes the one above). Its
+    own pixels keep a sky with two tones a row, or a fringe the cloud lift left, exactly as the flat
+    art has it (the lifeboat station, the seafront)."""
     sky = backdrops._sky_of(art)
     pw, ph = size
     colours = np.zeros((H, 3), np.uint8)
@@ -133,7 +135,10 @@ def _sky_rows(art: Path, size: tuple[int, int]) -> np.ndarray:
             if not have[y]:
                 colours[y] = colours[y - 1]
     rows = np.concatenate([np.repeat(colours[:1], PAD, 0), colours, np.repeat(colours[-1:], ph - H - PAD, 0)])
-    return np.broadcast_to(rows[None, :, :], (pw, ph, 3)).copy()
+    out = np.broadcast_to(rows[None, :, :], (pw, ph, 3)).copy()
+    frame = out[PAD:PAD + W, PAD:PAD + H]
+    frame[sky.mask] = sky.clean[sky.mask]
+    return out
 
 
 def _carry(rgb: np.ndarray, own: np.ndarray, under: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
