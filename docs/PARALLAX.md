@@ -152,7 +152,18 @@ Then the night plates. Commit only approved sets, by explicit paths.
 
 **Day layers done 2026-11-03:** 12 backdrops committed (11 of the 12 picked, with the park dropped, plus the pilot's fish quay), each
 equal to the flat art at rest. The woods came last: its oaks and the forest behind share one palette, so the
-outlines came from DA2's depth, not colour. Left: the night plates, and turning the switch on.
+outlines came from DA2's depth, not colour.
+
+**Night plates done 2026-11-03** for the six with night art of their own (harbour, lighthouse, loading dock,
+lifeboat station, cannery, seafront); the other six use their day plate after dark. They share the day's feet.
+What the night draws where the day's feet say sky (the lantern's glow, the breakwater light, the harbour's chimney
+tips drawn a pixel or two differently, the seafront's night boat) is lifted as night near pieces at the foot of
+the thing it belongs to, so it moves with it. Two fixes came out of it: the lighthouse beam now leaves the lantern
+as the tower drifts (1e8e9b1), and a night or dusk sky keeps its day art's horizon (d965e58: the lifeboat
+station's lit sea had been drifting as cloud). Each night set equals the flat art at rest with the beam off and
+lit, and leaves day and dusk exactly as they were. The art session's clips from batch 2 on had been rendered
+locked off (no slot id, so rationed flat); all were re-rendered drifting before the night approval.
+Left: turning the switch on, after the on-air test on the night of 2026-11-04.
 
 ## Risks
 

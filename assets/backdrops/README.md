@@ -70,8 +70,8 @@ The placeholder painters in `backdrops.py` draw the furniture on these marks;
 `parallax/` holds the layers for exteriors that drift on a field shot when `[broadcast] parallax` is on
 (`newsroom/parallax.py`, `docs/PARALLAX.md`). Each piece slides by how far its foot is below the horizon.
 
-- **The art itself is unchanged.** A backdrop without layers, or a time of day whose art has no plate
-  (the night, for now), stays flat.
+- **The art itself is unchanged.** A backdrop without layers, or a time of day whose art has no plate,
+  stays flat. A backdrop with no night art of its own uses its day plate after dark.
 - **Per art file** (`harbour`, `harbour_night`):
   - `<art>_plate.png`: the art padded 10 px all round (340×200), with fill behind the near pieces and in
     the border.
@@ -81,7 +81,9 @@ The placeholder painters in `backdrops.py` draw the furniture on these marks;
     own row. Where there's no flat ground (the lighthouse's cliffs, the coast road's hillside), the feet
     come from the depth model per pixel, rounded to 6-row steps so each step moves as one piece. They're
     still foot rows, so the engine reads them the same way.
-  - `<id>_near_feet.png`: the near pieces' feet, the same way.
+  - `<id>_near_feet.png`: the near pieces' feet, the same way. One file serves the day and the night:
+    a piece only exists where that art's `_near.png` has alpha, so the night's own pieces (the lantern's
+    glow, the harbour's breakwater light and chimney tips, the seafront's night boat) are invisible by day.
   - `parallax.json`: the horizon row.
 - **Inside the frame the plate is the art pixel for pixel**, except under a near piece. At rest the
   layered shot is the flat one.
