@@ -719,6 +719,11 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
         "open": "PLACE IN THE SHOW: this OPENS Quayside: a brief good afternoon, then the figures.",
         "": _MIDDLE.format(title="Quayside", extra=""),
     },
+    # Without these every Quayside item said good afternoon (2026-11-03), and the next writer's "how they
+    # began" was Howard's same hello, not the shop it was about.
+    **{("quayside", t): {"": _MIDDLE.format(title="Quayside", extra="")}
+       for t in (SegmentType.field_report, SegmentType.interview, SegmentType.consumer, SegmentType.feature,
+                 SegmentType.vox_pop)},
     ("inquiry", SegmentType.links): {
         "open": "PLACE IN THE SHOW: this OPENS The Inquiry: a brief good evening, then straight into the story.",
         "": _MIDDLE.format(title="The Inquiry", extra=""),
@@ -769,19 +774,24 @@ def _sofa_so_far(world: World, show: schedule.Show, brief: str, part: str) -> st
 # same item each lap: in the hour of 2026-10-29 the chip-shop vox pop five times, Dev's sourdough
 # starter three times, Biscuit the harbour cat, the darts, the estuary birds, the rogue roofer and
 # Oliver Fenwick-Hale twice each, and "clocks and chips" in nearly every link.
-SHOW_MEMORY = 30                # tonight's items on the show listed for the next writer
+SHOW_MEMORY = 30                # today's items on the show listed for the next writer
 SHOW_SAME_TYPE = 4              # earlier items of this item's kind, with how they began
-REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE", "outabout": "OUT AND ABOUT", "rockpool": "ROCK POOL"}
+SHOW_SAME_BRIEF = 4             # and earlier items on this item's brief, however far back
+# Quayside joined on 2026-11-03: its two-item loop aired the haberdashery's new owners four times in ten
+# minutes. Out and About had the memory, but its painter came round again with the same headline: six
+# feature angles a lap put the last feature on her angle out of the last four features.
+REMEMBERS_ITS_SHOW = {"magazine": "COASTWIDE", "outabout": "OUT AND ABOUT", "rockpool": "ROCK POOL",
+                      "quayside": "QUAYSIDE"}
 _SHOW_TYPES = (SegmentType.links, SegmentType.feature, SegmentType.interview, SegmentType.vox_pop,
                SegmentType.consumer, SegmentType.review, SegmentType.field_report)
 
-_SHOW_SO_FAR = """ON {title} ALREADY TONIGHT (do NOT do any of these again, even when this kind of item
+_SHOW_SO_FAR = """ON {title} ALREADY TODAY (do NOT do any of these again, even when this kind of item
 comes round: a different subject, question, person, place, pet or food; a callback or passing mention is fine):
 {heads}{same}"""
 
 
-def _show_so_far(world: World, show: schedule.Show, seg_type: SegmentType, part: str) -> str:
-    """What a magazine show has already done tonight, for the next item (or the goodbye's nod)."""
+def _show_so_far(world: World, show: schedule.Show, seg_type: SegmentType, part: str, brief: str = "") -> str:
+    """What a show with a loop has already done today, for the next item (or the goodbye's nod)."""
     title = REMEMBERS_ITS_SHOW.get(show.id)
     if not title or seg_type not in _SHOW_TYPES:
         return ""
@@ -793,8 +803,10 @@ def _show_so_far(world: World, show: schedule.Show, seg_type: SegmentType, part:
         return ""
     heads = "\n".join(f"  - {e['type'].replace('_', ' ')}: {e['headline']}" for e in aired[-SHOW_MEMORY:])
     if part == "close":
-        return f"ON {title} TONIGHT (for the nod to what was on):\n{heads}"
-    same = [e for e in aired if e["type"] == seg_type.value][-SHOW_SAME_TYPE:]
+        return f"ON {title} TODAY (for the nod to what was on):\n{heads}"
+    mine = [e for e in aired if e["type"] == seg_type.value]
+    on_brief = [e for e in mine if brief and e.get("brief") == brief][-SHOW_SAME_BRIEF:]
+    same = [e for e in mine if e in on_brief or e in mine[-SHOW_SAME_TYPE:]]
     kind = seg_type.value.replace("_", " ")
     same_s = (f"\nTHE LAST {kind.upper()}S, how they began. This {kind} is about none of these subjects, not even "
               "from a new angle:\n" + "\n".join(f"  - {e['headline']}: {e['text'][:160]}" for e in same)) if same else ""
@@ -957,7 +969,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     if seg_type is not SegmentType.breaking:   # one or two events that suit the show, rationed like the moods
         user += "\n\n" + calendar.for_prompt(show.id, datetime.fromtimestamp(at_ts or schedule.now()).date())
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
-        world, show, seg_type, part)
+        world, show, seg_type, part, brief)
     if so_far:
         user += "\n\n" + so_far
     guests = _guests_so_far(world, show) if seg_type is SegmentType.interview and show.id == "breakfast" else ""

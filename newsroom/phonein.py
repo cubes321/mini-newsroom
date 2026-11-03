@@ -43,7 +43,8 @@ Jonah would put it to viewers; and the studio guest at the heart of that story w
 by an exact name from PEOPLE (an official or someone in the story), with where they stand in one
 sentence, consistent with the briefing. Then four to six kinds of caller who will ring, each with a
 different view and a different stake (who they are and what they think, one line each), so the hour
-hears the whole town and not one side. Everything is fiction. Return ONLY JSON.
+hears the whole town and not one side. A kind is a description, never a name: each kind rings several
+times an hour, a different person every time. Everything is fiction. Return ONLY JSON.
 """
 
 
@@ -135,7 +136,8 @@ def for_prompt(world: World, seg_type: SegmentType | None = None) -> str:
     with world.lock:
         aired = [e for e in world.archive if e["date"] == world.last_date and e.get("show") == SHOW
                  and e["type"] != SegmentType.ad_break.value]
-    calls = sum(e["type"] == SegmentType.call.value for e in aired)
+    called = [e for e in aired if e["type"] == SegmentType.call.value]
+    calls = len(called)
     out = (f"TODAY'S QUESTION: \"{s['question']}\"" + (f" (thread [{s['thread_id']}])" if s["thread_id"] else "")
            + (f"\nTHE STUDIO GUEST, at the desk with Jonah all hour: {s['guest']}" + (f", {guest.role}" if guest else "")
               + f": {s['guest_stance']}" if s["guest"] else "\nNo studio guest today: Jonah answers callers himself.")
@@ -147,8 +149,14 @@ def for_prompt(world: World, seg_type: SegmentType | None = None) -> str:
         kinds = s["callers"]
         out += f"\nTHIS CALLER (call {calls + 1} of the morning): {kinds[calls % len(kinds)]}."
         if calls >= len(kinds):     # the second lap echoed the first (2026-10-30): someone new, a new point
+            # Every earlier call of this kind, not just the last ten items: from the third lap SAID SO FAR
+            # no longer reached back to the first, and 34 calls on 2026-11-02 went round the same six points.
+            mine = called[calls % len(kinds)::len(kinds)]
             out += (" That kind of caller has rung already this morning: this is SOMEONE ELSE with that stake, "
-                    "never the person named, with a point of their own that nobody in SAID SO FAR has made.")
+                    "never the person named, with a point of their own that nobody in SAID SO FAR has made."
+                    "\nTHIS KIND OF CALLER SO FAR THIS MORNING (each point here is made: a new caller makes "
+                    "another, or takes one of these on):\n" + "\n".join(
+                        f"  - {e['headline']}: {e['text'][:SO_FAR_CHARS]}" for e in mine))
         rang = [p.name for p in world.people if any(m.get("show") == CALLED and m["date"] == world.last_date
                                                     for m in p.memories)]
         if rang:                    # Tomas Reid at call six came back as Tomas Reilly at call twelve

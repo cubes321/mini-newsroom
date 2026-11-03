@@ -70,6 +70,19 @@ def test_each_call_takes_the_next_kind_of_caller(monkeypatch):
     assert "THIS CALLER (call 6 of the morning): a parent on the coast road." in phonein.for_prompt(w, T.call)
 
 
+def test_a_call_sees_every_earlier_call_of_its_kind_not_just_the_last_ten(monkeypatch):
+    w = _town()
+    _stub(monkeypatch, _booking(w))
+    phonein.commission(w)
+    for n in range(12):                   # three laps of four kinds; the hauliers rang at calls 1, 5 and 9
+        w.record_aired(T.call.value, f"Caller {n}", w.threads[0].id, f"Point number {n}.", show=phonein.SHOW)
+    brief = phonein.for_prompt(w, T.call)
+    assert "THIS CALLER (call 13 of the morning): a haulier." in brief
+    mine = brief.split("THIS KIND OF CALLER SO FAR")[1].split("\nRUNG ALREADY")[0]
+    assert all(f"Point number {n}." in mine for n in (0, 4, 8)) and "Point number 1." not in mine
+    assert "Point number 0." not in brief.split("SAID SO FAR THIS MORNING")[1].split("THIS CALLER")[0]
+
+
 def test_a_failed_or_wrong_booking_gets_a_stand_in(monkeypatch):
     w = _town()
     _stub(monkeypatch, phonein.llm.LLMError("down"))

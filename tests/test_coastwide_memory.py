@@ -29,7 +29,7 @@ def _prompt(w, seg_type, part="", show=MAG) -> str:
 
 def test_a_vox_pop_sees_tonights_items_and_how_the_last_vox_pops_began():
     user = _prompt(_world(), T.vox_pop)
-    memory = user.split("ON COASTWIDE ALREADY TONIGHT")[1]
+    memory = user.split("ON COASTWIDE ALREADY TODAY")[1]
     assert "vox pop: Port Wexley Votes on the Best Chips" in memory
     assert "feature: Biscuit the Harbour Cat" in memory
     assert "THE LAST VOX POPS, how they began. This vox pop is about none of these" in memory and "who fries the best chips" in memory
@@ -46,10 +46,34 @@ def test_a_feature_sees_the_evening_but_only_features_as_its_kind():
 
 def test_the_goodbye_gets_the_list_for_its_nod():
     user = _prompt(_world(), T.links, part="close")
-    assert "ON COASTWIDE TONIGHT (for the nod to what was on)" in user and "Biscuit" in user
+    assert "ON COASTWIDE TODAY (for the nod to what was on)" in user and "Biscuit" in user
     assert "do NOT do any of these again" not in user
 
 
 def test_the_first_item_and_other_shows_have_no_memory():
     assert "ON COASTWIDE" not in _prompt(world_mod.seed(), T.vox_pop)
-    assert "ALREADY TONIGHT" not in _prompt(_world(), T.interview, show=schedule.get("late"))
+    assert "ALREADY TODAY" not in _prompt(_world(), T.interview, show=schedule.get("late"))
+
+
+def test_quaysides_loop_remembers_its_lunchtime():
+    w = world_mod.seed()
+    shop = "a shop or business that is new, closing or changing hands"
+    w.record_aired("feature", "New owners take on the old Harrow Street haberdashery", None,
+                   "The haberdashery on Harrow Street has new owners.", show="quayside", brief=shop)
+    user = writers.build_prompt(T.feature, w, target_s=120.0, show=schedule.get("quayside"), brief=shop)[1]
+    assert "ON QUAYSIDE ALREADY TODAY" in user and "The haberdashery on Harrow Street has new owners" in user
+    assert "MIDDLE of Quayside" in user                        # no good afternoon on every item
+
+
+def test_an_item_sees_the_last_on_its_own_brief_however_far_back():
+    w = world_mod.seed()                  # Out and About's painter, six features before her angle came round
+    art = "the town's culture: a gallery opening, or a painter in their studio"
+    w.record_aired("feature", "Harbour painter opens her cannery studio", None, "Nell Harrower paints the boats.",
+                   show="outabout", brief=art)
+    for n in range(5):
+        w.record_aired("feature", f"Feature {n}", None, f"Another angle {n}.", show="outabout", brief=f"angle {n}")
+    show = schedule.get("outabout")
+    user = writers.build_prompt(T.feature, w, target_s=120.0, show=show, brief=art)[1]
+    assert "Nell Harrower paints the boats" in user.split("THE LAST FEATURES")[1]
+    other = writers.build_prompt(T.feature, w, target_s=120.0, show=show, brief="angle 9")[1]
+    assert "Nell Harrower paints the boats" not in other.split("THE LAST FEATURES")[1]
