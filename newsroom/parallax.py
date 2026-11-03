@@ -43,17 +43,29 @@ PAD = 10                        # art px of plate past each edge of the frame
 NEAR = 5.0                      # art px the bottom row swings either way (the trial's, approved by eye)
 PERIOD = 8.0                    # s for one swing there and back
 SMEAR = 3                       # art px a farther piece is carried under a nearer one, so a drift opens no hole
-CACHE = 6                       # scenes kept (each a few MB at 3x)
+EASE_S = 1.5                    # s for the drift to grow from still when a shot starts in layers
+CACHE = 12                      # scenes kept, about 5 MB each at 3x: a pilot evening's backdrops, times and weathers
 
 
 def enabled() -> bool:
     return CONFIG.broadcast.parallax or os.environ.get("NEWSROOM_PARALLAX") == "1"
 
 
-def swing(t: float) -> float:
-    """Where the camera is, -1 to 1: a slow sine. A cut lands wherever it is, which reads as a new
-    camera position, not a jump."""
-    return math.sin(2 * math.pi * t / PERIOD)
+def scale() -> int:
+    """The window as so many canvases over, or 0 when it isn't a whole number of them (then it stays flat)."""
+    k = CONFIG.broadcast.width // W
+    return k if (CONFIG.broadcast.width, CONFIG.broadcast.height) == (W * k, H * k) else 0
+
+
+def swing(t: float, since: float | None = None) -> float:
+    """Where the camera is, -1 to 1: a slow sine, eased in from still over EASE_S after `since`, when the
+    shot went into layers. Without the ease, a scene that finished building mid-shot would jump the
+    picture by up to the full swing."""
+    s = math.sin(2 * math.pi * t / PERIOD)
+    if since is None:
+        return s
+    u = min(1.0, max(0.0, (t - since) / EASE_S))
+    return s * u * u * (3 - 2 * u)
 
 
 _meta_cache: dict[Path, dict] = {}

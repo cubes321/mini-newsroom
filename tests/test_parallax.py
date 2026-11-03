@@ -58,6 +58,7 @@ def layers(tmp_path, monkeypatch):
     (tmp_path / "parallax.json").write_text(json.dumps({"fish_quay": {"horizon": 80}, "harbour": {"horizon": 98}}))
     monkeypatch.setattr(parallax, "DIR", tmp_path)
     monkeypatch.setenv("NEWSROOM_PARALLAX", "1")
+    monkeypatch.setattr(scenes, "_par", None)
     parallax.reset()
     yield tmp_path
     parallax.reset()
@@ -75,10 +76,38 @@ def _window(sc: parallax.Scene, s: float, t: float = 0.0, **kw) -> np.ndarray:
     return pygame.surfarray.array3d(screen)
 
 
-def test_at_rest_the_layers_are_the_flat_picture(layers):
-    sc = parallax.scene("fish_quay", "day", None, K, wait=True)
+@pytest.mark.parametrize("tod", ["day", "dusk"])
+@pytest.mark.parametrize("wx", [None, "rain", "fog"])
+def test_at_rest_the_layers_are_the_flat_picture(layers, tod, wx):
+    sc = parallax.scene("fish_quay", tod, wx, K, wait=True)
     assert sc is not None and len(sc.pieces) == 2                     # the van block and the near piece
-    assert np.array_equal(_window(sc, 0.0), _flat_window("fish_quay", 0.0))
+    flat = pygame.Surface(scenes.CANVAS)
+    backdrops.draw_still(flat, "fish_quay", tod, wx, 0.0)             # graded alike, the padding's rows included
+    assert np.array_equal(_window(sc, 0.0), pygame.surfarray.array3d(pygame.transform.scale(flat, (320 * K, 180 * K))))
+
+
+def test_a_scene_is_built_on_a_thread_and_the_shot_is_flat_until_then(layers):
+    assert parallax.scene("fish_quay", "day", None, K) is None        # asked for: building
+    for _ in range(200):
+        sc = parallax.scene("fish_quay", "day", None, K)
+        if sc is not None:
+            break
+        pygame.time.wait(10)
+    assert sc is not None
+    screen = pygame.Surface((320 * K, 180 * K))
+    sc.draw(screen, 0.0, 0.0)                                          # its surfaces, made off the main thread
+    assert np.array_equal(pygame.surfarray.array3d(screen), _flat_window("fish_quay", 0.0))
+
+
+def test_the_drift_eases_in_when_a_shot_goes_into_layers(layers):
+    assert parallax.scene("fish_quay", "day", None, K, wait=True) is not None
+    t = parallax.PERIOD / 4                                            # where the sine is at full swing
+    _frame(_field(), t)
+    assert scenes._par.s == 0.0                                        # no jump from the flat frame before
+    _frame(_field(), t + parallax.EASE_S / 2)
+    assert 0 < abs(scenes._par.s) < abs(parallax.swing(t + parallax.EASE_S / 2))
+    _frame(_field(), t + parallax.PERIOD)                              # eased in, and a whole swing later
+    assert scenes._par.s == pytest.approx(1.0)
 
 
 def test_the_ground_shears_and_the_sky_stays(layers):
@@ -141,8 +170,10 @@ def test_a_field_shot_at_rest_is_the_flat_shot_and_the_canvas_always_is(layers, 
 def test_the_reporter_moves_with_the_ground_at_their_feet(layers):
     v = _field(lower_third=None, ticker=[], clock="", tag="")
     sc = parallax.scene("fish_quay", "day", None, K, wait=True)
-    t = parallax.PERIOD / 4                                            # full swing
+    _frame(v, 0.0)                                                     # into layers, easing in
+    t = parallax.PERIOD / 4 + parallax.PERIOD                         # full swing, well after the ease
     _frame(v, t)
+    assert scenes._par.s == pytest.approx(1.0)
     (layer, foot), = scenes._par.people
     assert foot == 160
     drawn = pygame.surfarray.array_alpha(layer) > 0

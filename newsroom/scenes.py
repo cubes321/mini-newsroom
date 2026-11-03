@@ -102,10 +102,14 @@ class _Layered:
         self._pool: list[pygame.Surface] = []
         self.people: list[tuple[pygame.Surface, float]] = []
         self.scene: parallax.Scene | None = None
-        self.s = self.t = 0.0
+        self.s = self.t = self.since = 0.0
 
-    def start(self, scene: parallax.Scene, t: float) -> pygame.Surface:
-        self.scene, self.s, self.t = scene, parallax.swing(t), t
+    def start(self, scene: parallax.Scene, t: float, fresh: bool) -> pygame.Surface:
+        """A frame of the shot. `fresh`: the last frame wasn't in layers (a new shot, or this one's scene
+        just finished building), so the drift eases in from still."""
+        if fresh:
+            self.since = t
+        self.scene, self.s, self.t = scene, parallax.swing(t, self.since), t
         self.overlay.fill((0, 0, 0, 0))
         self.people.clear()
         return self.overlay
@@ -125,7 +129,8 @@ class _Layered:
         canvas.blit(self.overlay, (0, 0))
 
     def draw(self, screen: pygame.Surface) -> None:
-        sc, k = self.scene, REF
+        sc = self.scene
+        k = sc.k
         sc.draw(screen, self.s, self.t)
         for layer, foot in self.people:
             r = layer.get_bounding_rect()
@@ -151,11 +156,11 @@ def _parallax(v: View, t: float) -> _Layered | None:
     global _layered
     if v.mode != "field":
         return None
-    sc = parallax.scene(v.backdrop, v.tod, v.weather, REF)
+    sc = parallax.scene(v.backdrop, v.tod, v.weather, parallax.scale())
     if sc is None:
         return None
     _layered = _layered or _Layered()
-    _layered.start(sc, t)
+    _layered.start(sc, t, fresh=_par is None)           # the last frame flat, or not a field shot at all
     return _layered
 
 
@@ -167,8 +172,8 @@ def _stands(canvas: pygame.Surface, foot: float) -> pygame.Surface:
 
 def present(canvas: pygame.Surface, screen: pygame.Surface) -> None:
     """Scale the canvas to `screen` and draw this frame's text on it at full size. A parallax shot draws
-    its layers at the window's size instead, when the window is the canvas REF times over."""
-    if _par and screen.get_size() == (CANVAS[0] * REF, CANVAS[1] * REF):
+    its layers at the window's size instead, when the window is the size they were built for."""
+    if _par and screen.get_size() == (CANVAS[0] * _par.scene.k, CANVAS[1] * _par.scene.k):
         _par.draw(screen)
     else:
         pygame.transform.scale(canvas, screen.get_size(), screen)
