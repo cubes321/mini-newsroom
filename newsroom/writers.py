@@ -856,6 +856,12 @@ def _part(show: schedule.Show) -> str:
     return "morning" if show.id == "breakfast" else schedule.part_of_day(schedule.now())
 
 
+def _greeting(show: schedule.Show) -> str:
+    """The word after "good" in a hello: there is no "good night" hello, so the night says evening."""
+    part = _part(show)
+    return "evening" if part == "night" else part
+
+
 def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                  show: schedule.Show | None = None, part: str = "", brief: str = "",
                  at_ts: float | None = None, work: dict | None = None,
@@ -879,7 +885,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type))}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
-        f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}."
+        f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
+        f"is \"good {_greeting(show)}\"."
     )
     if show.light and show.id not in ("sport", outabout.SHOW, "rockpool"):   # their own facts, not the news
         big = big_story(world)
@@ -1013,8 +1020,7 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
     lead = show.lead
     lead_c = world.character(lead)
     lead_name = lead_c.name.split()[0] if lead_c else "Dana"
-    part = _part(show)
-    part = "evening" if part == "night" else part
+    part = _greeting(show)
     if seg_type is SegmentType.weather:
         state = rng.choice(wx_states)
         temp = rng.randint(6, 19)

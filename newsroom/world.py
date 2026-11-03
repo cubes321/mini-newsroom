@@ -896,7 +896,10 @@ def _seat_council(w: World) -> None:
 def seed_characters() -> list[Character]:
     """The station's presenters. Each show's cast is a subset of them (schedule.py)."""
     return [
-        Character("anchor", "Dana Ferris", "evening news anchor", CONFIG.tts.voices.get("anchor", "af_heart"),
+        # Not "evening news anchor": the rolling news runs all day, and that role had her open morning field
+        # reports with "Good evening" (26 times on 2026-11-02 and 11-03) whatever the brief said.
+        Character("anchor", "Dana Ferris", "news anchor, at the news desk from morning to night",
+                  CONFIG.tts.voices.get("anchor", "af_heart"),
                   ["dry", "unflappable", "fond of the town"]),
         Character("weather", "Gordon Pell", "weather presenter", CONFIG.tts.voices.get("weather", "bm_george"),
                   ["cheerful", "over-explains fronts", "sailing enthusiast"]),
