@@ -4,6 +4,7 @@
 width = 960
 height = 540
 fps = 60
+parallax = false         # location backdrops in layers that drift (docs/PARALLAX.md); --parallax for one run
 horizon_s = 600          # seconds of unplayed content the producer keeps queued
 words_per_minute = 150   # used to turn target seconds into a word budget
 

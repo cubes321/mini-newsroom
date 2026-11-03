@@ -42,7 +42,12 @@ bottom with the date.
   night art, graded for dusk and weather; the wind hurries the clouds. Approved and merged
   2026-10-30. Finding a sky takes about 50 ms
   the first time a backdrop is drawn; if that shows as a hitch on air, warm them at start-up.
-  True parallax (a moving camera over wider art) is still parked.
+  True parallax (a moving camera over wider art) is still parked. A cheaper route was trialled on 2026-11-03
+  on the harbour, Main Street and the fish quay (a foot row per pixel, a gentle drift drawn at window size;
+  clips in E:\recordings\parallax-trial) and the user asked for it to be planned: `docs/PARALLAX.md`
+  (triage the 24 exteriors by depth, the engine behind `[broadcast] parallax`, a pilot evening, then the art).
+  Triage done (12 chosen) and the engine built the same day (`newsroom/parallax.py`, off by default); next
+  the pilot evening with `--parallax` on the trial's harbour and fish quay.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
 

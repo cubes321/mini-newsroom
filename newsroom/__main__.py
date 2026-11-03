@@ -54,6 +54,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="run on a temp copy of the world and tip-line, with an empty cache and its own call log")
     p.add_argument("--route", type=str, default="",
                    help="move providers' or tasks' calls for this run: deepseek_flash_think=claude_sonnet[,...] (or NEWSROOM_ROUTES)")
+    p.add_argument("--parallax", action="store_true",
+                   help="draw the location backdrops that have layers in parallax, whatever config.toml says")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -63,6 +65,8 @@ def redirect_paths(args: argparse.Namespace) -> None:
     imported: CONFIG is built at import time from these environment variables."""
     if args.route:
         os.environ["NEWSROOM_ROUTES"] = args.route
+    if args.parallax:
+        os.environ["NEWSROOM_PARALLAX"] = "1"
     if args.world:
         os.environ["NEWSROOM_WORLD"] = args.world
     if args.cache:

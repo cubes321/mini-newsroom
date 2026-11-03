@@ -23,6 +23,7 @@ class BroadcastCfg:
     width: int = 960
     height: int = 540
     fps: int = 60
+    parallax: bool = False               # layered location backdrops that drift (parallax.py; or --parallax)
     horizon_s: float = 600.0
     words_per_minute: int = 150
 

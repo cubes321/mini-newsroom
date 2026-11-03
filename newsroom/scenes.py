@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import backdrops, locations, logo, schedule
+from . import backdrops, locations, logo, parallax, schedule
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -91,9 +91,87 @@ def queue_picture(key, make, at: tuple[int, int]) -> None:
     _pictures.append((key, make, at))
 
 
+class _Layered:
+    """A parallax shot on location (parallax.py). The place is drawn at the window's size in present(),
+    each person on location on a layer of their own that moves with the ground under their feet, and
+    everything else (the weather, the tags, the lower third, the clock) on a clear overlay above them.
+    The canvas still gets the whole frame, flat, for anything that reads it rather than the window."""
+
+    def __init__(self) -> None:
+        self.overlay = pygame.Surface(CANVAS, pygame.SRCALPHA)
+        self._pool: list[pygame.Surface] = []
+        self.people: list[tuple[pygame.Surface, float]] = []
+        self.scene: parallax.Scene | None = None
+        self.s = self.t = 0.0
+
+    def start(self, scene: parallax.Scene, t: float) -> pygame.Surface:
+        self.scene, self.s, self.t = scene, parallax.swing(t), t
+        self.overlay.fill((0, 0, 0, 0))
+        self.people.clear()
+        return self.overlay
+
+    def person(self, foot: float) -> pygame.Surface:
+        if len(self.people) == len(self._pool):
+            self._pool.append(pygame.Surface(CANVAS, pygame.SRCALPHA))
+        layer = self._pool[len(self.people)]
+        layer.fill((0, 0, 0, 0))
+        self.people.append((layer, foot))
+        return layer
+
+    def flatten(self, canvas: pygame.Surface, v: View, t: float) -> None:
+        backdrops.draw_still(canvas, v.backdrop, v.tod, v.weather, t)
+        for layer, _ in self.people:
+            canvas.blit(layer, (0, 0))
+        canvas.blit(self.overlay, (0, 0))
+
+    def draw(self, screen: pygame.Surface) -> None:
+        sc, k = self.scene, REF
+        sc.draw(screen, self.s, self.t)
+        for layer, foot in self.people:
+            r = layer.get_bounding_rect()
+            if r.w:
+                screen.blit(pygame.transform.scale(layer.subsurface(r), (r.w * k, r.h * k)),
+                            (r.x * k + sc.shift(foot, self.s), r.y * k))
+        w, h = CANVAS
+        for half in (pygame.Rect(0, 0, w, h // 2), pygame.Rect(0, h // 2, w, h - h // 2)):
+            part = self.overlay.subsurface(half)        # the tags and clock up top, the lower third and ticker
+            r = part.get_bounding_rect()                # below: scaling only those, not the clear middle
+            if r.w:
+                screen.blit(pygame.transform.scale(part.subsurface(r), (r.w * k, r.h * k)),
+                            ((half.x + r.x) * k, (half.y + r.y) * k))
+
+
+_layered: _Layered | None = None
+_par: _Layered | None = None                    # this frame's, when it is a parallax shot
+
+
+def _parallax(v: View, t: float) -> _Layered | None:
+    """The frame as a parallax shot, when it is one: a field report or vox pop on a location with layers
+    for this time of day, built and ready (until then the shot is flat)."""
+    global _layered
+    if v.mode != "field":
+        return None
+    sc = parallax.scene(v.backdrop, v.tod, v.weather, REF)
+    if sc is None:
+        return None
+    _layered = _layered or _Layered()
+    _layered.start(sc, t)
+    return _layered
+
+
+def _stands(canvas: pygame.Surface, foot: float) -> pygame.Surface:
+    """Where to draw someone standing on screen row `foot`: the canvas, or on a parallax shot their own
+    layer, which moves with the ground at their feet (held still, they'd slide about 4 px against it)."""
+    return _par.person(foot) if _par else canvas
+
+
 def present(canvas: pygame.Surface, screen: pygame.Surface) -> None:
-    """Scale the canvas to `screen` and draw this frame's text on it at full size."""
-    pygame.transform.scale(canvas, screen.get_size(), screen)
+    """Scale the canvas to `screen` and draw this frame's text on it at full size. A parallax shot draws
+    its layers at the window's size instead, when the window is the canvas REF times over."""
+    if _par and screen.get_size() == (CANVAS[0] * REF, CANVAS[1] * REF):
+        _par.draw(screen)
+    else:
+        pygame.transform.scale(canvas, screen.get_size(), screen)
     k = screen.get_width() / canvas.get_width()
     for key, make, (x, y) in _pictures:
         n = max(1, round(k))
@@ -474,8 +552,12 @@ def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
 
 def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     """The reporter on location (Miles, or Tamsin for Full Time); when a resident speaks (a filmed
-    piece, a vox pop) they take the frame."""
-    backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
+    piece, a vox pop) they take the frame. On a parallax shot `canvas` is the overlay: the place is
+    drawn in present(), and the people on their own layers (`_stands`)."""
+    if _par:
+        backdrops.draw_effects(canvas, v.backdrop, v.tod, v.weather, t)
+    else:
+        backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     if v.fireworks:
         draw_fireworks(canvas, t)
     if v.bonfire:
@@ -483,14 +565,17 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     light = backdrops.person_light(v.backdrop, v.tod, v.weather)
     if v.speaker not in (None, v.reporter):        # a resident, or a presenter interviewed as themselves
         look = _guest(v, v.guest_name) if v.speaker == "guest" else None
-        draw_character(canvas, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light,
+        near = _stands(canvas, 156)
+        draw_character(near, 215, 156, v.speaker, v.mouth, t, scale=2, facing=-1, look=look, light=light,
                        mood=v.mood)
-        draw_character(canvas, 62, FAR_Y, v.reporter, 0.0, t, scale=1, light=light, mood=_mood(v, False))
-        draw_mic(canvas, 190, 116)
+        draw_character(_stands(canvas, FAR_Y), 62, FAR_Y, v.reporter, 0.0, t, scale=1, light=light,
+                       mood=_mood(v, False))
+        draw_mic(near, 190, 116)
     else:
-        draw_character(canvas, 90, 160, v.reporter, v.mouth if v.speaker == v.reporter else 0.0, t, scale=2,
+        here = _stands(canvas, 160)
+        draw_character(here, 90, 160, v.reporter, v.mouth if v.speaker == v.reporter else 0.0, t, scale=2,
                        light=light, mood=_mood(v, v.speaker == v.reporter))
-        draw_mic(canvas, 105, 118)
+        draw_mic(here, 105, 118)
     if v.tag:
         w = font(8).size(v.tag)[0] + 8
         pygame.draw.rect(canvas, (255, 60, 60) if v.tag == "LIVE" else (40, 140, 150), (8, 8, w, 10))
@@ -761,8 +846,11 @@ def shows_bug(v: View) -> bool:
 
 
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
+    global _par
     _layer.clear()
     _pictures.clear()
+    _par = _parallax(v, t)
+    flat, canvas = canvas, (_par.overlay if _par else canvas)
     if v.mode == "testcard":
         draw_test_card(canvas, t, v)
         if v.resume_at:
@@ -780,3 +868,5 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
     if debug:
         # Bottom-left, between the lower third and the ticker, clear of scene tags.
         text(canvas, debug, 2, canvas.get_height() - 24, 8, (255, 255, 120))
+    if _par:
+        _par.flatten(flat, v, t)

@@ -1331,16 +1331,17 @@ def person_light(backdrop_id: str | None, tod: str, wx: str | None) -> tuple[flo
     return tuple(1.0 + (m * t - 1.0) * PERSON_LIGHT_K for m, t in zip(mult, TOD_MULT.get(tod, TOD_MULT["day"])))
 
 
-def _dusk_grade(surf: pygame.Surface, horizon: int) -> None:
+def _dusk_grade(surf: pygame.Surface, horizon: int, top: int = 0) -> None:
     """Sunset for art made in daylight: a multiply can't turn blue sky orange, so tint instead.
 
     Each row gets a colour from DUSK_RAMP (purple overhead, pink, orange at the horizon, a warm
     dim on the ground), applied keeping each pixel's brightness. Sky, water and pale haze take
-    most of it; buildings and grass a little, so they stay readable.
+    most of it; buildings and grass a little, so they stay readable. `top`: rows of padding above the
+    frame (a parallax plate's), so each row takes the colour of the screen row it shows.
     """
     rgb = pygame.surfarray.pixels3d(surf)                       # indexed [x, y, channel]
     a = rgb.astype(np.float32)
-    ys = np.arange(a.shape[1], dtype=np.float32) / max(1, horizon)
+    ys = (np.arange(a.shape[1], dtype=np.float32) - top) / max(1, horizon)
     stops = np.array([s for s, _ in DUSK_RAMP], np.float32)
     ramp = np.stack([np.interp(ys, stops, [c[i] for _, c in DUSK_RAMP]) for i in range(3)], axis=1)
     lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -1408,10 +1409,10 @@ def _art_file(loc: Location, tod: str) -> tuple[Path, bool] | None:
     return None
 
 
-def _grade_art(img: pygame.Surface, loc: Location, tod: str, wx: str | None, own_tod: bool) -> None:
+def _grade_art(img: pygame.Surface, loc: Location, tod: str, wx: str | None, own_tod: bool, top: int = 0) -> None:
     dusk = tod == "dusk" and not own_tod
     if dusk:                                                     # sunset first, so the weather sits on top of it
-        _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ))
+        _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ), top)
     _grade(img, tod, wx, tod_grade=not own_tod and not dusk)
 
 
@@ -1532,6 +1533,11 @@ def _water_mask(loc_id: str) -> pygame.Surface:
     return m
 
 
+def shimmer_step(t: float) -> int:
+    """How far the shimmer has moved, in whole pixels (ten a second): it only changes when this does."""
+    return int(t * 10)
+
+
 def _shimmer(canvas: pygame.Surface, loc_id: str, tod: str, t: float) -> None:
     global _shimmer_buf
     if _shimmer_buf is None:
@@ -1542,7 +1548,7 @@ def _shimmer(canvas: pygame.Surface, loc_id: str, tod: str, t: float) -> None:
     for x0, y0, w, h in WATER[loc_id]:
         buf.set_clip(pygame.Rect(x0, y0, w, h))
         for i in range(max(3, w * h // 700)):
-            x = x0 + (i * 41 + int(t * 10)) % (w + 24) - 24
+            x = x0 + (i * 41 + shimmer_step(t)) % (w + 24) - 24
             y = y0 + 2 + (i * 17) % max(1, h - 3)
             buf.fill(c, (x, y, 8 + (i % 3) * 5, 1))
     buf.set_clip(None)
@@ -1643,6 +1649,12 @@ def _clouds(loc: Location, tod: str, wx: str | None) -> tuple[list[pygame.Surfac
     return out
 
 
+def drift_steps(n: int, wx: str | None, t: float) -> tuple[int, ...]:
+    """Where each of `n` cloud layers has drifted to, in whole pixels: the clouds only change when this
+    does (about once a second), so a layered sky keeps its scaled clouds until then (parallax.py)."""
+    return tuple(int(t * SKY_DRIFT * k * SKY_DRIFT_WX.get(wx, 1.0)) % W for k in SKY_DRIFT_LAYER[:n])
+
+
 def _drift(canvas: pygame.Surface, clouds: tuple[list[pygame.Surface], pygame.Surface], wx: str | None, t: float) -> None:
     global _cloud_buf
     if _cloud_buf is None:
@@ -1650,8 +1662,7 @@ def _drift(canvas: pygame.Surface, clouds: tuple[list[pygame.Surface], pygame.Su
     layers, mask = clouds
     buf = _cloud_buf
     buf.fill((0, 0, 0, 0))
-    for layer, k in zip(layers, SKY_DRIFT_LAYER):
-        x = int(t * SKY_DRIFT * k * SKY_DRIFT_WX.get(wx, 1.0)) % W
+    for layer, x in zip(layers, drift_steps(len(layers), wx, t)):
         buf.blit(layer, (x, 0))
         buf.blit(layer, (x - W, 0))
     buf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -1660,6 +1671,13 @@ def _drift(canvas: pygame.Surface, clouds: tuple[list[pygame.Surface], pygame.Su
 
 def draw(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: str | None = None, t: float = 0.0) -> None:
     """Paint the full canvas: the graded still, then the animated touches."""
+    draw_still(canvas, backdrop_id, tod, wx, t)
+    draw_effects(canvas, backdrop_id, tod, wx, t)
+
+
+def draw_still(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: str | None = None,
+               t: float = 0.0) -> None:
+    """The place itself: the graded still, its drifting clouds and the water's shimmer."""
     loc = locations.get(backdrop_id)
     clouds = _clouds(loc, tod, wx)
     canvas.blit(surface(loc.id, tod, wx, clean=clouds is not None), (0, 0))
@@ -1669,6 +1687,15 @@ def draw(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: 
         _drift(canvas, clouds, wx, t)
     if loc.id in WATER:
         _shimmer(canvas, loc.id, tod, t)
+
+
+def draw_effects(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: str | None = None,
+                 t: float = 0.0) -> None:
+    """What passes in front of the place: the lighthouse's beam and the weather. On a parallax shot
+    these go over the layered place, on the canvas (parallax.py)."""
+    loc = locations.get(backdrop_id)
+    if not loc.exterior:
+        return
     if loc.id == "lighthouse" and tod != "day":
         _beam(canvas, t)
     _weather_fx(canvas, wx, tod, t)
