@@ -23,11 +23,8 @@ bottom with the date.
 - [x] Art for Rock Pool's set (`studio_kids`), 2026-11-01 (701e449): ComfyUI art, a sea-green wall with painted
   waves and bunting, a rock pool with a crab and a starfish, a craft table. Gully stays code-drawn
   (`sprites.draw_gully`), like every character.
-- [ ] Interiors for Out and About's reviews: a cafe or tea room, a pub dining room, a village hall stage.
-  Meg reviews from the nearest exterior (the village, the seafront, the market) until then.
-- [ ] A phone-in desk for Have Your Say: Jonah and the studio guest sit in the interview armchairs
-  (`studio_interview`) for now; a desk with a phone, a headset and a call board behind would say
-  phone-in at a glance. The caller box (`scenes._caller_box`) is drawn in code and can stay.
+- [x] Interiors for Out and About's reviews: a tea room, a dining room and a village hall (b4e6d29, 2026-11-02).
+- [x] A phone-in desk for Have Your Say (`studio_phonein`, b4e6d29, 2026-11-02). The caller box is still drawn in code.
 - [x] Art for The Panel's set (`studio_panel`), 2026-11-01 (701e449): ComfyUI art, a long desk with four places,
   a wide screen and the channel 7 ident; its marks moved up three pixels to sit at the desk.
 - [x] A fish quay backdrop for Quayside, 2026-11-01 (e977fc2): boxes on ice, the auctioneer's chalk board, the
@@ -87,8 +84,7 @@ bottom with the date.
 - [ ] Moods, next: in a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
   would carry it there. Movement (entrances, crossing to a mark) waits for *Harbour Row* on the
   entertainment channel.
-- [ ] Dana's links on The Chamber use the news desk; a press-seats shot on the council chamber backdrop
-  would place her in the room.
+- [x] Dana's links on The Chamber from the press seats (`chamber_press`, b4e6d29, 2026-11-02).
 - [x] Built 2026-11-01 as SEVENTEXT (`teletext.py`): thirteen pages from the world in code, a block of
   about two minutes every eight overnight, the first two blocks a night recorded (`obs_record.py --teletext`).
   Still open: a model-written page or two (a "from the archive" page), and whether eight minutes is too often:
@@ -134,6 +130,24 @@ bottom with the date.
   those days; `calendar.due` reads the date back for the long-running pool. SEVENTEXT page 180 is What's
   On. Bonfire Night falls on the first council night (Thu 5 Nov); the fortnightly council also lands on New
   Year's Eve and on election day 2027, left for the user to decide.
+
+- [x] **The 2026-11-02 night and daytime runs, reviewed 2026-11-03** (0481941, 57046c4). The night ran clean: 968
+  segments, no filler or templates, and the mood ration held (Dana 18 smug faces on air, none on a closing line).
+  Daytime news field reports opened "Good evening" 26 times over two mornings: Dana's card said "evening news
+  anchor", and Haiku followed it over the brief; her role and the brief's greeting are fixed. Quayside's loop
+  aired one feature four times in ten minutes with no memory; Out and About's six feature angles put an item's
+  own angle out of the last four shown; Have Your Say's caller kinds named people, who rang every lap. Every
+  looped show now remembers its day, each item sees the earlier ones on its own brief, a caller kind is a
+  description, and a call sees every earlier call of its kind. A Quayside scratch run on the fix had three
+  businesses over four features. Its "how they began" excerpts were Howard's same hello (now a middle-of-show
+  item says none); watch whether the excerpts name the subject.
+- [ ] **The rolling news writes the quay auction into almost every bulletin.** On the 2026-11-02 night one auction
+  headline aired eight times between 10:21 and 10:40, and the 23:49-00:45 news was nearly all "five boats out".
+  Each is freshly written, so it is the news rotation's choice of story, not a replay; Morning Tide's lead
+  bulletin and six-minute weather do the same in a milder way (40 repeats in 180 items).
+- [ ] **Silent recording**: VB-Audio Virtual Cable, the station (python) set to CABLE Input in the Windows volume
+  mixer, OBS recording that device with Desktop Audio muted, monitoring on or off to listen. Don't mute python in
+  the mixer: that silences the capture too.
 
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire
