@@ -208,7 +208,7 @@ def _extract(e: dict) -> str:
 def research(seg: Segment, world: World) -> DocumentaryResearch:
     """The researcher's notes from the archive: every piece on the thread, then a keyword search."""
     thread = world.thread(seg.thread_id)
-    on_thread = [e for e in world.archive if thread and e.get("thread_id") == thread.id][-30:]
+    on_thread = [e for e in world.aired_archive() if thread and e.get("thread_id") == thread.id][-30:]
     seen = {id(e) for e in on_thread}
     terms = " ".join(seg.work.get("search_terms", [])) or seg.headline or ""
     found = [e for e in world.search_archive(terms, limit=16) if id(e) not in seen]

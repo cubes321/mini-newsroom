@@ -1668,4 +1668,5 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
             "asked": "\n".join(f"  {l.speaker}: {l.text[:220]}" for l in seg.lines)[:3000]}
     world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines),
                        content_hash=seg.content_hash,
-                       show=seg.show, brief=seg.brief)
+                       show=seg.show, brief=seg.brief,
+                       aired=False)            # history once the player says it went out (world.confirm_aired)

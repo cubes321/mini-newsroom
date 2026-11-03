@@ -251,6 +251,7 @@ class Player:
         if seg.type is SegmentType.breaking:
             # Outside the rundown: no slot advance, and last_type stays as it was,
             # so a special can still follow the bumper before it.
+            self._confirm_aired(seg)
             self.buffer.mark(seg, SegmentState.done)
             self.buffer.forget(seg.slot_id)
             self.breaking_played += 1
@@ -275,6 +276,7 @@ class Player:
                     mark_aired(seg, self.world)
                 self.buffer.forget(seg.slot_id)
             else:
+                self._confirm_aired(seg)
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)
                 self.next_slot = seg.slot_id + 1
                 self.played += 1
@@ -286,6 +288,16 @@ class Player:
         self.current = None
         self.replaying = False
         self._set_music(0.25)
+
+    def _confirm_aired(self, seg: Segment) -> None:
+        """A written segment has gone out: its archive entry is history now. A repeat is no new
+        airing; a bumper, a card or an ad break has no entry."""
+        from .models import SCRIPT_SCHEMAS
+
+        if self.world is not None and seg.type in SCRIPT_SCHEMAS and not seg.repeat and seg.lines:
+            self.world.confirm_aired(seg.type.value, seg.headline, seg.thread_id,
+                                     " ".join(l.text for l in seg.lines if l.text), show=seg.show,
+                                     brief=seg.brief, content_hash=seg.content_hash)
 
     def update(self, now: float | None = None) -> None:
         now = now or schedule.now()

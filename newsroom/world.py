@@ -45,6 +45,7 @@ log = logging.getLogger(__name__)
 MAX_THREADS_IN_PROMPT = 5
 MAX_HEADLINES_IN_PROMPT = 10
 MAX_ARCHIVE = 1000
+UNAIRED_KEEP_S = 3600.0         # a written segment not on air within the hour never will be (the buffer is ten minutes)
 MAX_THREADS = 120               # closed, then faded, threads beyond this are dropped; open ones never are
 THREAD_PEOPLE = 4               # a thread's people, as the desk lists them; appended to, t220 reached 22 (2026-10-31)
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
@@ -443,25 +444,69 @@ class World:
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
-                     show: str = "", brief: str = "", content_hash: str = "") -> None:
-        """Archive entry for a scripted segment; also counts appearances of named people."""
+                     show: str = "", brief: str = "", content_hash: str = "", aired: bool = True) -> None:
+        """Archive entry for a scripted segment; also counts appearances of named people. The
+        writers make it when the script is written (`aired=False`), as the next writers have to
+        see what is about to air; it becomes history when the player says it went out
+        (confirm_aired), and one that never does is dropped (drop_unaired)."""
         named = [p.id for p in self.people if p.name.split()[-1] in text and p.name.split()[0] in text]
-        for pid in named:
-            p = self.person(pid)
-            p.appearances += 1
-            if not p.first_seen:
-                p.first_seen = self.last_date
+        if aired:
+            self._count_appearances(named)
         t = self.thread(thread_id)
         if t:                         # fills a short list; the desk decides who stays on a full one
             for pid in named:
                 if pid not in t.people and len(t.people) < THREAD_PEOPLE:
                     t.people.append(pid)
-        self.archive.append({
+        entry = {
             "date": self.last_date, "day": self.broadcast_day, "type": seg_type,
             "headline": headline or "", "thread_id": thread_id, "people": named, "text": text[:400],
             "show": show, "brief": brief, "hash": content_hash,   # its cache entry: the documentary's footage
-        })
+        }
+        if not aired:                 # an entry without the key aired (all of them before 2026-11-03)
+            entry.update(aired=False, ts=schedule.now())
+        self.archive.append(entry)
         self.archive = self.archive[-MAX_ARCHIVE:]
+
+    def _count_appearances(self, named: list[str]) -> None:
+        for pid in named:
+            p = self.person(pid)
+            if p is None:
+                continue
+            p.appearances += 1
+            if not p.first_seen:
+                p.first_seen = self.last_date
+
+    @_locked
+    def confirm_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
+                      show: str = "", brief: str = "", content_hash: str = "") -> None:
+        """The player's word that a written segment went out: its waiting entry becomes history
+        and its people's appearances count. One with no entry waiting (from the cache after a
+        restart) gets one now, unless the archive has it already."""
+        self.drop_unaired(older_than_s=UNAIRED_KEEP_S)
+        for e in reversed(self.archive) if content_hash else ():
+            if e.get("hash") == content_hash:
+                if e.get("aired", True):
+                    return
+                del e["aired"], e["ts"]
+                self._count_appearances(e.get("people", []))
+                return
+        self.record_aired(seg_type, headline, thread_id, text, show=show, brief=brief, content_hash=content_hash)
+
+    @_locked
+    def drop_unaired(self, older_than_s: float | None = None, now: float | None = None) -> int:
+        """Drop the entries of segments written but never aired (a voice that failed, a slot
+        skipped, the buffer at shutdown): those older than `older_than_s`, or all of them (at load,
+        whatever clock the last run kept)."""
+        now = now or schedule.now()
+        keep = [e for e in self.archive if e.get("aired", True)
+                or (older_than_s is not None and 0 <= now - e.get("ts", 0.0) < older_than_s)]
+        n, self.archive = len(self.archive) - len(keep), keep
+        return n
+
+    @_locked
+    def aired_archive(self) -> list[dict]:
+        """The archive as history: what went out, without what is written and waiting to air."""
+        return [e for e in self.archive if e.get("aired", True)]
 
     @_locked
     def aired_today(self, seg_type: str, show: str) -> list[dict]:
@@ -733,7 +778,7 @@ class World:
         """Keyword search over past coverage (for documentary research)."""
         words = [w for w in query.lower().split() if len(w) > 3]
         scored = []
-        for e in self.archive:
+        for e in self.aired_archive():
             blob = f"{e['headline']} {e['text']}".lower()
             score = sum(blob.count(w) for w in words)
             if score:
@@ -997,6 +1042,8 @@ def load(path: Path | None = None) -> World:
             if path.exists():
                 _WORLD = _from_dict(json.loads(path.read_text(encoding="utf-8")))
                 _WORLD.drop_presenter_people()
+                if n := _WORLD.drop_unaired():         # the buffer they waited in went with the last run
+                    log.info("dropped %d archive entries written but never aired", n)
                 log.info("world loaded from %s (day %d, %d threads, %d people, %d archived)",
                          path.name, _WORLD.broadcast_day, len(_WORLD.threads), len(_WORLD.people), len(_WORLD.archive))
             else:
