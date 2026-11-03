@@ -150,6 +150,10 @@ For each picked backdrop:
 
 Then the night plates. Commit only approved sets, by explicit paths.
 
+**Day layers done 2026-11-03:** 12 backdrops committed (11 of the 12 picked, with the park dropped, plus the pilot's fish quay), each
+equal to the flat art at rest. The woods came last: its oaks and the forest behind share one palette, so the
+outlines came from DA2's depth, not colour. Left: the night plates, and turning the switch on.
+
 ## Risks
 
 - **Frame time** at full screen: the window-size draw and the alpha-blended canvas are new costs. Measure in

@@ -31,5 +31,8 @@
   },
   "slipway": {
     "horizon": 98.0
+  },
+  "woods": {
+    "horizon": 99.0
   }
 }
