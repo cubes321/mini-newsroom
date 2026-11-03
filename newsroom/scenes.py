@@ -124,6 +124,7 @@ class _Layered:
 
     def flatten(self, canvas: pygame.Surface, v: View, t: float) -> None:
         backdrops.draw_still(canvas, v.backdrop, v.tod, v.weather, t)
+        backdrops.draw_beam(canvas, v.backdrop, v.tod, t)
         for layer, _ in self.people:
             canvas.blit(layer, (0, 0))
         canvas.blit(self.overlay, (0, 0))
@@ -561,7 +562,7 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
     piece, a vox pop) they take the frame. On a parallax shot `canvas` is the overlay: the place is
     drawn in present(), and the people on their own layers (`_stands`)."""
     if _par:
-        backdrops.draw_effects(canvas, v.backdrop, v.tod, v.weather, t)
+        backdrops.draw_effects(canvas, v.backdrop, v.tod, v.weather, t, beam=False)
     else:
         backdrops.draw(canvas, v.backdrop, v.tod, v.weather, t)
     if v.fireworks:

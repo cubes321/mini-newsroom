@@ -220,6 +220,10 @@ class Scene:
             for f in np.unique(near_feet[near_feet > 0]):
                 pieces.append((float(f) - PAD, 1, *self._crop(near_rgb, near_feet == f)))
         self.pieces = [(f, s, at) for f, _, s, at in sorted(pieces, key=lambda p: (p[0], p[1]))]
+        lx, ly = backdrops.LIGHTHOUSE_LAMP              # the beam leaves the lantern, wherever it has moved
+        lamp = int(front[lx + PAD, ly + PAD]) or int(feet[lx + PAD, ly + PAD])
+        self.lamp_foot = lamp - PAD if lamp else None    # None: the lamp is in the sky, which stays still
+        self.beam = loc.id == "lighthouse" and tod != "day"
 
     def _crop(self, rgb: np.ndarray, have: np.ndarray) -> tuple[pygame.Surface, tuple[int, int]]:
         xs, ys = np.nonzero(have)
@@ -281,6 +285,14 @@ class Scene:
             if wet and wet[i]:
                 part, ox, oy = wet[i]
                 screen.blit(part, (at[0] + ox, at[1] + oy))
+        if self.beam:
+            buf = _buffer()
+            buf.fill((0, 0, 0, 0))
+            backdrops.draw_beam(buf, self.loc.id, self.tod, t)
+            y0, y1 = max(0, backdrops.BEAM_ROWS[0]), min(H, backdrops.BEAM_ROWS[1])
+            dx = self.shift(self.lamp_foot, s) if self.lamp_foot is not None else 0
+            screen.blit(pygame.transform.scale(buf.subsurface((0, y0, W, y1 - y0)), (W * k, (y1 - y0) * k)),
+                        (dx, y0 * k))
 
     def _wet(self, big: pygame.Surface) -> list[tuple[pygame.Surface, int, int] | None]:
         """Each piece's share of the shimmer, cut to its own pixels, to ride along with it: water that

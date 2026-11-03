@@ -223,3 +223,29 @@ def test_only_field_shots_on_a_window_of_the_right_size(layers, monkeypatch):
     monkeypatch.setenv("NEWSROOM_PARALLAX", "0")                      # isn't 3x, so it gets the flat canvas
     _, flat = _frame(_field(), parallax.PERIOD / 4, size=(640, 360))
     assert np.array_equal(screen, flat)
+
+
+def test_the_lighthouse_beam_leaves_the_lantern_as_it_moves(monkeypatch):
+    """The committed lighthouse layers at dusk, with the beam lit (it turns: off at t=0)."""
+    monkeypatch.setenv("NEWSROOM_PARALLAX", "1")
+    parallax.reset()
+    t = 1.75                                                          # sin(0.9 t) is about 1: the beam is out
+    sc = parallax.scene("lighthouse", "dusk", None, K, wait=True)
+    assert sc is not None and sc.lamp_foot is not None and sc.lamp_foot > sc.horizon
+    flat = pygame.Surface(scenes.CANVAS)
+    backdrops.draw_still(flat, "lighthouse", "dusk", None, t)
+    assert backdrops.draw_beam(flat, "lighthouse", "dusk", t)
+    assert np.array_equal(_window(sc, 0.0, t), pygame.surfarray.array3d(pygame.transform.scale(flat, (320 * K, 180 * K))))
+    y0, y1 = backdrops.BEAM_ROWS
+
+    def lit(s):                                                       # the columns the beam brightens
+        with_beam = _window(sc, s, t)
+        sc.beam = False
+        without = _window(sc, s, t)
+        sc.beam = True
+        return np.nonzero(np.any(with_beam[:, y0 * K:y1 * K] != without[:, y0 * K:y1 * K], axis=2))[0]
+
+    dx = sc.shift(sc.lamp_foot, 1.0)
+    assert lit(0.0).min() == backdrops.LIGHTHOUSE_LAMP[0] * K       # it reaches right from the lantern
+    assert dx != 0 and lit(1.0).min() == lit(0.0).min() + dx          # and the two move together
+    parallax.reset()

@@ -1689,15 +1689,27 @@ def draw_still(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day"
         _shimmer(canvas, loc.id, tod, t)
 
 
+BEAM_ROWS = (LIGHTHOUSE_LAMP[1] - 12, LIGHTHOUSE_LAMP[1] + 11)     # the rows _beam can touch
+
+
+def draw_beam(canvas: pygame.Surface, backdrop_id: str | None, tod: str, t: float) -> bool:
+    """The lighthouse's beam after dark; whether this backdrop has one."""
+    if locations.get(backdrop_id).id != "lighthouse" or tod == "day":
+        return False
+    _beam(canvas, t)
+    return True
+
+
 def draw_effects(canvas: pygame.Surface, backdrop_id: str | None, tod: str = "day", wx: str | None = None,
-                 t: float = 0.0) -> None:
+                 t: float = 0.0, *, beam: bool = True) -> None:
     """What passes in front of the place: the lighthouse's beam and the weather. On a parallax shot
-    these go over the layered place, on the canvas (parallax.py)."""
+    the weather goes over the layered place, on the canvas, and the beam (`beam=False` here) is drawn
+    by parallax.Scene from the lantern as it moves."""
     loc = locations.get(backdrop_id)
     if not loc.exterior:
         return
-    if loc.id == "lighthouse" and tod != "day":
-        _beam(canvas, t)
+    if beam:
+        draw_beam(canvas, backdrop_id, tod, t)
     _weather_fx(canvas, wx, tod, t)
 
 
