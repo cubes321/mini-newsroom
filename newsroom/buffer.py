@@ -18,11 +18,14 @@ import logging
 import queue
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 
 from .models import Segment, SegmentState, SegmentType
 
 log = logging.getLogger(__name__)
+
+TRANSITIONS_KEPT = 5000           # about two nights of state changes
 
 
 @dataclass(order=True)
@@ -46,7 +49,8 @@ class Buffer:
         self._specials_ready: list[Segment] = []     # side pocket: specials waiting for a bumper boundary
         self._breaking_ready: list[Segment] = []     # side pocket: breaking news waiting for a line boundary
         self._breaking_n = 0
-        self.transitions: list[tuple[float, int, str]] = []   # (ts, slot, state) for logs/soak
+        # (ts, slot, state) for logs/soak: the recent ones only, as forget() never trimmed it
+        self.transitions: deque[tuple[float, int, str]] = deque(maxlen=TRANSITIONS_KEPT)
 
     # ------------------------------------------------------------- intake
 
@@ -160,9 +164,10 @@ class Buffer:
     # ------------------------------------------------------------ metrics
 
     def ready_depth_s(self) -> float:
-        """Seconds of finished audio waiting to play."""
+        """Seconds of finished audio waiting to play. The segment on air stays in `_ready` (mark())
+        but isn't waiting: counted, it made a short queue look healthy."""
         with self._lock:
-            return sum(s.duration_s for s in self._ready.values())
+            return sum(s.duration_s for s in self._ready.values() if s.state is not SegmentState.playing)
 
     def pending_depth_s(self) -> float:
         """Seconds of content not yet played: real duration when ready, target otherwise.
