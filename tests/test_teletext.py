@@ -32,7 +32,7 @@ def _world():
 def test_every_page_fits_the_grid():
     ps = teletext.pages(_world(), NOW)
     nums = [p["num"] for p in ps]
-    assert nums[:3] == [100, 101, 102] and nums[-6:] == [120, 130, 140, 150, 160, 170] and nums == sorted(nums)
+    assert nums[:3] == [100, 101, 102] and nums[-7:] == [120, 130, 140, 150, 160, 170, 180] and nums == sorted(nums)
     for p in ps:
         assert teletext.height(p["rows"]) <= len(teletext.BODY), p["num"]
         assert all(len(r.get("t", "")) < teletext.COLS for r in p["rows"]), p["num"]

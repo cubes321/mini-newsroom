@@ -17,8 +17,8 @@ import time
 from collections import deque
 from datetime import date, datetime
 
-from . import (breaking, chamber, council, inquiry, llm, outabout, panel, phonein, quay, schedule, sport, tides,
-               tipline)
+from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, schedule, sport,
+               tides, tipline)
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -947,6 +947,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + back
     if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
         user += "\n\n" + facts
+    if seg_type is not SegmentType.breaking:   # one or two events that suit the show, rationed like the moods
+        user += "\n\n" + calendar.for_prompt(show.id, datetime.fromtimestamp(at_ts or schedule.now()).date())
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(
         world, show, seg_type, part)
     if so_far:

@@ -36,7 +36,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-from . import council, quay, schedule, sport
+from . import calendar, council, quay, schedule, sport
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -303,6 +303,7 @@ class World:
         return (
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
             f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
+            f"{calendar.for_editor(date.fromisoformat(self.last_date))}\n"
             f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{self._council_line()}{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n"

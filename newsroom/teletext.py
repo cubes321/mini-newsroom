@@ -5,7 +5,7 @@ A page is a 40 x 24 grid of character cells in teletext's eight colours: the hea
 the service, the date and a running clock), a double-height banner, the page's own rows, and the four
 coloured links along the bottom. Every word comes from what the station already knows, worked out in
 code: the stories on the board, the weather, the tides and the ferry, the football table, the fish
-auction, the day's schedule and the town's notices. No model call and no voice, so a block of pages
+auction, the day's schedule, the town's notices and what's on. No model call and no voice, so a block of pages
 costs nothing and fills time the repeats leave over.
 
 A `teletext` segment is one silent line of `PAGE_S` per page with the pages in `work["teletext"]`; the
@@ -21,7 +21,7 @@ import json
 import textwrap
 from datetime import date, datetime, timedelta
 
-from . import council, quay, schedule, sport, tides
+from . import calendar, council, quay, schedule, sport, tides
 
 NAME = "SEVENTEXT"
 COLS, ROWS = 40, 24
@@ -93,7 +93,7 @@ def _index(now: datetime) -> dict:
         row(f"{now:%A %d %B %Y}", "white"), row(),
         _leader("News headlines", 101, "yellow"), _leader("Weather", 120), _leader("Tides and ferry", 130),
         _leader("Sport", 140), _leader("The fish quay", 150), _leader("On Channel 7 today", 160),
-        _leader("Notices", 170), row(),
+        _leader("Notices", 170), _leader("What's on", 180), row(),
         row("Programmes return at six with", "green"), row("Morning Tide.", "green")]
     return _page(100, "INDEX", rows)
 
@@ -238,6 +238,23 @@ def _notices(day: date) -> dict:
     return _page(170, "NOTICES", rows[:ROWS - 2])
 
 
+def _whats_on(day: date) -> dict:
+    """The coming week from the calendar (calendar.coming_up): the town's events, full council and the matches,
+    a day at a time, as many whole days as fit."""
+    rows = _banner("WHAT'S ON", "white", "green")
+    by_day: dict[date, list[str]] = {}
+    for c in calendar.coming_up(day, 8):
+        by_day.setdefault(c.day, []).append(c.brief)
+    for d, texts in by_day.items():
+        block = [row("Today" if d == day else f"{d:%A} {d.day} {d:%B}", "yellow")]
+        for t in texts:
+            block += [row(line, "white") for line in _wrap(t)[:3]]
+        if height(rows + block) > len(BODY) - 1:
+            break
+        rows += block
+    return _page(180, "WHAT'S ON", rows)
+
+
 def pages(world, now: datetime | None = None) -> list[dict]:
     """Every page, in the order the service turns them."""
     now = now or datetime.fromtimestamp(schedule.now())
@@ -245,7 +262,7 @@ def pages(world, now: datetime | None = None) -> list[dict]:
     state = world.last_weather.get("map_state")
     out = [_index(now), _headlines(stories)] + [_story(t, 102 + i) for i, t in enumerate(stories)]
     return out + [_weather(world, now), _tides(now.date(), state), _sport(now), _quay(now),
-                  _schedule(now.date()), _notices(now.date())]
+                  _schedule(now.date()), _notices(now.date()), _whats_on(now.date())]
 
 
 def segment(seg, world):

@@ -120,10 +120,20 @@ bottom with the date.
   one); exit waits up to 30 s for the workers; a dropped advert's WAVs get their hour from the drop; the
   segment on air no longer counts as buffer for the healthy check; the transition history keeps the last 5000.
   A 6-minute scratch run: 15 written segments aired, 15 entries confirmed, 31 left waiting at exit.
-- [ ] **A town events calendar**, from the review's extras (agreed 2026-11-02): `calendar.py` built like
+- [x] **A town events calendar**, from the review's extras (agreed 2026-11-02): `calendar.py` built like
   `council.py` and `sport.py`, hand-written annual events plus rules from the date, no model, nothing saved.
   One or two upcoming events per writer, a date for the desk's NEXT, a What's On page in SEVENTEXT. Draft the
-  event list for approval first.
+  event list for approval first. Built 2026-11-03: 32 events approved by the user (festivals, school terms
+  and half-terms, civic dates, anniversaries), each a rule from the year; budget night and mayor-making
+  come from the council's meetings, the elections every four years from 2027. It sets canon: the charter of
+  14 March 1871, the Mariner's Gale of 9 December 1910, the cannery's last shift on 25 September 1981 and
+  Market Day (since 1890). Each writer gets at most two events in the next five days that suit its show,
+  nearest first, and is told to invent none (`for_prompt`; not breaking news). The back office's briefing
+  (`summary_for_editor`) has the fortnight with full council, the Tides', the rugby's and the darts'
+  matches and the auction's return after a weekend (`coming_up`), and the desk may set a NEXT for one of
+  those days; `calendar.due` reads the date back for the long-running pool. SEVENTEXT page 180 is What's
+  On. Bonfire Night falls on the first council night (Thu 5 Nov); the fortnightly council also lands on New
+  Year's Eve and on election day 2027, left for the user to decide.
 
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire
