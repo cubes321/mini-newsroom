@@ -110,6 +110,21 @@ bottom with the date.
 
 ## Engineering
 
+- [x] **The findings in PROJECT_REVIEW.md** (2026-11-02), fixed 2026-11-03 (1442823, 5337392, 4400242, e55bb8c).
+  The archive had recorded every segment when it was scripted, so the ten minutes of buffer at each shutdown
+  (and any failed voice or skipped slot) became coverage nobody saw. The writers still make the entry when they
+  write, marked `aired: false`, as the next writers have to see what is about to air. The player confirms it
+  when the segment finishes (`world.confirm_aired`), and an entry never confirmed is dropped after an hour, and
+  at load. Thread beats, guest memories and council results still land at script time: they are planning, or
+  facts about the town. Also: `world.save` snapshots inside its lock (an older town could overwrite a newer
+  one); exit waits up to 30 s for the workers; a dropped advert's WAVs get their hour from the drop; the
+  segment on air no longer counts as buffer for the healthy check; the transition history keeps the last 5000.
+  A 6-minute scratch run: 15 written segments aired, 15 entries confirmed, 31 left waiting at exit.
+- [ ] **A town events calendar**, from the review's extras (agreed 2026-11-02): `calendar.py` built like
+  `council.py` and `sport.py`, hand-written annual events plus rules from the date, no model, nothing saved.
+  One or two upcoming events per writer, a date for the desk's NEXT, a What's On page in SEVENTEXT. Draft the
+  event list for approval first.
+
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire
   rounds). Fixed 2026-10-31: both loops are blocks of bare items that take the angles in the show's `briefs`
