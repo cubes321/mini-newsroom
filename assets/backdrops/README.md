@@ -78,7 +78,9 @@ The placeholder painters in `backdrops.py` draw the furniture on these marks;
   - `<art>_near.png` (optional): the near pieces in their own colours (RGBA).
 - **Per backdrop:**
   - `<id>_feet.png`: each plate pixel's foot as a padded row (grey, 0 = sky). Ground pixels stand on their
-    own row.
+    own row. Where there's no flat ground (the lighthouse's cliffs, the coast road's hillside), the feet
+    come from the depth model per pixel, rounded to 6-row steps so each step moves as one piece. They're
+    still foot rows, so the engine reads them the same way.
   - `<id>_near_feet.png`: the near pieces' feet, the same way.
   - `parallax.json`: the horizon row.
 - **Inside the frame the plate is the art pixel for pixel**, except under a near piece. At rest the

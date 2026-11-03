@@ -57,8 +57,9 @@ seafront, farm, estuary and park. Outlining them is about 2 hours; the harbour i
 other eleven stay flat. The fish quay is built for the pilot, and whether it stays is decided after watching that.
 **The lighthouse and coast road have no flat ground** (a cliff, a hillside), so the foot-row fit fails there. Their
 offsets come straight from the DA2 depth per pixel (offset = 5 px × depth ÷ the bottom row's depth), with the hand
-outlines only for the lighthouse tower and cottage. So the engine has to take a per-pixel offset map as well as foot
-rows: store either the foot row or the offset in `<id>_feet.png`, with a flag in the README.
+outlines only for the lighthouse tower and cottage. As built, no flag was needed: the depth is turned into the foot
+row that gives the same offset, rounded to 6-row steps, so `<id>_feet.png` holds foot rows for every backdrop
+(lighthouse and coast road committed in 80ecf2f).
 
 ### 2. The engine (main session; after the session editing `scenes.py` and `player.py` has committed)
 
