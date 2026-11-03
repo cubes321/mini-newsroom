@@ -58,6 +58,7 @@ def test_every_event_is_held_every_year_and_suits_real_shows():
 def test_a_holiday_over_new_year_is_still_on():
     assert "the Christmas holidays" in {o.event.name for o in calendar.events_on(date(2027, 1, 2))}
     assert "the Christmas holidays" not in {o.event.name for o in calendar.events_on(date(2027, 1, 4))}
+    assert _on("the Christmas holidays", date(2027, 1, 2)).first == date(2026, 12, 18)    # this one, not next year's
 
 
 def test_each_show_gets_its_ration_nearest_first():

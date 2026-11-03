@@ -256,9 +256,10 @@ def upcoming(day: date, ahead: int = AHEAD_DAYS) -> list[On]:
 
 
 def next_on(name: str, day: date) -> On | None:
-    """The next time an event (by name, any case) is on, from `day` (today included)."""
+    """The next time an event (by name, any case) is on, from `day` (today included): the Christmas holidays
+    under way in January are last year's."""
     want = name.strip().lower()
-    return next((o for y in (day.year, day.year + 1) for o in held(y)
+    return next((o for y in (day.year - 1, day.year, day.year + 1) for o in held(y)
                  if o.event.name.lower() == want and o.last >= day), None)
 
 
