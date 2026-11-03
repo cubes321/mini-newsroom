@@ -141,10 +141,24 @@ def test_the_harbours_night_art_needs_its_own_plate(layers):
     assert parallax.has_layers("harbour", "day") and not parallax.has_layers("harbour", "night")
 
 
+DRIFTS = next(n for n in range(100) if parallax.drifts(n))         # an item that drifts
+STILL = next(n for n in range(100) if not parallax.drifts(n))      # and one locked off
+
+
 def _field(**kw) -> View:
     return View(**{"mode": "field", "backdrop": "fish_quay", "speaker": "reporter", "mouth": 0.4, "tag": "LIVE",
                    "clock": "13:05", "lower_third": ("Miles Okafor", "On the fish quay"),
-                   "ticker": ["Hake leads the auction"], **kw})
+                   "ticker": ["Hake leads the auction"], "slot_id": DRIFTS, **kw})
+
+
+def test_about_one_item_in_three_drifts_and_the_rest_are_locked_off(layers):
+    share = sum(parallax.drifts(n) for n in range(3000)) / 3000
+    assert 0.28 < share < 0.39 and not parallax.drifts(None)
+    assert parallax.scene("fish_quay", "day", None, K, wait=True) is not None
+    _frame(_field(slot_id=STILL), parallax.PERIOD / 4)
+    assert scenes._par is None                                         # flat, though its place has layers
+    _frame(_field(), parallax.PERIOD / 4)
+    assert scenes._par is not None
 
 
 def _frame(v: View, t: float, size=(320 * K, 180 * K)) -> tuple[np.ndarray, np.ndarray]:

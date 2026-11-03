@@ -151,10 +151,11 @@ _par: _Layered | None = None                    # this frame's, when it is a par
 
 
 def _parallax(v: View, t: float) -> _Layered | None:
-    """The frame as a parallax shot, when it is one: a field report or vox pop on a location with layers
-    for this time of day, built and ready (until then the shot is flat)."""
+    """The frame as a parallax shot, when it is one: a field report or vox pop, one of the items that
+    drift (parallax.drifts), on a location with layers for this time of day, built and ready (until
+    then the shot is flat)."""
     global _layered
-    if v.mode != "field":
+    if v.mode != "field" or not parallax.drifts(v.slot_id):
         return None
     sc = parallax.scene(v.backdrop, v.tod, v.weather, parallax.scale())
     if sc is None:

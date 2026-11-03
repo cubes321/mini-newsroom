@@ -35,6 +35,9 @@ notes are in `E:\recordings\parallax-trial\` (`NOTE.md`), and its scripts are in
   - Adverts, and the weather wall's picture.
 
   These all keep the flat art, as does any backdrop without parallax data.
+- **Rationed:** the user didn't want it overused (2026-11-03), so about one field item in three drifts
+  (`parallax.ONE_IN`, chosen by a hash of the slot). The rest are locked off and flat, like a crew mixing
+  handheld and tripod shots. A report never changes partway through.
 - **Behind a switch:** `[broadcast] parallax = false` until the user has watched it on air (`--parallax`
   turns it on for one run).
 

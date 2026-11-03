@@ -26,6 +26,7 @@ import math
 import os
 import sys
 import threading
+import zlib
 from collections import OrderedDict
 from pathlib import Path
 
@@ -44,11 +45,20 @@ NEAR = 5.0                      # art px the bottom row swings either way (the t
 PERIOD = 8.0                    # s for one swing there and back
 SMEAR = 3                       # art px a farther piece is carried under a nearer one, so a drift opens no hole
 EASE_S = 1.5                    # s for the drift to grow from still when a shot starts in layers
+ONE_IN = 3                      # field items that drift: one in this many, the rest locked off (the user, 2026-11-03)
 CACHE = 12                      # scenes kept, about 5 MB each at 3x: a pilot evening's backdrops, times and weathers
 
 
 def enabled() -> bool:
     return CONFIG.broadcast.parallax or os.environ.get("NEWSROOM_PARALLAX") == "1"
+
+
+def drifts(slot_id: int | None) -> bool:
+    """Whether this item's shots drift. The user didn't want parallax overused, so like a crew mixing
+    handheld and tripod shots, about one item in ONE_IN drifts and the rest are locked off. It's chosen by
+    the item, so a report never changes partway through, and by a hash, not the slot's place in the
+    running order, so it doesn't follow a show's pattern round."""
+    return slot_id is not None and zlib.crc32(f"parallax|{slot_id}".encode()) % ONE_IN == 0
 
 
 def scale() -> int:
