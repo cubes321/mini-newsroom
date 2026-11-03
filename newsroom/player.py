@@ -208,7 +208,7 @@ class Player:
             self._play_line(now)
         log.info("%s slot %d %s (%.1fs, %d lines) [%s]%s", "replaying" if replay else "playing",
                  seg.slot_id, seg.type.value, seg.duration_s, len(seg.lines), seg.show or "-",
-                 f" — {seg.headline!r}" if seg.headline else "")      # [show]: tools/obs_record.py reads it
+                 f" — {seg.headline!r}" if seg.headline else "")      # [show]: obs.py reads it
 
     def time_left(self, now: float) -> float:
         """Seconds left of the segment on air (the producer plans from the end of it)."""
