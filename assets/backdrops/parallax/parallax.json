@@ -1,4 +1,10 @@
 {
+  "cannery": {
+    "horizon": 92.0
+  },
+  "estuary": {
+    "horizon": 90.0
+  },
   "farm": {
     "horizon": 91.0
   },
@@ -10,6 +16,9 @@
   },
   "lifeboat_station": {
     "horizon": 94.0
+  },
+  "loading_dock": {
+    "horizon": 93.0
   },
   "seafront": {
     "horizon": 80.0
