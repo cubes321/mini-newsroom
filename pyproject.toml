@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=1.26",
     "kokoro>=0.9",
     "pocket-tts>=4.0.1",
+    "obsws-python>=1.8",
 ]
 
 [tool.uv]

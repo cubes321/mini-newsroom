@@ -60,18 +60,14 @@ $env:DEEPSEEK_API_KEY = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY'
 $env:PYTHONIOENCODING = 'utf-8'
 $day = Get-Date -Format 'yyyy-MM-dd'
 Copy-Item data\world.json "data\world.backup-$day-pre-night.json"
-cmd /c "uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 > data\night-$day.log 2>&1"
+cmd /c "uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 --obs > data\night-$day.log 2>&1"
 ```
 
-To record the programmes (not the rolling news) with OBS, one file each in OBS's recording folder,
-start this in a second PowerShell window first, with OBS open, its WebSocket server on and a window
-capture of "Mini Newsroom" (`tools/obs_record.py`; it stops when the run ends):
-
-```powershell
-Set-Location 'E:\programming\mini newsroom'
-$day = Get-Date -Format 'yyyy-MM-dd'
-uv run --with obsws-python python tools/obs_record.py "data\night-$day.log"
-```
+`--obs` records the programmes (not the rolling news) with OBS, one file each in OBS's recording
+folder. Have OBS open first, with its WebSocket server on and a window capture of "Mini Newsroom". If
+OBS isn't there, the night runs anyway and the log says "obs: not recording". Leave `--obs` off to
+record from a second window instead (`uv run python tools/obs_record.py "data\night-$day.log"`). For
+recording without the sound in the room, see "Silent recording" in `docs/STREAMING.md`.
 
 What to check, against the 2026-10-29 night (`data/measure-deepseek-2026-10-29.log`) and the
 all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):

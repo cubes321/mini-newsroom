@@ -17,6 +17,9 @@ Flags:
   --documentary-now  commission today's documentary at the first idle moment (it still airs in its slot)
   --breaking-now  have the story desk break a story at its next idle moment (Miles then goes to the scene)
   --route A=B[,C=D]  for this run, send every task routed to provider A (or task A) to provider B
+  --obs         record each programme to its own file in OBS as it airs (newsroom/obs.py)
+  --audio-device NAME  play into this sound output (part of its name) instead of [broadcast] audio_device
+  --devices     list the sound outputs and exit
 """
 from __future__ import annotations
 
@@ -56,6 +59,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="move providers' or tasks' calls for this run: deepseek_flash_think=claude_sonnet[,...] (or NEWSROOM_ROUTES)")
     p.add_argument("--parallax", action="store_true",
                    help="draw the location backdrops that have layers in parallax, whatever config.toml says")
+    p.add_argument("--obs", action="store_true",
+                   help="record each programme to its own file in OBS (its WebSocket server on)")
+    p.add_argument("--audio-device", type=str, default="",
+                   help="play into this sound output (part of its name), e.g. 'CABLE Input'")
+    p.add_argument("--devices", action="store_true", help="list the sound outputs and exit")
     p.add_argument("-v", "--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -154,13 +162,51 @@ def build(cfg, *, audio: bool, workers: int):
     return w, buffer, producer, pool, player
 
 
+def audio_outputs() -> list[str]:
+    """The sound outputs SDL can play into, by name."""
+    import pygame
+    from pygame._sdl2 import audio
+
+    pygame.mixer.init()
+    try:
+        return list(audio.get_audio_device_names(False))
+    finally:
+        pygame.mixer.quit()
+
+
+def pick_output(wanted: str, names: list[str]) -> str | None:
+    """The output called `wanted`, or the first whose name contains it (any case); None if none does."""
+    if wanted in names:
+        return wanted
+    return next((n for n in names if wanted.lower() in n.lower()), None)
+
+
+def open_audio(cfg, wanted: str) -> None:
+    """Start pygame with its mixer on the chosen output, or on the system's if that output isn't there.
+    `pygame.init()` doesn't fail on a bad device: it leaves the mixer off, and the first sound would."""
+    import pygame
+
+    device = None
+    if wanted:
+        names = audio_outputs()
+        device = pick_output(wanted, names)
+        if device is None:
+            log.warning("audio: no output called %r (there are %s); playing on the system's", wanted, names)
+    pygame.mixer.pre_init(cfg.tts.sample_rate, -16, 1, 512, devicename=device)
+    pygame.init()
+    if device and not pygame.mixer.get_init():
+        log.warning("audio: %r wouldn't open; playing on the system's", device)
+        pygame.mixer.init(cfg.tts.sample_rate, -16, 1, 512)
+    elif device:
+        log.info("audio: playing into %s", device)
+
+
 def run_window(cfg, args) -> None:
     import pygame
 
     from . import scenes, schedule
 
-    pygame.mixer.pre_init(cfg.tts.sample_rate, -16, 1, 512)
-    pygame.init()
+    open_audio(cfg, args.audio_device or cfg.broadcast.audio_device)
     screen = pygame.display.set_mode((cfg.broadcast.width, cfg.broadcast.height))
     pygame.display.set_caption("Mini Newsroom")
     canvas = pygame.Surface(scenes.CANVAS)
@@ -168,6 +214,10 @@ def run_window(cfg, args) -> None:
     from . import backdrops
 
     threading.Thread(target=backdrops.warm_skies, name="warm-skies", daemon=True).start()
+    if args.obs:
+        from . import obs
+
+        obs.attach()                        # before the first bumper plays: it starts the first file
 
     world, buffer, producer, pool, player = build(cfg, audio=True, workers=args.workers)
     stats = Stats(buffer)
@@ -201,6 +251,8 @@ def run_window(cfg, args) -> None:
         if args.minutes and t > args.minutes * 60:
             running = False
 
+    if args.obs:
+        obs.detach()                        # the programme on air ends its file with the picture
     pool.shutdown()
     from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
 
@@ -255,6 +307,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "kokoro", "phonemizer"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    if args.devices:
+        print("\n".join(audio_outputs()))
+        return 0
     redirect_paths(args)
     from . import schedule
     from .config import CONFIG
@@ -274,6 +329,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["NEWSROOM_LLM_LOG"] = "1"
 
     if args.no_window:
+        if args.obs:
+            log.info("--obs ignored: a headless run has no picture to record")
         run_headless(CONFIG, args)
     else:
         run_window(CONFIG, args)

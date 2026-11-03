@@ -197,9 +197,11 @@ bottom with the date.
   headline aired eight times between 10:21 and 10:40, and the 23:49-00:45 news was nearly all "five boats out".
   Each is freshly written, so it is the news rotation's choice of story, not a replay; Morning Tide's lead
   bulletin and six-minute weather do the same in a milder way (40 repeats in 180 items).
-- [ ] **Silent recording**: VB-Audio Virtual Cable, the station (python) set to CABLE Input in the Windows volume
-  mixer, OBS recording that device with Desktop Audio muted, monitoring on or off to listen. Don't mute python in
-  the mixer: that silences the capture too.
+- [ ] **Silent recording**: VB-Audio Virtual Cable, OBS recording CABLE Output with Desktop Audio muted, and
+  monitoring on or off to listen. Don't mute python in the mixer: that silences the capture too. The station
+  side is built (2026-11-03): `[broadcast] audio_device = "CABLE Input"` or `--audio-device`, and `--obs`
+  records each programme without a second window (`docs/STREAMING.md`). Still to do: install the cable (it's a
+  driver, so the user installs it) and record a night on it.
 
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire

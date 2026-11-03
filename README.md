@@ -132,7 +132,7 @@ the evening shows to the next morning, cost under a dollar in model calls.
 
 Working, and left on overnight. It runs from the evening through to the next
 morning with almost no filler, and nights are recorded with OBS
-(`tools/obs_record.py` starts a new file for each programme) or streamed to
+(`--obs` starts a new file for each programme) or streamed to
 YouTube (`docs/STREAMING.md`). Each night's log is reviewed the next day and
 the fixes go in before the next run. Things that exist: the full schedule
 below; studio interviews, filmed features, vox pops, phone-in calls, debates
@@ -222,6 +222,8 @@ a special immediately, `--documentary-now` commissions today's documentary at
 once (it still airs in its slot), `--clock HH:MM` pretends the local time is HH:MM,
 `--scratch` runs on a copy of the town (below), `--log-llm` writes every model prompt and reply, with token counts, to
 `data/llm_calls/<date>.jsonl` (or set `log_calls = true` under `[llm]`).
+`--obs` records each programme to its own file in OBS as it airs, `--audio-device NAME` plays into
+another sound output (or set `audio_device` under `[broadcast]`), and `--devices` lists them.
 Token counts are always on each call's log line, and running totals per
 provider are logged every ten minutes and at exit (`LLM USAGE`).
 
@@ -372,7 +374,8 @@ uv run python -m newsroom.special make --documentary --thread t030   # make one 
 | `locations.py` | the places a picture can be set, and where people stand on the studio sets |
 | `backdrops.py` / `skies.py` | backdrop art, time-of-day and weather grading, drifting skies and animated touches |
 | `scenes.py` / `sprites.py` / `logo.py` | draws the `View` on a 320×180 canvas scaled up, with the station bug |
-| `tools/obs_record.py` | follows a run's log and records each programme to its own file in OBS |
+| `obs.py` | records each programme to its own file in OBS, from the player's log (`--obs`) |
+| `tools/obs_record.py` | the same from another window, following a running station's log file |
 
 ## Dev commands
 
@@ -396,7 +399,9 @@ uv run python -m newsroom.adverts                      # the advert pool (--make
 uv run python -m newsroom.continuity                   # the continuity pool (--bake bakes what's due)
 uv run python -m newsroom.sport                        # the football: results, fixtures and the table
 uv run python -m newsroom.quay                         # the fish auction's latest prices
-uv run --with obsws-python python tools/obs_record.py data/night.log   # record each programme in OBS
+uv run python -m newsroom --obs                         # record each programme in OBS as it airs
+uv run python tools/obs_record.py data/night.log        # the same for a station that's already running
+uv run python -m newsroom --devices                     # the sound outputs, for --audio-device
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
 ```

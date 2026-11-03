@@ -66,6 +66,27 @@ uv run python -m newsroom --log-llm
 - Audio: 48 kHz. The app plays 24 kHz mono and OBS resamples it.
   - Keep the meter peaking around -6 dB. Bumpers and adverts are the loudest things.
 
+**Recording each programme**
+- `uv run python -m newsroom --obs` starts a new file in OBS's recording folder at each programme's
+  bumper and stops it at the news, named like `2026-11-03 18-14 Rock Pool.mp4`.
+- Turn on OBS's WebSocket server first (Tools → WebSocket Server Settings → Enable). The station reads the
+  port and password from OBS's own config.
+- If OBS isn't running, the station carries on without it and logs "obs: not recording".
+
+**Silent recording** (record a night without hearing it)
+
+Application Audio Capture records what python.exe plays, so muting python in the Windows mixer mutes the
+recording too. Send the station's sound to a virtual cable instead:
+1. Install VB-Audio Virtual Cable (vb-audio.com) and restart. It adds "CABLE Input" (an output) and
+   "CABLE Output" (an input).
+2. `uv run python -m newsroom --devices` should list "CABLE Input (VB-Audio Virtual Cable)".
+3. Set `audio_device = "CABLE Input"` under `[broadcast]` in `config.toml`, or pass
+   `--audio-device "CABLE Input"` for one run. If that output isn't found, the station plays on Windows'
+   default output and logs a warning.
+4. In OBS, swap Application Audio Capture for an Audio Input Capture of "CABLE Output", and keep Desktop
+   Audio muted.
+5. To listen in, set that source's Advanced Audio Properties → Audio Monitoring to "Monitor and Output".
+
 **YouTube**
 - Create → Go live → Stream.
 - Visibility **Unlisted**, so only people with the link can watch.

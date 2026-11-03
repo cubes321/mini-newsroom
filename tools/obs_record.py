@@ -1,110 +1,24 @@
-"""Record the programmes, not the rolling news: follow a run's log and drive OBS over its WebSocket, one file
-per programme, named after it.
+"""Record the programmes from another window: follow a run's log and drive OBS, one file per programme.
 
-    uv run --with obsws-python python tools/obs_record.py data/night-2026-10-30.log
+    uv run python tools/obs_record.py data/night-2026-10-30.log
 
-Start it before (or after) the run; it follows the log from its end, waiting for the file to appear. A
-programme starts recording at its first segment (its own bumper) and stops at the next show's first,
-so the news between programmes isn't recorded. Overnight, a programme's leftover segments fill the loop
-between test cards; only a bumper (or a documentary) starts a recording, so those aren't recorded. Adverts, ad breaks, continuity and a breaking-news
-interruption leave the recording as it is, so a programme stays in one file. The documentary (Port
-Wexley Stories, which airs inside the news) is recorded as a programme of its own, but not its overnight
-repeat, which made a second file of the same film on 2026-11-01. SEVENTEXT, the overnight teletext
-pages, is recorded a little: the night's first `--teletext` blocks (two by default, about four minutes),
-each a file of its own that ends at the next repeat or test card. OBS's connection
-(port, password) is read from its own obs-websocket config; turn the WebSocket server on in OBS.
-`--dry-run` prints what it would do without touching OBS; `--from-start` reads the log from the top.
+The station can do this itself with `python -m newsroom --obs`; this is for one that's already running.
+Start it before (or after) the run; it follows the log from its end, waiting for the file to appear, and
+stops when the run ends. What it records, and how, is in `newsroom/obs.py`. `--dry-run` prints what it
+would do without touching OBS; `--from-start` reads the log from the top.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import re
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from newsroom import schedule  # noqa: E402
-from newsroom.special import REPEAT_SLOT  # noqa: E402
+from newsroom.obs import Director, Off, Recorder, obs_client  # noqa: E402,F401  (obs_client: for scripts)
 
-PLAYING = re.compile(r"(?:playing|replaying) slot (-?\d+) (\w+) \([^)]*\) \[([\w-]+)\]")
-KEEP = {"advert", "ad_break", "continuity", "breaking", "filler"}      # never start or stop a recording
-OPENERS = {"bumper", "documentary", "teletext"}    # a programme starts at its bumper; these have none
-NOT_PROGRAMMES = {"news", "overnight"}
-DOCUMENTARY = "Port Wexley Stories"
-TELETEXT = "Seventext"
-
-
-def programme(seg_type: str, show: str) -> str | None:
-    """The programme a segment belongs to, or None for the rolling news (and the overnight repeats)."""
-    if seg_type == "documentary":
-        return DOCUMENTARY
-    if seg_type == "teletext":
-        return TELETEXT
-    if show in NOT_PROGRAMMES or show == "-":
-        return None
-    try:
-        return schedule.get(show).title.title()
-    except Exception:  # noqa: BLE001
-        return show
-
-
-def obs_client():
-    import obsws_python as obs
-
-    cfg = Path(os.environ["APPDATA"]) / "obs-studio" / "plugin_config" / "obs-websocket" / "config.json"
-    c = json.loads(cfg.read_text(encoding="utf-8"))
-    if not c.get("server_enabled"):
-        sys.exit("OBS's WebSocket server is off: Tools > WebSocket Server Settings > Enable")
-    return obs.ReqClient(host="localhost", port=c.get("server_port", 4455),
-                         password=c.get("server_password", "") if c.get("auth_required") else "", timeout=10)
-
-
-class Recorder:
-    def __init__(self, dry: bool):
-        self.dry, self.now, self.since = dry, None, datetime.now()
-        self.ws = None if dry else obs_client()
-        if self.ws:
-            v = self.ws.get_version()
-            print(f"OBS {v.obs_version}, recording to {self.ws.get_record_directory().record_directory}", flush=True)
-
-    def _connected(self):
-        if self.ws is None and not self.dry:
-            self.ws = obs_client()
-        return self.ws
-
-    def start(self, name: str) -> None:
-        print(f"{datetime.now():%H:%M:%S} START {name}", flush=True)
-        self.now, self.since = name, datetime.now()
-        if not self.dry:
-            if self._connected().get_record_status().output_active:
-                self.stop()
-                self.now = name
-            self.ws.start_record()
-
-    def stop(self) -> None:
-        name, self.now = self.now, None
-        print(f"{datetime.now():%H:%M:%S} STOP  {name}", flush=True)
-        if self.dry:
-            return
-        out = self._connected().stop_record().output_path
-        rename(Path(out), name, self.since)
-
-
-def rename(path: Path, name: str, since: datetime) -> None:
-    """'2026-10-30 21-30-02.mp4' -> '2026-10-30 21-30 Coastwide.mp4' (when it started), once OBS lets go."""
-    target = path.with_name(f"{since:%Y-%m-%d %H-%M} {name}{path.suffix}")
-    for _ in range(30):
-        try:
-            path.rename(target)
-            print(f"          saved {target.name}", flush=True)
-            return
-        except OSError:
-            time.sleep(1)
-    print(f"          left as {path.name} (couldn't rename)", flush=True)
+say = lambda s: print(s, flush=True)                    # noqa: E731
 
 
 def follow(log: Path, from_start: bool):
@@ -129,38 +43,20 @@ def main() -> int:
     ap.add_argument("--from-start", action="store_true")
     ap.add_argument("--teletext", type=int, default=2, help="record this many blocks of SEVENTEXT (default 2)")
     a = ap.parse_args()
-    rec = Recorder(a.dry_run)
-    teletext_left = a.teletext
-    print(f"following {a.log}", flush=True)
+    try:
+        director = Director(Recorder(a.dry_run, say), a.teletext)
+    except Off as e:
+        sys.exit(str(e))
+    say(f"following {a.log}")
     try:
         for line in follow(a.log, a.from_start):
             if "exit: worst p99" in line:                   # the run has ended
                 break
-            m = PLAYING.search(line)
-            if not m or m.group(2) in KEEP:
-                continue
-            slot, seg_type, show = int(m.group(1)), m.group(2), m.group(3)
-            if seg_type == "documentary" and slot == REPEAT_SLOT:   # last night's again: recorded when it first aired
-                continue
-            if rec.now == TELETEXT and seg_type != "teletext":
-                rec.stop()                                  # the pages end at the next repeat or card
-            if seg_type == "teletext":
-                if rec.now == TELETEXT or teletext_left <= 0:
-                    continue
-                teletext_left -= 1
-            prog = programme(seg_type, show)
-            if prog != rec.now:
-                if prog and seg_type not in OPENERS:        # a leftover filling the overnight loop, not on air
-                    continue
-                if rec.now:
-                    rec.stop()
-                if prog:
-                    rec.start(prog)
+            director.line(line)
     except KeyboardInterrupt:
         pass
     finally:
-        if rec.now:
-            rec.stop()
+        director.close()
     return 0
 
 

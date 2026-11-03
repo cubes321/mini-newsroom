@@ -24,6 +24,7 @@ class BroadcastCfg:
     height: int = 540
     fps: int = 60
     parallax: bool = False               # layered location backdrops that drift (parallax.py; or --parallax)
+    audio_device: str = ""               # sound output by (part of) its name; "" = the system's (or --audio-device)
     horizon_s: float = 600.0
     words_per_minute: int = 150
 
