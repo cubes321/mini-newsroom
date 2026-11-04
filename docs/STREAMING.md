@@ -80,15 +80,19 @@ uv run python -m newsroom --log-llm
 
 Application Audio Capture records what python.exe plays, so muting python in the Windows mixer mutes the
 recording too. Send the station's sound to a virtual cable instead:
-1. Install VB-Audio Virtual Cable (vb-audio.com) and restart. It adds "CABLE Input" (an output) and
-   "CABLE Output" (an input). Windows sometimes makes CABLE Input its default output after the install,
-   which silences everything else, so check Settings → Sound afterwards.
-2. `uv run python -m newsroom --devices` should list "CABLE Input (VB-Audio Virtual Cable)".
-3. Set `audio_device = "CABLE Input"` under `[broadcast]` in `config.toml`, or pass
-   `--audio-device "CABLE Input"` for one run. If that output isn't found, the station plays on Windows'
-   default output and logs a warning.
+1. Install VB-Audio Virtual Cable (vb-audio.com) and restart. It adds an output for the station to play
+   into and an input ("CABLE Output") for OBS to record. Windows sometimes makes the cable its default
+   output after the install, which silences everything else, so check Settings → Sound afterwards.
+2. `uv run python -m newsroom --devices` lists the cable's output. Older versions call it
+   "CABLE Input (VB-Audio Virtual Cable)". Newer ones call it "Speakers (VB-Audio Virtual Cable)", and also
+   add a 16-channel "CABLE In 16 Ch", which you don't need. Windows may put a number in front of the name,
+   as in "Speakers (2- VB-Audio Virtual Cable)".
+3. Set `audio_device` under `[broadcast]` in `config.toml` to that name exactly as `--devices` prints it, or
+   pass `--audio-device "<name>"` for one run. Any part of the name will do, but the first device that
+   contains it wins: "VB-Audio" alone would pick the 16-channel one. If the name isn't found, the station
+   plays on Windows' default output and logs a warning.
 4. In OBS, swap Application Audio Capture for an Audio Input Capture of "CABLE Output", and keep Desktop
-   Audio muted.
+   Audio muted. Some versions call it "Microphone (VB-Audio Virtual Cable)" instead.
 5. To listen in, set that source's Advanced Audio Properties → Audio Monitoring to "Monitor and Output".
 
 **YouTube**
