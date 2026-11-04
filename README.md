@@ -274,6 +274,14 @@ nothing backs it up, so test runs should use `--scratch` (above):
   never an open one (with all 40 open it grows and logs a warning). Template
   scripts (`NEWSROOM_LLM=off` or a failed model call) never open threads,
   except breaking news, whose tip is real.
+  **The running-stories pool**: a long story (open two days, or covered ten
+  times) whose NEXT names a later day waits for it, off the writers' board and
+  the desk's rounds, never faded for being quiet and not counted as live, so
+  the desk opens new stories in its place. The writers see a short list of
+  what is waiting, so a waiting story isn't reported early or reborn under a
+  new id; The Inquiry, The Panel, The Chamber, the phone-in and the
+  documentaries still take them. On its day it is back with its history
+  (`world.pool_threads`; `[story] pool = false` switches it off).
 - **Archive**: every segment aired, searchable, for callbacks and for the
   documentary's research. What each documentary established (its timeline and
   sections) is kept apart in `documentaries`, since the archive keeps only 400

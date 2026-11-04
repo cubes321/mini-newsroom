@@ -843,7 +843,7 @@ def _quiet_threads(world: World, exclude: set[str]) -> str:
     five "estuary tide in the wind" on 2026-10-27). Those with a planned NEXT first, then the
     longest quiet, which they also keep from fading."""
     shown = {t.id for t in world.briefing_threads()} | exclude
-    quiet = sorted((t for t in world.open_threads() if t.id not in shown),
+    quiet = sorted((t for t in world.board_threads() if t.id not in shown),
                    key=lambda t: (not t.next_development, t.moved_ts))[:QUIET_THREADS]
     if not quiet:
         return ""

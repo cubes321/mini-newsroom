@@ -137,6 +137,11 @@ class StoryCfg:
     fade_quiet_h: float = 24.0           # for one covered once or twice, most threads,
     fade_resolving_h: float = 12.0       # one winding down,
     fade_peak_h: float = 72.0            # and one at its peak
+    # The running-stories pool (world.pool_threads): a long story whose NEXT names a later day waits for it,
+    # off the writers' board, instead of being reported with nothing new until it is closed as stalled.
+    pool: bool = True
+    pool_after_days: int = 2             # long: open this many days,
+    pool_after_mentions: int = 10        # or covered this often
 
 
 @dataclass(frozen=True)

@@ -250,12 +250,14 @@ bottom with the date.
   the vox pop's question and the documentary's stances are cut at a word (`Headline`, `Caption` in
   `models.py`), and the reasons are clipped like status notes. An empty headline (8 that night) still fails
   and gets the retry, on purpose (`test_captions.py`).
-- [ ] **A pool for long-running stories** (the user's idea, 2026-11-01). Most threads fade within a day or
-  two, but a few run for days and pull everything in: t220 (the harbour wall, open since 10-28) was covered
-  117 times. After a few days and enough beats, a story could move to a running-stories pool: covered less
-  often (a weekly beat, or when its NEXT development comes due), planned by the desk once a day rather than
-  every round, kept out of the live count and the thin-board test, and never faded by the quiet timer.
-  Build it once a night or two has shown how the spread-out seeding shapes the board.
+- [x] **A pool for long-running stories** (the user's idea, 2026-11-01). Built 2026-11-04 (`world.pool_threads`,
+  `[story] pool`). By then the problem had changed shape: the senior editor had the longest stories closed as
+  stalled (t220 at 117x, t298 and t338 at 52x) and the harbour wall came back as t372 with none of its history.
+  A long story (open two days or covered ten times) whose NEXT names a later day now waits for it: off the
+  writers' board and the desk's rounds, never faded for quiet, not counted as live; the writers see a short
+  list of what is waiting, the deep-dive shows still take them, and on its day it is back. On the 11-04 town
+  it would have parked 8 of 17. Watch on the first night: "to the pool until", "back from the pool", whether
+  the board (7 left on the 11-04 town) feels thin, and whether a waiting story still comes back under a new id.
 - [x] **Quayside says "this morning's auction" at the weekend.** Fixed 2026-11-01: its briefs say "the latest
   auction", and QUAY FACTS give the day. It airs every day at 13:00, but the auction
   is weekdays only, so on Saturday and Sunday the figures are Friday's (`schedule.py`, its open and the

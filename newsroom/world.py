@@ -33,7 +33,7 @@ import functools
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import calendar, council, quay, schedule, sport
@@ -43,6 +43,7 @@ from .llm import CACHE_BREAK
 log = logging.getLogger(__name__)
 
 MAX_THREADS_IN_PROMPT = 5
+WAITING_IN_PROMPT = 6          # running stories in the pool the writers are shown, the soonest due first
 MAX_HEADLINES_IN_PROMPT = 10
 MAX_ARCHIVE = 1000
 UNAIRED_KEEP_S = 3600.0         # a written segment not on air within the hour never will be (the buffer is ten minutes)
@@ -148,6 +149,7 @@ class Thread:
     moved_ts: float = 0.0           # when it last moved on air, on the broadcast clock (it fades when quiet)
     faded_ts: float = 0.0           # when it faded, on the broadcast clock
     merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread
+    waits_until: str = ""           # ISO date: in the running-stories pool until its NEXT is due (pool_threads)
 
 
 def _locked(method):
@@ -253,11 +255,21 @@ class World:
         people = ", ".join(self.person(pid).name for pid in t.people if self.person(pid)) or "nobody named yet"
         nxt = f"; NEXT: {t.next_development}" if t.next_development else ""
         extra = f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
-        if full and t.moved_ts and t.phase != "faded":
+        if full and self.waiting(t):
+            nxt += (f"; WAITING in the running-stories pool until {said_date(t.waits_until)}, "
+                    "off the bulletins till then; it keeps its history (not stalled: don't close it for being quiet)")
+        elif full and t.moved_ts and t.phase != "faded":
             left = fade_after_s(t) - (schedule.now() - t.moved_ts)
             if left < STALE_WARNING_S:
                 nxt += f"; GOING QUIET: fades off the air in about {max(1, round(left / 3600))}h unless it moves"
         return f"  - [{t.id}] {t.title} — {t.phase}{extra}{last_s}; people: {people}{nxt}"
+
+    def _waiting_line(self) -> str:
+        """The pool, for the writers: so a waiting story isn't reported early, nor reborn as a new one."""
+        rows = [f"  - [{t.id}] {t.title}: next on {said_date(t.waits_until)}"
+                for t in self.waiting_threads()[:WAITING_IN_PROMPT]]
+        return ("Running stories waiting for their day (do NOT report them as news before it; a passing mention "
+                "is fine, and a follow-up keeps its id):\n" + "\n".join(rows) + "\n") if rows else ""
 
     @_locked
     def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True) -> str:
@@ -290,6 +302,7 @@ class World:
                else "") +
             f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
+            f"{self._waiting_line()}"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
 
@@ -298,7 +311,7 @@ class World:
         """The open threads the writers' briefing lists. Threads updated the same day tie on the
         date; the one followed up least often today goes first, so each follow-up moves a story
         down a place instead of keeping it on top."""
-        live = sorted(self.open_threads(), reverse=True,
+        live = sorted(self.board_threads(), reverse=True,
                       key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
         return live[:MAX_THREADS_IN_PROMPT]
 
@@ -326,8 +339,48 @@ class World:
 
     @_locked
     def open_threads(self) -> list[Thread]:
+        """Every live story, the waiting ones in the pool too: the deep-dive shows (The Inquiry, The Panel,
+        The Chamber, the phone-in, the documentaries) take long stories in depth. The writers' board and
+        the desk's rounds use `board_threads`."""
         return sorted((t for t in self.threads if t.phase not in ("closed", "faded")), key=lambda t: t.updated,
                       reverse=True)
+
+    def waiting(self, t: Thread) -> bool:
+        return bool(t.waits_until) and t.waits_until > self.last_date
+
+    @_locked
+    def board_threads(self) -> list[Thread]:
+        """The open stories not waiting in the pool: the writers' board, the desk's rounds and the live count."""
+        return [t for t in self.open_threads() if not self.waiting(t)]
+
+    @_locked
+    def waiting_threads(self) -> list[Thread]:
+        """The pool, the soonest due first."""
+        return sorted((t for t in self.open_threads() if self.waiting(t)), key=lambda t: t.waits_until)
+
+    @_locked
+    def pool_threads(self, now: float | None = None) -> None:
+        """The running-stories pool. A long story (open `pool_after_days` or covered `pool_after_mentions`
+        times) whose NEXT names a later day waits for it: off the writers' board and the desk's rounds, not
+        counted as live, never faded for being quiet. On its day it is back, with its history. Until
+        2026-11-04 such a story was reported daily with nothing new until the senior editor had it closed
+        as stalled, and it came back under a new id: the harbour wall, t220 (117x), then t372."""
+        now = now or schedule.now()
+        today = date.fromisoformat(self.last_date)
+        s = CONFIG.story
+        for t in self.open_threads():
+            if t.waits_until and not self.waiting(t):
+                log.info("thread %s back from the pool, due today: %s", t.id, t.title[:60])
+                t.waits_until, t.moved_ts = "", now           # a fresh start on the fade timer
+            if t.waits_until or not s.pool or t.phase == "peak" or t.breaking == self.last_date:
+                continue
+            long = ((today - date.fromisoformat(t.opened)).days >= s.pool_after_days
+                    or t.mentions >= s.pool_after_mentions)
+            due = due_date(t.next_development, today)
+            if long and due and due > today:
+                t.waits_until = due.isoformat()
+                log.info("thread %s to the pool until %s (covered %dx): %s", t.id, said_date(due),
+                         t.mentions, t.title[:60])
 
     @_locked
     def recently_faded(self, now: float | None = None, limit: int = 5) -> list[Thread]:
@@ -622,7 +675,8 @@ class World:
         peak or one that broke in the last two hours. On 2026-10-28 every guest chat and field
         report had opened a thread and nothing retired them: 108 open, the cap ignored."""
         now = now or schedule.now()
-        live = self.open_threads()
+        self.pool_threads(now)                # a story waiting in the pool neither fades nor counts as live
+        live = self.board_threads()
         quiet = [t for t in live if t.moved_ts and now - t.moved_ts >= fade_after_s(t)]
         live = [t for t in live if t not in quiet]
         excess = len(live) - CONFIG.story.max_live_threads
@@ -826,6 +880,37 @@ def _before(when: str, day: str) -> bool:
     if m := re.search(r"\b(1[0-9]{3}|20[0-9]{2})\b", when):
         return int(m.group()) < int(day[:4])
     return False
+
+
+_MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+           "november", "december")
+_DAY_MONTH = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(" + "|".join(_MONTHS) + r")\b", re.I)
+_THE_NTH = re.compile(r"\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b", re.I)
+
+
+def said_date(d: date | str) -> str:
+    """"Thursday 5 November", as a presenter would say it."""
+    d = date.fromisoformat(d) if isinstance(d, str) else d
+    return f"{d:%A} {d.day} {d:%B}"
+
+
+def due_date(text: str, today: date) -> date | None:
+    """The first day a story desk's NEXT names ("On Thursday 12 November Dolores Finch...", "on the 19th");
+    None if it names none. A day and month take the year that puts them nearest after today (a date
+    just gone is a stale NEXT, not next year's); "the 19th" is this month's, or next month's if gone."""
+    try:
+        if m := _DAY_MONTH.search(text or ""):
+            day, month = int(m.group(1)), _MONTHS.index(m.group(2).lower()) + 1
+            d = date(today.year, month, day)
+            return d if d >= today - timedelta(days=60) else date(today.year + 1, month, day)
+        if m := _THE_NTH.search(text or ""):
+            day, year, month = int(m.group(1)), today.year, today.month
+            if day < today.day:
+                year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+            return date(year, month, day)
+    except ValueError:                                    # "31 November"
+        return None
+    return None
 
 
 def fade_after_s(t: Thread) -> float:

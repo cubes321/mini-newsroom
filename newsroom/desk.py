@@ -31,7 +31,9 @@ thread decide its phase and write the concrete NEXT development the next bulleti
 tied to a day where relevant ("on Tuesday the part arrives and does not fit"). A story that meets a
 day in the briefing's "Coming up" (a town event, a council meeting, a match) may be set for that day,
 by its day and date ("on Thursday 5 November, Bonfire Night, the new barriers are tried out"); never
-for an event that isn't listed. Involve the named
+for an event that isn't listed. A long story whose next step is days away waits for that day in the
+running-stories pool, off the bulletins (the board marks it WAITING); give it a dated NEXT rather than
+holding it or closing it. Involve the named
 public figures when natural; they have positions and reputations to keep. Close threads that have
 run their course. If there is room, seed one or two new threads with a first status and a planned
 next step. Prefer continuity and consequence over novelty. Everything is fiction; never reference
@@ -59,7 +61,8 @@ def batch(world: World) -> list[Thread]:
     # Tonight's council motions wait for their votes (chamber.py): a NEXT rewritten after the booking
     # would leave a motion about a story that has moved on.
     agenda = chamber.on_agenda(world)
-    open_ = [t for t in world.open_threads() if t.id not in agenda]   # most recently updated first, kept for ties
+    # A story waiting in the running-stories pool is planned again on its day (world.pool_threads).
+    open_ = [t for t in world.board_threads() if t.id not in agenda]   # most recently updated first, kept for ties
     return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
 
 
@@ -120,7 +123,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     the plan's `breaking` is left for the worker, which commissions it (`breaking.from_desk`)."""
     world.last_story_plan_ts = time.time()
     world.fade_threads()
-    open_n = len(world.open_threads())
+    open_n = len(world.board_threads())           # the pool's waiting stories leave room for new ones
     room = seed_room(world, open_n)
     todo = batch(world)
     faded = world.recently_faded()
@@ -223,7 +226,7 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         if named:
             t.people = named[:THREAD_PEOPLE]
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
-    for nt in p.new_threads[: seed_room(world, len(world.open_threads()))]:
+    for nt in p.new_threads[: seed_room(world, len(world.board_threads()))]:
         seed(world, nt)
 
 

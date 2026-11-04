@@ -32,7 +32,10 @@ plan threads yourself; you correct the board's shape. Look for:
   person or kind of consequence.
 - STALLING: threads held round after round ("hold the beats", the same next step restated). Ask for
   real movement, or closure.
-- CLOSURES: threads that have run their course. Closing them makes room for new stories.
+- CLOSURES: threads that have run their course. Closing them makes room for new stories. A long
+  story that is only waiting for a later day is not stalled: give it a NEXT dated to that day and it
+  goes to the RUNNING-STORIES POOL, off the bulletins until then with its history kept (the board
+  marks those WAITING); close it only if it is really over.
 - DUPLICATES: one story under several threads. Merge them yourself (merges), into the one covered more.
 - FRESHNESS and BALANCE: the board needs stories from all of town life (harbour, schools, shops,
   sport, clubs, weather, oddities), not only the council and its money, and some light ones. You may
@@ -58,10 +61,11 @@ def _rounds(world: World) -> str:
 def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
     """Ask the senior editor and apply its memo, merges and new thread. None if the model failed."""
     world.last_senior_ts = time.time()
-    open_n, left = len(world.open_threads()), world.seeds_left()
+    open_n, left = len(world.board_threads()), world.seeds_left()
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
-        f"There are {open_n} open threads. " + (
+        f"There are {open_n} open threads on the board"
+        + (f", and {w} waiting in the running-stories pool. " if (w := len(world.waiting_threads())) else ". ") + (
             f"{left} new {'story' if left == 1 else 'stories'} may be opened now, for you and the desk (the day's "
             f"{CONFIG.story.seeds_per_day} come a few at a time from {CONFIG.story.seeds_from}).\n\n"
             if left else "No new story may be opened now (none overnight, and the day's come a few at a time): "
