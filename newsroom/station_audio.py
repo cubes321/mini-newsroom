@@ -7,6 +7,7 @@ Offline, run by hand; assets.py bakes the bumpers, sting and bed from whatever s
     python -m newsroom.station_audio --bed bed.wav           # an approved bed, looped
     python -m newsroom.station_audio --bed-takes DIR --url http://127.0.0.1:7860   # SA3 bed takes to audition
     python -m newsroom.station_audio --band                  # The Last Ferry's house band stings
+    python -m newsroom.station_audio --idents inquiry panel  # just these shows' idents, the others untouched
 
 The other shows' idents and the breaking sting come from their code voicings unless a file is
 given (--breakfast, --magazine, --late, --sport, --breaking). Stems are written at 24 kHz mono, the
@@ -106,6 +107,9 @@ def main() -> None:
     ap.add_argument("--styles", default="vibraphone and Rhodes;analog synthesizer;string orchestra",
                     help="bed styles for --bed-takes, separated by ;")
     ap.add_argument("--url", default="http://127.0.0.1:7860")
+    ap.add_argument("--idents", nargs="+", choices=sorted(set(jingle.VOICINGS) - {"breaking"}),
+                    help="write only these shows' idents from their chosen code style (jingle.STYLES): "
+                         "rewriting a stem rebakes its bumper, so leave the others alone")
     ap.add_argument("--band", action="store_true",
                     help="The Last Ferry's house band: band_walkon and band_button from jingle.band")
     args = ap.parse_args()
@@ -115,6 +119,8 @@ def main() -> None:
         for p in bed_takes(args.url, args.bed_takes, args.styles.split(";")):
             print(p)
         return
+    for show in args.idents or ():
+        write(f"ident_{show}", _source(None, show))
     if args.news:
         write("ident_news", _source(args.news, "news"))
         for show in SHOWS:

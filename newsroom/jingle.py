@@ -59,7 +59,16 @@ VOICINGS: dict[str, tuple[int, float]] = {
     "late": (-5, 0.78),
     "sport": (2, 1.15),
     "breaking": (0, 1.35),
+    # The shows built since 2026-10-29, each with two styles for the listening page (SHOW_STYLES)
+    "quayside": (2, 1.05),
+    "phonein": (5, 1.1),
+    "outabout": (-5, 0.95),
+    "rockpool": (7, 1.2),
+    "panel": (-2, 0.95),
+    "chamber": (-4, 0.85),
+    "inquiry": (-7, 0.82),       # in the minor: the one serious show of the evening
 }
+MINOR_VOICINGS = ("breaking", "inquiry")
 
 
 def _hz(n: float) -> float:
@@ -295,7 +304,7 @@ def _events(m: Motif, transpose: int, tempo: float, minor: bool) -> list[tuple[f
 def onsets(name: str = DEFAULT, voicing: str = "news") -> list[float]:
     """When each note of the tune starts, in seconds: the logo reveals one piece per onset."""
     transpose, tempo = VOICINGS[voicing]
-    return [s for s, _, _ in _events(MOTIFS[name], transpose, tempo, voicing == "breaking")]
+    return [s for s, _, _ in _events(MOTIFS[name], transpose, tempo, voicing in MINOR_VOICINGS)]
 
 
 # The sound of the voicings that have more than one; the others are kept for auditions.
@@ -306,6 +315,21 @@ SPORT_STYLE = "drive"           # chosen by ear 2026-10-29 (Full Time: synth lea
 BREAKING_STYLES = ("brass", "vibes", "synth", "strings")
 BREAKING_STYLE = "vibes"        # chosen by ear 2026-10-29, replacing the brass kept "for now"
 STYLES = {"news": NEWS_STYLE, "sport": SPORT_STYLE, "breaking": BREAKING_STYLE}
+# The newer shows' two styles each, heard side by side on a listening page; SHOW_STYLE is the one chosen.
+SHOW_STYLES: dict[str, tuple[str, str]] = {
+    "quayside": ("ticker", "rhodes"),
+    "phonein": ("bright", "piano"),
+    "outabout": ("folk", "flute"),
+    "rockpool": ("xylo", "toy"),
+    "panel": ("piano", "synth"),
+    "chamber": ("organ", "strings"),
+    "inquiry": ("piano", "cello"),
+}
+SHOW_STYLE = {                  # chosen by ear 2026-11-04
+    "quayside": "ticker", "phonein": "bright", "outabout": "folk", "rockpool": "toy", "panel": "synth",
+    "chamber": "organ", "inquiry": "cello",
+}
+STYLES.update(SHOW_STYLE)
 
 
 def render(name: str = DEFAULT, voicing: str = "news", tail_s: float = 1.8, style: str | None = None) -> np.ndarray:
@@ -317,9 +341,9 @@ def render(name: str = DEFAULT, voicing: str = "news", tail_s: float = 1.8, styl
 def _render(name: str, voicing: str, tail_s: float, style: str) -> np.ndarray:
     m = MOTIFS[name]
     transpose, tempo = VOICINGS[voicing]
-    minor = voicing == "breaking"
+    minor = voicing in MINOR_VOICINGS
     ev = _events(m, transpose, tempo, minor)
-    if minor:
+    if voicing == "breaking":
         ev = ev[:3]
     last_at, last_dur, _ = ev[-1]
     end = last_at + last_dur
@@ -477,6 +501,8 @@ def _render(name: str, voicing: str, tail_s: float, style: str) -> np.ndarray:
         mix.add(last_at, bass(_hz(root - 12), end - last_at + 0.6, 0.7), 0.4)
         mix.add(max(0.0, last_at - 0.8), cymbal_swell(min(0.8, last_at), 0.5), 0.6)
         out = _reverb(mix.buf, 2.4, 0.3)
+    elif voicing in SHOW_ARRANGEMENTS:
+        out = SHOW_ARRANGEMENTS[voicing](_Ctx(mix, ev, chord, root, beat, end, last_at, transpose), style)
     else:
         raise ValueError(f"unknown voicing {voicing!r}")
 
@@ -567,6 +593,313 @@ def band(style: str = BAND_STYLE, name: str = DEFAULT) -> np.ndarray:
     out = _reverb(mix.buf, 1.6, 0.22)
     peak = np.max(np.abs(out)) or 1.0
     return (out / peak * 0.89).astype(np.float32)
+
+
+# --- the newer shows (2026-11-04): instruments, then two arrangements each ---
+
+def guitar(f: float, dur: float, vel: float = 1.0, at: float = 0.18, ring: float = 1.0) -> np.ndarray:
+    """A plucked steel string: harmonics set by where it is plucked (`at`), the high ones dying first."""
+    t = _t(max(dur, 0.3) + 1.2 * ring)
+    y = np.zeros_like(t)
+    for k in range(1, 17):
+        if f * k > SR / 2:
+            break
+        y += np.sin(np.pi * k * at) / k * np.sin(2 * np.pi * f * k * t) * np.exp(-(1.6 + 0.8 * k) / ring * t)
+    damp = np.where(t > dur + 0.25 * ring, np.exp(-(t - dur - 0.25 * ring) * 10), 1.0)
+    pick = _filter(RNG.standard_normal(len(t)), lo=2500) * np.exp(-t * 200) * 0.06
+    return (y * damp + pick) * vel * 0.6
+
+
+def uke(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    return guitar(f, dur, vel, at=0.3, ring=0.45)
+
+
+def pizz(f: float, dur: float = 0.3, vel: float = 1.0) -> np.ndarray:
+    return _filter(guitar(f, dur, vel, at=0.45, ring=0.4), hi=1500)
+
+
+def fiddle(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    """One bowed string: a bright saw with vibrato that comes in after the bow has bitten."""
+    t = _t(dur + 0.3)
+    vib = 1 + 0.006 * np.sin(2 * np.pi * 5.6 * t) * np.minimum(1, t / 0.3)
+    phi = 2 * np.pi * np.cumsum(f * vib) / SR
+    y = sum(np.sin(k * phi) / k for k in range(1, 18) if f * k < SR / 2)
+    y = _filter(y, lo=250, hi=4200)
+    bow = _filter(RNG.standard_normal(len(t)), lo=2000, hi=7000) * 0.04
+    return (y + bow) * _env(len(t), 0.06, 0.2, dur) * vel * 0.35
+
+
+def cello(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    return _filter(fiddle(f, dur, vel), hi=1400) * 1.4
+
+
+def flute(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    t = _t(dur + 0.2)
+    vib = 1 + 0.004 * np.sin(2 * np.pi * 5.0 * t) * np.minimum(1, t / 0.35)
+    phi = 2 * np.pi * np.cumsum(f * vib) / SR
+    y = np.sin(phi) + 0.18 * np.sin(2 * phi) + 0.05 * np.sin(3 * phi)
+    breath = _filter(RNG.standard_normal(len(t)), lo=1800, hi=8000) * 0.06
+    return (y + breath) * _env(len(t), 0.05, 0.15, dur) * vel * 0.45
+
+
+def organ(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    """A church organ: drawbars at the sub-octave, unison, octave, twelfth and fifteenth, gently swelling."""
+    t = _t(dur + 0.4)
+    y = sum(a * np.sin(2 * np.pi * f * r * t) for r, a in ((0.5, 0.5), (1, 1), (2, 0.6), (3, 0.28), (4, 0.22))
+            if f * r < SR / 2)
+    return y * _env(len(t), 0.04, 0.35, dur) * vel * 0.3
+
+
+def xylo(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    t = _t(0.7)
+    parts = [(1, 1, 9), (3.0, .45, 22), (6.2, .15, 45)]
+    y = sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-d * t) for r, a, d in parts if f * r < SR / 2)
+    click = _filter(RNG.standard_normal(len(t)), lo=3000) * np.exp(-t * 400) * 0.1
+    return (y + click) * vel * 0.6
+
+
+def toy_piano(f: float, dur: float, vel: float = 1.0) -> np.ndarray:
+    """Struck metal rods: a clangy, slightly out-of-tune bell."""
+    t = _t(1.4)
+    parts = [(1, 1, 3.5), (2.02, .35, 7), (5.4, .3, 12), (8.1, .12, 20)]
+    return sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-d * t) for r, a, d in parts if f * r < SR / 2) * vel * 0.5
+
+
+def shaker(vel: float = 1.0) -> np.ndarray:
+    t = _t(0.09)
+    noise = _filter(RNG.standard_normal(len(t)), lo=5000, hi=11000)
+    return noise * np.minimum(1, t / 0.02) * np.exp(-t * 45) * 0.2 * vel
+
+
+def slide_up(f: float, dur: float = 0.5, vel: float = 1.0) -> np.ndarray:
+    """A swanee whistle sliding up an octave to `f`."""
+    t = _t(dur)
+    phi = 2 * np.pi * np.cumsum(f / 2 * 2 ** (t / dur)) / SR
+    return np.sin(phi) * _env(len(t), 0.03, 0.08, dur - 0.08) * vel * 0.3
+
+
+@dataclass
+class _Ctx:
+    """What every arrangement needs: the mix, the tune's notes, the closing chord and the timing."""
+    mix: _Mix
+    ev: list[tuple[float, float, int]]
+    chord: list[int]
+    root: int
+    beat: float
+    end: float
+    last_at: float
+    transpose: int
+
+    def hold(self, extra: float = 0.8) -> float:
+        return self.end - self.last_at + extra
+
+    def harmony(self, n: int) -> list[int]:
+        """A triad under a tune note: the dominant under the fifth, the tonic under the rest."""
+        tonic = self.chord[2:5]
+        dominant = [tonic[0] + 7 - 12, tonic[0] + 11 - 12, tonic[0] + 14 - 12]
+        return dominant if (n - tonic[0]) % 12 == 7 else tonic
+
+    def eighths(self, until: float | None = None):
+        k = 0
+        while k * self.beat / 2 < (self.last_at if until is None else until) - 1e-6:
+            yield k, k * self.beat / 2
+            k += 1
+
+
+def _strum(mix: _Mix, at: float, notes: list[int], inst, dur: float, gain: float, gap: float = 0.014,
+           down: bool = True) -> None:
+    for i, n in enumerate(notes if down else notes[::-1]):
+        mix.add(at + i * gap, inst(_hz(n), dur, 0.8), gain, pan=-0.3 + 0.6 * i / max(1, len(notes) - 1))
+
+
+def _quayside(c: _Ctx, style: str) -> np.ndarray:
+    """Quayside, the afternoon money show: brisk and businesslike."""
+    m = c.mix
+    if style == "ticker":                       # marimba and muted guitar over a shaker, like a ticker running
+        for at, dur, n in c.ev:
+            m.add(at, marimba(_hz(n), dur), 0.5, pan=0.2)
+            m.add(at, guitar(_hz(n - 12), dur * 0.4, 0.8, ring=0.3), 0.35, pan=-0.25)
+        for k, at in c.eighths(c.end):
+            m.add(at, shaker(1.0 if k % 2 else 0.6), 0.9, pan=0.4)
+            if at < c.last_at:
+                m.add(at, bass(_hz(c.root - 12 + (12 if k % 4 == 3 else 0)), c.beat / 2 * 0.7), 0.45)
+        for j, n in enumerate(c.chord[1:]):
+            m.add(c.last_at + 0.03 * j, vibes(_hz(n), c.hold()), 0.22, pan=-0.4 + 0.25 * j)
+        m.add(c.last_at, bass(_hz(c.root - 12), c.hold(0.3)), 0.5)
+        return _reverb(m.buf, 1.2, 0.18)
+    for at, dur, n in c.ev:                     # rhodes: Rhodes and clavinet, a light kit
+        m.add(at, rhodes(_hz(n), dur), 0.5, pan=0.15)
+        m.add(at, clav(_hz(n - 12), dur * 0.5), 0.3, pan=-0.3)
+    for k, at in c.eighths():
+        m.add(at, bass(_hz(c.root - 12 + (7 if k % 4 == 2 else 0) + (12 if k % 8 == 7 else 0)), c.beat / 2 * 0.75), 0.45)
+    _kit(m, c.beat, c.last_at)
+    for j, n in enumerate(c.chord):
+        m.add(c.last_at + 0.02 * j, rhodes(_hz(n), c.hold(), 0.7), 0.25, pan=-0.3 + 0.15 * j)
+    m.add(c.last_at, kick(), 0.7)
+    m.add(c.last_at, cymbal_swell(0.02, 0.6), 1.0, pan=0.3)
+    m.add(c.last_at, bass(_hz(c.root - 12), c.hold(0.3)), 0.5)
+    return _reverb(m.buf, 1.3, 0.2)
+
+
+def _phonein(c: _Ctx, style: str) -> np.ndarray:
+    """Have Your Say, the morning phone-in: bright, open lines."""
+    m = c.mix
+    if style == "bright":                       # Rhodes and glockenspiel, claps on two and four
+        for at, dur, n in c.ev:
+            m.add(at, rhodes(_hz(n), dur), 0.45, pan=-0.15)
+            m.add(at, glock(_hz(n + 12), dur, 0.7), 0.3, pan=0.3)
+        for k, at in c.eighths():
+            if k % 4 == 2:
+                m.add(at, clap(), 0.5, pan=-0.1)
+            m.add(at, tick(1.0 if k % 2 else 0.5), 0.7, pan=0.35)
+        up = [n + 12 for n in c.chord[1:]]
+        for j, n in enumerate(up):
+            m.add(c.last_at + 0.06 * j, glock(_hz(n), 1.4, 0.6), 0.22, pan=-0.4 + 0.25 * j)
+        for j, n in enumerate(c.chord):
+            m.add(c.last_at, rhodes(_hz(n), c.hold(), 0.7), 0.22, pan=-0.3 + 0.15 * j)
+        m.add(c.last_at, bass(_hz(c.root - 12), c.hold(0.3)), 0.45)
+        return _reverb(m.buf, 1.2, 0.2)
+    for at, dur, n in c.ev:                     # piano: piano in octaves, strings, a kick and handclaps
+        m.add(at, piano(_hz(n), dur), 0.5, pan=0.1)
+        m.add(at, piano(_hz(n - 12), dur, 0.6), 0.3, pan=-0.1)
+    for k, at in c.eighths():
+        if k % 4 == 0:
+            m.add(at, kick(), 0.6)
+        if k % 4 == 2:
+            m.add(at, clap(), 0.55)
+    for j, n in enumerate(c.chord[1:]):
+        m.add(c.last_at, strings(_hz(n), c.hold(), 0.7), 0.2, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+        m.add(c.last_at + 0.03 * j, piano(_hz(n), c.hold(), 0.6), 0.25)
+    m.add(c.last_at, kick(), 0.8)
+    m.add(c.last_at, bass(_hz(c.root - 12), c.hold(0.3)), 0.45)
+    return _reverb(m.buf, 1.4, 0.22)
+
+
+def _outabout(c: _Ctx, style: str) -> np.ndarray:
+    """Out and About, days out on the coast: acoustic and outdoors."""
+    m = c.mix
+    if style == "folk":                         # a strummed guitar and a fiddle on the tune
+        for at, dur, n in c.ev:
+            m.add(at, fiddle(_hz(n), dur * 0.95), 0.5, pan=0.2)
+        for k, at in c.eighths():
+            if k % 2 == 0:
+                _strum(m, at, [c.root - 12, *c.harmony(c.ev[0][2])], guitar, c.beat * 0.8, 0.22, down=k % 4 == 0)
+            m.add(at, upright(_hz(c.root - 12 + (7 if k % 4 == 2 else 0)), c.beat * 0.4), 0.0 if k % 2 else 0.45)
+        _strum(m, c.last_at, [c.root - 12, *c.chord[1:]], guitar, c.hold(), 0.3, gap=0.03)
+        m.add(c.last_at, upright(_hz(c.root - 12), c.hold(0.2)), 0.6)
+        return _reverb(m.buf, 1.3, 0.2)
+    pattern = [0, 2, 1, 2]                      # flute: a flute on the tune over a fingerpicked guitar
+    tones = [c.root - 12, *c.chord[2:5]]
+    for at, dur, n in c.ev:
+        m.add(at, flute(_hz(n), dur * 0.95), 0.55, pan=0.2)
+    for k, at in c.eighths():
+        m.add(at, guitar(_hz(tones[pattern[k % 4] + (1 if k % 8 >= 4 else 0)]), c.beat), 0.3, pan=-0.25)
+    _strum(m, c.last_at, [c.root - 12, *c.chord[1:]], guitar, c.hold(), 0.28, gap=0.05)
+    return _reverb(m.buf, 1.6, 0.25)
+
+
+def _rockpool(c: _Ctx, style: str) -> np.ndarray:
+    """Rock Pool, for children at teatime: bouncy and a little daft."""
+    m = c.mix
+    if style == "xylo":                         # xylophone and ukulele
+        for at, dur, n in c.ev:
+            m.add(at, xylo(_hz(n), dur), 0.55, pan=0.2)
+        for k, at in c.eighths():
+            _strum(m, at, c.chord[2:5], uke, c.beat * 0.4, 0.2, gap=0.01, down=k % 2 == 0)
+            if k % 2 == 0:
+                m.add(at, kick(0.6), 0.5)
+        for j, n in enumerate([*c.chord[2:5], *(x + 12 for x in c.chord[2:5])]):
+            m.add(c.last_at + 0.05 * j, xylo(_hz(n), 0.3), 0.3, pan=-0.5 + 0.2 * j)
+        _strum(m, c.last_at + 0.3, c.chord[2:5], uke, c.hold(), 0.3, gap=0.02)
+        return _reverb(m.buf, 1.0, 0.15)
+    for at, dur, n in c.ev:                     # toy: toy piano, a bouncing bass, claps, a swanee whistle
+        m.add(at, toy_piano(_hz(n), dur), 0.55, pan=0.15)
+    for k, at in c.eighths():
+        m.add(at, pizz(_hz(c.root - 12 + (12 if k % 2 else 0)), c.beat * 0.3), 0.6)
+        if k % 4 == 2:
+            m.add(at, clap(), 0.5)
+    m.add(max(0.0, c.last_at - 0.5), slide_up(_hz(c.chord[-1] + 12)), 0.5, pan=0.3)
+    for j, n in enumerate(c.chord[1:]):
+        m.add(c.last_at + 0.04 * j, toy_piano(_hz(n), 1.0, 0.7), 0.3, pan=-0.4 + 0.25 * j)
+    m.add(c.last_at, pizz(_hz(c.root - 12), 0.5), 0.7)
+    return _reverb(m.buf, 1.0, 0.15)
+
+
+def _panel(c: _Ctx, style: str) -> np.ndarray:
+    """The Panel, the evening debate: measured and grown-up."""
+    m = c.mix
+    if style == "piano":                        # piano over low strings and a quiet pulse
+        for at, dur, n in c.ev:
+            m.add(at, piano(_hz(n), dur), 0.55, pan=0.1)
+            m.add(at, piano(_hz(n - 12), dur, 0.5), 0.25, pan=-0.1)
+        m.add(0.0, strings(_hz(c.root - 12), c.last_at + 0.2, 0.6), 0.25)
+        for k, at in c.eighths():
+            m.add(at, tick(0.8 if k % 2 == 0 else 0.4), 0.8, pan=0.3)
+        for j, n in enumerate(c.chord[1:]):
+            m.add(c.last_at, strings(_hz(n), c.hold(1.0), 0.8), 0.22, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+            m.add(c.last_at + 0.04 * j, piano(_hz(n), c.hold(), 0.6), 0.25)
+        m.add(c.last_at, piano(_hz(c.root - 24), c.hold(), 0.9), 0.4)
+        return _reverb(m.buf, 1.8, 0.25)
+    k = 0                                       # synth: a sixteenth pulse under a 70s synth lead and a pad
+    while k * c.beat / 4 < c.end + 0.6:
+        at = k * c.beat / 4
+        m.add(at, bass(_hz(c.root - 12), c.beat / 4 * 0.6), 0.4 * min(1.0, max(0.0, 1 - (at - c.end))))
+        k += 1
+    for at, dur, n in c.ev:
+        m.add(at, analog(_hz(n), dur * 0.9), 0.5)
+    for j, n in enumerate(c.chord[1:]):
+        m.add(c.last_at, synth_pad(_hz(n), c.hold(1.0)), 0.35, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+    m.add(c.last_at, kick(), 0.8)
+    return _reverb(m.buf, 1.5, 0.22)
+
+
+def _chamber(c: _Ctx, style: str) -> np.ndarray:
+    """The Chamber, the council live: civic and stately, a chorale."""
+    m = c.mix
+    inst = organ if style == "organ" else strings
+    for at, dur, n in c.ev:                     # each note of the tune harmonised, like a hymn
+        m.add(at, inst(_hz(n), dur * 0.97), 0.45, pan=0.1)
+        for j, h in enumerate(c.harmony(n)):
+            m.add(at, inst(_hz(h - 12), dur * 0.97, 0.7), 0.2, pan=(-0.4, -0.1, 0.25)[j])
+        if style == "strings":
+            m.add(at, pizz(_hz(c.root - 12 if (n - c.chord[2]) % 12 != 7 else c.root - 5), 0.4), 0.5)
+        else:
+            m.add(at, organ(_hz(c.root - 24 if (n - c.chord[2]) % 12 != 7 else c.root - 17), dur), 0.25)
+    for j, n in enumerate(c.chord[1:]):
+        m.add(c.last_at, inst(_hz(n), c.hold(1.0), 0.8), 0.2, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+    if style == "strings":
+        gliss = [n + o for o in (0, 12) for n in c.chord[1:]]
+        for k, n in enumerate(gliss):
+            m.add(max(0.0, c.last_at - 0.035 * (len(gliss) - k)), harp(_hz(n), 0.7), 0.25, pan=-0.6 + 1.2 * k / len(gliss))
+    else:
+        m.add(c.last_at, organ(_hz(c.root - 24), c.hold(1.0)), 0.35)
+    return _reverb(m.buf, 2.6, 0.32)
+
+
+def _inquiry(c: _Ctx, style: str) -> np.ndarray:
+    """The Inquiry, in the minor: the evening's one serious half hour."""
+    m = c.mix
+    if style == "piano":                        # a low piano over a held cello, quiet and searching
+        m.add(0.0, cello(_hz(c.root - 12), c.end + 0.6, 0.7), 0.3)
+        for at, dur, n in c.ev:
+            m.add(at, piano(_hz(n), dur), 0.55, pan=0.1)
+            m.add(at, piano(_hz(n + 12), dur, 0.35), 0.15, pan=0.3)
+        for j, n in enumerate(c.chord):
+            m.add(c.last_at + 0.07 * j, piano(_hz(n), c.hold(1.2), 0.6), 0.25, pan=-0.3 + 0.15 * j)
+        m.add(c.last_at, piano(_hz(c.root - 24), c.hold(1.2), 0.9), 0.4)
+        return _reverb(m.buf, 2.4, 0.3)
+    for at, dur, n in c.ev:                     # cello: the tune on the cello over a pulsing low piano
+        m.add(at, cello(_hz(n - 12), dur * 0.97), 0.55)
+    for k, at in c.eighths(c.end):
+        m.add(at, piano(_hz(c.root - 12), c.beat / 2 * 0.8, 0.6 if k % 2 else 0.9), 0.3)
+    for j, n in enumerate(c.chord[1:]):
+        m.add(c.last_at, strings(_hz(n - 12), c.hold(1.2), 0.8), 0.22, pan=(-0.5, -0.2, 0.2, 0.5)[j % 4])
+    m.add(c.last_at, piano(_hz(c.root - 24), c.hold(1.2), 1.0), 0.45)
+    return _reverb(m.buf, 2.0, 0.28)
+
+
+SHOW_ARRANGEMENTS = {"quayside": _quayside, "phonein": _phonein, "outabout": _outabout, "rockpool": _rockpool,
+                     "panel": _panel, "chamber": _chamber, "inquiry": _inquiry}
 
 
 def _write(path: Path, audio: np.ndarray, sr: int = SR) -> None:

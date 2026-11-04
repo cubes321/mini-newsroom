@@ -19,7 +19,10 @@ bottom with the date.
 - [ ] Visitors' voices: someone "from away" (`accent` american) still speaks Kokoro's American voices with no clip.
   DramaBox could design a few `.a.wav` visitors the same way, if they should sound less like Kokoro.
 - [ ] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say, Out and About
-  and Rock Pool use the news one).
+  and Rock Pool use the news one). Music chosen by ear 2026-11-04 (`jingle.SHOW_STYLE`: Quayside ticker, Have
+  Your Say bright, Out and About folk, Rock Pool toy, The Panel synth, The Chamber organ, The Inquiry cello in
+  the minor) and their stems written; each show has its own line in `assets.IDENTS`. Still to do: bake the
+  voiced bumpers (the first run bakes them, or `assets.ensure_bumper`), listen, commit `assets/bumper_*.wav`.
 - [x] Art for Rock Pool's set (`studio_kids`), 2026-11-01 (701e449): ComfyUI art, a sea-green wall with painted
   waves and bunting, a rock pool with a crab and a starfish, a craft table. Gully stays code-drawn
   (`sprites.draw_gully`), like every character.

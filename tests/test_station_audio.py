@@ -90,3 +90,26 @@ def test_every_style_renders_and_the_chosen_one_is_the_default():
             audio = jingle.render(voicing=voicing, style=style)
             assert audio.shape[1] == 2 and 0.5 < np.abs(audio).max() <= 0.9
     assert jingle.render(voicing="sport") is jingle.render(voicing="sport", style=jingle.SPORT_STYLE)
+
+
+NEWER = ("quayside", "phonein", "outabout", "rockpool", "panel", "chamber", "inquiry")
+
+
+def test_the_newer_shows_have_their_own_idents_and_chosen_styles():
+    """Until 2026-11-04 they borrowed the news's ident, words and all."""
+    for show in NEWER:
+        path, text = assets.IDENTS[show]
+        assert path.name == f"bumper_{show}.wav" and "Port Wexley News" not in text
+        assert jingle.STYLES[show] in jingle.SHOW_STYLES[show]
+        for style in jingle.SHOW_STYLES[show]:
+            audio = jingle.render(voicing=show, style=style)
+            assert audio.shape[1] == 2 and 0.5 < np.abs(audio).max() <= 0.9
+        assert (assets.MUSIC / f"ident_{show}.wav").exists()
+
+
+def test_a_newer_shows_bumper_is_its_own_stem_and_line(music):
+    _stem(music / "ident_inquiry.wav", 5.0)
+    path = assets.ensure_bumper("inquiry")
+    assert path.name == "bumper_inquiry.wav" and sf.info(str(path)).duration == pytest.approx(5.0, abs=0.05)
+    voice_at = jingle.onsets(voicing="inquiry")[-1] + assets.VOICE_AFTER_S
+    assert voice_at < 5.0                                    # the line comes in over the held chord

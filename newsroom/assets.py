@@ -42,6 +42,19 @@ IDENTS: dict[str, tuple[Path, str]] = {
              "Channel seven, late. This is The Last Ferry."),
     "sport": (CONFIG.paths.assets / "bumper_sport.wav",
               "This is Full Time, the sport from the Greymouth coast, on channel seven."),
+    # The shows built since, each with its own arrangement (chosen by ear 2026-11-04, jingle.SHOW_STYLE).
+    # Until then they borrowed the news's: The Inquiry opened on Dana saying "Port Wexley News".
+    "quayside": (CONFIG.paths.assets / "bumper_quayside.wav",
+                 "This is Quayside, the money and the harbour trade, on channel seven."),
+    "phonein": (CONFIG.paths.assets / "bumper_phonein.wav",
+                "You're on Have Your Say, on channel seven. The lines are open."),
+    "outabout": (CONFIG.paths.assets / "bumper_outabout.wav",
+                 "This is Out and About, on the Greymouth coast, on channel seven."),
+    "rockpool": (CONFIG.paths.assets / "bumper_rockpool.wav", "Hello! It's Rock Pool, on channel seven!"),
+    "panel": (CONFIG.paths.assets / "bumper_panel.wav", "This is The Panel, on channel seven."),
+    "chamber": (CONFIG.paths.assets / "bumper_chamber.wav",
+                "From the council chamber, this is The Chamber, on channel seven."),
+    "inquiry": (CONFIG.paths.assets / "bumper_inquiry.wav", "This is The Inquiry, on channel seven."),
 }
 
 
