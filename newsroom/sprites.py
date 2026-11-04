@@ -626,30 +626,142 @@ def _hand(p: _Pen, L: Look, up: float, t: float, beat: float) -> None:
         p(skin, dx + 3, hy - 3, 1, 3)                         # the pointing finger
 
 
+# ------------------------------------------------------------------ poses
+# The body says the mood too (2026-11-04): in a wide shot the face alone is a few pixels. A pose is the
+# shoulders up or down, the head leaning or tipped, and the arms: folded, hands up, a hand to the chin or
+# behind the head. It eases in and out over POSE_EASE_S rather than snapping, the start of what the
+# entertainment channel's full figures will need to move. Only the one talking raises their arms: a
+# listener taking the mood (REACT) shifts in their seat but keeps their hands down.
+
+@dataclass(frozen=True)
+class Pose:
+    arms: str = ""                 # fold up chin neck
+    body_dy: int = 0               # the shoulders: -1 up, +1 slumped
+    head_dy: int = 0               # the head: -1 up (tipped back), +1 down
+    head_dx: int = 0               # the head: +1 leaning in (towards where they face), -1 back
+    shake: bool = False            # the shoulders shake (a laugh)
+
+
+POSES: dict[str, Pose] = {
+    "": Pose(),
+    "lean": Pose(head_dx=1),
+    "laugh": Pose(head_dy=-1, shake=True),
+    "hands_up": Pose(arms="up", body_dy=-1, head_dy=-1),
+    "fold": Pose(arms="fold", head_dx=1),
+    "fold_back": Pose(arms="fold", head_dx=-1),
+    "chin": Pose(arms="chin"),
+    "neck": Pose(arms="neck", head_dy=1),
+    "slump": Pose(body_dy=1, head_dy=1),
+}
+POSE_FOR_MOOD = {"happy": "lean", "laughing": "laugh", "surprised": "hands_up", "cross": "fold",
+                 "smug": "fold_back", "worried": "chin", "embarrassed": "neck", "sad": "slump"}
+POSE_EASE_S = 0.3
+ARMS_RISE = 12                   # how far below their place the arms start, in units: up from out of frame
+
+_POSED: dict = {}                # (who, look) -> what they are doing and since when
+
+
+def _posture(key, mood: str, mouth: float, t: float) -> tuple[Pose, float, Pose, float, float, float]:
+    """(pose, how far in 0..1, the pose it left, how much of that is left, this pose's arms 0..1, the old arms').
+    The arms wait until the character speaks in the pose, so a listener's stay down."""
+    target = POSE_FOR_MOOD.get(mood, "")
+    st = _POSED.get(key)
+    if st is None or t < st["t0"]:
+        st = _POSED[key] = {"pose": target, "t0": t - POSE_EASE_S, "arms_t0": None, "prev": "", "prev_e": 0.0,
+                            "prev_arms": 0.0}
+    def ease(since):
+        return 0.0 if since is None else max(0.0, min(1.0, (t - since) / POSE_EASE_S))
+    if st["pose"] != target:
+        st.update(prev=st["pose"], prev_e=ease(st["t0"]), prev_arms=ease(st["arms_t0"]),
+                  pose=target, t0=t, arms_t0=None)
+    if mouth > 0.08 and st["arms_t0"] is None:
+        st["arms_t0"] = t
+    e = ease(st["t0"])
+    return POSES[st["pose"]], e, POSES[st["prev"]], st["prev_e"] * (1 - e), ease(st["arms_t0"]), st["prev_arms"] * (1 - e)
+
+
+def _arms(p: _Pen, L: Look, arms: str, rise: float) -> None:
+    """Arms in front of the body, coming up from below the frame as `rise` goes 0 to 1."""
+    if rise <= 0 or not arms:
+        return
+    drop = round((1 - rise) * ARMS_RISE)
+    sleeve, edge = L.top, _dark(L.top, OUTLINE_K)
+    skin, skin_edge = L.skin, _dark(L.skin, OUTLINE_K)
+
+    def box(col, dx, dy, w, h):                               # clipped at the bottom of the bust
+        dy += drop
+        h = min(h, 37 - dy)
+        if h > 0:
+            p(col, dx, dy, w, h)
+
+    near = _mix(sleeve, (255, 255, 255), 0.14)               # an arm in front catches more light than the body
+    if arms == "fold":                # forearms across the chest, the elbows out past the sides: it reads small
+        box(edge, -15, 20, 30, 8)
+        box(near, -14, 21, 28, 2)                             # the near forearm on top
+        box(edge, -14, 23, 28, 1)
+        box(_dark(sleeve, 0.88), -14, 24, 28, 3)              # the far one under it
+        box(skin_edge, 8, 20, 5, 4); box(skin, 9, 21, 3, 2)   # its hand on the far arm
+        box(skin_edge, -14, 23, 5, 4); box(skin, -13, 24, 3, 2)
+    elif arms == "up":                # hands up beside the face, palms out: wider than the shoulders
+        for x0 in (-15, 9):
+            box(edge, x0, 17, 6, 20); box(near, x0 + 1, 18, 4, 19)
+            box(skin_edge, x0 - 1, 11, 8, 7); box(skin, x0, 12, 6, 5)
+            box(_dark(skin, 0.75), x0 + 2, 12, 1, 2); box(_dark(skin, 0.75), x0 + 4, 12, 1, 2)   # fingers
+    elif arms == "chin":              # a fist under the chin, the forearm up the chest
+        box(edge, -1, 17, 7, 20); box(near, 0, 18, 5, 19)
+        box(skin_edge, -2, 13, 8, 6); box(skin, -1, 14, 6, 4)
+        box(_dark(skin, 0.8), -1, 16, 6, 1)                   # the curled fingers
+    elif arms == "neck":              # a hand behind the head, the elbow up and out
+        box(edge, 9, 6, 6, 17); box(near, 10, 7, 4, 15)
+        box(edge, 3, 4, 11, 5); box(near, 4, 5, 9, 3)        # the forearm, behind the head (drawn first)
+
+
 def draw_character(canvas: pygame.Surface, x: int, y: int, who: str, mouth: float, t: float,
                    *, scale: int = 1, facing: int = 1, look: Look | None = None,
                    light: tuple[float, float, float] | None = None,
-                   gesture: tuple[str, float] | None = None, mood: str = "") -> None:
+                   gesture: tuple[str, float] | None = None, mood: str = "",
+                   posture: tuple[str, float] | None = None) -> None:
     """Head-and-shoulders character with the bottom at (x, y) baseline. mouth in 0..1.
     `look` overrides the presenter's own (guests pass guest_look(...)); `light` multiplies
     every colour, to sit them in a location's light (backdrops.person_light). `gesture` fixes
     one for a contact sheet; otherwise talking and listening choose (`_gesture`). `mood` (MOODS)
-    is in the face, and a sad or embarrassed head hangs a pixel."""
+    is in the face, and a sad or embarrassed head hangs a pixel; it is in the body too (POSES),
+    easing in. `posture` (a POSES name, how far 0..1) fixes one for a contact sheet."""
     if who == "gully":
         return draw_gully(canvas, x, y, mouth, t, scale=scale, facing=facing, light=light)
     L = look or LOOKS.get(who, LOOKS["guest"])
+    if posture is not None:
+        pose, e, old, oe, arms_e, old_arms = POSES[posture[0]], posture[1], Pose(), 0.0, posture[1], 0.0
+    else:
+        pose, e, old, oe, arms_e, old_arms = _posture((who, look), mood, mouth, t)
     kind, up = gesture if gesture is not None else _gesture(who, look, mouth, t)
+    if kind == "hand" and ((pose.arms and arms_e > 0) or (old.arms and old_arms > 0)):
+        kind = ""                                             # the hands are busy
+    def mix(attr):
+        return getattr(pose, attr) * e + getattr(old, attr) * oe
+    shake = (pose.shake and e > 0.5) or (old.shake and oe > 0.5)
+    body_dy = round(mix("body_dy") + (math.sin(t * 22) > 0) * shake * -1)
+    head_dy, head_dx = round(mix("head_dy")) + body_dy, round(mix("head_dx"))
     bob = int(round(math.sin(t * 2.0) * 0.6))                 # idle breathing
     top = y - 37 * scale + bob
-    p = _Pen(canvas, x, top, scale, facing, light)
+    p = _Pen(canvas, x, top + body_dy * scale, scale, facing, light)
     hangs = kind == "nod" or mood in ("sad", "embarrassed")
-    hp = _Pen(canvas, x, top + scale, scale, facing, light) if hangs else p   # the head dips
+    hx = x + head_dx * scale * (1 if facing >= 0 else -1)
+    hp = _Pen(canvas, hx, top + (head_dy + hangs) * scale, scale, facing, light)
     _hair_back(hp, L)
     _body(p, L)
+    if body_dy < 0:                                           # shoulders up: no gap at the bottom of the frame
+        p(L.top, -13, 37, 26, -body_dy)
+    for arms, rise in ((old.arms, old_arms), (pose.arms, arms_e)):
+        if arms == "neck":
+            _arms(p, L, arms, rise)                           # the arm goes behind the head
     if kind == "hand":
         _hand(p, L, up, t, _beat(who, look))
     _head(hp, L, mouth, _blinking(who, look, t), mood)
     _hair_front(hp, L)
+    for arms, rise in ((old.arms, old_arms), (pose.arms, arms_e)):
+        if arms and arms != "neck":
+            _arms(p, L, arms, rise)
 
 
 GULL_WHITE, GULL_GREY, GULL_DARK = (244, 244, 240), (150, 160, 172), (40, 40, 48)
@@ -760,8 +872,61 @@ def contact_sheet(path: str) -> None:
     pygame.image.save(pygame.transform.scale(sheet, (sheet.get_width() * 2, sheet.get_height() * 2)), path)
 
 
+def pose_sheet(path: str) -> None:
+    """Every presenter in every mood's pose (face and body together), a close-up of each pose, the easing
+    in four steps, and a wide shot at the size a sofa is drawn."""
+    pygame.font.init()
+    f = pygame.font.SysFont("consolas", 10)
+    bg, fg = (52, 58, 84), (230, 230, 230)
+    moods = [""] + [m for m in MOODS if m]
+    who = [w for w in LOOKS if w != "guest"]
+    cw, ch = 70, 92
+    width = cw * (len(moods) + 1)
+    close_h, ease_h, wide_h = 330, 120, 70
+    sheet = pygame.Surface((width, 26 + len(who) * ch + close_h + ease_h + wide_h))
+    sheet.fill((30, 30, 36))
+    for j, m in enumerate(moods):                             # the mood, and its pose under it
+        sheet.blit(f.render(m or "none", True, fg), (cw + j * cw + 3, 1))
+        sheet.blit(f.render(POSE_FOR_MOOD.get(m, "") or "-", True, (170, 170, 190)), (cw + j * cw + 3, 12))
+    for i, w in enumerate(who):
+        y = 26 + i * ch
+        sheet.fill(bg, (0, y, width, ch - 4))
+        sheet.blit(f.render(w, True, fg), (3, y + 4))
+        for j, m in enumerate(moods):
+            draw_character(sheet, cw + j * cw + cw // 2, y + ch - 8, w, 0.0, 0.5, scale=2, mood=m,
+                           posture=(POSE_FOR_MOOD.get(m, ""), 1.0), facing=1 if j % 2 == 0 else -1)
+    y = 26 + len(who) * ch
+    sheet.fill(bg, (0, y, width, close_h - 4))
+    sheet.blit(f.render("close-ups: mag_a and a guest in turn, in the order above", True, fg), (220, y + 3))
+    guest = guest_look("Dougal Crane", "bm_daniel", "roofer, Port Wexley")
+    for j, m in enumerate(moods):                             # two rows of close-ups, so they don't overlap
+        lk = guest if j % 2 else None
+        cx, cy = 70 + (j % 5) * 135, y + (close_h // 2 if j < 5 else close_h) - 10
+        draw_character(sheet, cx, cy, "guest" if lk else "mag_a", 0.0, 0.5,
+                       scale=4, mood=m, look=lk, posture=(POSE_FOR_MOOD.get(m, ""), 1.0))
+    y += close_h
+    sheet.fill(bg, (0, y, width, ease_h - 4))
+    sheet.blit(f.render("easing in: 0, 1/3, 2/3, all", True, fg), (3, y + 3))
+    for k, m in enumerate(("surprised", "cross")):
+        for j, e in enumerate((0.0, 0.34, 0.67, 1.0)):
+            draw_character(sheet, cw + (k * 4 + j) * cw + cw // 2, y + ease_h - 10, "host_b", 0.0, 0.5, scale=2,
+                           mood=m if e > 0.5 else "", posture=(POSE_FOR_MOOD[m], e))
+    y += ease_h
+    sheet.fill(bg, (0, y, width, wide_h - 4))
+    sheet.blit(f.render("wide shot, scale 1: none, surprised, cross, worried, embarrassed, sad", True, fg), (3, y + 3))
+    for j, m in enumerate(("", "surprised", "cross", "worried", "embarrassed", "sad")):
+        draw_character(sheet, cw + j * 48 + 20, y + wide_h - 8, "mag_b" if j % 2 else "mag_a", 0.0, 0.5,
+                       scale=1, mood=m, facing=1 if j % 2 else -1, posture=(POSE_FOR_MOOD.get(m, ""), 1.0))
+    pygame.image.save(pygame.transform.scale(sheet, (sheet.get_width() * 2, sheet.get_height() * 2)), path)
+
+
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--sheet", required=True, help="write a contact sheet PNG here")
-    contact_sheet(ap.parse_args().sheet)
+    ap.add_argument("--sheet", help="write a contact sheet PNG here")
+    ap.add_argument("--poses", help="write the poses' contact sheet PNG here")
+    a = ap.parse_args()
+    if a.sheet:
+        contact_sheet(a.sheet)
+    if a.poses:
+        pose_sheet(a.poses)

@@ -109,9 +109,12 @@ bottom with the date.
   first), the newsreader's last line is plain, and the mood help says smug is a gloat or a dig. Replayed
   on that night's scripts, Dana's smug faces fall from 47 to 24 on the cap alone; check the next night
   for what the new help does.
-- [ ] Moods, next: in a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
-  would carry it there. Movement (entrances, crossing to a mark) waits for *Harbour Row* on the
-  entertainment channel.
+- [x] Moods, next: in a wide shot only laughing, surprised and a hanging head read: body poses (arms up, a slump)
+  would carry it there. Done 2026-11-04, approved on a contact sheet (`sprites.POSES`, `python -m newsroom.sprites
+  --poses`): lean, laugh, slump, hands up, arms folded (leaning in or back), a fist to the chin, a hand behind
+  the head; easing in and out over 0.3 s, arms only for whoever is talking. Watch on air whether the hand behind
+  the head reads as embarrassed. Movement (entrances, crossing to a mark) waits for *Harbour Row* on the
+  entertainment channel, with full figures: the poses' easing is the first piece of it.
 - [x] Dana's links on The Chamber from the press seats (`chamber_press`, b4e6d29, 2026-11-02).
 - [x] Built 2026-11-01 as SEVENTEXT (`teletext.py`): thirteen pages from the world in code, a block of
   about two minutes every eight overnight, the first two blocks a night recorded (`obs_record.py --teletext`).
