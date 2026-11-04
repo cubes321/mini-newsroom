@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 import time
 from collections import deque
 from datetime import date, datetime
@@ -493,7 +494,8 @@ _INQUIRY_RULES = """
 This is part of THE INQUIRY, a half-hour investigation into ONE story, given as TONIGHT'S INQUIRY
 with its record. Keep to the record's dates and facts; what the record doesn't show is a question,
 not a finding. Fair, precise, plain words; small-town scale; nobody accused of a crime the record
-doesn't show. Light touches are fine, jokes are not.
+doesn't show. Light touches are fine, jokes are not. Pat presents THE INQUIRY tonight, not Coastwide:
+the programme is The Inquiry wherever it is named.
 """
 
 _INQUIRY: dict[SegmentType, str] = {
@@ -737,8 +739,11 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
     ("news", SegmentType.interview): {"": _ROLLING},
 }
 
-_CLOSE = """This is the END of the programme. Wrap up warmly: a nod to what was on, thanks to anyone
-who joined you, a {goodbye}; {next_title} follows at {next_at}. No new stories."""
+# The programme is named: Pat is "presenter, Coastwide" in the briefing, and every goodbye of The Inquiry
+# from 2026-10-31 to 11-02 thanked viewers for watching Coastwide.
+_CLOSE = """This is the END of {title}. Wrap up warmly: a nod to what was on, thanks to anyone
+who joined you, a {goodbye} from {title} (if the programme is named, it is {title}, never another
+programme); {next_title} follows at {next_at}. No new stories."""
 
 # The last interview per show, so a "cont" part keeps the same guest (see schedule.py).
 _last_interview: dict[str, dict] = {}
@@ -863,6 +868,12 @@ def _guests_so_far(world: World, show: schedule.Show) -> str:
     return "\n".join(f"  - {e['headline']}" for e in world.aired_today(SegmentType.interview.value, show.id))
 
 
+def _title(show: schedule.Show) -> str:
+    """The programme's name as it is said: "Out and About", not "OUT AND ABOUT" or "Out And About"."""
+    words = show.title.title().split()
+    return " ".join(w.lower() if i and w.lower() in ("and", "of", "the", "at", "on") else w for i, w in enumerate(words))
+
+
 def _part(show: schedule.Show) -> str:
     """'morning', 'afternoon', ... for greetings; breakfast is always the morning."""
     return "morning" if show.id == "breakfast" else schedule.part_of_day(schedule.now())
@@ -894,7 +905,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                            interrupting=work.get("interrupting", "the programme"),
                            source=work.get("source", breaking.FROM_VIEWER))
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type))}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=not _auction_on_news(world, show))}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
@@ -1017,8 +1028,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + place.rstrip()
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
-        user += "\n\n" + _CLOSE.format(goodbye="goodbye" if _part(show) == "morning" else "goodnight",
-                                        next_title=schedule.show_at(end).title.title(),
+        user += "\n\n" + _CLOSE.format(title=_title(show), goodbye="goodbye" if _part(show) == "morning" else "goodnight",
+                                        next_title=_title(schedule.show_at(end)),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
@@ -1415,10 +1426,24 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        # The Inquiry's "other" items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again.
-        # THE GUEST's own interview is booked for tonight however recently they were on elsewhere.
+        if done := _repeated(getattr(script, "headline", ""), world, show, seg.type):   # asked not to, models do; ask again once
+            log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
+                     seg.slot_id, done, show.id)
+            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW[show.id].title()} earlier today. Write "
+                     "about a different subject, with a different person and place, as THIS ITEM says.")
+            script = llm.complete_json(seg.type.value, schema, system, user)
+        if quay.about_the_auction(getattr(script, "headline", "")) and (done := _auction_on_news(world, show)):
+            log.info("%s slot %d: the auction was on the news already (%r); asking for another story",
+                     seg.type.value, seg.slot_id, done)
+            user += (f"\n\nNOT the fish auction: the news has reported it already (\"{done}\"). Lead on an open "
+                     "story from the briefing instead.")
+            script = llm.complete_json(seg.type.value, schema, system, user)
+        # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
+        # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
+        # booked for tonight however recently they were on elsewhere.
         guest = (inquiry.tonight(world) or {}).get("guest") if show.id == inquiry.SHOW else None
-        taken = guest if seg.part == "other" else None
+        theirs = seg.type is SegmentType.interview and seg.part in ("", "cont")
+        taken = guest if guest and not theirs else None
         rebooked = None if cont or booked else _rebooked(script, world, taken, show.id)
         if rebooked and guest and not taken and seg.type is SegmentType.interview and rebooked.lower() == guest.lower():
             rebooked = None
@@ -1430,10 +1455,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
                           "THIS ITEM describes." + _other_voice(world, taken)
                      if taken and rebooked.lower() == taken.lower()
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
-            script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + again)
-            # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
-            if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
-                raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")
+            user += "\n\n" + again        # and every later ask keeps it
+            script = llm.complete_json(seg.type.value, schema, system, user)
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
         known = None if cont or booked else _remembered(script, world, {seg.work.get("return_guest"),
@@ -1442,9 +1465,19 @@ def script_segment(seg: Segment, world: World) -> Segment:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
                      seg.slot_id, known.name)
             note, end = _remembered_note(known)
+            before = script
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
-            if end:
+            # Asked about one guest, the model may book another: on 2026-11-03, asked about Tam Buchanan it
+            # put THE GUEST back in the chair, four times. Then the script before the ask stands.
+            if (getattr(script, "guest_name", None) or "").strip().lower() != known.name.lower():
+                log.info("%s slot %d: asked about %s, it booked %s; keeping the script before", seg.type.value,
+                         seg.slot_id, known.name, getattr(script, "guest_name", None))
+                script = before
+            elif end:
                 seg.work["loose_end_of"] = known.name
+        # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
+        if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
+            raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")
         source = "llm"
         used = getattr(script, "tip_used", None)
         if tips and isinstance(used, int) and 1 <= used <= len(tips):
@@ -1510,6 +1543,55 @@ def _keys_hint(schema) -> str:
             parts.append(f"{name} (list of {{{keys(item)}}})" if isinstance(item, type) and hasattr(item, "model_fields") else name)
         return ", ".join(parts)
     return f"\nOutput: one JSON object with exactly these keys: {keys(schema)}.\n"
+
+
+_LITTLE_WORDS = frozenset("about after again from into more over than that their them they this what when where "
+                          "which while with your".split())
+
+
+def _words(headline: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z']+", headline.lower()) if len(w) > 3 and w not in _LITTLE_WORDS}
+
+
+def _repeated(headline: str, world: World, show: schedule.Show, seg_type: SegmentType) -> str | None:
+    """An item already on this show today that the new headline all but repeats, or None. The prompt lists
+    them, and still Haiku wrote "Counting redshank on the estuary, one cold morning at a time" three times
+    on one Coastwide, and the roof-survey scam with one word changed (2026-11-03)."""
+    if show.id not in REMEMBERS_ITS_SHOW or seg_type not in _SHOW_TYPES or seg_type is SegmentType.links:
+        return None
+    new = _words(headline or "")
+    if len(new) < 3:
+        return None
+    kinds = {t.value for t in _SHOW_TYPES} - {SegmentType.links.value}
+    with world.lock:
+        earlier = [e["headline"] for e in world.archive if e["date"] == world.last_date
+                   and e.get("show") == show.id and e["type"] in kinds and e.get("headline")]
+    for head in reversed(earlier):
+        old = _words(head)
+        if old and len(new & old) / len(new | old) >= REPEAT_LIKENESS:
+            return head
+    return None
+
+
+REPEAT_LIKENESS = 0.5           # headline words in common (of both together) that make an item a repeat
+
+NEWS_SHOWS = ("news", "overnight")
+
+
+def _auction_on_news(world: World, show: schedule.Show) -> str | None:
+    """For the news: the headline of its item on the latest auction, once it has had one. The auction is
+    news once; after that the news's briefing goes without it, and a writer who leads on it anyway is asked
+    again. On the 2026-11-03 night 76 of 363 news items were the auction, the overnight news nearly all
+    of it: "Ten boats in and fifteen thousand pounds on the quay" seven times."""
+    if show.id not in NEWS_SHOWS:
+        return None
+    a = quay.latest(datetime.fromtimestamp(schedule.now()))
+    if not a:
+        return None
+    since = a.day.isoformat()
+    with world.lock:
+        return next((e["headline"] for e in reversed(world.archive) if e.get("show") in NEWS_SHOWS
+                     and e.get("date", "") >= since and quay.about_the_auction(e.get("headline"))), None)
 
 
 def _rebooked(script, world: World, taken: str | None = None, show: str = "") -> str | None:

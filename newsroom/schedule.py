@@ -42,7 +42,7 @@ class Item:
     """One entry in a running order when a bare segment type isn't enough."""
     type: T
     part: str = ""                   # "open" | "cont" | "couch" | "close" (writers.py)
-    brief: str = ""                  # the angle for this item, given to the writer
+    brief: str | tuple[str, ...] = ""   # the angle for this item, given to the writer; a tuple: one per lap
     target_s: float = 0.0            # its own length; 0 = the show's target for the type
 
 
@@ -78,11 +78,19 @@ class Show:
         return item.target_s or self.target_s[item.type]
 
     def item(self, pos: int) -> Item:
-        """The pattern entry at `pos`, counting on past the end through the wrap."""
+        """The pattern entry at `pos`, counting on past the end through the wrap. An entry with a brief
+        for each lap gets this lap's: with one fixed brief, Coastwide's second and third laps of the
+        hour asked for "out in the countryside or on the water" again, and Haiku wrote the same redshank
+        count each time, however plainly the prompt listed it as done (2026-11-03)."""
         n = len(self.pattern)
+        lap = 0
         if pos >= n:
+            lap = 1 + (pos - n) // (n - self.loop_from)
             pos = self.loop_from + (pos - self.loop_from) % (n - self.loop_from)
-        return as_item(self.pattern[pos])
+        item = as_item(self.pattern[pos])
+        if isinstance(item.brief, tuple):
+            item = replace(item, brief=item.brief[lap % len(item.brief)] if item.brief else "")
+        return item
 
     @property
     def opens(self) -> bool:
@@ -213,29 +221,60 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.feature, brief="someone with an unusual job in town"),
             T.weather,
             T.ad_break,
-            # the middle, about twenty-five minutes with two breaks; the order wraps back to here
+            # the middle, about twenty-five minutes with two breaks; the order wraps back to here, two or
+            # three times an evening, and each brief has an angle for each lap (Show.item): with one, the
+            # same redshank count, roof-survey scam and parking rise came round every lap (2026-11-03).
             T.links,
-            I(T.interview, brief="a public figure off duty"),
-            I(T.feature, brief="out in the countryside or on the water"),
+            I(T.interview, brief=("a public figure off duty",
+                                  "someone in uniform off duty: a firefighter, a coastguard, a nurse, a harbour hand",
+                                  "a councillor or a head teacher on something that isn't their job")),
+            I(T.feature, brief=("out in the countryside or on the water",
+                                "a walk: the coast path, the woods or the dunes, with someone who knows it",
+                                "a building with a story: a chapel, a mill, a lighthouse, a shop front")),
             T.vox_pop,
-            I(T.consumer, brief="a warning: a scam, a rogue trader or a small-print trap"),
+            I(T.consumer, brief=("a warning: a scam, a rogue trader or a small-print trap",
+                                 "your rights: a refund, a repair or a delivery that went wrong",
+                                 "saving money at home: heating, a bill, the weekly shop")),
             T.ad_break,
             T.links,
-            I(T.feature, brief="a club, a team or a society"),
-            I(T.interview, brief="someone who has lived here a very long time"),
+            I(T.feature, brief=("a club, a team or a society",
+                                "a volunteer group or a charity at work",
+                                "the arts: a painter, a choir, a play in rehearsal")),
+            I(T.interview, brief=("someone who has lived here a very long time",
+                                  "someone who moved here and stayed",
+                                  "someone who knows a lot about one small thing in town")),
             T.vox_pop,
             T.links,
-            I(T.feature, brief="food: a cafe, a baker, a fishmonger or a recipe"),
-            I(T.consumer, brief="a bill, a fare or a charge that has changed"),
-            I(T.interview, brief="someone young doing something new in town"),
+            I(T.feature, brief=("food: a cafe, a baker, a fishmonger or a recipe",
+                                "a craft or a trade done by hand",
+                                "a garden, an allotment or a farm")),
+            I(T.consumer, brief=("a bill, a fare or a charge that has changed",
+                                 "a product put to the test: Clive tries it so viewers needn't",
+                                 "a service in town: the buses, the post, the bins or the library")),
+            I(T.interview, brief=("someone young doing something new in town",
+                                  "someone who has just done something: a win, a first, a long-awaited finish",
+                                  "a collector or an enthusiast with something to show")),
             T.weather,
-            I(T.feature, brief="an animal story"),
-            I(T.interview, brief="a shopkeeper or a publican"),
+            I(T.feature, brief=("an animal story", "a mystery from the town's past", "a bit of town gossip, proved or busted")),
+            I(T.interview, brief=("a shopkeeper or a publican", "someone who works while the town sleeps",
+                                  "someone who makes or mends things")),
             T.vox_pop,
             T.ad_break,
         ),
         loop_from=10,
         closing=(T.weather, I(T.links, "close")),
+        briefs={
+            # The vox pops have no brief of their own: these in turn (the fireworks question came round three times).
+            T.vox_pop: (
+                "one question about something in this week's news",
+                "one question about food: the best chips, the best pasty, a dish from home",
+                "one question about the past: what the town was like when they were young",
+                "one question about the weekend: what they're doing, where they're going",
+                "one light, daft question: a pet hate, a superstition, a favourite word",
+                "one question about the seasons: what they love or dread about this time of year",
+                "one question about getting about: the buses, the ferry, the parking",
+            ),
+        },
         target_s={T.bumper: 8.0, T.links: 45.0, T.feature: 100.0, T.interview: 120.0, T.vox_pop: 60.0,
                   T.consumer: 75.0, T.weather: 40.0, T.ad_break: 60.0},
         cast=("mag_a", "mag_b", "weather", "reporter"), lead="mag_a",

@@ -47,9 +47,9 @@ def test_each_sports_desk_piece_knows_its_place_in_full_time():
                                             at_ts=_at(18, 50))
         assert "goodbye" not in system and "welcome" not in system
         places[part] = user
-    assert "OPENS Full Time" in places["open"] and "END of the programme" not in places["open"]
+    assert "OPENS Full Time" in places["open"] and "END of Full Time" not in places["open"]
     assert "MIDDLE of Full Time" in places[""] and "welcome to Full Time" not in places[""]
-    assert "END of the programme" in places["close"] and "PLACE IN THE SHOW" not in places["close"]
+    assert "END of Full Time" in places["close"] and "PLACE IN THE SHOW" not in places["close"]
     _, news = writers.build_prompt(SegmentType.sport, w, target_s=60, show=schedule.get("news"))
     assert "PLACE IN THE SHOW" not in news
 

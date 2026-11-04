@@ -132,7 +132,11 @@ def _money(x: float) -> str:
 # The auction is background (world.QUAY_LABEL), never a story of its own: aired, an auction headline opened
 # t260 "Quay auction tops fifteen thousand" (2026-10-30), and t313 "...as Auction Takes Fifteen Thousand
 # Pounds" two days later.
-_ABOUT = re.compile(r"\bauction|\bfish market\b", re.I)
+# The news's own words for it too: "Ten boats in and fifteen thousand pounds on the quay" led eleven of the
+# 2026-11-03 night's bulletins without the word auction.
+_ABOUT = re.compile(r"\bauction|\bfish market\b|\bboats? (?:in|out|land\w*|go out|went out|stay\w* in)\b|"
+                    r"\bboats? sell\w*\b|\bpounds (?:on the quay|of fish)\b|\bquay (?:takings|sales|sells)\b|"
+                    r"\bhake leads\b", re.I)
 
 
 def about_the_auction(headline: str | None) -> bool:

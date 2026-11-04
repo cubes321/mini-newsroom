@@ -108,3 +108,42 @@ def test_other_shows_choose_their_own_backdrop(monkeypatch):
     seg = Segment(slot_id=6, type=T.field_report, show="news", target_s=90.0, nominal_start_ts=schedule.now())
     writers.script_segment(seg, w)
     assert _backdrop(seg) == "harbour"
+
+
+def _news_bulletin(head):
+    return {"headline": head, "lower_third": "News", "thread_id": None, "thread_status": None, "tip_used": None,
+            "lines": [{"speaker": "anchor", "text": "Good evening."}, {"speaker": "anchor", "text": "More soon."}]}
+
+
+def test_the_auction_is_news_once_then_background(monkeypatch):
+    """2026-11-03: 76 of the night's 363 news items were the auction, "Ten boats in and fifteen thousand
+    pounds on the quay" seven times. The first is news; then it leaves the news's briefing, and a
+    bulletin that leads on it anyway is asked for another story."""
+    monkeypatch.setattr(schedule, "now", lambda: FRIDAY.timestamp() + 8 * 3600)
+    w = world_mod.seed()
+    w.last_date = "2026-10-30"
+    news = schedule.get("news")
+    assert writers.quay.summary(FRIDAY)[:20] in writers.build_prompt(T.bulletin, w, target_s=75, show=news)[1]
+    w.record_aired("bulletin", "Ten boats in and fifteen thousand pounds on the quay", None, "...", show="news")
+    _, user = writers.build_prompt(T.bulletin, w, target_s=75, show=news)
+    assert "the latest auction" not in user
+    _, user = writers.build_prompt(T.links, w, target_s=45, show=schedule.get("quayside"))
+    assert "the latest auction" in user                     # Quayside's own business
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_news_bulletin("Ten boats land fifteen thousand pounds of fish" if len(asked) == 1
+                                                    else "Bonfire stack climbs on the Salting"))
+    monkeypatch.setattr(writers.llm, "complete_json", write)
+    seg = Segment(slot_id=12, type=T.bulletin, show="news", target_s=75.0)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and "NOT the fish auction" in asked[1] and seg.headline == "Bonfire stack climbs on the Salting"
+
+
+def test_the_news_words_for_the_auction():
+    for h in ("Ten boats in and fifteen thousand pounds on the quay", "Five Boats Out as Rough Sea Dents Quay Takings",
+              "Fish quay sells fifteen thousand pounds as hake leads", "Rough sea keeps most boats in"):
+        assert quay.about_the_auction(h), h
+    for h in ("Lifeboat crew ready the wreath", "Bunting row on the quay", "Ferry boats return to the timetable"):
+        assert not quay.about_the_auction(h), h

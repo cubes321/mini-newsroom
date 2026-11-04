@@ -23,7 +23,7 @@ def test_coastwide_welcomes_viewers_once_and_its_middle_links_carry_on():
     middle = _user(SegmentType.links, "magazine")
     assert "MIDDLE of Coastwide" in middle and "OPENS" not in middle
     close = _user(SegmentType.links, "magazine", "close")
-    assert "END of the programme" in close and "PLACE IN THE SHOW" not in close
+    assert "END of Coastwide" in close and "PLACE IN THE SHOW" not in close
 
 
 def test_the_last_ferrys_desk_pieces_leave_the_goodnight_to_the_end():

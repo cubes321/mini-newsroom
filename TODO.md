@@ -193,15 +193,27 @@ bottom with the date.
   description, and a call sees every earlier call of its kind. A Quayside scratch run on the fix had three
   businesses over four features. Its "how they began" excerpts were Howard's same hello (now a middle-of-show
   item says none); watch whether the excerpts name the subject.
-- [ ] **The rolling news writes the quay auction into almost every bulletin.** On the 2026-11-02 night one auction
-  headline aired eight times between 10:21 and 10:40, and the 23:49-00:45 news was nearly all "five boats out".
-  Each is freshly written, so it is the news rotation's choice of story, not a replay; Morning Tide's lead
-  bulletin and six-minute weather do the same in a milder way (40 repeats in 180 items).
+- [x] **The rolling news writes the quay auction into almost every bulletin.** On the 2026-11-02 night one auction
+  headline aired eight times between 10:21 and 10:40, and the 23:49-00:45 news was nearly all "five boats out";
+  on 11-03, 76 of 363 news items. Fixed 2026-11-04: the auction is news once, then leaves the news's briefing,
+  and a bulletin or report that leads on it anyway is asked again (`writers._auction_on_news`); the news's
+  words for it count too (`quay.about_the_auction`). Morning Tide's lead bulletin and six-minute weather
+  still repeat in a milder way (40 repeats in 180 items): watch.
+- [x] **Coastwide ran the same items every lap** (2026-11-03): its 19-slot loop came round three times with the
+  same briefs, and Haiku wrote the same redshank count, roof-survey scam and parking rise each lap though the
+  prompt listed them. Fixed 2026-11-04: a brief per lap (`Item.brief` as a tuple, `Show.item`), angles in turn
+  for the vox pops, and a near-repeat headline is asked again (`writers._repeated`).
+- [x] **The Inquiry thanked viewers for watching Coastwide** (every night 10-31 to 11-02: the briefing has Pat as
+  Coastwide's presenter) and **put THE GUEST back in four "other" interviews** (11-03): asked about a returning
+  guest, the third call had lost the "NOT them" note. Fixed 2026-11-04: every goodbye names its own programme,
+  later asks keep the earlier notes, a returning-guest ask that books someone else is dropped, and The Inquiry's
+  films and vox pops can't book THE GUEST either.
 - [ ] **Silent recording**: VB-Audio Virtual Cable, OBS recording CABLE Output with Desktop Audio muted, and
   monitoring on or off to listen. Don't mute python in the mixer: that silences the capture too. The station
-  side is built (2026-11-03): `[broadcast] audio_device = "CABLE Input"` or `--audio-device`, and `--obs`
-  records each programme without a second window (`docs/STREAMING.md`). Still to do: install the cable (it's a
-  driver, so the user installs it) and record a night on it.
+  side is built (2026-11-03): `[broadcast] audio_device` or `--audio-device`, and `--obs` records each
+  programme without a second window (`docs/STREAMING.md`). The cable was installed on 2026-11-04. On this PC its
+  output is "Speakers (2- VB-Audio Virtual Cable)", and config.toml is set to it. Still to do: point OBS at
+  CABLE Output and record a night on it.
 
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire

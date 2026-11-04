@@ -260,8 +260,9 @@ class World:
         return f"  - [{t.id}] {t.title} — {t.phase}{extra}{last_s}; people: {people}{nxt}"
 
     @_locked
-    def summary_for_prompt(self, cast: tuple[str, ...] | None = None) -> str:
-        """The town briefing. `cast` limits the presenters to one show's (see schedule.py)."""
+    def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True) -> str:
+        """The town briefing. `cast` limits the presenters to one show's (see schedule.py); `auction`
+        False leaves the quay's latest auction out (the news, once it has reported it: writers.py)."""
         chars = "\n".join(
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
@@ -285,7 +286,8 @@ class World:
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
-            + (f"{QUAY_LABEL}{q}\n" if (q := quay.summary(datetime.fromtimestamp(schedule.now()))) else "") +
+            + (f"{QUAY_LABEL}{q}\n" if auction and (q := quay.summary(datetime.fromtimestamp(schedule.now())))
+               else "") +
             f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"Recent headlines (do NOT repeat these):\n{heads}"
