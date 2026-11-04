@@ -72,6 +72,8 @@ def obs_client():
         raise Off(f"no obs-websocket config at {cfg}") from e
     if not c.get("server_enabled"):
         raise Off("OBS's WebSocket server is off: Tools > WebSocket Server Settings > Enable")
+    # obsws_python logs its connection parameters, password and all, at INFO (the 2026-11-03 night log)
+    logging.getLogger("obsws_python").setLevel(logging.WARNING)
     try:
         return obs.ReqClient(host="localhost", port=c.get("server_port", 4455),
                              password=c.get("server_password", "") if c.get("auth_required") else "", timeout=10)

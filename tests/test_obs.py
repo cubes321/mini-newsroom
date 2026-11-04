@@ -103,6 +103,25 @@ def test_obs_being_off_never_stops_the_station(monkeypatch, caplog):
     assert "not recording" in caplog.text
 
 
+def test_the_obs_password_never_reaches_the_log(monkeypatch, tmp_path, caplog):
+    import obsws_python
+
+    cfg = tmp_path / "obs-studio" / "plugin_config" / "obs-websocket" / "config.json"
+    cfg.parent.mkdir(parents=True)
+    cfg.write_text('{"server_enabled": true, "auth_required": true, "server_password": "s3cret-pw"}')
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+
+    def client(host, port, password, timeout):     # as the library does on connecting
+        logging.getLogger("obsws_python.baseclient.ObsClient").info(
+            f"Connecting with parameters: host='{host}' port={port} password='{password}'")
+        return object()
+
+    monkeypatch.setattr(obsws_python, "ReqClient", client)
+    caplog.set_level(logging.INFO)
+    obs.obs_client()
+    assert "s3cret-pw" not in caplog.text
+
+
 def test_an_output_is_picked_by_part_of_its_name():
     names = ["Headphones (Realtek USB Audio)", "CABLE Input (VB-Audio Virtual Cable)"]
     assert station.pick_output("CABLE Input", names) == names[1]
