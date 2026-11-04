@@ -18,11 +18,11 @@ bottom with the date.
   left the announcer's voice. Listening page: data/voice-samples/guests-dramabox/.
 - [ ] Visitors' voices: someone "from away" (`accent` american) still speaks Kokoro's American voices with no clip.
   DramaBox could design a few `.a.wav` visitors the same way, if they should sound less like Kokoro.
-- [ ] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say, Out and About
+- [x] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say, Out and About
   and Rock Pool use the news one). Music chosen by ear 2026-11-04 (`jingle.SHOW_STYLE`: Quayside ticker, Have
   Your Say bright, Out and About folk, Rock Pool toy, The Panel synth, The Chamber organ, The Inquiry cello in
-  the minor) and their stems written; each show has its own line in `assets.IDENTS`. Still to do: bake the
-  voiced bumpers (the first run bakes them, or `assets.ensure_bumper`), listen, commit `assets/bumper_*.wav`.
+  the minor) and their stems written; each show has its own line in `assets.IDENTS`. The voiced
+  bumpers were baked the same night (the voices are on the CPU) and approved by ear.
 - [x] Art for Rock Pool's set (`studio_kids`), 2026-11-01 (701e449): ComfyUI art, a sea-green wall with painted
   waves and bunting, a rock pool with a crab and a starfish, a craft table. Gully stays code-drawn
   (`sprites.draw_gully`), like every character.
@@ -53,26 +53,25 @@ bottom with the date.
   the pilot evening with `--parallax` on the trial's harbour and fish quay.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
-- [ ] **Brainstorm: graphics made live by ComfyUI when it's running** (the user's idea, 2026-11-03). The back
-  office could draw pictures for what the scripts talk about, and the station would carry on exactly as now
-  without them when ComfyUI isn't there. The user's example is Rock Pool's objects: the egg-box make, the
-  animal visitor, a child's drawing, the thing in Hugh's story.
-  - **Other uses:** an object a guest brings into the studio; a picture for the big-picture wall; a
-    documentary's archive "photo"; a still for an advert's business; the item on Out and About's review card.
-  - **How it could work:** a writer's script names the object (a new optional field). In idle time, a
-    worker sends a prompt in the house style (the Qwen pixel-art recipe in the art pipeline notes), gets a
-    small sprite or card back, and caches it by its words. The scene shows it on a mark, or nothing if it
-    isn't ready, so it never blocks the buffer.
-  - **Questions:**
-    - The GPU is shared, so it needs a way to tell whether ComfyUI is up and has room (memory: GPU is shared).
-    - How long each picture takes, against the buffer's ten minutes.
-    - No people and no text in the pictures.
-    - Whether anything made live needs the user's eye first, as all the art so far has. A filter for broken
-      results could stand in on air.
-    - Where the pictures sit on each set without covering the marks or the lower third.
-    - Whether they repeat overnight, like the segments do.
-  - **Fallback:** when ComfyUI is down, the scene draws a simple code-drawn stand-in, or nothing.
-  - **Testing:** once it's built, an overnight run (not on the night it's built) shows whether it works well.
+- [ ] **Graphics made live by ComfyUI** (the user's idea, 2026-11-03; brainstormed 2026-11-04, build after the
+  11-05 log is checked). Decided: **shadow mode first**: the back office makes the pictures for a few nights
+  but nothing shows them, and each night's go on a contact sheet to judge how they would fit. Then decide
+  where they show (and whether Phase 0, a library approved by the user, comes first).
+  - The GPU is free during a run: the voices are on the CPU (`[tts] device = "cpu"`); on the 11-04 night
+    the card sat at 1.4 of 16 GB. Qwen-Image-Edit int8 needs ~12 GB, ~6 s a picture warm.
+  - The writer names the picture: an optional `picture` line in the script (what to show, no text in it).
+    A picture worker beside the station sends it to ComfyUI's HTTP API; items are planned ~10 min ahead.
+  - Never waits: if a picture isn't ready, or ComfyUI isn't up, the slot shows what it shows now.
+  - Reused by story id, and Rock Pool's by name (Biscuit the cat is always the same Biscuit): a few dozen
+    new pictures a day, not hundreds.
+  - In the backdrops' pixel-art style, downscaled to the canvas and its palette.
+  - Polite on the GPU: check free memory first, stand aside when an art session has ComfyUI busy,
+    `/free` when idle, a switch in config.
+  - Candidates, most value first: Rock Pool (the animal visitor, the make, children's drawings in crayon,
+    story time); the news wall screen (`WALL_SCREEN`) and the sofa handover box (`SOFA_INSET`), one per
+    story; Coastwide and Out and About cutaways; sepia "archive photographs" for documentaries and The
+    Inquiry; product shots for adverts. Never real people, brands or readable text; the user to decide
+    whether serious stories (fires, accidents) get pictures at all.
 
 ## Content
 
