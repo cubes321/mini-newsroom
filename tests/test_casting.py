@@ -45,14 +45,15 @@ def test_an_old_guest_speaks_slower_and_looks_it():
 
 
 def test_a_guest_is_cast_from_voices_of_their_gender_and_age():
-    """Since 2026-11-01: 24 DramaBox clips, four for each gender and age, each with a clip and a Kokoro voice."""
+    """Since 2026-11-01: 24 DramaBox clips, each with a clip and a Kokoro voice. Four for each gender and age, but
+    since 2026-11-04 one young clip of each gender is a teenager's, for teenagers only."""
     from newsroom import tts
 
     cast = tts._cast()
     for g in ("f", "m"):
-        for age in ("young", "middle", "old"):
+        for age, n in (("young", 3), ("middle", 4), ("old", 4)):
             pool = world_mod.guest_pool(g, age)
-            assert len(pool) == 4 and all(cast[v]["gender"] == g and cast[v]["age"] == age for v in pool)
+            assert len(pool) == n and all(cast[v]["gender"] == g and cast[v]["age"] == age for v in pool)
     for v in world_mod.GUEST_VOICES:
         assert (tts.VOICES_DIR / f"{v}.b.wav").exists(), v
         assert tts.kokoro_voice(v)[:3] in ("af_", "bf_", "am_", "bm_") and tts.kokoro_voice(v) in (
@@ -60,6 +61,33 @@ def test_a_guest_is_cast_from_voices_of_their_gender_and_age():
     w = world_mod.seed()
     old = {w.ensure_person(f"Jory Tonkin {i}", "net mender", gender="m", age="old").voice for i in range(40)}
     assert old == set(world_mod.guest_pool("m", "old"))
+
+
+def test_only_a_teenager_gets_a_teenagers_voice():
+    """On 2026-11-03 a market stall repairer, cast as "young", spoke as a sixteen-year-old girl."""
+    from newsroom import tts
+
+    teens = {v for v, c in tts._cast().items() if c.get("age") == "teen"}
+    assert teens == {"af_sky", "bm_jowan"}
+    w = world_mod.seed()
+    grown = {w.ensure_person(f"Ellie Marr {i}", "market stall repairer", gender=g, age=a).voice
+             for i in range(40) for g in ("f", "m") for a in ("young", None)}
+    assert not grown & teens
+    assert w.ensure_person("Kerra Hosking", "Year 11 pupil, Wexley Academy", gender="f", age="young").voice == "af_sky"
+    assert w.ensure_person("Jago Rowe", "sixth former", gender="m").voice == "bm_jowan"
+    assert not world_mod.is_teen("canteen cook") and world_mod.is_teen("teenage skater")
+
+
+def test_grown_ups_on_a_teenagers_voice_move_once(monkeypatch):
+    w = world_mod.seed()
+    adult = w.ensure_person("Hollie Brannan", "runs the Thursday skate and stitch club", gender="f", age="young")
+    pupil = w.ensure_person("Tamsin Vear", "pupil, Wexley Academy", gender="f", age="young")
+    adult.voice = "af_sky"                                    # as the town had her on 2026-11-03
+    world_mod._recast_teen_voices(w)
+    assert adult.voice in world_mod.guest_pool("f", "young") and pupil.voice == "af_sky"
+    moved = adult.voice
+    world_mod._recast_teen_voices(w)
+    assert adult.voice == moved
 
 
 def test_a_town_cast_on_thirteen_voices_is_spread_once_and_nobody_changes_gender():

@@ -1,6 +1,7 @@
 # Port Wexley guest voices: reference clips cloned live by Pocket TTS (tts.py). File <voice>.b.wav: that voice as
 # a local (British accent). gender and age cast them: a new guest gets a voice of their gender and age, by name
-# (world.guest_pool), and a clip of the wrong age is swapped for one of theirs (tts.clip_for).
+# (world.guest_pool), and a clip of the wrong age is swapped for one of theirs (tts.clip_for). Age "teen"
+# (af_sky, bm_jowan) is only for a guest whose role says they are a teenager: a pupil, a sixth former.
 # Designed with DramaBox (Resemble AI, LTX-2.3 audio) from the description alone, seed 42, chosen by ear 2026-11-01:
 # the first set (Qwen3-TTS VoiceDesign, 2026-10-30) came out American. The first thirteen keep their Kokoro names
 # (Kokoro speaks for them if Pocket fails); the rest have no Kokoro original, so "kokoro" names a stand-in.
@@ -43,7 +44,7 @@ line = "If the car park goes, the high street goes with it. It's as simple as th
 
 [af_sky]
 gender = "f"
-age = "young"
+age = "teen"
 description = 'A teenage girl of sixteen with a light Cornish accent, a little shy at first and then quick and enthusiastic'
 line = 'So we started the litter pick as a school thing, but now loads of people come along, and someone found an actual message in a bottle.'
 
@@ -120,7 +121,7 @@ line = 'My mother kept hens on this very spot, and her mother before her. The fo
 
 [bm_jowan]
 gender = "m"
-age = "young"
+age = "teen"
 kokoro = "bm_fable"
 description = 'A teenage boy of seventeen with a Cornish accent, a sixth former, speaks a bit mumbly and awkward at first, then excited'
 line = "It's not just a band, it's like, everyone from the youth club. We've got a gig at the Anchor, which is mental, honestly."

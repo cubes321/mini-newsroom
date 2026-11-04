@@ -986,7 +986,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop,
                       SegmentType.review) and (
             show.id not in (inquiry.SHOW, panel.SHOW, chamber.SHOW, phonein.SHOW)):   # their guests are booked, however recent
-        user += f"\n\nRECENT GUESTS (book someone else): {', '.join(_recent_guests) or 'none yet'}"
+        recent = list(dict.fromkeys([*world.guests_today(show.id), *_recent_guests]))   # this show's today too
+        user += f"\n\nRECENT GUESTS (book someone else): {', '.join(recent) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
         user += "\n\n" + _return_offer(back)
@@ -1389,7 +1390,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     seg.work.pop("loose_end_of", None)
     if (seg.type is SegmentType.interview and show.light and not cont and show.id != "rockpool"
             and world.guest_returns.get(show.id) != world.last_date):     # no councillors' loose ends on Rock Pool
-        back = world.return_guests(exclude=set(_recent_guests) | ({couch["name"]} if couch else set()))
+        back = world.return_guests(exclude=set(_recent_guests) | set(world.guests_today(show.id))
+                                   | ({couch["name"]} if couch else set()))
         if back:
             seg.work["return_guest"] = back[0].name
     if seg.type is SegmentType.field_report:
@@ -1417,7 +1419,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         # THE GUEST's own interview is booked for tonight however recently they were on elsewhere.
         guest = (inquiry.tonight(world) or {}).get("guest") if show.id == inquiry.SHOW else None
         taken = guest if seg.part == "other" else None
-        rebooked = None if cont or booked else _rebooked(script, world, taken)
+        rebooked = None if cont or booked else _rebooked(script, world, taken, show.id)
         if rebooked and guest and not taken and seg.type is SegmentType.interview and rebooked.lower() == guest.lower():
             rebooked = None
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
@@ -1510,14 +1512,15 @@ def _keys_hint(schema) -> str:
     return f"\nOutput: one JSON object with exactly these keys: {keys(schema)}.\n"
 
 
-def _rebooked(script, world: World, taken: str | None = None) -> str | None:
-    """The guest's name if they were just on, or are `taken` (booked for another part of the show).
-    (Vox-pop passers-by may recur, and a presenter may be a guest: Gordon runs the ghost tours.
-    They appear as themselves.)"""
+def _rebooked(script, world: World, taken: str | None = None, show: str = "") -> str | None:
+    """The guest's name if they were just on, have been on `show` already today, or are `taken` (booked
+    for another part of the show). (Vox-pop passers-by may recur, and a presenter may be a guest: Gordon
+    runs the ghost tours. They appear as themselves.)"""
     name = getattr(script, "guest_name", None)
     if not name or not any(l.speaker == "guest" for l in script.lines):
         return None
-    return name if name.lower() in {g.lower() for g in _recent_guests} | {(taken or "").lower()} - {""} else None
+    been = {g.lower() for g in [*_recent_guests, *world.guests_today(show)]}
+    return name if name.lower() in been | {(taken or "").lower()} - {""} else None
 
 
 def _other_voice(world: World, guest: str) -> str:
@@ -1688,7 +1691,8 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         _last_interview[seg.show] = {
             "slot": seg.slot_id, "name": script.guest_name, "role": script.guest_role or "a guest",
             "asked": "\n".join(f"  {l.speaker}: {l.text[:220]}" for l in seg.lines)[:3000]}
+    guest = getattr(script, "guest_name", None) if any(l.speaker == "guest" for l in seg.lines) else None
     world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines),
                        content_hash=seg.content_hash,
-                       show=seg.show, brief=seg.brief,
+                       show=seg.show, brief=seg.brief, guest=(guest or "").strip(),
                        aired=False)            # history once the player says it went out (world.confirm_aired)

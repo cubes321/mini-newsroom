@@ -106,7 +106,7 @@ def clip_for(voice: str, lang: str, age: str | None = None) -> Path | None:
         return None
     cast = _cast()
     own = cast.get(voice, {})
-    if age and own.get("age") and own["age"] != age:
+    if age and own.get("age") and own["age"] != age and (own["age"], age) != ("teen", "young"):   # a cast teenager
         like = sorted(v for v, c in cast.items() if c.get("gender") == own.get("gender") and c.get("age") == age
                       and (VOICES_DIR / f"{v}.{lang}.wav").exists())
         if like:

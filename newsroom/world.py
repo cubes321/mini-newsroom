@@ -89,6 +89,13 @@ GUEST_CAST = "2026-11-01"       # the town's guests spread over the voices by ge
 # A guest's speaking speed: the old a little slower, the young a little quicker.
 SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
           "": [0.92, 0.97, 1.0, 1.04, 1.08]}
+# Two clips are teenagers' (voices.toml age "teen"): only a guest whose role says so gets one. Cast as just
+# "young", a market stall repairer and the woman who runs a stitch club spoke as a sixteen-year-old (2026-11-03).
+TEEN_ROLE = re.compile(r"\b(pupil|teen\w*|school ?(girl|boy|kid)s?|sixth[- ]?form\w*)\b", re.I)
+
+
+def is_teen(role: str | None) -> bool:
+    return bool(TEEN_ROLE.search(role or ""))
 
 
 @dataclass
@@ -445,8 +452,10 @@ class World:
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
-                     show: str = "", brief: str = "", content_hash: str = "", aired: bool = True) -> None:
-        """Archive entry for a scripted segment; also counts appearances of named people. The
+                     show: str = "", brief: str = "", content_hash: str = "", aired: bool = True,
+                     guest: str = "") -> None:
+        """Archive entry for a scripted segment, with its named guest if it had one (`guests_today`);
+        also counts appearances of named people. The
         writers make it when the script is written (`aired=False`), as the next writers have to
         see what is about to air; it becomes history when the player says it went out
         (confirm_aired), and one that never does is dropped (drop_unaired)."""
@@ -465,8 +474,19 @@ class World:
         }
         if not aired:                 # an entry without the key aired (all of them before 2026-11-03)
             entry.update(aired=False, ts=schedule.now())
+        if guest:
+            entry["guest"] = guest
         self.archive.append(entry)
         self.archive = self.archive[-MAX_ARCHIVE:]
+
+    def guests_today(self, show: str) -> list[str]:
+        """The named guests on `show` today, aired or about to, once each. Coastwide booked the mayor three
+        times in an hour (2026-11-03): the writers' list of the last eight guests had forgotten her each time."""
+        seen: dict[str, str] = {}
+        for e in self.archive:
+            if e.get("guest") and e["date"] == self.last_date and e.get("show") == show:
+                seen.setdefault(e["guest"].lower(), e["guest"])
+        return list(seen.values())
 
     def _count_appearances(self, named: list[str]) -> None:
         for pid in named:
@@ -742,7 +762,7 @@ class World:
                 p.age = age
             return p
         h = _name_hash(name)
-        pool = guest_pool(gender, age)
+        pool = guest_pool(gender, age, role)
         speeds = SPEEDS.get(age or "", SPEEDS[""])
         p = Person(
             id=self._new_person_id(), name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
@@ -985,6 +1005,7 @@ def _from_dict(d: dict) -> World:
                 have[c.id].voice = c.voice
     _seat_council(w)
     _recast_guests(w)
+    _recast_teen_voices(w)
     _recast_presenter_voices(w)
     return w
 
@@ -999,13 +1020,17 @@ def _voice_ages() -> dict[str, str]:
     return {v: c["age"] for v, c in cast.items() if c.get("age")}
 
 
-def guest_pool(gender: str | None, age: str | None) -> list[str]:
-    """The voices a new guest is cast from: their gender's, narrowed to their age (four of each since 2026-11-01)."""
+def guest_pool(gender: str | None, age: str | None, role: str | None = None) -> list[str]:
+    """The voices a new guest is cast from: their gender's, narrowed to their age (four of each since 2026-11-01;
+    three young and one teen since 2026-11-04). A teenager's clip only for a young guest whose role says so."""
     pool = {"f": GUEST_VOICES_F, "m": GUEST_VOICES_M}.get(gender or "", GUEST_VOICES)
     if gender == "m" and age == "old":
         pool = pool + OLD_VOICES_M
     ages = _voice_ages()
-    return ([v for v in pool if ages.get(v) == age] or pool) if age else pool
+    if age in (None, "", "young") and is_teen(role):
+        age = "teen"
+    grown = [v for v in pool if ages.get(v) != "teen"]
+    return ([v for v in pool if ages.get(v) == age] or grown) if age else grown
 
 
 def _recast_guests(w: World) -> None:
@@ -1018,12 +1043,26 @@ def _recast_guests(w: World) -> None:
     for p in w.people:                     # bf_isabella's nine residents too, cast before she was the announcer's
         if p.name in keep or p.voice[1:2] not in ("f", "m"):
             continue
-        pool = guest_pool(p.voice[1:2], p.age or None)
+        pool = guest_pool(p.voice[1:2], p.age or None, p.role)
         voice = pool[_name_hash(p.name) % len(pool)]
         if voice != p.voice:
             p.voice, n = voice, n + 1
     w.guest_cast = GUEST_CAST
     log.info("world migrated: %d guests recast over %d voices by gender and age", n, len(GUEST_VOICES))
+
+
+def _recast_teen_voices(w: World) -> None:
+    """Grown-ups on a teenager's clip move to a voice of their gender and age, by name, as a newcomer is cast
+    now: 53 people were on af_sky and bm_jowan on 2026-11-04. Nothing to do once they have moved."""
+    ages, n = _voice_ages(), 0
+    keep = {p.name for p in seed_people()} | set(council.VOICES)
+    for p in w.people:
+        if p.name in keep or ages.get(p.voice) != "teen" or is_teen(p.role):
+            continue
+        pool = guest_pool(p.voice[1:2], p.age or None, p.role)
+        p.voice, n = pool[_name_hash(p.name) % len(pool)], n + 1
+    if n:
+        log.info("world migrated: %d grown-ups moved off the teenagers' voices", n)
 
 
 def _recast_presenter_voices(w: World) -> None:
