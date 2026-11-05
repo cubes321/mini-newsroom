@@ -72,8 +72,21 @@ def test_roles_dress_the_guest():
     assert guest_look("Bea Kowalczyk", "af_kore", "Fire station officer").extra == "stripe"
     assert guest_look("Helen Strand", "bf_emma", "Mayor of Port Wexley").extra == "chain"
     assert guest_look("Alan Moss", "bm_fable", "Vicar of St Petroc's").extra == "collar"
-    assert guest_look("Ken Hollis", "am_fenrir", "Retired fisherman").hat == "beanie"
+    assert guest_look("Ken Hollis", "am_fenrir", "Retired fisherman").top_style in ("jumper", "jacket")
     assert guest_look("Ken Hollis", "am_fenrir", "Retired fisherman").hair in sprites.GREYS
+
+
+def test_a_ward_is_a_place_not_a_trade_and_fishermen_wear_their_own_colours():
+    """The Chamber, 2026-11-05: the Harbour and Quay ward councillors came out in the fisherman's red
+    beanie, next to a harbourmaster in the same one."""
+    from newsroom import council
+    for name, role, sex, age, _ in council.COUNCILLORS:
+        look = guest_look(name, council.VOICES[name], role, age)
+        assert look.top_style == "suit" and look.hat == "", (name, role)
+    suits = {guest_look(n, council.VOICES[n], r, a).top for n, r, _, a, _ in council.COUNCILLORS}
+    assert len(suits) == len(council.COUNCILLORS)                                # six suits, not three red
+    crew = [guest_look(f"Crew {i}", "bm_lewis", "fisherman") for i in range(60)]
+    assert len({(c.top, c.hat, c.hat_col) for c in crew}) == 6                  # every colourway, not one uniform
 
 
 def test_people_take_the_light_of_an_exterior():

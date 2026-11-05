@@ -21,6 +21,7 @@ and hats may reach 4 units above the head and 1-2 units past the shoulders.
 from __future__ import annotations
 
 import math
+import re
 import zlib
 from dataclasses import dataclass, replace
 from functools import lru_cache
@@ -137,11 +138,18 @@ HAIRS = [(30, 26, 24), (62, 40, 30), (96, 64, 40), (150, 110, 60), (200, 170, 92
 GREYS = [(150, 150, 150), (190, 190, 194), (225, 225, 228)]
 TOPS = [(70, 90, 80), (110, 70, 90), (160, 130, 60), (50, 70, 120), (120, 120, 120), (150, 60, 50),
         (60, 110, 120), (90, 60, 110), (180, 150, 110), (40, 40, 48), (100, 120, 70), (200, 90, 80)]
+# What a suit comes in: a councillor's suit took the casual palette, so The Chamber had three men in the
+# same red suit. Navy, charcoal, two greys, brown and green tweed-ish, a black and a pinstripe-blue.
+SUITS = [(36, 44, 76), (52, 54, 60), (96, 98, 104), (128, 126, 120), (96, 70, 48), (58, 74, 56), (28, 28, 32),
+         (54, 70, 110)]
 UNDERS = [(240, 240, 236), (235, 225, 210), (200, 210, 230), (250, 240, 200), (220, 200, 210)]
 
-# Role words that dress a guest: (words, look changes). The first rule that matches wins.
+# Role words that dress a guest: (words, look changes). The first rule that matches wins. The changes may
+# be a list of colourways instead, and each person gets one of them by name: the fisherman's beanie and
+# jumper were one fixed colour, so on The Chamber (2026-11-05) the Harbour and Quay ward councillors and
+# the harbourmaster sat side by side as three copies of the same red hat.
 LEATHER, CANVAS, DENIM = (120, 78, 46), (150, 136, 104), (60, 86, 130)
-COSTUMES: list[tuple[tuple[str, ...], dict]] = [
+COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
     # trades and shops, from the town's own roles (2026-10-27): ahead of the broader words below
     (("cobbler", "shoemender", "shoe", "saddler", "leather", "bookbinder", "blacksmith", "smith", "farrier",
       "cooper"),
@@ -191,7 +199,12 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
     (("lifeboat", "coastguard", "rnli"), dict(top_style="jacket", top=(236, 190, 40), under=(30, 40, 70),
                                               hat="beanie", hat_col=(30, 40, 70))),
     (("harbour", "fisher", "skipper", "trawler", "boat", "ferry", "sailor", "crab", "oyster", "quay"),
-     dict(top_style="jumper", top=(36, 44, 76), under=(36, 44, 76), hat="beanie", hat_col=(150, 40, 40))),
+     [dict(top_style="jumper", top=(36, 44, 76), under=(36, 44, 76), hat="beanie", hat_col=(150, 40, 40)),
+      dict(top_style="jumper", top=(214, 204, 180), under=(214, 204, 180), hat="beanie", hat_col=(36, 50, 90)),
+      dict(top_style="jumper", top=(52, 78, 62), under=(52, 78, 62), hat="beanie", hat_col=(206, 150, 40)),
+      dict(top_style="jacket", top=(226, 170, 40), under=(36, 44, 76), hat="beanie", hat_col=(36, 44, 76)),
+      dict(top_style="jumper", top=(84, 88, 96), under=(84, 88, 96), hat="flatcap", hat_col=(70, 64, 58)),
+      dict(top_style="jumper", top=(110, 40, 44), under=(110, 40, 44))]),
     (("chef", "cook", "baker", "bakery", "cafe", "café", "restaurant", "pie", "pasty", "kitchen"),
      dict(top_style="chef", top=(240, 240, 236), under=(240, 240, 236))),
     (("mayor",), dict(top_style="suit", top=(40, 40, 50), under=(236, 236, 236), extra="chain")),
@@ -203,7 +216,7 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
      dict(top_style="tshirt", top=(70, 140, 150), under=(70, 140, 150))),
     (("councillor", "mp", "parliament", "minister", "solicitor", "director", "manager", "chief", "chair", "officer",
       "clerk", "estate agent", "developer", "businessman", "businesswoman"),
-     dict(top_style="suit")),
+     [dict(top_style="suit", top=c) for c in SUITS]),
     (("teacher", "head", "librarian", "historian", "society", "archivist", "professor", "author"),
      dict(top_style="cardigan", glasses="on")),
     (("singer", "musician", "band", "actor", "actress", "star", "celebrity", "presenter", "comedian", "performer",
@@ -223,6 +236,17 @@ COSTUMES: list[tuple[tuple[str, ...], dict]] = [
      dict(top_style="jacket", top=(40, 110, 190), under=(240, 240, 236), extra="stripe", extra_col=(240, 240, 236))),
     (("student", "pupil", "teen", "skater", "apprentice"), dict(top_style="tshirt")),
 ]
+# The council sits together on The Chamber every other Thursday, so its six are dressed by name, like the
+# presenters: a suit each in its own colour, where a hash of the name would put two of six in the same one.
+COUNCIL_SUITS: dict[str, dict] = {
+    "Gerald Thorne": dict(top_style="suit", top=(52, 54, 60), tie=(120, 30, 40)),
+    "Alan Penhaligon": dict(top_style="suit", top=(96, 70, 48), tie=(58, 74, 56)),
+    "Colin Tregarthen": dict(top_style="suit", top=(36, 44, 76), tie=(170, 140, 60)),
+    "Sandra Okoye": dict(top_style="suit", top=(58, 74, 56)),
+    "Lucy Hammond": dict(top_style="suit", top=(128, 126, 120)),
+    "Tom Nancarrow": dict(top_style="suit", top=(54, 70, 110), tie=(60, 60, 60)),
+}
+WARD = re.compile(r"[\w' -]*\bward\b")           # "Councillor, Harbour ward": a place, not a trade
 OLD_WORDS = ("retired", "pensioner", "grand", "veteran", "elder", "widow", "former", "oldest", "lifelong")
 YOUNG_WORDS = ("student", "pupil", "teen", "young", "apprentice", "skater", "school")
 
@@ -239,8 +263,8 @@ def guest_look(name: str | None, voice: str = "", role: str = "", age: str = "")
         return seq[(h >> salt) % len(seq)]
 
     fem = voice[1:2] == "f" if len(voice) > 1 and voice[1] in "fm" else h % 2 == 0
-    r = (role or "").lower()
-    age = {"young": 0, "middle": 1, "old": 2}.get(age, 2 if any(w in r for w in OLD_WORDS)
+    r = WARD.sub(" ", (role or "").lower())
+    age ={"young": 0, "middle": 1, "old": 2}.get(age, 2 if any(w in r for w in OLD_WORDS)
                                                   else 0 if any(w in r for w in YOUNG_WORDS) else (h >> 3) % 3)
     skin = pick(SKINS, 0)
     dark = SKINS.index(skin) >= 4                             # sandy and copper hair only with lighter skin
@@ -258,8 +282,10 @@ def guest_look(name: str | None, voice: str = "", role: str = "", age: str = "")
                 mouth=pick(["line", "smile", "smirk", "line"], 29), brows="raised" if (h >> 30) % 3 == 0 else "")
     for words, change in COSTUMES:
         if any(w in r.split() or (len(w) > 3 and w in r) for w in words):
-            look = replace(look, **change)
+            look = replace(look, **(pick(change, 25) if isinstance(change, list) else change))
             break
+    if name and name.strip() in COUNCIL_SUITS:
+        look = replace(look, **COUNCIL_SUITS[name.strip()])
     if look.top_style in ("suit", "uniform") and look.tie is None and not fem and look.extra != "stripe":
         look = replace(look, tie=pick([(120, 30, 40), (40, 60, 110), (60, 60, 60)], 11))
     return look
