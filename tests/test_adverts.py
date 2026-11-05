@@ -22,6 +22,7 @@ def pool(tmp_path, monkeypatch):
     monkeypatch.setattr(adverts.tts, "synthesize", synth)
     p = adverts.AdPool(tmp_path / "ads")
     monkeypatch.setattr(adverts, "_pool", p)
+    monkeypatch.setattr(adverts, "_last_try", 0.0)
     return p
 
 
@@ -155,6 +156,29 @@ def test_the_model_writes_a_new_one_and_never_a_duplicate(pool, world, monkeypat
         raise llm.LLMUnavailable("off")
     monkeypatch.setattr(llm, "complete_json", down)
     assert adverts.make(world) is None
+
+
+def test_an_advert_that_adds_nothing_waits_before_the_next_try(pool, world, monkeypatch):
+    """2026-11-05 08:58-09:00: twenty calls in two minutes, each a business already on air, because
+    only a new advert moved the clock the workers check."""
+    import time
+    while adverts.seed_one(world):
+        pass
+    on_air = next(iter(pool.businesses()))
+    calls = []
+
+    def write(*a, **k):
+        calls.append(1)
+        return AdvertScript(business=on_air, tagline="t", where="w", backdrop="harbour",
+                            lines=[{"speaker": "voiceover", "text": "Buy it."}, {"speaker": "voiceover", "text": "Now."}])
+    monkeypatch.setattr(llm, "complete_json", write)
+    monkeypatch.setattr(pool, "newest_made_ts", lambda: 0.0)        # long overdue for a new one
+    assert adverts.should_make()
+    assert adverts.make(world) is None and len(calls) == 1
+    tried = adverts._last_try
+    assert abs(tried - time.time()) < 60
+    assert not adverts.should_make(tried + 5)                       # the idle workers don't ask again at once
+    assert adverts.should_make(tried + adverts.RETRY_AFTER_S)
 
 
 def _player(pool, world):

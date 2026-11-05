@@ -315,8 +315,17 @@ def seed_one(world: World) -> bool:
     return False
 
 
+# After an attempt that adds nothing (a business already on air, an advert too long, no model), wait
+# this long before the next. Only a new advert moved the clock, so on 2026-11-05 the idle workers asked
+# again every few seconds: 20 calls in two minutes, each one a business already in the pool.
+RETRY_AFTER_S = 300.0
+_last_try = 0.0
+
+
 def should_make(now: float | None = None) -> bool:
-    return (now or time.time()) - pool().newest_made_ts() >= CONFIG.adverts.make_every_s
+    now = now or time.time()
+    return (now - pool().newest_made_ts() >= CONFIG.adverts.make_every_s
+            and now - _last_try >= RETRY_AFTER_S)
 
 
 _SYSTEM = """\
@@ -342,7 +351,9 @@ def write_script(world: World) -> AdvertScript:
 
 def make(world: World) -> Advert | None:
     """Have the model write a new advert, voice it and add it to the pool. None if the model was
-    unavailable or advertised something already on air."""
+    unavailable or advertised something already on air; either way the next try waits RETRY_AFTER_S."""
+    global _last_try
+    _last_try = time.time()
     try:
         script = write_script(world)
     except llm.LLMError as e:

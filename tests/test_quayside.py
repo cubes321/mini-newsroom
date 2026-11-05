@@ -141,6 +141,27 @@ def test_the_auction_is_news_once_then_background(monkeypatch):
     assert len(asked) == 2 and "NOT the fish auction" in asked[1] and seg.headline == "Bonfire stack climbs on the Salting"
 
 
+def test_a_story_made_of_the_auction_leaves_the_news_too(monkeypatch):
+    """2026-11-05: the desk opened t431 "Eleven boats out and steady prices at the quay". With the quay
+    figures gone from the news's briefing, the story in its thread list (and the quiet stories offered
+    to a field report) would have brought the auction straight back."""
+    monkeypatch.setattr(schedule, "now", lambda: FRIDAY.timestamp() + 8 * 3600)
+    w = world_mod.seed()
+    w.last_date = "2026-10-30"
+    for t in w.threads:
+        t.phase = "closed"
+    tid = w.update_thread(None, "Eleven boats out and steady prices at the quay", "the board held level")
+    other = w.update_thread(None, "Bonfire stack climbs on the Salting", "gates open at six")
+    news = schedule.get("news")
+    assert tid in writers.build_prompt(T.field_report, w, target_s=75, show=news)[1]   # news until it's reported
+    w.record_aired("bulletin", "Ten boats in and fifteen thousand pounds on the quay", None, "...", show="news")
+    for kind in (T.bulletin, T.field_report):
+        _, user = writers.build_prompt(kind, w, target_s=75, show=news)
+        assert tid not in user and other in user, kind
+    assert tid in writers.build_prompt(T.links, w, target_s=45, show=schedule.get("quayside"))[1]
+    assert tid in {t.id for t in w.board_threads()}                  # still on the board for the other shows
+
+
 def test_the_news_words_for_the_auction():
     for h in ("Ten boats in and fifteen thousand pounds on the quay", "Five Boats Out as Rough Sea Dents Quay Takings",
               "Fish quay sells fifteen thousand pounds as hake leads", "Rough sea keeps most boats in"):

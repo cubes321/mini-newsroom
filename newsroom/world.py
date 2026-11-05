@@ -279,7 +279,7 @@ class World:
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
         )
-        threads = "\n".join(self._thread_line(t) for t in self.briefing_threads()) or "  (none yet)"
+        threads = "\n".join(self._thread_line(t) for t in self.briefing_threads(auction)) or "  (none yet)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-MAX_HEADLINES_IN_PROMPT:]) or "  (none yet)"
         wx = self.last_weather
         wx_line = (
@@ -307,11 +307,14 @@ class World:
         )
 
     @_locked
-    def briefing_threads(self) -> list[Thread]:
+    def briefing_threads(self, auction: bool = True) -> list[Thread]:
         """The open threads the writers' briefing lists. Threads updated the same day tie on the
         date; the one followed up least often today goes first, so each follow-up moves a story
-        down a place instead of keeping it on top."""
-        live = sorted(self.board_threads(), reverse=True,
+        down a place instead of keeping it on top. `auction` False leaves out a thread made of the
+        auction itself: on 2026-11-05 the desk opened t431 "Eleven boats out and steady prices at the
+        quay", and with the quay figures gone from its briefing the news led on that instead."""
+        board = [t for t in self.board_threads() if auction or not quay.about_the_auction(t.title)]
+        live = sorted(board, reverse=True,
                       key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
         return live[:MAX_THREADS_IN_PROMPT]
 

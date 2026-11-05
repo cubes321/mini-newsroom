@@ -836,14 +836,16 @@ def _field_so_far(world: World, show: schedule.Show) -> str:
 QUIET_THREADS = 4               # open threads beyond the briefing's offered to a news field report
 
 
-def _quiet_threads(world: World, exclude: set[str]) -> str:
+def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str:
     """Open threads the briefing doesn't list, for a news field report to pick up before it
     invents a story: told to go somewhere other than Miles's last three, with only the
     briefing's five to choose from, it started new ones (four "second fire engine" threads and
     five "estuary tide in the wind" on 2026-10-27). Those with a planned NEXT first, then the
-    longest quiet, which they also keep from fading."""
-    shown = {t.id for t in world.briefing_threads()} | exclude
-    quiet = sorted((t for t in world.board_threads() if t.id not in shown),
+    longest quiet, which they also keep from fading. `auction` False (the news has reported it)
+    leaves out a thread made of the auction, as the briefing does."""
+    shown = {t.id for t in world.briefing_threads(auction)} | exclude
+    quiet = sorted((t for t in world.board_threads()
+                    if t.id not in shown and (auction or not quay.about_the_auction(t.title))),
                    key=lambda t: (not t.next_development, t.moved_ts))[:QUIET_THREADS]
     if not quiet:
         return ""
@@ -904,8 +906,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
                            interrupting=work.get("interrupting", "the programme"),
                            source=work.get("source", breaking.FROM_VIEWER))
+    auction = not _auction_on_news(world, show)
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=not _auction_on_news(world, show))}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction)}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
@@ -952,7 +955,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + last
     if seg_type is SegmentType.field_report and not scene and not show.light:
         recent = {e.get("thread_id") for e in world.aired_today(SegmentType.field_report.value, show.id)[-FIELD_MEMORY:]}
-        quiet = _quiet_threads(world, recent | set(done))
+        quiet = _quiet_threads(world, recent | set(done), auction)
         if quiet:
             user += "\n\n" + quiet
     if show.id == inquiry.SHOW:
