@@ -370,10 +370,16 @@ def _guest(v: View, name: str | None):
     return guest_look(name, *v.guests.get(name or "", ("", "", "")))
 
 
+SET_OVERRIDE: str | None = None     # a one-off's own studio set (registered by tools/one_off.py), or none
+
+
 def _interview_set(v: View) -> str:
     """The Last Ferry has its own desk-and-couch set, the sport its corner of the studio; every
     other show uses the armchairs. On The Chamber, Dana talks from the press seats and the
-    council debates in the chamber itself."""
+    council debates in the chamber itself. A one-off programme (tools/one_off.py) can bring a set
+    of its own, which beats all of these."""
+    if SET_OVERRIDE:
+        return SET_OVERRIDE
     if v.set == "sports":
         return "studio_sports"
     if v.show == "chamber" and len(v.people) == 1 and v.people[0][0] != "guest":

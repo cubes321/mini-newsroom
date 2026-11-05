@@ -5,7 +5,8 @@
     uv run python tools/one_off.py air     data/one_off/budget-2026 --obs
 
 The folder holds `script.md` (the words, checked by a person: nothing here goes through a model) and
-`special.toml` (the programme's name, the show whose bumper and set it borrows, and the cast). It gets
+`special.toml` (the programme's name, the show whose bumper and set it borrows, and the cast; optionally
+`closing`, the last lower third's subtitle, and a `[set]` of its own, see register_set). It gets
 its own world, a copy of data/world.json made at the first `voice`, so a new guest's voice and look stay
 the same from one run to the next, and the real town never hears of the programme. Voiced lines go in
 its own `cache/`, keyed by speaker and text: change a line and only that line is voiced again.
@@ -49,6 +50,25 @@ def redirect(folder: Path) -> None:
                       "NEWSROOM_CONTINUITY": folder / "continuity",
                       "NEWSROOM_LLM_CALLS": folder / "llm_calls"}.items():
         os.environ[env] = str(path)
+
+
+def register_set(spec: dict) -> None:
+    """A set of the programme's own ([set] in special.toml: id, name, host and guest marks), its art in
+    assets/backdrops/<id>.png. Registered for this run only, so newsroom/locations.py, and with it every
+    list the writers see, never hears of it. No art yet: the borrowed show's set, with a warning."""
+    s = spec.get("set")
+    if not s:
+        return
+    from newsroom import locations, scenes
+
+    if not (ROOT / "assets" / "backdrops" / f"{s['id']}.png").exists():
+        say(f"set: no assets/backdrops/{s['id']}.png yet, so {spec['show']}'s set stands in")
+        return
+    locations.BY_ID[s["id"]] = locations.Location(s["id"], s.get("name", s["id"]), s.get("name", s["id"]),
+                                                  "studio", (28, 34, 60), (60, 50, 48))
+    locations.MARKS[s["id"]] = {k: tuple(s[k]) for k in ("host", "guest")}
+    scenes.SET_OVERRIDE = s["id"]
+    say(f"set: {s['id']}")
 
 
 def parse(folder: Path) -> tuple[dict, list[tuple[str, list[tuple[str, str]]]]]:
@@ -154,7 +174,7 @@ def segments(folder: Path, spec: dict):
         if i == 0:                                # the presenter's name, then the programme's
             lt = {"title": spec["presenter"], "subtitle": spec["programme"]}
         elif i == n - 1:
-            lt = {"title": spec["programme"], "subtitle": "A summary, not advice"}
+            lt = {"title": spec["programme"], "subtitle": spec.get("closing", "A summary, not advice")}
         else:
             lt = {"title": title, "subtitle": heading}
         cues = [VisualCue(at_s=0.0, kind="lower_third", payload=lt),
@@ -190,6 +210,7 @@ def air(folder: Path, args) -> None:
     clock = pygame.time.Clock()
 
     world = world_mod.load()                    # the programme's copy, never saved from here
+    register_set(spec)
     buffer = Buffer()
     segs = segments(folder, spec)
     for s in segs:
