@@ -20,6 +20,8 @@ Flags:
   --obs         record each programme to its own file in OBS as it airs (newsroom/obs.py)
   --audio-device NAME  play into this sound output (part of its name) instead of [broadcast] audio_device
   --devices     list the sound outputs and exit
+
+Every run also logs to data/logs/station-<date>-<time>.log (NEWSROOM_LOGS; a scratch run's own logs/).
 """
 from __future__ import annotations
 
@@ -99,7 +101,39 @@ def redirect_paths(args: argparse.Namespace) -> None:
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
     # --log-llm too: a test run's calls in the real data/llm_calls muddle a night's costs
     os.environ["NEWSROOM_LLM_CALLS"] = str(scratch / "llm_calls")
+    os.environ["NEWSROOM_LOGS"] = str(scratch / "logs")             # a test run's log stays with its copy
     log.info("scratch run in %s (copied from %s)", scratch, world)
+
+
+LOG_FORMAT = "%(asctime)s %(levelname)-5s %(name)s: %(message)s"
+# Loggers that drown the station's own: Pocket TTS wrote seven INFO lines a voiced line ("starting timer
+# now!", "Generated: 4480 ms of audio..."), about 70% of the 2026-11-04 night; the workers' own "ready:
+# 63.4s of audio in 17.4s wall" already says how fast the voicing goes.
+NOISY = ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "kokoro", "phonemizer",
+         "pocket_tts")
+
+
+def log_to_file(started: float | None = None) -> Path:
+    """Every run also writes its log to data/logs/station-<date>-<time>.log (NEWSROOM_LOGS for another
+    folder; a --scratch run's own logs/), so a night no longer needs its output redirected: the
+    2026-11-04 night printed to a window that was then closed. Crashes on any thread are logged too."""
+    folder = Path(os.environ.get("NEWSROOM_LOGS") or Path(__file__).resolve().parent.parent / "data" / "logs")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"station-{time.strftime('%Y-%m-%d-%H%M', time.localtime(started))}.log"
+    handler = logging.FileHandler(path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt="%H:%M:%S"))
+    logging.getLogger().addHandler(handler)
+    logging.captureWarnings(True)                                   # torch's and pygame's warnings too
+
+    def crashed(kind, value, tb, thread=None):
+        logging.getLogger("newsroom").critical("unhandled %s%s", kind.__name__,
+                                               f" in thread {thread}" if thread else "",
+                                               exc_info=(kind, value, tb))
+    sys.excepthook = crashed
+    threading.excepthook = lambda a: crashed(a.exc_type, a.exc_value, a.exc_traceback,
+                                             a.thread.name if a.thread else None)
+    log.info("logging to %s", path)
+    return path
 
 
 class Stats:
@@ -300,17 +334,14 @@ def run_headless(cfg, args) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-5s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "kokoro", "phonemizer"):
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format=LOG_FORMAT, datefmt="%H:%M:%S")
+    for noisy in NOISY:
         logging.getLogger(noisy).setLevel(logging.WARNING)
     if args.devices:
         print("\n".join(audio_outputs()))
         return 0
     redirect_paths(args)
+    log_to_file()
     from . import schedule
     from .config import CONFIG
 

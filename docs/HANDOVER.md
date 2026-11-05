@@ -60,13 +60,16 @@ $env:DEEPSEEK_API_KEY = [Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY'
 $env:PYTHONIOENCODING = 'utf-8'
 $day = Get-Date -Format 'yyyy-MM-dd'
 Copy-Item data\world.json "data\world.backup-$day-pre-night.json"
-cmd /c "uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 --obs > data\night-$day.log 2>&1"
+uv run python -m newsroom --clock 18:30 --log-llm --minutes 930 --obs
 ```
+
+Since 2026-11-05 the station writes its own log, `data\logs\station-<date>-<time>.log` (the first
+line in the window names it), so the old `> data\night-$day.log 2>&1` redirect isn't needed.
 
 `--obs` records the programmes (not the rolling news) with OBS, one file each in OBS's recording
 folder. Have OBS open first, with its WebSocket server on and a window capture of "Mini Newsroom". If
 OBS isn't there, the night runs anyway and the log says "obs: not recording". Leave `--obs` off to
-record from a second window instead (`uv run python tools/obs_record.py "data\night-$day.log"`). For
+record from a second window instead (`uv run python tools/obs_record.py` with that log's path). For
 recording without the sound in the room, see "Silent recording" in `docs/STREAMING.md`.
 
 What to check, against the 2026-10-29 night (`data/measure-deepseek-2026-10-29.log`) and the

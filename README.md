@@ -225,7 +225,10 @@ once (it still airs in its slot), `--clock HH:MM` pretends the local time is HH:
 `--obs` records each programme to its own file in OBS as it airs, `--audio-device NAME` plays into
 another sound output (or set `audio_device` under `[broadcast]`), and `--devices` lists them.
 Token counts are always on each call's log line, and running totals per
-provider are logged every ten minutes and at exit (`LLM USAGE`).
+provider are logged every ten minutes and at exit (`LLM USAGE`). Every run also writes its log to
+`data/logs/station-<date>-<time>.log` (a `--scratch` run to its own `logs/`, `NEWSROOM_LOGS` for
+another folder), crashes on any thread included, so a night needs no redirect; Pocket TTS's
+per-line chatter is left out of it and the window.
 
 Test runs write to the real town unless told otherwise: every run updates
 `data/world.json` and adds to `data/cache/`, whose last two days feed the
@@ -408,7 +411,7 @@ uv run python -m newsroom.continuity                   # the continuity pool (--
 uv run python -m newsroom.sport                        # the football: results, fixtures and the table
 uv run python -m newsroom.quay                         # the fish auction's latest prices
 uv run python -m newsroom --obs                         # record each programme in OBS as it airs
-uv run python tools/obs_record.py data/night.log        # the same for a station that's already running
+uv run python tools/obs_record.py data/logs/station-2026-11-05-1830.log   # the same for a station already running
 uv run python -m newsroom --devices                     # the sound outputs, for --audio-device
 uv run python -m newsroom.tipline "BREAKING: Smoke over the old cannery"   # breaking news
 uv run python -m newsroom.tipline "The lifeboat open day is on Saturday"   # a tip for the bulletins
