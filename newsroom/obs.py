@@ -116,7 +116,8 @@ class Recorder:
 
 def rename(path: Path, name: str, since: datetime, say=print) -> None:
     """'2026-10-30 21-30-02.mp4' -> '2026-10-30 21-30 Coastwide.mp4' (when it started), once OBS lets go."""
-    target = path.with_name(f"{since:%Y-%m-%d %H-%M} {name}{path.suffix}")
+    safe = re.sub(r'[<>"/\\|?*]', "", re.sub(r"\s*:\s*", " - ", name))      # "Preview: São Paulo" -> "Preview - São Paulo"
+    target = path.with_name(f"{since:%Y-%m-%d %H-%M} {safe}{path.suffix}")
     for _ in range(30):
         try:
             path.rename(target)
