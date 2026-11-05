@@ -3,6 +3,7 @@
     uv run python tools/one_off.py voice   data/one_off/budget-2026
     uv run python tools/one_off.py preview data/one_off/budget-2026      # silent, fast, frames to preview/
     uv run python tools/one_off.py air     data/one_off/budget-2026 --obs
+    uv run python tools/one_off.py cards   data/one_off/budget-2026 --video "E:/recordings/<the recording>.mp4"
 
 The folder holds `script.md` (the words, checked by a person: nothing here goes through a model) and
 `special.toml` (the programme's name, the show whose bumper and set it borrows, and the cast; optionally
@@ -17,6 +18,9 @@ cast). Anything after a line of `---` (the figures check) is not read out.
 `air` opens the station's window, gives OBS a moment, then plays the bumper and the sections one after
 another and stops. With `--obs` it records one file named after the programme, like `--obs` on a night.
 Esc ends it early (and stops the recording).
+
+`cards` puts a title card before that recording and an end card after it, for an upload: words from
+`[cards]` in special.toml (title, subtitle, details, with, and `end`, a list of lines).
 """
 from __future__ import annotations
 
@@ -294,16 +298,128 @@ def air(folder: Path, args) -> None:
         say(f"preview frames in {snaps}")
 
 
+TITLE_S, END_S = 5.0, 15.0     # YouTube's end screen wants 5 to 20 s at the end; the elements go on the right
+
+
+def _card(spec: dict, kind: str):
+    """The title or end card at 1920x1080, drawn on the 320x180 canvas like everything on air: the
+    programme's set dimmed behind, chequers top and bottom, the roundel, the words from [cards]."""
+    import pygame
+
+    from newsroom import backdrops, logo, scenes
+
+    c = spec.get("cards", {})
+    show = spec["show"]
+    canvas = pygame.Surface(scenes.CANVAS)
+    set_id = (spec.get("set") or {}).get("id") if scenes.SET_OVERRIDE else None
+    canvas.blit(backdrops.surface(set_id or "studio_interview"), (0, 0))
+    shade = pygame.Surface(scenes.CANVAS, pygame.SRCALPHA)
+    shade.fill((8, 10, 20, 170 if kind == "title" else 200))
+    canvas.blit(shade, (0, 0))
+    for y in (0, 174):                                           # chequered flag strips
+        for i in range(0, 320, 6):
+            pygame.draw.rect(canvas, (235, 235, 235) if (i // 6) % 2 else (20, 20, 24), (i, y, 6, 6))
+    band = pygame.Surface((320, 22), pygame.SRCALPHA)
+    band.fill((8, 10, 20, 210))
+    canvas.blit(band, (0, 150))                                  # the wordmark's strip, off the desk's chequers
+    accent = logo.colour(show)
+    scenes._layer.clear()
+    scenes._pictures.clear()
+    cream, grey = (244, 238, 222), (180, 188, 205)
+    if kind == "title":
+        logo.draw_mark(canvas, 160, 32, show, r=18)
+        pygame.draw.rect(canvas, (16, 18, 30), (36, 58, 248, 66))
+        pygame.draw.rect(canvas, accent, (36, 58, 5, 66))
+        scenes.text(canvas, c.get("title", spec["programme"]).upper(), 162, 62, 16, cream, center=True)
+        if c.get("subtitle"):
+            scenes.text(canvas, c["subtitle"], 162, 84, 14, cream, center=True)
+        if c.get("details"):
+            scenes.text(canvas, c["details"], 162, 106, 7, grey, center=True)
+        scenes.text(canvas, f"with {c.get('with', spec['presenter'])}", 160, 134, 8, cream, center=True)
+        scenes.text(canvas, logo.WORDMARK, 160, 157, 7, grey, center=True)
+    else:                                                        # the right half is left for YouTube's boxes
+        logo.draw_mark(canvas, 44, 46, show, r=22)
+        pygame.draw.rect(canvas, accent, (16, 80, 4, 52))
+        lines = c.get("end", ["Thanks for watching"])
+        scenes.text(canvas, lines[0].upper(), 26, 80, 12, cream)
+        for i, s in enumerate(lines[1:]):
+            scenes.text(canvas, s, 26, 100 + 12 * i, 8, grey)
+        scenes.text(canvas, logo.WORDMARK, 16, 157, 7, grey)
+    screen = pygame.Surface((1920, 1080))
+    scenes.present(canvas, screen)
+    return screen
+
+
+def cards(folder: Path, args) -> None:
+    """A title card before an `air --obs` recording and an end card after it, for an upload. The
+    recording's black pre-roll is cut; the station's bed plays under both cards. Writes '<video> - cards.mp4'."""
+    import subprocess
+
+    spec, _ = parse(folder)
+    redirect(folder)
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    import pygame
+
+    pygame.init()
+    pygame.display.set_mode((1, 1))
+    register_set(spec)
+    video = args.video.resolve() if args.video else None
+    out_dir = folder / "cards"
+    out_dir.mkdir(exist_ok=True)
+    pngs = {}
+    for kind in ("title", "end"):
+        pngs[kind] = out_dir / f"{kind}.png"
+        pygame.image.save(_card(spec, kind), str(pngs[kind]))
+    pygame.quit()
+    say(f"cards: {pngs['title']}, {pngs['end']}")
+    if args.cards_only:
+        return
+    probe = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-vf", "blackdetect=d=0.3:pix_th=0.05",
+                            "-an", "-t", "10", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.search(r"black_start:0(?:\.0+)? black_end:([\d.]+)", probe)
+    skip = float(m.group(1)) if m else 0.0                        # air's pre-roll while OBS got going
+    bed = ROOT / "assets" / "music" / "bed.wav"
+    T, E = TITLE_S, END_S
+    graph = (
+        f"[0:v]fps=30,format=yuv420p,setsar=1,fade=in:st=0:d=0.6[v0];"
+        f"[1:v]trim=start={skip},setpts=PTS-STARTPTS,fps=30,scale=1920:1080:flags=neighbor,format=yuv420p,"
+        f"setsar=1[v1];"
+        f"[2:v]fps=30,format=yuv420p,setsar=1,fade=out:st={E - 1.5}:d=1.5[v2];"
+        f"[3:a]atrim=0:{T},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,"
+        f"afade=in:st=0:d=0.6,afade=out:st={T - 1.2}:d=1.2,volume=0.5[a0];"
+        f"[1:a]atrim=start={skip},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo[a1];"
+        f"[4:a]atrim=start=20:end={20 + E},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,"
+        f"afade=in:st=0:d=1,afade=out:st={E - 3}:d=3,volume=0.5[a2];"
+        f"[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[v][a]")
+    target = video.with_name(f"{video.stem} - cards{video.suffix}")
+    cmd = ["ffmpeg", "-hide_banner", "-v", "error", "-y",
+           "-loop", "1", "-t", str(T), "-i", str(pngs["title"]), "-i", str(video),
+           "-loop", "1", "-t", str(E), "-i", str(pngs["end"]), "-i", str(bed), "-i", str(bed),
+           "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
+           "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
+           "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(target)]
+    say(f"cutting {skip:.2f}s of pre-roll; encoding {target.name}")
+    subprocess.run(cmd, check=True)
+    say(f"saved {target}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("what", choices=("voice", "preview", "air"))
+    ap.add_argument("what", choices=("voice", "preview", "air", "cards"))
     ap.add_argument("folder", type=Path)
     ap.add_argument("--obs", action="store_true", help="record it in OBS, one file named after the programme")
     ap.add_argument("--audio-device", default="", help="play into this output (e.g. 'CABLE Input')")
+    ap.add_argument("--video", type=Path, help="cards: the air --obs recording to put the cards round")
+    ap.add_argument("--cards-only", action="store_true", help="cards: draw the two PNGs, don't encode")
     a = ap.parse_args()
     folder = a.folder.resolve()
     if a.what == "voice":
         voice(folder)
+    elif a.what == "cards":
+        if not a.video and not a.cards_only:
+            sys.exit("cards needs --video <the recording> (or --cards-only)")
+        cards(folder, a)
     else:
         a.preview = a.what == "preview"
         air(folder, a)
