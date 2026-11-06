@@ -213,12 +213,13 @@ bottom with the date.
   guest, the third call had lost the "NOT them" note. Fixed 2026-11-04: every goodbye names its own programme,
   later asks keep the earlier notes, a returning-guest ask that books someone else is dropped, and The Inquiry's
   films and vox pops can't book THE GUEST either.
-- [ ] **Silent recording**: VB-Audio Virtual Cable, OBS recording CABLE Output with Desktop Audio muted, and
+- [x] **Silent recording**: VB-Audio Virtual Cable, OBS recording CABLE Output with Desktop Audio muted, and
   monitoring on or off to listen. Don't mute python in the mixer: that silences the capture too. The station
   side is built (2026-11-03): `[broadcast] audio_device` or `--audio-device`, and `--obs` records each
   programme without a second window (`docs/STREAMING.md`). The cable was installed on 2026-11-04. On this PC its
   output is "Speakers (2- VB-Audio Virtual Cable)", and config.toml is set to it. Still to do: point OBS at
-  CABLE Output and record a night on it.
+  CABLE Output and record a night on it. Done: OBS records CABLE Output, and the 2026-11-05 night's
+  recordings came out fine for sound (the user listened, 2026-11-06).
 
 - [x] **The Inquiry and The Panel ran out after ten minutes** on 2026-10-30: items come in near half their
   targets, and each show reached a one-item loop and repeated it (17 "Waiting on the Mud" films, 10 quick-fire

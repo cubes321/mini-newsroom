@@ -119,3 +119,28 @@ def test_the_fire_and_the_fireworks_draw_and_move():
     blank = pygame.Surface((320, 180))
     blank.fill((30, 40, 80))
     assert shots[0] != pygame.image.tobytes(blank, "RGB")
+
+
+def _half(show: schedule.Show, entries) -> float:
+    """The entries' length as they came in on 2026-11-05: near half their targets, the adverts in full."""
+    return sum(show.target_for(e) * (1.0 if schedule.as_item(e).type is T.ad_break else 0.5) for e in entries)
+
+
+@pytest.mark.parametrize("slot", sorted(schedule.SPECIAL_NIGHTS))
+def test_a_special_night_never_asks_for_the_same_piece_twice_in_its_hour(slot):
+    """Coastwide at the Bonfire went round its loop six times, and with one brief each Dev's parkin aired
+    six times, the firework code five and the volunteers four (2026-11-05)."""
+    show = schedule.SPECIAL_NIGHTS[slot][1]
+    head, loop = show.pattern[:show.loop_from], show.pattern[show.loop_from:]
+    laps = -(-(3600 - show.closing_s - _half(show, head)) // _half(show, loop))
+    assert laps >= 6                                                   # the night's six, at least
+    seen: dict[int, list[str]] = {}
+    for pos in range(len(show.pattern) + int(laps - 1) * len(loop)):
+        item = show.item(pos)
+        if item.brief and item.part not in ("open", "close"):
+            seen.setdefault(show.loop_from + (pos - show.loop_from) % len(loop) if pos >= show.loop_from else pos,
+                            []).append(item.brief)
+    for where, briefs in seen.items():
+        assert len(set(briefs)) == len(briefs), (where, briefs[0][:60])
+    dev = [b for bs in seen.values() for b in bs if "Dev Ramachandran" in b]
+    assert len(dev) == 1                                               # his parkin once, in the first lap
