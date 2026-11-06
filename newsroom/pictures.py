@@ -76,12 +76,19 @@ class Request:
     serious: bool = False             # a fire or an accident: the user decides whether these get pictures
     prompt: str = ""
     file: str = ""
+    model: str = ""                   # GRAPHS key it was made with
     seconds: float = 0.0
     ts: float = 0.0
 
 
 def enabled() -> bool:
     return CONFIG.pictures.enabled or os.environ.get("NEWSROOM_PICTURES") == "1"
+
+
+def model() -> str:
+    """The GRAPHS key to render with: NEWSROOM_PICTURES_MODEL (a night's choice), else [pictures] model."""
+    name = os.environ.get("NEWSROOM_PICTURES_MODEL") or CONFIG.pictures.model
+    return name if name in GRAPHS else "z_image"
 
 
 def request_for(seg: Segment, world) -> Request | None:
@@ -165,6 +172,44 @@ def graph(prompt: str, seed: int, width: int = WIDTH, height: int = HEIGHT) -> d
     }
 
 
+# Without Lightning (cfg 2.5) the negative works. The first trial drew a mermaid as Disney's Ariel.
+QWEN_NEGATIVE = ("text, letters, words, numbers, writing, signs, logo, watermark, photograph, photorealistic, "
+                 "Disney, Ariel, famous cartoon characters, film characters")
+
+
+def graph_qwen(prompt: str, seed: int, width: int = 1664, height: int = 928, *, lightning: bool = True) -> dict:
+    """Qwen-Image (fp8), as in ComfyUI's image_qwen_image workflow: Qwen2.5-VL text encoder, shift 3.1,
+    1664x928 (its own 16:9 size). With the Lightning 8-step LoRA at cfg 1, the negative does nothing; without
+    it (the user's idea: pixel art needs no photoreal polish), 12 steps at cfg 2.5, where the negative can
+    keep the text out."""
+    model = ["1", 0]
+    g = {"1": {"class_type": "UNETLoader", "inputs": {"unet_name": "qwen_image_fp8_e4m3fn.safetensors", "weight_dtype": "default"}}}
+    if lightning:
+        g["11"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "strength_model": 1.0,
+                                                                  "lora_name": "Qwen-Image-Lightning-8steps-V1.0.safetensors"}}
+        model = ["11", 0]
+    g.update({
+        "2": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": model, "shift": 3.1}},
+        "3": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image",
+                                                     "device": "default"}},
+        "4": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["3", 0], "text": prompt}},
+        "5": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["3", 0], "text": "" if lightning else QWEN_NEGATIVE}},
+        "6": {"class_type": "EmptySD3LatentImage", "inputs": {"width": width, "height": height, "batch_size": 1}},
+        "7": {"class_type": "KSampler", "inputs": {"model": ["2", 0], "positive": ["4", 0], "negative": ["5", 0],
+                                                   "latent_image": ["6", 0], "seed": seed, "steps": 8 if lightning else 12,
+                                                   "cfg": 1.0 if lightning else 2.5, "sampler_name": "euler",
+                                                   "scheduler": "simple", "denoise": 1.0}},
+        "8": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_vae.safetensors"}},
+        "9": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["8", 0]}},
+        "10": {"class_type": "PreviewImage", "inputs": {"images": ["9", 0]}},
+    })
+    return g
+
+
+GRAPHS = {"z_image": graph, "qwen_image": graph_qwen,                  # [pictures] model
+          "qwen_image_cfg": lambda prompt, seed: graph_qwen(prompt, seed, lightning=False)}
+
+
 class Comfy:
     """ComfyUI's HTTP API: just what the painter needs."""
 
@@ -190,8 +235,8 @@ class Comfy:
         q = json.loads(self._call("/queue"))
         return bool(q.get("queue_running") or q.get("queue_pending"))
 
-    def render(self, prompt: str, seed: int, timeout_s: float = 240.0) -> bytes:
-        pid = json.loads(self._call("/prompt", {"prompt": graph(prompt, seed), "client_id": self.client_id}))["prompt_id"]
+    def render(self, prompt: str, seed: int, model: str = "z_image", timeout_s: float = 300.0) -> bytes:
+        pid = json.loads(self._call("/prompt", {"prompt": GRAPHS[model](prompt, seed), "client_id": self.client_id}))["prompt_id"]
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             time.sleep(1.0)
@@ -237,6 +282,7 @@ class Painter:
         self.warm = False                             # our models are loaded in ComfyUI: we /free when idle
         self.last_render = 0.0
         self.last_said = ""
+        self.freed_once = False                       # one /free to clear models left from before a restart
         self.stop = threading.Event()
 
     def _keys(self, day: str) -> set[str]:
@@ -268,6 +314,13 @@ class Painter:
             return "ComfyUI is busy with someone else's job; waiting"
         if not self.warm:
             free = self.gpu()
+            if free is not None and free < self.cfg.min_free_gb and not self.freed_once:
+                # ComfyUI is idle, so what fills the card may be our own models from before a restart (the
+                # 2026-11-06 trial waited ten minutes on them): unload once and look again.
+                self.freed_once = True
+                self.client.free()
+                log.info("pictures: the GPU was full with ComfyUI idle; asked it to unload its models once")
+                free = self.gpu()
             if free is not None and free < self.cfg.min_free_gb:
                 return f"the GPU has {free:.1f} GB free, under {self.cfg.min_free_gb:.0f}; waiting"
         return ""
@@ -290,7 +343,8 @@ class Painter:
             return False
         t0 = time.perf_counter()
         try:
-            png = self.client.render(req.prompt, seed=zlib.crc32(req.key.encode()))
+            req.model = model()
+            png = self.client.render(req.prompt, seed=zlib.crc32(req.key.encode()), model=req.model)
         except Exception as e:  # noqa: BLE001
             self._say(f"a picture failed ({e}); trying the next")
             self.warm = True                          # it may have loaded the models before failing
@@ -339,7 +393,8 @@ def start() -> Painter | None:
         return _painter
     _painter = Painter()
     threading.Thread(target=_painter.run, name="pictures", daemon=True).start()
-    log.info("pictures: shadow mode on, %s, up to %d a day, into %s", CONFIG.pictures.url, CONFIG.pictures.per_day, root())
+    log.info("pictures: shadow mode on, %s with %s, up to %d a day, into %s", CONFIG.pictures.url, model(),
+             CONFIG.pictures.per_day, root())
     return _painter
 
 
@@ -417,7 +472,7 @@ def sheet(day: str, out: Path) -> list[Path]:
             page.blit(_on_screen(img, WALL_SCREEN), (x + thumb[0] + 10, y))
             page.blit(_on_screen(img, SOFA_INSET), (x + thumb[0] + WALL_SCREEN.w * 2 + 20, y))
             when = datetime.fromtimestamp(r.ts).strftime("%H:%M") if r.ts else ""
-            tag = f"{when} {r.show} {r.kind}{' ' + r.thread if r.thread else ''}{'  SERIOUS' if r.serious else ''}"
+            tag = f"{when} {r.model} {r.show} {r.kind}{' ' + r.thread if r.thread else ''}{'  SERIOUS' if r.serious else ''}"
             top = y + max(thumb[1], WALL_SCREEN.h * 2) + 4
             page.blit(font.render(tag, True, (255, 200, 120) if r.serious else (200, 200, 210)), (x, top))
             page.blit(font.render(r.subject[:110], True, (235, 235, 240)), (x, top + 18))
@@ -454,7 +509,7 @@ def _cli() -> int:
         return 0
     req = Request(key="try", day=date.today().isoformat(), show="news", kind="try", headline=a.try_, subject=a.try_)
     t0 = time.perf_counter()
-    png = c.render(prompt_for(req), seed=int(time.time()))
+    png = c.render(prompt_for(req), seed=int(time.time()), model=model())
     out = a.out or root() / f"try-{datetime.now():%H%M%S}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(png)

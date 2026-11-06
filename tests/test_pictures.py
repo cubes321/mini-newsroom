@@ -40,7 +40,7 @@ class FakeComfy:
     def busy(self):
         return self.is_busy
 
-    def render(self, prompt, seed):
+    def render(self, prompt, seed, model="z_image"):
         if self.fail:
             raise RuntimeError("out of memory")
         self.rendered.append(prompt)
@@ -100,14 +100,19 @@ def test_a_key_is_offered_once_a_day_and_the_day_has_a_cap(store):
 def test_the_painter_waits_for_comfyui_someone_elses_job_and_a_full_gpu(store):
     w = world_mod.seed()
     for client, gpu, why in ((FakeComfy(up=False), 15.0, "isn't up"), (FakeComfy(busy=True), 15.0, "busy"),
-                             (FakeComfy(), 4.0, "GPU has 4.0 GB")):
+                             (FakeComfy(), 4.0, "GPU has 4.0 GB")):            # still full after the one /free
         p = pictures.Painter(client, gpu=lambda g=gpu: g)
         p.offer(pictures.request_for(_seg(), w))
         assert not p.step() and why in p.last_said
         assert client.rendered == [] and p.q.qsize() == 1                     # still waiting, not dropped
+    leftover = FakeComfy()                                                     # our models from before a restart
+    readings = iter([4.0, 15.0])
+    p = pictures.Painter(leftover, gpu=lambda: next(readings))
+    p.offer(pictures.request_for(_seg(), w))
+    assert p.step() and leftover.freed == 1                                    # one /free, then it renders
     warm = pictures.Painter(FakeComfy(), gpu=lambda: 4.0)
     warm.warm = True                                                           # our own models fill the card
-    warm.offer(pictures.request_for(_seg(), w))
+    warm.offer(pictures.request_for(_seg(headline="Another story"), w))
     assert warm.step()
 
 
@@ -157,3 +162,13 @@ def test_the_contact_sheet_shows_each_picture_full_and_in_the_screen_boxes(store
     [page] = pictures.sheet("2026-11-06", store / "sheet.png")
     img = pygame.image.load(str(page))
     assert img.get_width() > 1000 and img.get_height() > 250
+
+
+def test_a_nights_model_can_be_chosen_and_an_unknown_one_falls_back(monkeypatch):
+    monkeypatch.setenv("NEWSROOM_PICTURES_MODEL", "qwen_image_cfg")
+    assert pictures.model() == "qwen_image_cfg"
+    g = pictures.GRAPHS["qwen_image_cfg"]("x", 1)
+    assert g["7"]["inputs"]["cfg"] == 2.5 and "11" not in g and "Disney" in g["5"]["inputs"]["text"]
+    assert "11" in pictures.GRAPHS["qwen_image"]("x", 1)                         # the Lightning LoRA
+    monkeypatch.setenv("NEWSROOM_PICTURES_MODEL", "sdxl")
+    assert pictures.model() == "z_image"
