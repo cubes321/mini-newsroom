@@ -8,7 +8,10 @@ and tomorrow follows on from today.
 
 The foot ferry crosses the Grey estuary to Saltby every half hour from 07:00, the last
 one at 23:15 (the late show's namesake). The Saltby landing dries out, so there are no
-crossings within LOW_GAP_MIN of low water, and none at all in a storm or fog.
+crossings within LOW_GAP_MIN of low water, and none at all in a storm or fog. The last ferry
+always sails after The Last Ferry starts at 22:00: when low water covers 23:15 it waits for the
+tide, or goes as the landing dries if waiting would take it past midnight (on 2026-11-06 low water
+at 22:36 made it 21:30, and the show kept saying so).
 
     python -m newsroom.tides [YYYY-MM-DD]
 """
@@ -52,6 +55,21 @@ def tides(day: date) -> list[tuple[datetime, str, float]]:
     return sorted(out)
 
 
+def last_ferry(at: datetime, lows: list[datetime]) -> datetime:
+    """The last sailing: at `at`, or, with low water too near, just after the landing floods again
+    (rounded up to five minutes), or just before it dries if that would be past midnight."""
+    gap = timedelta(minutes=LOW_GAP_MIN)
+    lw = next((lw for lw in lows if abs(at - lw) <= gap), None)
+    if lw is None:
+        return at
+    after = lw + gap + timedelta(minutes=1)
+    after += timedelta(minutes=-after.minute % 5)
+    if after.date() == at.date() and after.hour * 60 + after.minute <= 23 * 60 + 55:
+        return after
+    before = lw - gap - timedelta(minutes=1)
+    return before - timedelta(minutes=before.minute % 5)
+
+
 def ferry(day: date, map_state: str | None = None) -> dict:
     """The day's sailings: every one that runs, the gaps for low water, or why it's off."""
     if map_state in NO_FERRY_WEATHER:
@@ -63,9 +81,10 @@ def ferry(day: date, map_state: str | None = None) -> dict:
     while t <= until:
         times.append(t)
         t += timedelta(minutes=FERRY_EVERY_MIN)
-    times.append(t.replace(hour=LAST_FERRY[0], minute=LAST_FERRY[1]))
     gap = timedelta(minutes=LOW_GAP_MIN)
     sailings = [s for s in times if all(abs(s - lw) > gap for lw in lows)]
+    last = last_ferry(t.replace(hour=LAST_FERRY[0], minute=LAST_FERRY[1]), lows)
+    sailings = [s for s in sailings if s <= last - timedelta(minutes=FERRY_EVERY_MIN)] + [last]   # it replaces one just before
     # a gap only matters between the day's first and last sailings ("from 08:00" covers an early one)
     gaps = [(lw - gap, lw + gap) for lw in lows if sailings and sailings[0] < lw < sailings[-1]]
     return {"suspended": "", "sailings": sailings, "gaps": gaps}

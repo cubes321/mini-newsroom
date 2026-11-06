@@ -47,3 +47,18 @@ def test_weather_breakfast_and_late_scripts_get_the_facts():
            for st, show in ((T.weather, "news"), (T.sofa, "breakfast"), (T.interview, "late"), (T.bulletin, "news"))}
     assert has == {(T.weather, "news"): True, (T.sofa, "breakfast"): True, (T.interview, "late"): True,
                    (T.bulletin, "news"): False}
+
+
+def test_the_last_ferry_always_sails_after_the_last_ferry_starts():
+    """2026-11-06: low water at 22:36 cancelled every sailing after 21:30, and The Last Ferry (22:00) kept
+    saying the last ferry had gone at half past nine. Now it waits for the tide, or leaves as the landing
+    dries when waiting would take it past midnight, and takes the place of a sailing just before it."""
+    tonight = [s.strftime("%H:%M") for s in tides.ferry(date(2026, 11, 6))["sailings"]]
+    assert tonight[-2:] == ["21:30", "23:30"]                      # waited for the 22:36 low water
+    early = [s.strftime("%H:%M") for s in tides.ferry(date(2026, 11, 7))["sailings"]]
+    assert early[-2:] == ["22:00", "22:35"]                        # low at 23:26: goes before it dries
+    assert "the last ferry leaves at 23:30" in tides.for_prompt(date(2026, 11, 6))
+    for i in range(400):
+        day = date(2026, 1, 1) + timedelta(days=i)
+        s = tides.ferry(day)["sailings"]
+        assert s[-1].date() == day and s[-1].hour >= 22 and s[-1] - s[-2] >= timedelta(minutes=30), day
