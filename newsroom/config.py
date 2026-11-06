@@ -180,6 +180,7 @@ class PicturesCfg:
     poll_s: float = 30.0                 # how long the painter waits on its queue between looks
     wait_s: float = 120.0                # how long it waits when ComfyUI is down or busy, or the GPU is full
     queue_max: int = 40                  # requests waiting at most; past that new ones are dropped
+    brief: bool = True                   # one short call per picture says what to draw (task picture_brief)
 
 
 @dataclass(frozen=True)

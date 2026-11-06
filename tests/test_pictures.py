@@ -56,14 +56,15 @@ def store(tmp_path, monkeypatch):
     object.__setattr__(CONFIG, "paths", dataclasses.replace(old_paths, pictures=tmp_path / "pictures"))
     object.__setattr__(CONFIG, "pictures", dataclasses.replace(old_pics, poll_s=0.01, wait_s=0.0, per_day=3,
                                                                queue_max=3, idle_free_s=0.0))
+    monkeypatch.setattr(pictures, "brief_for", lambda req: "")                # no LLM: the headline prompt
     yield tmp_path / "pictures"
     object.__setattr__(CONFIG, "paths", old_paths)
     object.__setattr__(CONFIG, "pictures", old_pics)
 
 
-def _seg(type_=T.bulletin, show="news", headline="Gorse fire out behind the Salting", thread=None, **kw):
+def _seg(type_=T.bulletin, show="news", headline="Gorse fire out behind the Salting", thread=None, lines=None, **kw):
     return Segment(slot_id=1, type=type_, show=show, headline=headline, thread_id=thread, nominal_start_ts=AT,
-                   lines=[Line(speaker="anchor", text="Hello.")], **kw)
+                   lines=lines or [Line(speaker="anchor", text="Hello.")], **kw)
 
 
 def test_a_story_gets_one_picture_by_its_thread_and_a_piece_by_its_headline():
@@ -172,3 +173,42 @@ def test_a_nights_model_can_be_chosen_and_an_unknown_one_falls_back(monkeypatch)
     assert "11" in pictures.GRAPHS["qwen_image"]("x", 1)                         # the Lightning LoRA
     monkeypatch.setenv("NEWSROOM_PICTURES_MODEL", "sdxl")
     assert pictures.model() == "z_image"
+
+
+def test_the_brief_says_what_to_draw_once_the_gates_pass_and_the_headline_stands_in_without_it(store):
+    w = world_mod.seed()
+    asked = []
+
+    def brief(req):
+        asked.append(req)
+        return "A tray of dark, sticky ginger cake cut into squares on a bakery counter."
+    client = FakeComfy(busy=True)
+    p = pictures.Painter(client, gpu=lambda: 15.0, brief=brief)
+    seg = _seg(T.feature, "magazine", "Dev's parkin gets a bonfire name",
+               lines=[Line(speaker="anchor", text="Dev bakes his parkin every November.")])
+    p.offer(pictures.request_for(seg, w))
+    assert not p.step() and asked == []                                       # waiting: no call spent
+    client.is_busy = False
+    assert p.step() and len(asked) == 1 and "Dev bakes his parkin" in asked[0].context
+    [row] = pictures.made("2026-11-06")
+    assert row.brief.startswith("A tray of dark")
+    assert row.prompt.startswith("A close view of what this story is about: A tray of dark, sticky ginger cake")
+    assert "pixel art" in row.prompt and "wordless" in row.prompt                # the style and rules stay
+    p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0, brief=lambda req: 1 / 0)    # a brief that trips
+    p.offer(pictures.request_for(_seg(headline="Gorse fire out"), w))
+    assert p.step()
+    row = pictures.made("2026-11-06")[-1]
+    assert row.brief == "" and "about: Gorse fire out" in row.prompt             # the headline, still made
+
+
+def test_a_brief_naming_something_written_is_set_aside(monkeypatch):
+    from newsroom import llm
+    from newsroom.models import PictureBrief
+    req = pictures.request_for(_seg(T.feature, "magazine", "New cafe opens on the quay"), world_mod.seed())
+    for said, kept in (("A steaming teapot and scones on a gingham table by a harbour window.", True),
+                       ("A cafe with a chalkboard menu by the door and a sign over it.", False),
+                       ("A shopfront whose banner reads GRAND OPENING.", False)):
+        monkeypatch.setattr(llm, "complete_json", lambda *a, said=said, **k: PictureBrief(picture=said))
+        assert (pictures.brief_for(req) == said) is kept, said
+    monkeypatch.setattr(llm, "complete_json", lambda *a, **k: (_ for _ in ()).throw(llm.LLMError("down")))
+    assert pictures.brief_for(req) == ""                                      # the call failed: no brief

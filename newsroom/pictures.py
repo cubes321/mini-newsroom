@@ -6,8 +6,9 @@ contact sheet (`--sheet`) to judge how they would look and fit, and only then is
 they show.
 
 - One picture per story a day (by thread id), else one per piece (show and headline). The prompt is
-  made here from the headline and the story's title, not by the writers: tonight's live scripts are
-  untouched (the brainstorm had the writer name the picture; that can follow if these are good).
+  made here, not by the writers, so the live scripts are untouched: a short back-office call (task
+  `picture_brief`) turns the headline, the story and the script's opening into a sentence of what to
+  draw, and the headline stands in when that call fails (`[pictures] brief = false` skips it).
 - It never holds anything up. `offer` drops a request on a queue and returns; one thread renders.
 - Polite on the shared GPU: no render while ComfyUI has someone else's job queued, none from cold
   without the free memory for the model, `/free` once idle after rendering, a daily cap, and off
@@ -74,6 +75,8 @@ class Request:
     thread: str = ""
     subject: str = ""                 # what the picture is of: the story's title, else the headline
     serious: bool = False             # a fire or an accident: the user decides whether these get pictures
+    context: str = ""                 # the story's status and the script's opening, for the brief
+    brief: str = ""                   # the brief writer's sentence of what to draw; "" = the subject alone
     prompt: str = ""
     file: str = ""
     model: str = ""                   # GRAPHS key it was made with
@@ -103,16 +106,64 @@ def request_for(seg: Segment, world) -> Request | None:
     day = date.fromtimestamp(seg.nominal_start_ts).isoformat()
     key = thread.id if thread else f"{seg.show}|{_slug(seg.headline)}"     # a story's picture, whichever show
     subject = thread.title if thread else seg.headline
+    spoken = " ".join(l.text for l in seg.lines)
+    context = " ".join(p for p in (thread.status if thread else "", spoken) if p)[:CONTEXT_CHARS]
     req = Request(key=key, day=day, show=seg.show, kind=seg.type.value, headline=seg.headline,
                   thread=thread.id if thread else "", subject=subject,
-                  serious=bool(SERIOUS.search(f"{subject} {seg.headline}")))
+                  serious=bool(SERIOUS.search(f"{subject} {seg.headline}")), context=context)
     req.prompt = prompt_for(req)
     return req
 
 
 def prompt_for(req: Request) -> str:
-    return " ".join(p for p in (SUBJECT.format(subject=req.subject.rstrip(".")), STYLE,
+    what = (req.brief or req.subject).rstrip(".")
+    return " ".join(p for p in (SUBJECT.format(subject=what), STYLE,
                                 CHILDREN if req.show == "rockpool" else "", RULES) if p)
+
+
+# ----------------------------------------------------------------- the brief
+
+# The headline alone left the painter guessing: "Dev's parkin gets a bonfire name" came out as a bonfire
+# (2026-11-06), since the image model doesn't know parkin is a ginger cake. So, once a picture's gates pass,
+# one short back-office call says what the things look like. It runs on the painter's thread, never a
+# writer's, and any failure leaves the headline prompt as before.
+CONTEXT_CHARS = 700
+BRIEF_SYSTEM = (
+    "You brief an illustrator who paints one picture for a story on Channel 7, the television station of "
+    "Port Wexley, a small fishing town on the English coast. The illustrator only reads your sentence, "
+    "knows nothing of the town, and doesn't know local foods, customs or names. Write ONE sentence of "
+    "15 to 35 words saying what to paint: the main thing itself, large, then where it is and what is "
+    "happening. Say what things look like rather than what they are called (not \"parkin\" but \"a tray of "
+    "dark, sticky ginger cake cut into squares\"). At most two people, described by their job or look, "
+    "never by name. A serious story (a fire, a crash, a death) shows the place or the aftermath, calm, "
+    "with nobody hurt in view. A council or committee story shows the thing being decided (the harbour "
+    "wall, the empty shop), not a meeting. A children's story is warm and original, never a character "
+    "from a film, book or cartoon. Paint only things: no writing of any kind, and don't mention any.")
+# The image models draw whatever nouns they're given, so a brief naming a written thing is set aside for the
+# headline, rather than risk a sign on the wall (the cfg 1 lesson of the second trial).
+WRITTEN = re.compile(r"\b(signs?|signpost\w*|signage|letters?|lettering|words?|writing|written|text|banners?|"
+                     r"posters?|placards?|notices?|labels?|labelled|headlines?|newspapers?|menus?|"
+                     r"chalkboards?|blackboards?|reading|reads|says|logos?|numbers?)\b", re.I)
+
+
+def brief_for(req: Request) -> str:
+    """One sentence of what to draw, or '' to keep the headline prompt. Never raises."""
+    from . import llm
+    from .models import PictureBrief
+
+    user = (f"Show: {req.show} ({req.kind})\nHeadline: {req.headline}\n"
+            + (f"Story: {req.subject}\n" if req.subject != req.headline else "")
+            + (f"From the script: {req.context}\n" if req.context else "")
+            + "\nWhat should the picture show?")
+    try:
+        text = llm.complete_json("picture_brief", PictureBrief, BRIEF_SYSTEM, user).picture.strip()
+    except Exception as e:  # noqa: BLE001
+        log.info("pictures: no brief for %s (%s); the headline will do", req.key, e)
+        return ""
+    if WRITTEN.search(text):
+        log.info("pictures: the brief for %s names something written (%r); the headline will do", req.key, text)
+        return ""
+    return text
 
 
 def _slug(s: str) -> str:
@@ -274,9 +325,10 @@ class Painter:
     """One thread, one queue. Every gate that says no leaves the request queued for later, except
     the daily cap; nothing here raises into the station."""
 
-    def __init__(self, client: Comfy | None = None, *, gpu=gpu_free_gb) -> None:
+    def __init__(self, client: Comfy | None = None, *, gpu=gpu_free_gb, brief=None) -> None:
         cfg = CONFIG.pictures
         self.cfg, self.client, self.gpu = cfg, client or Comfy(cfg.url), gpu
+        self.brief = (brief or brief_for) if cfg.brief else None
         self.q: queue.Queue[Request] = queue.Queue(maxsize=cfg.queue_max)
         self.known: dict[str, set[str]] = {}          # day -> keys made or queued
         self.warm = False                             # our models are loaded in ComfyUI: we /free when idle
@@ -341,6 +393,12 @@ class Painter:
             self._requeue(req)
             self.stop.wait(self.cfg.wait_s)
             return False
+        if self.brief and not req.brief:              # after the gates, so a waiting request costs no call
+            try:
+                req.brief = self.brief(req)
+            except Exception as e:  # noqa: BLE001
+                log.info("pictures: the brief tripped (%s); the headline will do", e)
+            req.prompt = prompt_for(req)
         t0 = time.perf_counter()
         try:
             req.model = model()
@@ -353,8 +411,8 @@ class Painter:
         _store(req, png)
         self.warm, self.last_render = True, time.monotonic()
         self._say("making pictures")
-        log.info("pictures: %s for %s %r in %.1fs%s", req.file, req.show, req.subject[:70], req.seconds,
-                 " (serious)" if req.serious else "")
+        log.info("pictures: %s for %s %r in %.1fs%s", req.file, req.show, (req.brief or req.subject)[:90],
+                 req.seconds, " (serious)" if req.serious else "")
         return True
 
     def _requeue(self, req: Request) -> None:
@@ -457,7 +515,7 @@ def sheet(day: str, out: Path) -> list[Path]:
     font = pygame.font.SysFont("consolas", 15)
     rows = [r for r in made(day) if (root() / r.file).exists()]
     thumb = (384, 216)
-    cell = (thumb[0] + WALL_SCREEN.w * 2 + SOFA_INSET.w * 2 + 40, max(thumb[1], WALL_SCREEN.h * 2) + 48)
+    cell = (thumb[0] + WALL_SCREEN.w * 2 + SOFA_INSET.w * 2 + 40, max(thumb[1], WALL_SCREEN.h * 2) + 84)
     per = SHEET_COLS * SHEET_ROWS
     pages = []
     for p in range(0, max(1, len(rows)), per):
@@ -476,6 +534,10 @@ def sheet(day: str, out: Path) -> list[Path]:
             top = y + max(thumb[1], WALL_SCREEN.h * 2) + 4
             page.blit(font.render(tag, True, (255, 200, 120) if r.serious else (200, 200, 210)), (x, top))
             page.blit(font.render(r.subject[:110], True, (235, 235, 240)), (x, top + 18))
+            if r.brief:                                 # what the painter was asked for, in two lines at most
+                for j, part in enumerate((r.brief[:110], r.brief[110:220])):
+                    if part:
+                        page.blit(font.render(part, True, (150, 200, 160)), (x, top + 36 + 16 * j))
         path = out if len(rows) <= per else out.with_name(f"{out.stem}-{p // per + 1}{out.suffix}")
         pygame.image.save(page, str(path))
         pages.append(path)

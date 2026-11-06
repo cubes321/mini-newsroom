@@ -782,6 +782,13 @@ class CommunityNotice(BaseModel):
                                    description="one or two plain sentences each, read out as shown")
 
 
+class PictureBrief(BaseModel):
+    """What a shadow-mode picture shows (pictures.py): the things themselves, said so a painter who has
+    never heard of them could draw them."""
+    picture: Annotated[str, _cut(240)] = Field(max_length=240, description="one sentence: the objects, the room "
+                                               "or the place, and what is happening, as they look")
+
+
 SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.weather: WeatherScript,
     SegmentType.bulletin: TipBulletinScript,
