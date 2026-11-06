@@ -128,6 +128,8 @@ _STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town 
           "frightening; Poppy introduces it in a line, and she and Gully ask one question at the end")
 _POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to eight rhyming lines) about "
          "something on the beach; Poppy is kind about it")
+# Briefs whose item has the same title every time by design: no repeat check (writers._repeated).
+SAME_TITLE_BRIEFS = (_LETTERS,)
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(

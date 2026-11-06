@@ -1429,7 +1429,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        if done := _repeated(getattr(script, "headline", ""), world, show, seg.type):   # asked not to, models do; ask again once
+        if done := _repeated(getattr(script, "headline", ""), world, show, seg.type, seg.brief):   # asked not to, models do; ask again once
             log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
                      seg.slot_id, done, show.id)
             user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW[show.id].title()} earlier today. Write "
@@ -1440,6 +1440,14 @@ def script_segment(seg: Segment, world: World) -> Segment:
                      seg.type.value, seg.slot_id, done)
             user += (f"\n\nNOT the fish auction: the news has reported it already (\"{done}\"). Lead on an open "
                      "story from the briefing instead.")
+            script = llm.complete_json(seg.type.value, schema, system, user)
+        if tid := _same_story_again(getattr(script, "thread_id", None), world, show, seg.type,
+                                    seg.nominal_start_ts or schedule.now()):
+            log.info("%s slot %d: [%s] had %d of the news's last %d items; asking for another story",
+                     seg.type.value, seg.slot_id, tid, SAME_STORY_MAX, SAME_STORY_WINDOW)
+            user += (f"\n\nNOT [{tid}]: the news has only just covered it, twice. Cover another open story from "
+                     "the briefing, with its own thread_id (or a new one with thread_id null); this one can come "
+                     "back later.")
             script = llm.complete_json(seg.type.value, schema, system, user)
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
         # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
@@ -1556,19 +1564,28 @@ def _words(headline: str) -> set[str]:
     return {w for w in re.findall(r"[a-z']+", headline.lower()) if len(w) > 3 and w not in _LITTLE_WORDS}
 
 
-def _repeated(headline: str, world: World, show: schedule.Show, seg_type: SegmentType) -> str | None:
+def _repeated(headline: str, world: World, show: schedule.Show, seg_type: SegmentType,
+              brief: str = "") -> str | None:
     """An item already on this show today that the new headline all but repeats, or None. The prompt lists
     them, and still Haiku wrote "Counting redshank on the estuary, one cold morning at a time" three times
-    on one Coastwide, and the roof-survey scam with one word changed (2026-11-03)."""
-    if show.id not in REMEMBERS_ITS_SHOW or seg_type not in _SHOW_TYPES or seg_type is SegmentType.links:
+    on one Coastwide, and the roof-survey scam with one word changed (2026-11-03).
+
+    Links count against earlier links on the same brief only (a story time against the story times), as
+    Rock Pool's pieces are links: on 2026-11-06 its five story times were the giant who built the harbour
+    wall twice and "Mabel the Seal and the Quay Bell" three times. Letters and drawings keep their title."""
+    if show.id not in REMEMBERS_ITS_SHOW or seg_type not in _SHOW_TYPES:
+        return None
+    links = seg_type is SegmentType.links
+    if links and (not brief or brief in schedule.SAME_TITLE_BRIEFS):
         return None
     new = _words(headline or "")
     if len(new) < 3:
         return None
-    kinds = {t.value for t in _SHOW_TYPES} - {SegmentType.links.value}
+    kinds = {SegmentType.links.value} if links else {t.value for t in _SHOW_TYPES} - {SegmentType.links.value}
     with world.lock:
         earlier = [e["headline"] for e in world.archive if e["date"] == world.last_date
-                   and e.get("show") == show.id and e["type"] in kinds and e.get("headline")]
+                   and e.get("show") == show.id and e["type"] in kinds and e.get("headline")
+                   and (not links or e.get("brief") == brief)]
     for head in reversed(earlier):
         old = _words(head)
         if old and len(new & old) / len(new | old) >= REPEAT_LIKENESS:
@@ -1577,6 +1594,29 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
 
 
 REPEAT_LIKENESS = 0.5           # headline words in common (of both together) that make an item a repeat
+
+# The rolling news stayed on one story: on the morning of 2026-11-06, 27 news items in a row on the Salting
+# choir's programmes, and that afternoon four of the first five on a coffee stall, though the prompt listed
+# the headlines as "do NOT repeat". A story may have a bulletin and its report, then the next item is another.
+NEWS_STORY_TYPES = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview)
+SAME_STORY_WINDOW = 3           # of the news's last this many story items,
+SAME_STORY_MAX = 2              # a story with this many gets no next one
+
+
+def _same_story_again(thread_id: str | None, world: World, show: schedule.Show, seg_type: SegmentType,
+                      now: float) -> str | None:
+    """The news item's thread if it already had SAME_STORY_MAX of the news's last SAME_STORY_WINDOW
+    story items today, or None. A story that broke within BREAKING_LEAD_S leads as long as it likes."""
+    if show.id != "news" or seg_type not in NEWS_STORY_TYPES or not thread_id:
+        return None
+    t = world.thread(thread_id)
+    if t and t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S:
+        return None
+    kinds = {k.value for k in NEWS_STORY_TYPES}
+    with world.lock:
+        last = [e.get("thread_id") for e in world.archive if e["date"] == world.last_date
+                and e.get("show") == show.id and e["type"] in kinds][-SAME_STORY_WINDOW:]
+    return thread_id if last.count(thread_id) >= SAME_STORY_MAX else None
 
 NEWS_SHOWS = ("news", "overnight")
 

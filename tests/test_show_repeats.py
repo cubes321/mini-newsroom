@@ -59,3 +59,63 @@ def test_what_counts_as_a_repeat():
     assert not writers._repeated("Clear, cold and dry for the bonfire week", w, show, T.feature)   # weather aside
     assert not writers._repeated("Beware the doorstep roof survey asking for a deposit", w,
                                  schedule.get("news"), T.interview)                         # a show without the memory
+
+
+def test_a_story_time_already_told_is_asked_for_again_and_the_letters_keep_their_title():
+    """2026-11-06: Rock Pool's five story times were the giant who built the harbour wall twice and "Mabel the
+    Seal and the Quay Bell" three times; its pieces are links, which the check used to leave out."""
+    w = world_mod.seed()
+    show = schedule.get("rockpool")
+    story, poem, letters = (show.item(p).brief for p in (5, 7, 4))
+    assert "STORY TIME" in story and "POEM" in poem and letters in schedule.SAME_TITLE_BRIEFS
+    w.record_aired("links", "Story Time: Barnaby Tusk and the Harbour Wall", None, "...", show="rockpool",
+                   brief=story)
+    w.record_aired("links", "Story Time: Mabel the Seal and the Quay Bell", None, "...", show="rockpool", brief=story)
+    w.record_aired("links", "Letters and drawings from Rock Pool viewers", None, "...", show="rockpool", brief=letters)
+    w.record_aired("links", "Gully Reads His Very First Beach Poem", None, "...", show="rockpool", brief=poem)
+    assert writers._repeated("Story Time: Mabel the Seal and the Quay Bell", w, show, T.links, story)
+    assert writers._repeated("Story Time: the giant who built the harbour wall", w, show, T.links, story)
+    assert not writers._repeated("Story Time: the mermaid of Gull Rock", w, show, T.links, story)
+    assert writers._repeated("Gully shares his very first beach poem", w, show, T.links, poem)
+    assert not writers._repeated("Letters and drawings from Rock Pool viewers", w, show, T.links, letters)
+    assert not writers._repeated("Story Time: Mabel the Seal and the Quay Bell", w, show, T.links, poem)  # another brief
+    assert not writers._repeated("Story Time: Mabel the Seal and the Quay Bell", w, show, T.links)       # no brief
+
+
+def _bulletin(head, tid):
+    return {"headline": head, "lower_third": "News", "thread_id": tid, "thread_status": None, "tip_used": None,
+            "lines": [{"speaker": "anchor", "text": "Good afternoon."}, {"speaker": "anchor", "text": "More soon."}]}
+
+
+def test_the_news_moves_on_after_a_bulletin_and_its_report(monkeypatch):
+    """2026-11-06: 27 news items in a row on the Salting choir's programmes in the morning, and four of the
+    first five on a coffee stall in the afternoon, with the headlines listed as "do NOT repeat"."""
+    w = world_mod.seed()
+    stall = w.update_thread(None, "Harrow Street Coffee Stall Fights the Cold Snap", "queue round the corner")
+    ferry = w.update_thread(None, "Cyril Dunmore's model ferry finds a winter case", "the case is ordered")
+    news = schedule.get("news")
+    now = schedule.now()
+    w.record_aired("bulletin", "Harrow Street Coffee Stall Fights the Cold Snap", stall, "...", show="news", aired=False)
+    assert writers._same_story_again(stall, w, news, T.field_report, now) is None       # its report: fine
+    w.record_aired("field_report", "Harrow Street Coffee Stall Keeps the Cold at Bay", stall, "...", show="news",
+                   aired=False)
+    w.record_aired("weather", "Cold northerly", None, "...", show="news", aired=False)   # not a story item
+    assert writers._same_story_again(stall, w, news, T.bulletin, now) == stall          # a third: another story
+    assert writers._same_story_again(ferry, w, news, T.bulletin, now) is None
+    assert writers._same_story_again(None, w, news, T.bulletin, now) is None
+    assert writers._same_story_again(stall, w, schedule.get("magazine"), T.interview, now) is None   # the news only
+    w.thread(stall).breaking_ts = now - 600                                            # broke ten minutes ago
+    assert writers._same_story_again(stall, w, news, T.bulletin, now) is None
+    w.thread(stall).breaking_ts = None
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_bulletin("Harrow Street Coffee Stall Holds Out Against the Cold", stall)
+                                     if len(asked) == 1 else
+                                     _bulletin("Cyril Dunmore's model ferry finds a winter case", ferry))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=5, type=T.bulletin, show="news", target_s=75.0)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and f"NOT [{stall}]" in asked[1]
+    assert seg.headline == "Cyril Dunmore's model ferry finds a winter case"
