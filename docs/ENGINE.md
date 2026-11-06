@@ -77,3 +77,26 @@ than the news channel:
   playing, the score kept in code, a local-history round from the archive.
 
 The phone-in's `call` item and the `review` item from `docs/SHOWS.md` would serve them too.
+
+## When, and in which world (2026-11-06)
+
+**The entertainment channel shares Port Wexley.** It is the town's second channel: the same
+`world.json`, residents and calendar. Harbour Row's cast are people the news has met, the quiz teams
+come from the darts league, and something that happens in the soap or the quiz can become news.
+Because of this, the first split runs between the *channels* (schedules, shows, looks, idents)
+rather than between the engine and the town. The town's content stays shared and takes no
+separate package of its own. A different setting is kept for a later project, which is when the
+town gets lifted out of `writers.py` and `world.py`.
+
+**When to start:** once the morning reviews of a few nights in a row find matters of taste and no
+mechanical faults (two to four of those a night as of early November). The faults found until then are
+engine lessons the second channel would otherwise relearn: clock knowledge, repeat rules, show
+memory and cold starts.
+
+**What first:** the content bank (above) and **Wexley Wits**: the cheapest real show, one set and a
+score kept in code. **Harbour Row** comes second and brings the full-figure sprites that walk.
+**The Kettle's On** whenever it's wanted.
+
+**Open:** whether both channels run at once (CPU text-to-speech, one GPU, one OBS output, double
+the LLM cost) or take turns, for example entertainment in the daytime that the news night run
+doesn't cover. Measure a night's CPU headroom before deciding.
