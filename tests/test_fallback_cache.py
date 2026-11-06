@@ -5,10 +5,13 @@ NEWSROOM_LLM=off the template is the content, and caches as before.
 from __future__ import annotations
 
 import dataclasses
+import os
+import time
+from datetime import datetime, timedelta
 
 import pytest
 
-from newsroom import llm, workers, writers
+from newsroom import llm, schedule, workers, writers
 from newsroom import world as world_mod
 from newsroom.config import CONFIG
 from newsroom.models import Line, Segment, SegmentState, SegmentType
@@ -63,3 +66,25 @@ def test_a_real_script_still_replays_and_repeats(tmp_cache):
     assert workers._load_cached(slot, _cached(tmp_cache, fallback=False)) is not None
     rep = workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight"))
     assert rep.repeat and rep.headline == "Dev Ramachandran on the week in town"
+
+
+def test_the_overnight_repeats_come_from_the_day_that_began_at_six(tmp_cache, monkeypatch):
+    """On 2026-11-06 a 48-hour window replayed the 4th's auction and its "harbour clears for Bonfire
+    Night" at three in the morning, the day after the bonfire."""
+    monkeypatch.setattr(schedule, "_offset_s", 0.0)
+    schedule.set_clock("03:00")                                     # the 6th, say, at three in the morning
+    now = schedule.now()
+    shift = now - time.time()                    # the broadcast clock is ahead of the files' real clock by this
+    day = datetime.fromtimestamp(now).date()
+    since = datetime(day.year, day.month, day.day, 6) - timedelta(days=1)
+    assert datetime.fromtimestamp(workers.repeat_since(now)) == since          # six in the morning on the 5th
+    for key, headline, hours_ago in (("old", "Quay auction dips as harbour clears", 30), ("new", "Gorse fire out", 6)):
+        wav = tmp_cache / f"{key}_00.wav"
+        wav.write_bytes(b"")
+        workers._save_cached(Segment(slot_id=1, type=SegmentType.bulletin, show="news", state=SegmentState.ready,
+                                     headline=headline, lines=[Line(speaker="anchor", text="Hi.", wav_path=wav)]), key)
+        t = now - shift - hours_ago * 3600
+        os.utime(tmp_cache / f"{key}.json", (t, t))
+    for _ in range(5):
+        rep = workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight"))
+        assert rep.headline == "Gorse fire out"                    # last evening's, never the day before's

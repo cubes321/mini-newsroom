@@ -23,7 +23,7 @@ import random
 import threading
 import time
 from collections import deque
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import schedule, tts, world as world_mod, writers
@@ -90,7 +90,8 @@ def _save_cached(seg: Segment, h: str) -> None:
 
 REPEATABLE = (SegmentType.weather, SegmentType.bulletin, SegmentType.field_report, SegmentType.sofa,
               SegmentType.interview, SegmentType.feature, SegmentType.vox_pop, SegmentType.consumer)
-REPEAT_WINDOW_S = 48 * 3600         # repeat from today and yesterday
+REPEAT_WINDOW_S = 48 * 3600         # how long a finished special keeps (special.py)
+REPEAT_DAY_STARTS_H = 6             # the overnight repeats come from the day that began at six
 _recent_repeats: deque[str] = deque(maxlen=12)
 
 
@@ -99,6 +100,14 @@ def repeatable(c: Segment) -> bool:
     scripts aren't tied to its own hours (no breakfast sofa during the test-card block). Not a
     canned fallback: on 2026-10-28 one written in a six-minute outage aired seven times."""
     return c.type in REPEATABLE and schedule.get(c.show).repeats_overnight and not c.fallback
+
+
+def repeat_since(now: float) -> float:
+    """When the day the overnight belongs to began, on the broadcast clock: at three in the morning on
+    the 6th, six in the morning on the 5th. On 2026-11-06 a 48-hour window replayed the 4th's
+    "Quay auction dips as harbour clears for Bonfire Night" at three in the morning, the day after."""
+    d = (datetime.fromtimestamp(now) - timedelta(hours=REPEAT_DAY_STARTS_H)).date()
+    return datetime(d.year, d.month, d.day, REPEAT_DAY_STARTS_H).timestamp()
 
 
 def repeat_segment(seg: Segment) -> Segment:
@@ -110,7 +119,8 @@ def repeat_segment(seg: Segment) -> Segment:
     """
     from .assets import testcard_segment
 
-    cutoff = time.time() - REPEAT_WINDOW_S
+    now = schedule.now()
+    cutoff = repeat_since(now) - (now - time.time())      # files carry real times; --clock shifts the broadcast
     candidates: list[tuple[str, Segment]] = []
     for meta in CONFIG.paths.cache.glob("*.json"):
         if meta.stat().st_mtime < cutoff:
