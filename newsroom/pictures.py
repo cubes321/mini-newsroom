@@ -51,12 +51,17 @@ CHILDREN_LINKS = "rockpool"          # Rock Pool's links are its pieces (story t
 SERIOUS = re.compile(r"\b(fire|blaze|crash|collision|accident|injur\w*|hurt|died|death|dead|body|police|arrest\w*|"
                      r"assault|missing|flood\w*|rescue\w*|sank|sinking)\b", re.I)
 
+# The subject leads and the town is a short clause after the style: with the town first and in detail
+# ("stone cottages, slate roofs and a harbour"), the first trial (2026-11-06) drew the same harbour
+# panorama for Dev's parkin, a tailor and The Inquiry alike.
+SUBJECT = ("A close view of what this story is about: {subject}. Show that thing itself, large and filling the "
+           "picture: the objects, the room or the place, and the work going on there.")
 STYLE = ("Detailed 16-bit pixel art, like a picture from a 1990s point-and-click adventure game: clean flat "
-         "colours, crisp dark outlines, soft daylight. A small fishing town on the English coast, with stone "
-         "cottages, slate roofs and a harbour.")
+         "colours, crisp dark outlines, soft light. Set in a small fishing town on the English coast.")
 CHILDREN = "Bright and friendly, for children's television."
-RULES = ("No text anywhere: no letters, no numbers, no words on signs or shop fronts, no logos and no brands. "
-         "Any people are small and seen from a distance, with no detailed faces.")
+# Worded without the things it rules out: at cfg 1 the negative is zeroed and the model follows nouns, so
+# "no letters, no words on signs" drew signs with words on them (the second trial, 2026-11-06).
+RULES = "A wordless picture, plain painted surfaces throughout. People have simple faces with no detail."
 
 
 @dataclass
@@ -99,7 +104,7 @@ def request_for(seg: Segment, world) -> Request | None:
 
 
 def prompt_for(req: Request) -> str:
-    return " ".join(p for p in (STYLE, f"The picture shows: {req.subject.rstrip('.')}.",
+    return " ".join(p for p in (SUBJECT.format(subject=req.subject.rstrip(".")), STYLE,
                                 CHILDREN if req.show == "rockpool" else "", RULES) if p)
 
 

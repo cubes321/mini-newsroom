@@ -73,7 +73,9 @@ def test_a_story_gets_one_picture_by_its_thread_and_a_piece_by_its_headline():
     assert req.key == t.id and req.subject == t.title and req.day == "2026-11-06" and req.serious
     feature = pictures.request_for(_seg(T.feature, "magazine", "Dev's parkin gets a bonfire name"), w)
     assert feature.key == "magazine|dev-s-parkin-gets-a-bonfire-name" and not feature.serious
-    assert "No text anywhere" in feature.prompt and "pixel art" in feature.prompt
+    assert feature.prompt.startswith("A close view of what this story is about: Dev's parkin")   # the subject leads
+    assert "wordless" in feature.prompt and "pixel art" in feature.prompt
+    assert not any(w in pictures.RULES.lower() for w in ("letter", "sign", "logo", "text"))   # cfg 1 draws the nouns
     story_time = pictures.request_for(_seg(T.links, "rockpool", "The mermaid of Gull Rock"), w)
     assert "children's television" in story_time.prompt
     inquiry = pictures.request_for(_seg(T.interview, "inquiry", "Who signed off the harbour wall?"), w)
