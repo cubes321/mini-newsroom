@@ -76,8 +76,12 @@ def test_a_story_gets_one_picture_by_its_thread_and_a_piece_by_its_headline():
     assert "No text anywhere" in feature.prompt and "pixel art" in feature.prompt
     story_time = pictures.request_for(_seg(T.links, "rockpool", "The mermaid of Gull Rock"), w)
     assert "children's television" in story_time.prompt
+    inquiry = pictures.request_for(_seg(T.interview, "inquiry", "Who signed off the harbour wall?"), w)
+    assert inquiry.key == "inquiry|who-signed-off-the-harbour-wall"                # every show, in shadow mode
+    assert pictures.request_for(_seg(T.feature, "magazine", "Bonfire guys", thread=t.id), w).key == t.id
     for none in (_seg(T.vox_pop, "magazine"), _seg(T.weather), _seg(T.links, "magazine"), _seg(repeat=True),
-                 _seg(fallback=True), _seg(T.feature, "magazine", part="open"), _seg(T.sport, "sport")):
+                 _seg(fallback=True), _seg(T.feature, "magazine", part="open"), _seg(T.bumper),
+                 _seg(T.feature, "overnight")):
         assert pictures.request_for(none, w) is None, none.type
 
 

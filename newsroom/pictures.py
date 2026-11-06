@@ -1,7 +1,7 @@
 """Pictures made live by ComfyUI, in shadow mode: made in the back office, shown nowhere.
 
 The user's idea (2026-11-03), decided 2026-11-04: for a few nights the station makes a picture for
-the day's stories and the light shows' pieces, but nothing on screen shows them. Each night's go on a
+the day's stories and every show's pieces, but nothing on screen shows them. Each night's go on a
 contact sheet (`--sheet`) to judge how they would look and fit, and only then is it decided where
 they show.
 
@@ -43,10 +43,11 @@ from .models import Segment, SegmentType as T
 log = logging.getLogger(__name__)
 
 WIDTH, HEIGHT = 1024, 576            # 16:9 at a multiple of 16; the screen boxes crop from it
-NEWS_TYPES = {T.bulletin, T.field_report, T.breaking, T.interview}
-LIGHT_TYPES = {T.feature, T.interview, T.consumer, T.review, T.sofa}
+# Every show while it's shadow mode: nothing airs, so the sheets can show what each would get (the user,
+# 2026-11-06). The pieces with a subject; not the furniture, the weather, the vox pops or the chat.
+TYPES = {T.bulletin, T.field_report, T.breaking, T.interview, T.feature, T.consumer, T.review, T.sofa,
+         T.sport, T.call, T.monologue, T.documentary}
 CHILDREN_LINKS = "rockpool"          # Rock Pool's links are its pieces (story time, the make); others are chat
-LIGHT_SHOWS = {"magazine", "outabout", "rockpool", "breakfast", "late", "quayside"}
 SERIOUS = re.compile(r"\b(fire|blaze|crash|collision|accident|injur\w*|hurt|died|death|dead|body|police|arrest\w*|"
                      r"assault|missing|flood\w*|rescue\w*|sank|sinking)\b", re.I)
 
@@ -83,15 +84,13 @@ def request_for(seg: Segment, world) -> Request | None:
     furniture (bumpers, adverts, weather, vox pops, sport) get none."""
     if seg.repeat or seg.fallback or not seg.headline or not seg.lines:
         return None
-    news = seg.show == "news" and seg.type in NEWS_TYPES
-    light = seg.show in LIGHT_SHOWS and seg.part not in ("open", "close") and (
-        seg.type in LIGHT_TYPES or (seg.type is T.links and seg.show == CHILDREN_LINKS))
-    if not (news or light):
+    if seg.show == "overnight" or seg.part in ("open", "close") or not (
+            seg.type in TYPES or (seg.type is T.links and seg.show == CHILDREN_LINKS)):
         return None
     thread = world.thread(seg.thread_id) if seg.thread_id else None
     day = date.fromtimestamp(seg.nominal_start_ts).isoformat()
-    key = thread.id if thread and news else f"{seg.show}|{_slug(seg.headline)}"
-    subject = thread.title if thread and news else seg.headline
+    key = thread.id if thread else f"{seg.show}|{_slug(seg.headline)}"     # a story's picture, whichever show
+    subject = thread.title if thread else seg.headline
     req = Request(key=key, day=day, show=seg.show, kind=seg.type.value, headline=seg.headline,
                   thread=thread.id if thread else "", subject=subject,
                   serious=bool(SERIOUS.search(f"{subject} {seg.headline}")))

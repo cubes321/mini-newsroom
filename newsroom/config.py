@@ -173,7 +173,7 @@ class PicturesCfg:
     """ComfyUI pictures in shadow mode (pictures.py): made in the back office, shown nowhere yet."""
     enabled: bool = False                # or --pictures for one run
     url: str = "http://127.0.0.1:8188"   # ComfyUI's HTTP API
-    per_day: int = 80                    # pictures a broadcast day at most
+    per_day: int = 150                   # pictures a broadcast day at most (every show, in shadow mode)
     min_free_gb: float = 12.0            # free GPU memory needed to load the model from cold
     idle_free_s: float = 600.0           # unload ComfyUI's models after this long with nothing to make
     poll_s: float = 30.0                 # how long the painter waits on its queue between looks
