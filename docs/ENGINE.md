@@ -97,9 +97,13 @@ memory and cold starts.
 score kept in code. **Harbour Row** comes second and brings the full-figure sprites that walk.
 **The Kettle's On** whenever it's wanted.
 
-**Open:** whether both channels run at once (CPU text-to-speech, one GPU, one OBS output, double
-the LLM cost) or take turns, for example entertainment in the daytime that the news night run
-doesn't cover. Measure a night's CPU headroom before deciding.
+**Testing: alternate nights** (the user, 2026-11-06). One night Channel 7, the next the
+entertainment channel (not yet named), on the same machine, stream and world. That keeps one
+station's load and cost at a time and leaves running both at once until later. It works well for the
+soap: an episode's cliffhanger airs on an entertainment night, Channel 7's night in between talks it
+over, and the next entertainment night answers it. The open point is the town's news on the
+entertainment nights. The story desk should keep running then, or a thread's NEXT development dated
+that day passes unreported. Channel 7's next night can then catch up on what happened.
 
 ## Harbour Row and the town (2026-11-06)
 
