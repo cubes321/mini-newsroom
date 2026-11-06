@@ -26,7 +26,7 @@ from collections import deque
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import schedule, tts, world as world_mod, writers
+from . import pictures, schedule, tts, world as world_mod, writers
 from .buffer import Buffer
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
@@ -230,6 +230,7 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     if buffer:
         buffer.mark(seg, SegmentState.scripted)
     world_mod.save(world)
+    pictures.offer(seg, world)                    # shadow mode: queued, never waited on (pictures.py)
 
     voice_segment(seg, world, h)
     if buffer:

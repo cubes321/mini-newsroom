@@ -61,6 +61,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="move providers' or tasks' calls for this run: deepseek_flash_think=claude_sonnet[,...] (or NEWSROOM_ROUTES)")
     p.add_argument("--parallax", action="store_true",
                    help="draw the location backdrops that have layers in parallax, whatever config.toml says")
+    p.add_argument("--pictures", action="store_true",
+                   help="make ComfyUI pictures for the stories in shadow mode (shown nowhere; pictures.py)")
     p.add_argument("--obs", action="store_true",
                    help="record each programme to its own file in OBS (its WebSocket server on)")
     p.add_argument("--audio-device", type=str, default="",
@@ -77,6 +79,8 @@ def redirect_paths(args: argparse.Namespace) -> None:
         os.environ["NEWSROOM_ROUTES"] = args.route
     if args.parallax:
         os.environ["NEWSROOM_PARALLAX"] = "1"
+    if args.pictures:
+        os.environ["NEWSROOM_PICTURES"] = "1"
     if args.world:
         os.environ["NEWSROOM_WORLD"] = args.world
     if args.cache:
@@ -96,6 +100,7 @@ def redirect_paths(args: argparse.Namespace) -> None:
         shutil.copytree(ads, scratch / "ads")
     os.environ["NEWSROOM_ADS"] = str(scratch / "ads")
     os.environ["NEWSROOM_CONTINUITY"] = str(scratch / "continuity")   # baked afresh: idents, cards, notices
+    os.environ["NEWSROOM_PICTURES_DIR"] = str(scratch / "pictures")
     os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
     os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
@@ -190,6 +195,9 @@ def build(cfg, *, audio: bool, workers: int):
     producer.tick()
     pool = WorkerPool(buffer, w, n=workers)
     pool.start()
+    from . import pictures
+
+    pictures.start()                    # shadow mode: pictures made, shown nowhere (--pictures)
     tts.preload()                       # Pocket's model and voices, while the first bumper airs
     player = Player(buffer, w, producer, audio=audio)
     producer.on_air_left = player.time_left

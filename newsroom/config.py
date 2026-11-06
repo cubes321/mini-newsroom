@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # PathsCfg field -> environment variable that overrides it.
 PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE",
                   "ads": "NEWSROOM_ADS", "llm_calls": "NEWSROOM_LLM_CALLS",
-                  "continuity": "NEWSROOM_CONTINUITY"}
+                  "continuity": "NEWSROOM_CONTINUITY", "pictures": "NEWSROOM_PICTURES_DIR"}
 
 
 @dataclass(frozen=True)
@@ -169,6 +169,19 @@ class ContinuityCfg:
 
 
 @dataclass(frozen=True)
+class PicturesCfg:
+    """ComfyUI pictures in shadow mode (pictures.py): made in the back office, shown nowhere yet."""
+    enabled: bool = False                # or --pictures for one run
+    url: str = "http://127.0.0.1:8188"   # ComfyUI's HTTP API
+    per_day: int = 80                    # pictures a broadcast day at most
+    min_free_gb: float = 12.0            # free GPU memory needed to load the model from cold
+    idle_free_s: float = 600.0           # unload ComfyUI's models after this long with nothing to make
+    poll_s: float = 30.0                 # how long the painter waits on its queue between looks
+    wait_s: float = 120.0                # how long it waits when ComfyUI is down or busy, or the GPU is full
+    queue_max: int = 40                  # requests waiting at most; past that new ones are dropped
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
@@ -178,6 +191,7 @@ class PathsCfg:
     llm_calls: Path = ROOT / "data" / "llm_calls"
     ads: Path = ROOT / "data" / "ads"
     continuity: Path = ROOT / "data" / "continuity"
+    pictures: Path = ROOT / "data" / "pictures"
 
 
 @dataclass(frozen=True)
@@ -196,6 +210,7 @@ class Config:
     breaking: BreakingCfg
     adverts: AdvertsCfg
     continuity: ContinuityCfg
+    pictures: PicturesCfg
 
 
 def load(path: Path | None = None) -> Config:
@@ -231,6 +246,7 @@ def load(path: Path | None = None) -> Config:
         breaking=BreakingCfg(**raw.get("breaking", {})),
         adverts=AdvertsCfg(**raw.get("adverts", {})),
         continuity=ContinuityCfg(**raw.get("continuity", {})),
+        pictures=PicturesCfg(**raw.get("pictures", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg
