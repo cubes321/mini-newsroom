@@ -75,6 +75,13 @@ bottom with the date.
 
 ## Content
 
+- [ ] **Wexley Wits, built 2026-11-07** after the 11-06 log review: the entertainment channel's first show
+  (docs/ENGINE.md: shares Port Wexley, test nights alternate with Channel 7). Two pubs from `darts.PUBS`
+  (regulars, captain first), Clive Ashdown as quizmaster. One back-office booking with the rounds (general,
+  local history from the archive, the week's news), the questions and answers, and each team's answers
+  drawn by pub strength. The score is kept in code, the script is written from the booked results (like The
+  Chamber's votes), and a pub-quiz set needs the user's approval. A first small `entertainment/` package
+  with its schedule, launched by `--channel entertainment`. Then a scratch test run.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
