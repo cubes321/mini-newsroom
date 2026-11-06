@@ -130,6 +130,8 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) +
+        f"{schedule.clock_line(schedule.now())} A NEXT development dated today must come after now; a "
+        "thread whose event is over moves on to how it went, or closes.\n\n"
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
         f"their turn later; use them as context only. You may seed at most {room} new "
         f"{'story' if room == 1 else 'stories'}, only if something would really happen. "

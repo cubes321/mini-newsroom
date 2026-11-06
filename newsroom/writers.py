@@ -912,7 +912,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
-        f"is \"good {_greeting(show)}\"."
+        f"is \"good {_greeting(show)}\". {schedule.clock_line(at_ts or schedule.now())}"
     )
     if show.light and show.id not in ("sport", outabout.SHOW, "rockpool"):   # their own facts, not the news
         big = big_story(world)
@@ -981,7 +981,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     if show.id == "quayside" and (facts := quay.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))):
         user += "\n\n" + facts
     if seg_type is not SegmentType.breaking:   # one or two events that suit the show, rationed like the moods
-        user += "\n\n" + calendar.for_prompt(show.id, datetime.fromtimestamp(at_ts or schedule.now()).date())
+        user += "\n\n" + calendar.for_prompt(show.id, datetime.fromtimestamp(at_ts or schedule.now()))
     if show.location:                          # a special night out on location (Coastwide at the Bonfire)
         user += "\n\n" + schedule.on_location(show, at_ts or schedule.now())
     so_far = _sofa_so_far(world, show, brief, part) if seg_type is SegmentType.sofa else _show_so_far(

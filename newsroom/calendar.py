@@ -106,6 +106,8 @@ class Event:
     span: Callable[[int], Span | None]   # its days in a year (starting that year), or None if not held
     about: str                           # one line for the writers and the page
     shows: tuple[str, ...]               # the show ids it suits (schedule.SHOWS)
+    at: str = ""                         # its start on the day ("18:00"), if `about` names one: once that
+                                         # has passed it is under way or over, not to come (for_prompt)
 
 
 NEWS, BREAKFAST, PHONEIN, QUAYSIDE, OUTABOUT, ROCKPOOL = "news", "breakfast", "phonein", "quayside", "outabout", "rockpool"
@@ -116,7 +118,7 @@ EVENTS: tuple[Event, ...] = (
     # Winter
     Event("New Year's Day Dip", _day(lambda y: date(y, 1, 1)),
           "the Tidewater Swimming Club's sea swim off the harbour beach at eleven, in fancy dress, for the lifeboat",
-          (NEWS, BREAKFAST, OUTABOUT, ROCKPOOL)),
+          (NEWS, BREAKFAST, OUTABOUT, ROCKPOOL), at="11:00"),
     Event("spring term starts", _day(_spring_term),
           "Greymouth Academy and the primary schools go back", (BREAKFAST, ROCKPOOL)),
     Event("the Saltby Wassail", _day(lambda y: date(y, 1, 17)),
@@ -125,7 +127,7 @@ EVENTS: tuple[Event, ...] = (
     Event("February half-term", _week(lambda y: nth(y, 2, 0, 3)), "the schools are out for the week", SCHOOL),
     Event("the Pancake Race", _day(lambda y: easter(y) - timedelta(days=47)),
           "Shrove Tuesday: down Harrow Street at noon, frying pans and all; Dev the baker supplies the batter",
-          (NEWS, BREAKFAST, OUTABOUT, ROCKPOOL, MAGAZINE)),
+          (NEWS, BREAKFAST, OUTABOUT, ROCKPOOL, MAGAZINE), at="12:00"),
     Event("budget night", _day(_budget),
           "full council sets the year's budget and the council tax, live on The Chamber",
           (NEWS, CHAMBER, QUAYSIDE, PANEL, PHONEIN)),
@@ -150,7 +152,7 @@ EVENTS: tuple[Event, ...] = (
           "Wexley Rowing Club race Saltby's gig across the estuary and back for the Ferry Oar", (SPORT, NEWS, OUTABOUT)),
     Event("Lifeboat Day", _day(lambda y: nth(y, 6, 5, 3)),
           "open day at the lifeboat station: a launch at two, the boathouse open, the lifeboat tin on the bandstand",
-          (NEWS, BREAKFAST, ROCKPOOL, OUTABOUT)),
+          (NEWS, BREAKFAST, ROCKPOOL, OUTABOUT), at="14:00"),
     Event("Lighthouse Night", _day(lambda y: date(y, 6, 23)),
           "Midsummer Eve: the Greymouth lighthouse keeps its door open until midnight, the one night of the year",
           (OUTABOUT, MAGAZINE, LATE)),
@@ -183,17 +185,18 @@ EVENTS: tuple[Event, ...] = (
     Event("the Halloween Cannery Walk", _day(lambda y: date(y, 10, 31)),
           "the ghost tour's one big night: Pell's Cannery Ghost Tours, with lanterns", (LATE, OUTABOUT, ROCKPOOL)),
     Event("Bonfire Night", _day(lambda y: date(y, 11, 5)),
-          "the town bonfire and fireworks on the Salting, gates at six", (NEWS, BREAKFAST, ROCKPOOL, MAGAZINE, PHONEIN)),
+          "the town bonfire and fireworks on the Salting, gates at six", (NEWS, BREAKFAST, ROCKPOOL, MAGAZINE, PHONEIN),
+          at="18:00"),
     Event("Remembrance Sunday", _day(lambda y: nth(y, 11, 6, 2)),
           "the parade from the Town Hall to the war memorial; the lifeboat crew lay a wreath on the water",
           (NEWS, BREAKFAST)),
     Event("the Christmas lights", _day(lambda y: last(y, 11, 4)),
           "Harrow Street's lights switched on at six by someone the children choose; carols on the bandstand",
-          (NEWS, BREAKFAST, ROCKPOOL, OUTABOUT, MAGAZINE)),
+          (NEWS, BREAKFAST, ROCKPOOL, OUTABOUT, MAGAZINE), at="18:00"),
     # December
     Event("the Mariner's Gale", _day(lambda y: date(y, 12, 9)),
           "the anniversary of the lifeboat's first great rescue, 9 December 1910: 22 saved from the barque Ellen "
-          "Vance; the boathouse bell is rung at noon", (NEWS, MAGAZINE, LATE)),
+          "Vance; the boathouse bell is rung at noon", (NEWS, MAGAZINE, LATE), at="12:00"),
     Event("the Christmas holidays",
           lambda y: (on_or_before(date(y, 12, 20), 4), _spring_term(y + 1) - timedelta(days=1)),
           "the schools are out for Christmas", (BREAKFAST, ROCKPOOL)),
@@ -270,15 +273,27 @@ def for_show(show_id: str, day: date) -> list[On]:
     return sorted(mine, key=lambda o: (o.first < day, o.first))[:RATION]
 
 
-def for_prompt(show_id: str, day: date) -> str:
-    """The writers' lines: the show's ration, and never an event the calendar doesn't have."""
+def for_prompt(show_id: str, day: date | datetime) -> str:
+    """The writers' lines: the show's ration, and never an event the calendar doesn't have. Given the
+    time, an event today whose start has passed says so: on 2026-11-05 the news still had the
+    bonfire's "gates at six" to come at eleven at night."""
+    now = day if isinstance(day, datetime) else None
+    day = now.date() if now else day
     mine = for_show(show_id, day)
     if not mine:
         return ("TOWN CALENDAR: nothing on in town for this programme in the next few days. Do not make up a "
                 "festival, fair or town event, or a date for one.")
-    return ("TOWN CALENDAR, coming up (mention one only where it fits this item, and in passing; these are the "
-            "only town events you may mention: never invent another, or a date, time or place for one):\n"
-            + "\n".join(f"  - {o.line(day)}" for o in mine))
+    return ("TOWN CALENDAR, today and coming up (mention one only where it fits this item, and in passing; "
+            "these are the only town events you may mention: never invent another, or a date, time or place "
+            "for one):\n" + "\n".join(f"  - {o.line(day)}{_started(o, now)}" for o in mine))
+
+
+def _started(o: On, now: datetime | None) -> str:
+    """' It began at 18:00, ...' for a one-day event today whose start time has passed, else ''."""
+    if not (now and o.event.at and o.first == o.last == now.date() and f"{now:%H:%M}" >= o.event.at):
+        return ""
+    return (f" It began at {o.event.at}, so by now it is under way or over: tell it as happening or as "
+            "done, never as still to come.")
 
 
 def due(text: str, day: date) -> date | None:

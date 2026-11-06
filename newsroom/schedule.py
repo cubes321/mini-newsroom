@@ -895,6 +895,14 @@ def part_of_day(ts: float) -> str:
     return "night"
 
 
+def clock_line(ts: float) -> str:
+    """The time on the broadcast clock, and what it means for today's dated plans. On 2026-11-05 the
+    news still said "bonfire gates open at six" at eleven at night: the prompts gave the date and
+    "it is the evening", never the time, so the six o'clock start in the calendar read as to come."""
+    return (f"It is {time.strftime('%H:%M', time.localtime(ts))} on the broadcast clock. Anything timed "
+            "earlier today has already happened: tell it as done or under way, never as still to come.")
+
+
 def get(show_id: str | None) -> Show:
     return SHOWS.get(show_id or "", SHOWS["news"])
 
