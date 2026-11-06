@@ -71,8 +71,8 @@ than the news channel:
 
 - **The Kettle's On**: a homely morning magazine: a recipe from a local kitchen, a phone-in with a
   studio expert (gardening, pets), a guest on the sofa, the community noticeboard.
-- **Harbour Row**: a fifteen-minute daily soap with the town's residents (Winifred, Dev, Brenda,
-  Jasper) in a continuing story with cliffhangers; needs a drama item and a memory of each episode.
+- **Harbour Row**: a fifteen-minute daily soap, a continuing story with cliffhangers; needs a drama
+  item and a memory of each episode. Its characters are fictional, played by actors (see below).
 - **Wexley Wits**: a pub quiz from a darts pub, Clive Ashdown asking, the darts league's pub teams
   playing, the score kept in code, a local-history round from the archive.
 
@@ -81,7 +81,7 @@ The phone-in's `call` item and the `review` item from `docs/SHOWS.md` would serv
 ## When, and in which world (2026-11-06)
 
 **The entertainment channel shares Port Wexley.** It is the town's second channel: the same
-`world.json`, residents and calendar. Harbour Row's cast are people the news has met, the quiz teams
+`world.json`, residents and calendar. Harbour Row's actors live in the town, the quiz teams
 come from the darts league, and something that happens in the soap or the quiz can become news.
 Because of this, the first split runs between the *channels* (schedules, shows, looks, idents)
 rather than between the engine and the town. The town's content stays shared and takes no
@@ -100,3 +100,23 @@ score kept in code. **Harbour Row** comes second and brings the full-figure spri
 **Open:** whether both channels run at once (CPU text-to-speech, one GPU, one OBS output, double
 the LLM cost) or take turns, for example entertainment in the daytime that the news night run
 doesn't cover. Measure a night's CPU headroom before deciding.
+
+## Harbour Row and the town (2026-11-06)
+
+**Actors and characters, as in real soaps.** Harbour Row is a drama with its own fictional
+characters, played by actors who live in Port Wexley. Its storylines are fiction inside the
+town, so a soap theft is never a crime the news has to report, and the news can still interview
+"the actress who plays Brenda". Its characters stay out of the town's people list. Its actors go
+in it, as residents.
+
+**Cliffhangers become the town's talk**, as soaps do in real life:
+- Each episode ends by writing its cliffhanger into the world as a *talking point*: the question
+  ("Will Brenda tell Jasper?") and the date of the episode that answers it.
+- Coastwide can run a "Harbour Row watch" (Pat and Clive's theories). Vox pops can ask who did it,
+  and Have Your Say can make a big cliffhanger the day's question. The news covers the soap only now
+  and then: when it takes up a real town story, or when one of its actors is in the news.
+- No spoilers: the other writers see only what has aired. The soap's arc plan stays out of their
+  briefings.
+- When the answer airs, the talking point closes, and the next day's shows can react to it.
+- The other way round, the soap can borrow from the town (a Bonfire Night episode, a council vote),
+  as real soaps do topical scenes.
