@@ -124,3 +124,19 @@ in it, as residents.
 - When the answer airs, the talking point closes, and the next day's shows can react to it.
 - The other way round, the soap can borrow from the town (a Bonfire Night episode, a council vote),
   as real soaps do topical scenes.
+
+## The first split: entertainment/ (2026-11-07)
+
+Wexley Wits made the second package: `entertainment/` holds the channel's day (`SCHEDULE`) and its
+shows, and `entertainment.use()` puts it on air (`python -m newsroom --channel entertainment`). The
+engine never imports it. Instead a show from outside plugs into registries the engine reads by show id:
+
+- `writers`: `SHOW_SYSTEMS` (its prompts), `BRIEF_HOOKS` (tokens in a brief, like The Chamber's
+  "{m2}"), `PROMPT_HOOKS` (its booking in every prompt), `TEMPLATE_HOOKS` (a stand-in script when
+  the model is down), `SEAT_HOOKS` and `CAPTION_HOOKS` (who sits on the set, under which caption),
+  and `BOOKED_SHOWS`, `DEBATE_SHOWS` and `UNFILED_SHOWS`;
+- `workers.IDLE_JOBS` (its bookings, after Channel 7's), `scenes.SHOW_SETS`, `player.SEATS`,
+  `locations.MARKS` and `assets.IDENTS`.
+
+Channel 7's own shows still use their branches in those modules. They can move onto the registries
+when a change touches them anyway, as stage 1 says.

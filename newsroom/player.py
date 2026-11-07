@@ -44,6 +44,9 @@ log = logging.getLogger(__name__)
 REPLAY_AFTER_S = 25.0      # filler this long -> replay last weather
 LET_FINISH_S = 12.0        # breaking news waits for a segment with less than this left
 
+# How many guests a show from outside this package seats on its set (entertainment/ fills it).
+SEATS: dict[str, int] = {}
+
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue,
                  SegmentType.sport, SegmentType.call)
@@ -481,10 +484,13 @@ class Player:
                 elif l.speaker not in (*FIELD_REPORTERS, "weather") and (l.speaker, None) not in hosts:
                     hosts.append((l.speaker, None))
             stayed = seg.work.get("couch")
+            if seg.work.get("seats"):         # booked to sit on the set all show (a quiz's teams), in order
+                guests = list(seg.work["seats"]) + [g for g in guests if g not in seg.work["seats"]]
             if seg.show == "chamber":         # the mayor in her chair first, then up to three at the horseshoe
                 guests = sorted(guests, key=lambda g: g != council.CHAIR)
             guests = (sorted(guests[:2], key=lambda g: g == stayed) if stayed
-                      else guests[:4] if seg.show == "chamber" else guests[:3] if seg.show == "panel" else guests[:1])
+                      else guests[:4] if seg.show == "chamber" else guests[:3] if seg.show == "panel"
+                      else guests[:SEATS[seg.show]] if seg.show in SEATS else guests[:1])
             if seg.show == "rockpool":       # Gully is always on Poppy's arm; Hugh or a visitor takes the third seat
                 hosts = [("kids", None), ("gully", None)] + [h for h in hosts if h[0] not in ("kids", "gully")]
                 self._cast_of = (seg.id, (hosts + [("guest", g) for g in guests])[:3])

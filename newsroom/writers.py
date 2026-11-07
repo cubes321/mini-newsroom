@@ -17,6 +17,7 @@ import re
 import time
 from collections import deque
 from datetime import date, datetime
+from typing import Callable
 
 from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, schedule, sport,
                tides, tipline)
@@ -748,6 +749,18 @@ programme); {next_title} follows at {next_at}. No new stories."""
 # The last interview per show, so a "cont" part keeps the same guest (see schedule.py).
 _last_interview: dict[str, dict] = {}
 
+# Shows from outside this package (entertainment/) plug in here, by show id, rather than as more
+# branches below: the split between the channels (docs/ENGINE.md) runs through these.
+SHOW_SYSTEMS: dict[str, dict[SegmentType, str]] = {}     # the show's system prompts, per item type
+BRIEF_HOOKS: dict[str, Callable[[World, str], str]] = {}  # expand a brief's tokens ("{r2}") from a booking
+PROMPT_HOOKS: dict[str, Callable[[World], str]] = {}      # the show's booking, added to every item's prompt
+TEMPLATE_HOOKS: dict[str, Callable] = {}   # (seg_type, world, rng, part, work, brief) -> a stand-in, or None
+SEAT_HOOKS: dict[str, Callable[[World], list[str]]] = {}  # who sits on the set all show (seg.work["seats"])
+BOOKED_SHOWS: set[str] = set()      # every guest is booked: no recent-guest or been-on-before re-asks
+DEBATE_SHOWS: set[str] = set()      # an interview has several guests, each line naming its speaker
+UNFILED_SHOWS: set[str] = set()     # never files an item under a news story, whatever thread_id it sets
+CAPTION_HOOKS: dict[str, Callable] = {}   # (world, guest name) -> their caption on this show, or None
+
 
 def big_story(world: World):
     """The one running story a light show shouldn't skip: something that broke as breaking news
@@ -900,7 +913,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     words = int(target_s / 60 * CONFIG.broadcast.words_per_minute)
     table = {"breakfast": _BREAKFAST, "magazine": _MAGAZINE, "late": _LATE, "sport": _SPORT,
              "inquiry": _INQUIRY, "quayside": _QUAYSIDE, "panel": _PANEL, "chamber": _CHAMBER, "phonein": _PHONEIN,
-             "outabout": _OUTABOUT, "rockpool": _ROCKPOOL}.get(show.id, {})
+             "outabout": _OUTABOUT, "rockpool": _ROCKPOOL}.get(show.id) or SHOW_SYSTEMS.get(show.id, {})
     system = table.get(seg_type, _SYSTEM.get(seg_type, ""))
     work = work or {}
     system = system.format(station=show.station, tone=show.tone, weight=_LIGHT if show.light else "",
@@ -943,6 +956,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             brief = panel.brief_for(world, brief)
         elif show.id == chamber.SHOW:        # "{m2}": the second motion, every vote and the result
             brief = chamber.brief_for(world, brief)
+        elif show.id in BRIEF_HOOKS:
+            brief = BRIEF_HOOKS[show.id](world, brief)
         user += f"\n\nTHIS ITEM: {brief}."
     # Miles's reports on the news: not Meg's pieces to camera on Out and About.
     miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW
@@ -971,6 +986,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + panel.for_prompt(world)
     if show.id == chamber.SHOW:
         user += "\n\n" + chamber.for_prompt(world)
+    if show.id in PROMPT_HOOKS:
+        user += "\n\n" + PROMPT_HOOKS[show.id](world)
     if show.id == phonein.SHOW and seg_type is not SegmentType.bulletin:
         user += "\n\n" + phonein.for_prompt(world, seg_type)
     if show.id == outabout.SHOW:
@@ -999,7 +1016,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                      "closes by saying another guest is joining them.")
     elif seg_type in (SegmentType.interview, SegmentType.feature, SegmentType.consumer, SegmentType.vox_pop,
                       SegmentType.review) and (
-            show.id not in (inquiry.SHOW, panel.SHOW, chamber.SHOW, phonein.SHOW)):   # their guests are booked, however recent
+            show.id not in (inquiry.SHOW, panel.SHOW, chamber.SHOW, phonein.SHOW, *BOOKED_SHOWS)):   # their guests are booked, however recent
         recent = list(dict.fromkeys([*world.guests_today(show.id), *_recent_guests]))   # this show's today too
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(recent) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
@@ -1433,12 +1450,14 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system, user = build_prompt(seg.type, world, target_s=seg.target_s, show=show,
                                 part=part, brief=seg.brief, at_ts=seg.nominal_start_ts, work=seg.work, tips=tips)
     # The Panel's three panellists, booked tonight; the council's members in The Chamber.
-    debate = seg.type is SegmentType.interview and show.id in (panel.SHOW, chamber.SHOW)
+    debate = seg.type is SegmentType.interview and show.id in (panel.SHOW, chamber.SHOW, *DEBATE_SHOWS)
     if debate and show.id == chamber.SHOW and (n := chamber.motion_in(seg.brief)) is not None:
         seg.work["motion"] = n                # its vote goes to the story when it is filed (_apply_to_world)
     # The phone-in's studio guest is booked for the morning (phonein.py) and stays at the desk all hour.
     studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
-    booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW)
+    booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW) or show.id in BOOKED_SHOWS
+    if show.id in SEAT_HOOKS:
+        seg.work["seats"] = SEAT_HOOKS[show.id](world)     # on the set all show, speaking or not (player.py)
     chatter = show.id == "rockpool"           # Poppy and Gully (and a visitor): many short lines
     schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate, chatter=chatter)
     system += _keys_hint(schema)
@@ -1516,8 +1535,11 @@ def script_segment(seg: Segment, world: World) -> Segment:
             tipline.consume(tips[used - 1])
     except llm.LLMError as e:
         log.warning("%s slot %d: using template (%s)", seg.type.value, seg.slot_id, e)
-        script = _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work,
-                           seg.nominal_start_ts)
+        hook = TEMPLATE_HOOKS.get(show.id)
+        script = (hook and hook(seg.type, world, random.Random(seg.content_hash or seg.id), seg.part, seg.work,
+                                 seg.brief)) or \
+            _template(seg.type, world, random.Random(seg.content_hash or seg.id), show, seg.part, seg.work,
+                      seg.nominal_start_ts)
         source = "template"
         # With NEWSROOM_LLM=off the template is the content; otherwise it stands in for a model
         # that was unreachable, and the cache and the overnight repeats must not keep it.
@@ -1540,6 +1562,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
             return couch["role"]
         if call and name == script.caller_name:
             return f"On the line from {script.caller_from}"
+        if seg.show in CAPTION_HOOKS and (said := CAPTION_HOOKS[seg.show](world, name)):
+            return said                       # a quiz contestant: their team, not what the town knows them for
         if (debate or studio) and (p := world.person_by_name(name)):
             return p.role                     # each panellist, or the phone-in's guest, under their own caption
         return getattr(script, "guest_role", None)
@@ -1838,6 +1862,8 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                 tid = same[0].id
                 log.info("%s slot %d: %r continues thread %s (shared %s)", seg.type.value, seg.slot_id,
                          script.headline[:60], tid, ", ".join(sorted(same[1])))
+        if seg.show in UNFILED_SHOWS:
+            tid, opens = None, False          # a quiz's news round names stories; it never moves one
         if tid in known or opens:
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
         if booked:

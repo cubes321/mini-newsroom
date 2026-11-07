@@ -52,6 +52,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--breaking-now", action="store_true",
                    help="have the story desk break a story at its next idle moment, whatever the cap and the hour")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
+    p.add_argument("--channel", choices=("seven", "entertainment"), default="seven",
+                   help="which channel to put out: Channel 7 (the default), or the entertainment channel "
+                        "(entertainment/, sharing Port Wexley)")
     p.add_argument("--log-llm", action="store_true", help="write every LLM prompt and reply to data/llm_calls/")
     p.add_argument("--world", type=str, default="", help="world file to use instead of data/world.json")
     p.add_argument("--cache", type=str, default="", help="segment cache dir to use instead of data/cache")
@@ -355,6 +358,10 @@ def main(argv: list[str] | None = None) -> int:
 
     log.info("world %s | cache %s", CONFIG.paths.world, CONFIG.paths.cache)
 
+    if args.channel == "entertainment":       # before the clock: show_at reads the channel's own day
+        import entertainment
+
+        entertainment.use()
     if args.clock:
         schedule.set_clock(args.clock)
         log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)

@@ -371,6 +371,7 @@ def _guest(v: View, name: str | None):
 
 
 SET_OVERRIDE: str | None = None     # a one-off's own studio set (registered by tools/one_off.py), or none
+SHOW_SETS: dict[str, str] = {}      # a set per show from outside this package (entertainment/), by show id
 
 
 def _interview_set(v: View) -> str:
@@ -385,7 +386,7 @@ def _interview_set(v: View) -> str:
     if v.show == "chamber" and len(v.people) == 1 and v.people[0][0] != "guest":
         return "chamber_press"                                  # its one mark is Dana's: anyone else, the chamber
     return {"late": "studio_late", "panel": "studio_panel", "rockpool": "studio_kids",
-            "chamber": "council_chamber", "phonein": "studio_phonein"}.get(v.show, "studio_interview")
+            "chamber": "council_chamber", "phonein": "studio_phonein", **SHOW_SETS}.get(v.show, "studio_interview")
 
 
 def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int, int]]]:
@@ -400,8 +401,8 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
             return [(who, name, marks["host"])]     # the monologue, the sports desk, the press bench, Jonah's desk
         return [(who, name, (160, 156, 2, 1))]                  # alone: centre stage, standing
     if len(v.people) >= 2 and "panel_1" in marks:               # The Panel: the chair and up to three
-        slots = [marks["host"], marks["panel_1"], marks["panel_2"], marks["panel_3"]]
-        return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:4])]
+        slots = [marks["host"]] + [marks[k] for k in ("panel_1", "panel_2", "panel_3", "panel_4") if k in marks]
+        return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:len(slots)])]
     if len(v.people) >= 3 and "guest_far" in marks:             # the late couch: two guests
         slots = [marks["host"], marks["guest_near"], marks["guest_far"]]
         return [(who, name, slots[i]) for i, (who, name) in enumerate(v.people[:3])]

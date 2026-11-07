@@ -75,13 +75,25 @@ bottom with the date.
 
 ## Content
 
-- [ ] **Wexley Wits, built 2026-11-07** after the 11-06 log review: the entertainment channel's first show
-  (docs/ENGINE.md: shares Port Wexley, test nights alternate with Channel 7). Two pubs from `darts.PUBS`
-  (regulars, captain first), Clive Ashdown as quizmaster. One back-office booking with the rounds (general,
-  local history from the archive, the week's news), the questions and answers, and each team's answers
-  drawn by pub strength. The score is kept in code, the script is written from the booked results (like The
-  Chamber's votes), and a pub-quiz set needs the user's approval. A first small `entertainment/` package
-  with its schedule, launched by `--channel entertainment`. Then a scratch test run.
+- [x] **Wexley Wits, built 2026-11-07**: the entertainment channel's first show, in a new `entertainment/`
+  package (`--channel entertainment`; docs/ENGINE.md). 20:00 to 20:30: two darts pubs' regulars, Clive
+  Ashdown asking, four rounds of six (general, Port Wexley, the week's news, pot luck) booked in one back-office call
+  on The Chamber's route, every answer drawn on pub strength and the score kept in `entertainment/quiz.py`;
+  each round's brief carries its result. The engine takes another channel's shows through registries
+  (`writers.SHOW_SYSTEMS` and the hooks beside it, `workers.IDLE_JOBS`, `scenes.SHOW_SETS`, `player.SEATS`).
+  Scratch run the same day: every score Clive read matched the booking; four-question rounds came in at
+  70-85 s and chats filled the rest of the half hour, so there are now four rounds of six, a word between
+  questions, and six chat angles for whatever time is left.
+- [ ] Wexley Wits, next:
+  - **A quiz set** (art, the user's approval): the darts pub backdrop stands in, Clive at the bar end and
+    both pairs across the floor (`wits.MARKS`). A set of its own: a quizmaster's lectern, two team tables,
+    the scoreboard.
+  - **Its own ident**: the bumper is a placeholder sting with Clive's voice (`bumper_wits.wav`), listen-then-commit.
+  - **The rest of the channel's evening**: outside 20:00-20:30 it is the overnight test card, which still
+    carries Channel 7's ident and would repeat Channel 7's cache. The content bank (ENGINE.md) is the answer.
+  - The channel still wears Channel 7's logo and name in places.
+  - A darts round (three darts each, scored in code from `darts.py`) if rounds still come in short.
+  - The result as town talk: the news or Coastwide mentioning who won.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after

@@ -95,6 +95,11 @@ REPEAT_DAY_STARTS_H = 6             # the overnight repeats come from the day th
 _recent_repeats: deque[str] = deque(maxlen=12)
 
 
+# Bookings from outside this package (entertainment/): (due(world), book(world)), one per idle tick,
+# after Channel 7's own.
+IDLE_JOBS: list[tuple] = []
+
+
 def repeatable(c: Segment) -> bool:
     """A cached segment that suits the overnight repeats: a repeatable type, from a show whose
     scripts aren't tied to its own hours (no breakfast sofa during the test-card block). Not a
@@ -395,6 +400,11 @@ class WorkerPool:
                 chamber.commission(self.world)    # a council night: The Chamber's four motions and every vote
                 world_mod.save(self.world)
                 return
+            for due, book in IDLE_JOBS:           # another channel's bookings (entertainment/)
+                if due(self.world):
+                    book(self.world)
+                    world_mod.save(self.world)
+                    return
             # After the evening's bookings, which are one call each and due by 20:00: started at 19:40, the
             # documentary's eight stages kept the workers busy until The Chamber opened on its stand-in (2026-11-01).
             if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
