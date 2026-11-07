@@ -86,6 +86,13 @@ GUEST_VOICES_M = ["am_puck", "bm_daniel", "am_fenrir", "bm_lewis", "bm_fable", "
                   "bm_jowan", "bm_kit", "bm_hedley", "bm_ross", "bm_jory", "bm_bernard"]
 GUEST_VOICES = GUEST_VOICES_F + GUEST_VOICES_M
 OLD_VOICES_M: list[str] = []    # extra voices for old men only (am_santa was one, until Hugh took it)
+# Visitors from away (accent "american"): Kokoro's American voices that no presenter has, as reference clips
+# Pocket clones (assets/voices/<key>.a.wav, chosen by ear 2026-11-07). Until then the 121 in town spoke a local's
+# key with no American clip, so Kokoro voiced them, and none sounded like a visitor.
+VISITOR_VOICES_F = ["af_us_nicole", "af_us_kore", "af_us_aoede", "af_us_nova", "af_us_sky", "af_us_alloy",
+                    "af_us_river", "af_us_sarah"]
+VISITOR_VOICES_M = ["am_us_puck", "am_us_echo", "am_us_fenrir", "am_us_adam"]
+VISITOR_VOICES = VISITOR_VOICES_F + VISITOR_VOICES_M
 GUEST_CAST = "2026-11-01"       # the town's guests spread over the voices by gender, age and name (_recast_guests)
 # A guest's speaking speed: the old a little slower, the young a little quicker.
 SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
@@ -822,7 +829,7 @@ class World:
                 p.age = age
             return p
         h = _name_hash(name)
-        pool = guest_pool(gender, age, role)
+        pool = visitor_pool(gender, age) if accent == "american" else guest_pool(gender, age, role)
         speeds = SPEEDS.get(age or "", SPEEDS[""])
         p = Person(
             id=self._new_person_id(), name=name.strip()[:40], role=(role or "resident")[:50], kind=kind,
@@ -1096,6 +1103,7 @@ def _from_dict(d: dict) -> World:
                 have[c.id].voice = c.voice
     _seat_council(w)
     _recast_guests(w)
+    _recast_visitors(w)
     _recast_teen_voices(w)
     _recast_presenter_voices(w)
     return w
@@ -1122,6 +1130,28 @@ def guest_pool(gender: str | None, age: str | None, role: str | None = None) -> 
         age = "teen"
     grown = [v for v in pool if ages.get(v) != "teen"]
     return ([v for v in pool if ages.get(v) == age] or grown) if age else grown
+
+
+def visitor_pool(gender: str | None, age: str | None) -> list[str]:
+    """The voices a visitor from away is cast from: their gender's, narrowed to their age when two or more fit
+    (the clips are young and middle-aged, and one young man's voice for every young man would be too few)."""
+    pool = {"f": VISITOR_VOICES_F, "m": VISITOR_VOICES_M}.get(gender or "", VISITOR_VOICES)
+    ages = _voice_ages()
+    fit = [v for v in pool if ages.get(v) == age]
+    return fit if len(fit) >= 2 else pool
+
+
+def _recast_visitors(w: World) -> None:
+    """Visitors from away on a local's voice move to a visitor's, by gender, age and name, as a newcomer is
+    cast now. Nothing to do once they have moved."""
+    keep, n = {p.name for p in seed_people()} | set(council.VOICES), 0
+    for p in w.people:
+        if p.accent != "american" or p.name in keep or p.voice in VISITOR_VOICES or p.voice[1:2] not in ("f", "m"):
+            continue
+        pool = visitor_pool(p.voice[1:2], p.age or None)
+        p.voice, n = pool[_name_hash(p.name) % len(pool)], n + 1
+    if n:
+        log.info("world migrated: %d visitors from away moved to visitors' voices", n)
 
 
 def _recast_guests(w: World) -> None:

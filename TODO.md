@@ -16,7 +16,10 @@ bottom with the date.
   guest is cast by gender, age and name (`world.guest_pool`); a town saved before is spread once (`GUEST_CAST`,
   `_recast_guests`): 473 of the real town's 528 moved, nobody changed gender, and bf_isabella's nine residents
   left the announcer's voice. Listening page: data/voice-samples/guests-dramabox/.
-- [ ] Visitors' voices: someone "from away" (`accent` american) still speaks Kokoro's American voices with no clip.
+- [x] Visitors' voices (2026-11-07): twelve of Kokoro's American voices no presenter has, rendered on the CPU as
+  `<key>.a.wav` (`af_us_*`, `am_us_*`) and cloned by Pocket; visitors are cast from them by gender and age
+  (`world.visitor_pool`), and the 121 in town moved once (`_recast_visitors`). Chosen by ear on
+  data/voice-samples/visitors/. Was: someone "from away" still spoke Kokoro's American voices with no clip.
   DramaBox could design a few `.a.wav` visitors the same way, if they should sound less like Kokoro.
 - [x] The new shows' own bumper arrangements (Quayside, The Inquiry, The Panel, Have Your Say, Out and About
   and Rock Pool use the news one). Music chosen by ear 2026-11-04 (`jingle.SHOW_STYLE`: Quayside ticker, Have
@@ -54,7 +57,10 @@ bottom with the date.
   (triage the 24 exteriors by depth, the engine behind `[broadcast] parallax`, a pilot evening, then the art).
   Triage done (12 chosen) and the engine built the same day (`newsroom/parallax.py`, off by default); next
   the pilot evening with `--parallax` on the trial's harbour and fish quay.
-- [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up (the first match on a role word
+- [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up. 2026-11-07: 95 of the town's roles matched none;
+  volunteers, makers and menders, darts players, choirs and bell ringers, a cyclist, and new words for the rest
+  left 12, all plain residents (approved on a sheet). Check a new word against every cast role first: an early
+  group's word takes a role from a later one ("clock" took a novelist, "writer" a singer-songwriter). (the first match on a role word
   wins). On 2026-10-28 every role the town had cast matched one.
 - [ ] **Graphics made live by ComfyUI** (the user's idea, 2026-11-03; brainstormed 2026-11-04, build after the
   11-05 log is checked). Decided: **shadow mode first**: the back office makes the pictures for a few nights
@@ -415,7 +421,8 @@ bottom with the date.
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema
   enforced; `writers._keys_hint` spells out the keys, and the schemas accept
   `speaker_id`, per-line guest details and "female"/"male".)
-- [ ] Pocket TTS, what's left. Tried 2026-10-30 against Kokoro, Qwen3-TTS, Chatterbox and NeuTTS
+- [x] Pocket TTS, what's left (2026-11-07: visitors' clips done; throughput is fine, 0.30x real time on the
+  11-06 night with the buffer never under 156 s, so no second Pocket thread). Tried 2026-10-30 against Kokoro, Qwen3-TTS, Chatterbox and NeuTTS
   (samples in data/voice-samples/tts-bakeoff/): the user chose Pocket (Kyutai, CPU, 0.23 RTF on one
   thread, cloning from a few seconds of audio). Wired in that night: presenters clone their own Kokoro
   voices (judged more natural by ear), the local guests clone DramaBox clips since 2026-11-01 (24 of

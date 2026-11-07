@@ -132,3 +132,46 @@ def test_british_pronunciation_only_when_switched_on_and_only_for_british_guests
         assert w.lang_for("anchor") is None
     finally:
         object.__setattr__(CONFIG, "tts", old)
+
+
+def test_a_visitor_from_away_is_cast_from_the_visitors_voices_and_has_a_clip():
+    """Until 2026-11-07 the 121 visitors in town spoke a local's voice with no American clip, so Kokoro voiced
+    them. Now they have voices of their own, which Pocket clones from Kokoro's American ones."""
+    from newsroom import tts
+
+    w = world_mod.seed()
+    for gender, pool in (("f", world_mod.VISITOR_VOICES_F), ("m", world_mod.VISITOR_VOICES_M)):
+        for i in range(12):
+            p = w.ensure_person(f"Visitor Number{i}{gender}", "tourist", gender=gender, age="young", accent="american")
+            assert p.voice in pool
+    local = w.ensure_person("Morwenna Trezise", "baker", gender="f", age="old", accent="british")
+    assert local.voice not in world_mod.VISITOR_VOICES
+    for v in world_mod.VISITOR_VOICES:
+        assert tts.kokoro_voice(v) == v.replace("_us_", "_")              # Kokoro speaks for them if Pocket fails
+        assert (tts.VOICES_DIR / f"{v}.a.wav").exists()
+    assert len(world_mod.visitor_pool("m", "young")) >= 2                  # never one voice for every young man
+
+
+def test_visitors_on_a_locals_voice_move_once(monkeypatch):
+    w = world_mod.seed()
+    p = w.ensure_person("Chuck Brennan", "tourist", gender="m", age="middle", accent="american")
+    p.voice = "bm_hedley"                                                  # cast before the visitors had voices
+    world_mod._recast_visitors(w)
+    assert p.voice in world_mod.VISITOR_VOICES_M
+    moved = p.voice
+    world_mod._recast_visitors(w)
+    assert p.voice == moved
+
+
+def test_the_towns_unmatched_roles_have_costumes_and_no_one_else_changes():
+    """95 of the town's roles matched no costume on 2026-11-07. A new word mustn't take a role from the look it had:
+    "Clock" in a novel's title, "writer" in singer-songwriter, "repairer" for a sail repairer."""
+    look = lambda role: guest_look("Pat Example", "bf_wenna", role, "middle")
+    assert look("captain, The Lugger quiz team").extra == "stripe"                     # a darts shirt
+    assert look("Volunteer, Tuesday lunch club").extra == "hivis"                      # a tabard
+    assert look("potter and mender, Harrow Street").extra == "apron"
+    assert look("Tower captain, Saltby Bell Ringers").top_style == "blazer"
+    assert look("author, The Clock Keeper's Daughter").glasses == "on"                 # still the author's
+    assert look("rope and sail repairer, Harbour Row").top_style in ("jumper", "jacket")   # still a harbour look
+    assert look("singer-songwriter, performing tonight").glasses == "shades"
+    assert look("cannery historian").top_style == "cardigan"                           # not the dockers'

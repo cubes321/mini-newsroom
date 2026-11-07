@@ -299,3 +299,90 @@ person = 'Meg Trethewey'
 kokoro = 'af_river'
 description = 'A woman in her late forties with a warm English West Country accent, a former coast path ranger presenting a days-out programme, speaks cheerfully and practically'
 line = "It's a steep climb from the cove, and the wind will have your hat, but the view from the top is worth every step. And there's a tea room."
+
+# Visitors from away (accent american): File <voice>.a.wav, rendered by Kokoro's own American voice on the CPU
+# and cloned by Pocket, as the presenters' are (2026-11-07; DramaBox needs the GPU, which was busy). Ages by ear.
+
+[af_us_nicole]
+gender = "f"
+age = "middle"
+kokoro = "af_nicole"
+source = "kokoro af_nicole, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_kore]
+gender = "f"
+age = "middle"
+kokoro = "af_kore"
+source = "kokoro af_kore, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_aoede]
+gender = "f"
+age = "middle"
+kokoro = "af_aoede"
+source = "kokoro af_aoede, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_nova]
+gender = "f"
+age = "young"
+kokoro = "af_nova"
+source = "kokoro af_nova, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_sky]
+gender = "f"
+age = "young"
+kokoro = "af_sky"
+source = "kokoro af_sky, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_alloy]
+gender = "f"
+age = "middle"
+kokoro = "af_alloy"
+source = "kokoro af_alloy, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_river]
+gender = "f"
+age = "young"
+kokoro = "af_river"
+source = "kokoro af_river, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[af_us_sarah]
+gender = "f"
+age = "middle"
+kokoro = "af_sarah"
+source = "kokoro af_sarah, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[am_us_puck]
+gender = "m"
+age = "young"
+kokoro = "am_puck"
+source = "kokoro am_puck, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[am_us_echo]
+gender = "m"
+age = "middle"
+kokoro = "am_echo"
+source = "kokoro am_echo, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[am_us_fenrir]
+gender = "m"
+age = "middle"
+kokoro = "am_fenrir"
+source = "kokoro am_fenrir, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+[am_us_adam]
+gender = "m"
+age = "middle"
+kokoro = "am_adam"
+source = "kokoro am_adam, speed 1.0, lang a"
+line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
