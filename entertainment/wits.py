@@ -1,6 +1,6 @@
 """Wexley Wits: the show, its prompts and its set. The quiz itself is quiz.py's.
 
-Half an hour from a darts pub: Clive Ashdown (mag_b) welcomes the two pubs, asks four rounds of questions and a
+Twenty minutes from a darts pub: Clive Ashdown (mag_b) welcomes the two pubs, asks four rounds of questions and a
 darts round (oche.py: every dart in code, shown in a window as Clive calls it), and reads
 the final score. Each round is one interview item whose brief carries the round as booked ("{r2}"), so the
 writer sets the banter around results already decided. If items come in short, the order wraps to a chat

@@ -152,8 +152,8 @@ def test_the_channel_puts_wits_on_at_eight_and_undo_gives_back_channel_seven():
     before = schedule.show_at(eight).id
     undo = entertainment.use()
     try:
-        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 40)).id == "overnight"
-        assert schedule.show_end(eight) == _at(20, 30)
+        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 25)).id == "overnight"
+        assert schedule.show_end(eight) == _at(20, 20)                       # twenty minutes since 2026-11-07
         assert scenes.SHOW_SETS["wits"] == "pub" and player.SEATS["wits"] == 4
     finally:
         undo()
@@ -186,7 +186,7 @@ def test_a_round_is_written_to_the_booking_on_the_pub_set_and_moves_no_story(cha
     system, user = writers.build_prompt(T.interview, w, target_s=240, show=schedule.get("wits"), brief="{r2}")
     assert "WEXLEY WITS, a pub quiz" in system and "THE SCORE AFTER ROUND 2" in user and "THE TEAMS" in user
     _, close = writers.build_prompt(T.interview, w, target_s=110, show=schedule.get("wits"), part="close",
-                                    brief="the RESULT, {close}", at_ts=_at(20, 28))
+                                    brief="the RESULT, {close}", at_ts=_at(20, 18))
     assert "that's all for tonight" in close and "Port Wexley News" not in close   # the test card follows
 
 

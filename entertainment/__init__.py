@@ -16,7 +16,7 @@ import random
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),
     (20, "wits"),
-    ("20:30", "overnight"),
+    ("20:20", "overnight"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
 )
 
 

@@ -85,7 +85,7 @@ bottom with the date.
 ## Content
 
 - [x] **Wexley Wits, built 2026-11-07**: the entertainment channel's first show, in a new `entertainment/`
-  package (`--channel entertainment`; docs/ENGINE.md). 20:00 to 20:30: two darts pubs' regulars, Clive
+  package (`--channel entertainment`; docs/ENGINE.md). 20:00 to 20:20 (half an hour until the seven-round run showed 14 minutes of quiz): two darts pubs' regulars, Clive
   Ashdown asking, four rounds of six (general, Port Wexley, the week's news, pot luck) booked in one back-office call
   on The Chamber's route, every answer drawn on pub strength and the score kept in `entertainment/quiz.py`;
   each round's brief carries its result. The engine takes another channel's shows through registries
@@ -98,7 +98,7 @@ bottom with the date.
     both pairs across the floor (`wits.MARKS`). A set of its own: a quizmaster's lectern, two team tables,
     the scoreboard.
   - **Its own ident**: the bumper is a placeholder sting with Clive's voice (`bumper_wits.wav`), listen-then-commit.
-  - **The rest of the channel's evening**: outside 20:00-20:30 it is the overnight test card, which still
+  - **The rest of the channel's evening**: outside 20:00-20:20 it is the overnight test card, which still
     carries Channel 7's ident and would repeat Channel 7's cache. The content bank (ENGINE.md) is the answer.
   - The channel still wears Channel 7's logo and name in places.
   - The darts round (built 2026-11-07, `entertainment/oche.py`): round three, three darts each at treble twenty, every

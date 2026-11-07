@@ -12,7 +12,7 @@ question of your own, one for a bonus; a tie goes to the tiebreak, nearest guess
 The live writer is given all of it, item by item ("{r2}" in a brief is round two, every question, who
 answers, right or wrong, and the score Clive reads out), so the script is written towards a result
 already decided and the score always adds up. If the call fails, a stand-in quiz from a small bank
-and the town's own facts takes the night, so the half hour always has questions.
+and the town's own facts takes the night, so the programme always has questions.
 
 Fictional, like the town: the pubs and their regulars are the darts league's.
 """
