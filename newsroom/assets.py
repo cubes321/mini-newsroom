@@ -140,7 +140,8 @@ def ensure_bumper(show: str = "news") -> Path:
 
     key = show if show in IDENTS else "news"
     path, text = IDENTS[key]
-    stem = _stem(f"ident_{key}")
+    music = IDENT_MUSIC.get(key, key)          # a programme with no music of its own borrows a show's
+    stem = _stem(f"ident_{music}")
     if not _stale(path, stem):
         return path
     from . import tts
@@ -153,7 +154,7 @@ def ensure_bumper(show: str = "news") -> Path:
         ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{key}.wav",
                                lang=_lang(lead))
         voice, _ = sf.read(str(ident.wav_path), dtype="float32")
-        voicing = key if key in jingle.VOICINGS else "news"
+        voicing = music if music in jingle.VOICINGS else "news"
         _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
         return path
 
@@ -282,3 +283,12 @@ def testcard_segment(seg: Segment) -> Segment:
     seg.headline = None
     seg.state = SegmentState.ready
     return seg
+
+
+# The Christmas programmes' idents: their own words over a show's music (christmas.py).
+from . import christmas as _christmas  # noqa: E402
+
+IDENT_MUSIC: dict[str, str] = {}
+for _show, (_text, _music) in _christmas.IDENTS.items():
+    IDENTS[_show] = (CONFIG.paths.assets / f"bumper_{_show}.wav", _text)
+    IDENT_MUSIC[_show] = _music

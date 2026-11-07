@@ -887,3 +887,9 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
         text(canvas, debug, 2, canvas.get_height() - 24, 8, (255, 255, 120))
     if _par:
         _par.flatten(flat, v, t)
+
+
+# The Christmas programmes' sets, where they have no location of their own (christmas.py).
+from . import christmas as _christmas  # noqa: E402
+
+SHOW_SETS.update(_christmas.SETS)

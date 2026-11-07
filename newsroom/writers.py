@@ -11,6 +11,7 @@ be tested apart.
 """
 from __future__ import annotations
 
+import functools
 import logging
 import random
 import re
@@ -887,7 +888,7 @@ def _guests_so_far(world: World, show: schedule.Show) -> str:
 
 def _title(show: schedule.Show) -> str:
     """The programme's name as it is said: "Out and About", not "OUT AND ABOUT" or "Out And About"."""
-    words = show.title.title().split()
+    words = [w[:1].upper() + w[1:] for w in show.title.lower().split()]   # not str.title(): "Hugh'S"
     return " ".join(w.lower() if i and w.lower() in ("and", "of", "the", "at", "on") else w for i, w in enumerate(words))
 
 
@@ -1205,11 +1206,11 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
     other = next((c for c in show.cast_for(seg_type) if c not in (lead, "guest", "weather", "reporter")), lead)
     if seg_type is SegmentType.links and part_ == "close":
         return BulletinScript(
-            lines=[LiveLine(speaker=lead, text=f"That's all from {show.title.title()} tonight. Thank you to all our guests."),
+            lines=[LiveLine(speaker=lead, text=f"That's all from {_title(show)} tonight. Thank you to all our guests."),
                    LiveLine(speaker=other, text="Goodnight from us, and the news is next.")
                    if other != lead else LiveLine(speaker=lead, text="Goodnight, Port Wexley. The news is next.")],
-            headline=f"Goodnight from {show.title.title()}",
-            lower_third=f"{show.title.title()}, channel seven",
+            headline=f"Goodnight from {_title(show)}",
+            lower_third=f"{_title(show)}, channel seven",
         )
     if seg_type is SegmentType.links and show.id == "late":
         return BulletinScript(
@@ -1222,12 +1223,12 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
     if seg_type is SegmentType.links:
         return BulletinScript(
             lines=[
-                LiveLine(speaker=lead, text=f"Good {part}, and welcome to {show.title.title()}."),
+                LiveLine(speaker=lead, text=f"Good {part}, and welcome to {_title(show)}."),
                 LiveLine(speaker=other, text="Did you know the Town Hall clock has stopped at twenty past four more often than any other time?"),
                 LiveLine(speaker=lead, text="I did not, and I'm not sure I needed to. Coming up: a guest in the studio, the vox pop, and your money."),
             ],
-            headline="Tonight on Coastwide",
-            lower_third=f"{show.title.title()}, channel seven",
+            headline=f"Tonight on {_title(show)}"[:90],
+            lower_third=f"{_title(show)}, channel seven",
         )
     if seg_type is SegmentType.sport:
         latest = sport.summary(datetime.fromtimestamp(schedule.now()))
@@ -1426,7 +1427,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     if seg.type not in SCRIPT_SCHEMAS:
         raise ValueError(f"{seg.type} is not an LLM-scripted type")
 
-    show = schedule.get(seg.show)
+    show = schedule.get(seg.show, seg.nominal_start_ts)   # the show as it airs then: at Christmas, its version
     # A second part continues only the interview the producer planned as its first part (the slot
     # before, or the one before an ad break); after a restart that one may have come from the
     # cache, and then this is a fresh interview.
@@ -1914,3 +1915,11 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                        content_hash=seg.content_hash,
                        show=seg.show, brief=seg.brief, guest=(guest or "").strip(),
                        aired=False)            # history once the player says it went out (world.confirm_aired)
+
+
+# The Christmas programmes' prompts (christmas.py): Hugh's tales, Midnight on the Quay, the service, the swim, the
+# Mayor's message and Christmases Past.
+from . import christmas as _christmas  # noqa: E402
+
+SHOW_SYSTEMS.update(_christmas.systems(_COMMON_RULES, _GUEST_RULES))
+TEMPLATE_HOOKS.update({s.id: functools.partial(_christmas.template, s.id) for s in _christmas.NEW_SHOWS})

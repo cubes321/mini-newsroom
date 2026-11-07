@@ -889,12 +889,34 @@ def start_label(start: int | str) -> str:
     return "%02d:%02d" % hour_min(start)
 
 
+SPECIAL_DAYS: dict[str, tuple[tuple, dict[str, Show]]] = {}   # event -> (its grid, its shows' versions): christmas.py
+_CHANNEL7 = SCHEDULE                     # entertainment/ puts out a day of its own, with no special days in it
+
+
+def special_day(day: date) -> tuple[tuple, dict[str, Show]] | None:
+    """The day's own grid and versions, if the calendar has a special day then (Christmas Eve, Christmas Day,
+    Boxing Day). NEWSROOM_SPECIAL_DAY names one to force for a test run, or 0 for none (the tests)."""
+    if SCHEDULE is not _CHANNEL7:
+        return None
+    forced = os.environ.get("NEWSROOM_SPECIAL_DAY", "")
+    if forced:
+        return SPECIAL_DAYS.get(forced)
+    names = {o.event.name for o in calendar.events_on(day)}
+    return next((plan for name, plan in SPECIAL_DAYS.items() if name in names), None)
+
+
+def grid_for(day: date) -> tuple:
+    plan = special_day(day)
+    return plan[0] if plan else SCHEDULE
+
+
 def slot_at(ts: float) -> str:
     """The schedule entry at `ts`, which may be a show that isn't built yet."""
     lt = time.localtime(ts)
     at = (lt.tm_hour, lt.tm_min)
-    current = SCHEDULE[0][1]
-    for start, show_id in SCHEDULE:
+    grid = grid_for(date.fromtimestamp(ts))
+    current = grid[0][1]
+    for start, show_id in grid:
         if at >= hour_min(start):
             current = show_id
     if current in COUNCIL_NIGHT_OFF and council.council_night(date.fromtimestamp(ts)):
@@ -909,7 +931,7 @@ def starts(ts: float, days: int = 2) -> list[tuple[float, str]]:
     out = []
     for k in range(days):
         d = date.fromordinal(day.toordinal() + k)
-        for start, slot in SCHEDULE:
+        for start, slot in grid_for(d):
             h, m = hour_min(start)
             out.append((time.mktime((d.year, d.month, d.day, h, m, 0, 0, 0, -1)), slot))
     return out
@@ -917,7 +939,9 @@ def starts(ts: float, days: int = 2) -> list[tuple[float, str]]:
 
 def show_at(ts: float) -> Show:
     slot = slot_at(ts)
-    return special_night(slot, date.fromtimestamp(ts)) or SHOWS[STAND_INS.get(slot, slot)]
+    plan = special_day(date.fromtimestamp(ts))
+    return ((plan[1].get(slot) if plan else None) or special_night(slot, date.fromtimestamp(ts))
+            or SHOWS[STAND_INS.get(slot, slot)])
 
 
 def show_end(ts: float) -> float:
@@ -979,7 +1003,11 @@ def clock_line(ts: float) -> str:
             "tell it as done or under way, never as still to come.")
 
 
-def get(show_id: str | None) -> Show:
+def get(show_id: str | None, ts: float | None = None) -> Show:
+    """The show, as it airs at `ts` if given: on Bonfire Night or at Christmas a version of it. Without the time
+    the writers got the ordinary Coastwide on 2026-11-05, so not one Bonfire Night prompt said where it was."""
+    if ts is not None and (on := show_at(ts)).id == show_id:
+        return on
     return SHOWS.get(show_id or "", SHOWS["news"])
 
 
@@ -999,11 +1027,14 @@ def now() -> float:
 
 
 def set_clock(hhmm: str) -> None:
-    """Pretend the local time is `hhmm` today; the clock then runs normally from there."""
+    """Pretend the local time is `hhmm` today, or "YYYY-MM-DD HH:MM" that day (a scratch run of Christmas Eve);
+    the clock then runs normally from there."""
     global _offset_s
+    day, _, hhmm = hhmm.strip().rpartition(" ")
     h, m = (int(x) for x in hhmm.split(":"))
     lt = time.localtime()
-    target = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, m, 0, 0, 0, -1))
+    y, mo, d = (int(x) for x in day.split("-")) if day else (lt.tm_year, lt.tm_mon, lt.tm_mday)
+    target = time.mktime((y, mo, d, h, m, 0, 0, 0, -1))
     _offset_s = target - time.time()
 
 
@@ -1026,3 +1057,9 @@ def _cli() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_cli())
+
+
+# Christmas Eve, Christmas Day and Boxing Day: their programmes and their days. christmas.py needs the shows
+# above, so it comes last, and registers itself in SHOWS and SPECIAL_DAYS when it has loaded (whichever of
+# the two is imported first).
+from . import christmas  # noqa: E402,F401

@@ -51,7 +51,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="commission today's documentary at the first idle moment, whatever the hour")
     p.add_argument("--breaking-now", action="store_true",
                    help="have the story desk break a story at its next idle moment, whatever the cap and the hour")
-    p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM (test the schedule)")
+    p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM, or YYYY-MM-DD HH:MM for another day (test the schedule)")
     p.add_argument("--channel", choices=("seven", "entertainment"), default="seven",
                    help="which channel to put out: Channel 7 (the default), or the entertainment channel "
                         "(entertainment/, sharing Port Wexley)")

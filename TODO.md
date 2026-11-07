@@ -203,6 +203,17 @@ bottom with the date.
   fireworks have got to by the clock (`schedule.on_location`). `NEWSROOM_SPECIAL_NIGHT=1` forces it for a
   test run. A template scratch run at 19:24 showed it live at the bonfire and the fireworks up from 19:31;
   the briefs still need a live run with the model.
+- [x] **Christmas Eve, Christmas Day and Boxing Day**, days of their own (the user, 2026-11-07; `christmas.py`).
+  A special day has its own grid and its own versions of the regular shows, chosen by the calendar's event
+  (`schedule.special_day`; `NEWSROOM_SPECIAL_DAY` forces one, and `--clock "2026-12-24 19:50"` runs a test on
+  the day itself). Christmas Eve: Coastwide at the carols on the quay, Hugh's Christmas Tales, The Last
+  Ferry's Christmas Eve, Midnight on the Quay. Christmas Day: Morning Tide at seven, the Christmas Morning
+  Service, the Christmas Day Swim, Rock Pool's Christmas, Out and About at Christmas, the Mayor's Christmas
+  Message, Christmases Past, Coastwide and The Last Ferry on Christmas night. Boxing Day: the Dip, Quayside
+  on the sales, Full Time at the stadium (both clubs at home). Found on the way: the writers never got a
+  special night's version of its show (`schedule.get` now takes the time), so on Bonfire Night not one
+  prompt said it was at the bonfire. Still to come: a church set (the village hall stands in), and
+  Christmas idents (the new programmes borrow a show's music).
 - [ ] **New Year's Eve: The Last Ferry: New Year's Eve** (build in December): 22:00 to half past
   midnight in place of The Last Ferry and the 23:00 news. Vincent and the house band; a monologue on the
   year; Port Wexley's Year (the most-covered stories, told back by Dana from the archive); guests from the
