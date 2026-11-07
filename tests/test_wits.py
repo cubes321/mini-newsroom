@@ -191,3 +191,19 @@ def test_with_the_model_down_a_round_is_still_tonights_questions_and_score(chann
     close = Segment(slot_id=5, type=T.interview, show="wits", part="close", brief="the RESULT, {close}", target_s=110)
     writers.script_segment(close, w)
     assert f"{q['teams'][q['winner']]['name']} win" in " ".join(l.text for l in close.lines)
+
+
+def test_a_quiz_round_is_never_offered_a_return_guest(channel, monkeypatch):
+    """The scratch run's quiz prompts carried 19 "A RETURN VISIT" offers: Wits is a light show, and a
+    light show's interview may book back a guest with a loose end. A quiz's guests are its teams."""
+    from test_guest_followups import _remembered_town
+
+    w = _remembered_town()
+    hollis = w.person_by_name("Hollis Byrne")
+    for end in hollis.loose_ends:
+        end["ts"] -= world_mod.RETURN_RIPE_S                     # ripe: a day old
+    assert w.return_guests()
+    q = quiz._record(w, quiz.teams(w), _booking())
+    seen = _stub(monkeypatch, llm.LLMError("down"))
+    writers.script_segment(Segment(slot_id=6, type=T.interview, show="wits", brief="{r1}", target_s=240), w)
+    assert seen and all("A RETURN VISIT" not in user for _, _, user in seen)

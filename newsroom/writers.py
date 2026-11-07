@@ -1439,6 +1439,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
     seg.work.pop("return_guest", None)
     seg.work.pop("loose_end_of", None)
     if (seg.type is SegmentType.interview and show.light and not cont and show.id != "rockpool"
+            and show.id not in BOOKED_SHOWS                              # a quiz's contestants are its teams
             and world.guest_returns.get(show.id) != world.last_date):     # no councillors' loose ends on Rock Pool
         back = world.return_guests(exclude=set(_recent_guests) | set(world.guests_today(show.id))
                                    | ({couch["name"]} if couch else set()))
