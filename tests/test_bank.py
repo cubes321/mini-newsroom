@@ -199,6 +199,121 @@ def test_the_recorded_dialogue_is_laid_on_the_scene_and_given_to_h3_as_audio_1(m
     assert cartoons.record(series, nobody, folder, 2) is None       # nothing to record: H3 makes the sound
 
 
+def _gully_shelf(tmp_path, monkeypatch, places=True, sound=True):
+    """The Gully series' designs, plates and beds in a temporary folder: pictures are stand-ins, sound is real."""
+    import numpy as np
+    import soundfile as sf
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    series = cartoons.SERIES["gully"]
+    series.refs().mkdir(parents=True)
+    for c in series.cast:
+        for kind in ("full", "face"):
+            (series.refs() / f"{c.key}_{kind}.png").write_bytes(b"x")
+    if places:
+        (tmp_path / "gully" / "places").mkdir()
+        for k in range(1, len(series.places) + 1):
+            (tmp_path / "gully" / "places" / f"place{k}.png").write_bytes(b"x")
+    if sound:
+        (tmp_path / "gully" / "sound").mkdir()
+        sr = 44100
+        ramp = np.linspace(-0.5, 0.5, sr * 60, dtype=np.float32)            # a minute of score: its slices can be told apart
+        sf.write(tmp_path / "gully" / "sound" / "score.wav", np.stack([ramp, ramp], axis=1), sr, subtype="FLOAT")
+        for k in range(1, len(series.places) + 1):
+            noise = np.random.default_rng(k).standard_normal(sr * 34).astype(np.float32) * 0.05
+            sf.write(tmp_path / "gully" / "sound" / f"amb{k}.wav", noise, sr)
+    return cartoons, series
+
+
+def test_a_place_with_a_plate_keeps_its_setting_and_the_regulars_are_seen_only_when_on_screen(monkeypatch, tmp_path):
+    cartoons, series = _gully_shelf(tmp_path, monkeypatch, sound=False)
+    scene = cartoons.Scene(place="the chip shop on the quay", on_screen=["biscuit", "trethewey"],
+                           summary="Mr Trethewey gives Biscuit a chip while Gully's bucket swings overhead.",
+                           shots=[{"at": 0, "action": "Biscuit sits by the door; Gully's bucket swings above"}],
+                           lines=[{"who": "biscuit", "words": "Thank you."}], sounds="the fryer")
+    text, pics, _ = cartoons.prompt(series, scene)
+    assert [p.name for p in pics] == ["biscuit_full.png", "biscuit_face.png", "trethewey_full.png",
+                                      "trethewey_face.png", "place3.png"]           # Gully is only mentioned
+    assert "retained exactly as seen in <Picture 5>" in text and "not retained" not in text
+    assert "Mr Trethewey" in text and "never speaks" in text
+    scene.on_screen = []                                                  # an older episode: names in the text
+    assert {p.name for p in cartoons.prompt(series, scene)[1]} >= {"trethewey_full.png", "gully_full.png"}
+    scene.place = "a beach in Spain"
+    assert "not retained" in cartoons.prompt(series, scene)[0]            # no plate for a place not in the series
+
+
+def test_every_scene_has_a_bed_and_the_score_runs_on_across_the_cuts(monkeypatch, tmp_path):
+    import numpy as np
+    import soundfile as sf
+
+    cartoons, series = _gully_shelf(tmp_path, monkeypatch)
+    monkeypatch.setattr(cartoons, "_speak", lambda series, who, words: np.full(24000, 0.2, dtype=np.float32))
+    folder = tmp_path / "gully" / "ep"
+    folder.mkdir()
+    quiet = cartoons.Scene(place="the lighthouse at dusk", summary="Biscuit watches the sun go down.",
+                           shots=[{"at": 0, "action": "Biscuit on the gallery"}], lines=[], sounds="wind")
+    track, cues = cartoons.record(series, quiet, folder, 1)
+    assert cues == []                                                     # nobody speaks: the bed alone
+    bed1, sr = sf.read(track)
+    halves = [np.sqrt((bed1[k:k + sr // 2] ** 2).mean()) for k in range(0, len(bed1) - sr // 2, sr // 2)]
+    assert min(halves) > 0.01                                             # no quiet half-second for H3 to fill
+    n = len(bed1)
+    monkeypatch.setattr(series.__class__, "sound", lambda self, name: (tmp_path / "gully" / "sound" / name)
+                        if name == "score.wav" else None)                 # the score alone: does it join up?
+    a, b = cartoons._bed(series, quiet, 1, n), cartoons._bed(series, quiet, 2, n)
+    step = (a[n // 2 + 1000, 0] - a[n // 2, 0]) / 1000                     # the ramp's slope, per sample
+    gap = b[1000, 0] - a[-1001, 0]                                         # outside the 20 ms fades
+    assert abs(gap - 2001 * step) < 0.02 * abs(2001 * step)              # scene 2 starts where scene 1 stopped
+    text, _, _ = cartoons.prompt(series, quiet, cues, bed=True)
+    assert "Nobody speaks" in text and "score heard in <Audio 1>, reproduced exactly" in text
+    talk = quiet.model_copy(update={"lines": [cartoons.Said(who="biscuit", words="Pretty.")]})
+    _, cues = cartoons.record(series, talk, folder, 2)
+    assert [q.words for q in cues] == ["Pretty."]
+
+
+def test_the_episode_is_assembled_with_our_sound_not_h3s(monkeypatch, tmp_path):
+    import numpy as np
+    import soundfile as sf
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    folder = tmp_path / "gully" / "ep"
+    folder.mkdir(parents=True)
+    ep = cartoons.Episode.model_validate({"title": "Two Scenes", "logline": "A test.", "scenes": [
+        {"place": "the harbour wall at low tide", "summary": "a", "shots": [{"at": 0, "action": "a"}], "sounds": "x"},
+        {"place": "the harbour wall at low tide", "summary": "b", "shots": [{"at": 0, "action": "b"}], "sounds": "x"}]})
+    (folder / "episode.json").write_text(ep.model_dump_json(), encoding="utf-8")
+    for i in (1, 2):
+        (folder / f"scene{i:02d}").mkdir()
+        _film(folder / f"scene{i:02d}" / "h3.mp4")                      # H3's sound: a 440 Hz tone
+        t = np.arange(2 * 44100) / 44100
+        tone = (0.3 * np.sin(2 * np.pi * 1000 * t)).astype(np.float32)   # ours: 1 kHz
+        sf.write(folder / f"scene{i:02d}.dialogue.wav", np.stack([tone, tone], axis=1), 44100)
+    film = cartoons.assemble(folder)
+    out = subprocess.run(["ffmpeg", "-v", "error", "-ss", "4", "-t", "1", "-i", str(film), "-ac", "1", "-ar", "8000",
+                          "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    a = np.frombuffer(out, np.int16).astype(float)
+    spec = np.abs(np.fft.rfft(a))
+    hz = np.fft.rfftfreq(len(a), 1 / 8000)
+    assert abs(hz[spec.argmax()] - 1000) < 20                             # 3 s of title card, then our track
+
+
+def test_the_writer_keeps_to_the_series_places_and_its_cast(monkeypatch):
+    from entertainment import cartoons
+    from newsroom import llm
+
+    reply = cartoons.Episode.model_validate({"title": "T", "logline": "L", "scenes": [
+        {"place": "The Chip Shop on the quay at night", "on_screen": ["gully", "fishmonger", "gully"],
+         "summary": "s", "shots": [{"at": 2, "action": "a"}], "lines": [{"who": "biscuit", "words": "No."}],
+         "sounds": "x"},
+        {"place": "the harbour wall at low tide", "summary": "s", "shots": [{"at": 0, "action": "a"}], "sounds": "x"}]})
+    monkeypatch.setattr(llm, "complete_json", lambda *a, **k: reply.model_copy(deep=True))
+    ep = cartoons.write(cartoons.SERIES["gully"], 2)
+    assert ep.scenes[0].place == "the chip shop on the quay"              # taken as the place it nearly is
+    assert ep.scenes[0].on_screen == ["gully", "biscuit"]                 # no strangers, and whoever speaks is seen
+
+
 def test_a_series_never_speaks_for_its_silent_partner():
     from entertainment import cartoons
 

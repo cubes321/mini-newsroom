@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import difflib
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -63,6 +64,11 @@ DIALOGUE = os.environ.get("CARTOON_DIALOGUE", "recorded")
 TRACK_SR = 44100
 POSSESSIVE = {"He": "his", "She": "her", "They": "their", "It": "its"}
 LEAD_S, TAIL_S, GAP_S, MAX_GAP_S = 0.6, 0.8, 0.45, 2.2   # the first line's start, quiet at the end, between lines
+# The bed under every scene's track (the copy probes, 2026-11-07): over silent gaps H3 made up speech of its own
+# (0.39 match to the track); over a continuous bed it copied the track (0.90). So no scene's track is ever quiet:
+# the series' score, sliced so it runs on across the cuts, and the place's ambience, under the lines (whose level
+# is Pocket's, 0.085 RMS).
+MUSIC_RMS, AMB_RMS = 0.022, 0.014
 FPS = 24
 SCENE_S = 15.0
 MAX_LINES = 5
@@ -93,6 +99,19 @@ class Series:
     def refs(self) -> Path:
         return ROOT / self.id / "refs"
 
+    def plate(self, place: str) -> Path | None:
+        """The place's plate (places/placeN.png, N its number in `places`): an empty painting of it, given to
+        H3 so the chip shop is the same chip shop in every scene (the pilot built it three ways)."""
+        if place not in self.places:
+            return None
+        path = ROOT / self.id / "places" / f"place{self.places.index(place) + 1}.png"
+        return path if path.exists() else None
+
+    def sound(self, name: str) -> Path | None:
+        """A bed in sound/: score.wav (the series' underscore, one continuous piece) or ambN.wav (place N)."""
+        path = ROOT / self.id / "sound" / name
+        return path if path.exists() else None
+
 
 STYLE = ("hand-drawn 2D cartoon animation in the style of a classic British children's television cartoon: clean "
          "bold outlines, flat warm colours, simple painted backgrounds of a small Cornish-looking fishing town")
@@ -108,7 +127,14 @@ SERIES: dict[str, Series] = {s.id: s for s in (
                    "bright, mischievous eyes", "a fast, chirpy, slightly squawky young male voice, always mid-scheme"),
          Character("biscuit", "Biscuit", "a plump ginger-and-white tabby cat with white fur on her chest and paws, an "
                    "ordinary four-legged cat, and heavy-lidded, unimpressed eyes",
-                   "a slow, dry, low female voice with a West Country burr, few words", "She")),
+                   "a slow, dry, low female voice with a West Country burr, few words", "She"),
+         # The regulars (2026-11-07): the pilot's chip-shop man was a new man in every scene. Silent until cast.
+         Character("trethewey", "Mr Trethewey", "a stout, cheerful man in his fifties who runs the chip shop: round "
+                   "red cheeks, a red nose, a bushy brown moustache, a white paper hat, a white short-sleeved shirt and "
+                   "a red-and-white striped apron", ""),
+         Character("dot", "Dot Penrose", "the fishmonger, a brisk woman with short dark hair under a navy knitted "
+                   "bobble hat, a navy jumper, a long dark green apron, yellow rubber gloves and white wellington boots",
+                   "", "She")),
         ("the harbour wall at low tide", "the lifeboat station slipway", "the chip shop on the quay",
          "the fish market on Harrow Street", "the lighthouse at dusk", "the Saltby ferry's deck"),
         tone="gently slapstick, warm, never cruel; for children and the grown-ups watching with them",
@@ -157,7 +183,9 @@ class Said(BaseModel):
 
 
 class Scene(BaseModel):
-    place: str = Field(max_length=120, description="one of THE PLACES, as written")
+    place: str = Field(max_length=120, description="one of THE PLACES, copied exactly")
+    on_screen: list[str] = Field(default_factory=list, max_length=3,
+                                 description="the keys of THE CAST who are seen in this scene")
     summary: str = Field(max_length=200, description="the scene in one sentence")
     shots: list[Shot] = Field(min_length=1, max_length=3)
     lines: list[Said] = Field(default_factory=list, max_length=MAX_LINES)
@@ -179,6 +207,10 @@ and at most five SHORT lines in all (about three seconds each), spoken only by T
 characters. A character who never speaks acts, and that is often the joke. The episode has a beginning, a
 turn and a payoff across the scenes, and visual comedy that animation can show: things falling, flying,
 running, a contraption going wrong. Original jokes only; no famous characters, catchphrases or brands.
+- PLACE is one of THE PLACES copied exactly; say the time of day in the summary and shots instead.
+- ON_SCREEN lists who is seen in the scene (at most three of THE CAST). Only THE CAST are characters:
+  anyone else is an unnamed crowd far in the background, never featured, close up or acting.
+- No written words anywhere: never ask for lettering on a sign, label, paper or plan.
 Return ONLY JSON.
 """
 
@@ -192,8 +224,12 @@ def write(series: Series, n: int = 6, idea: str = "") -> Episode:
     ep = llm.complete_json(TASK, Episode, _SYSTEM.format(title=series.title, premise=series.premise,
                                                           tone=series.tone, n=n), user)
     talkers = {c.key for c in series.cast if c.voice}
+    keys = [c.key for c in series.cast]
     for s in ep.scenes:                          # a line for a silent character, or nobody, is dropped
         s.lines = [l for l in s.lines if l.who in talkers][:MAX_LINES]
+        if s.place not in series.places:         # a near miss is taken as the place it nearly is
+            s.place = (difflib.get_close_matches(s.place, series.places, n=1, cutoff=0.0) or [s.place])[0]
+        s.on_screen = [k for k in dict.fromkeys(s.on_screen + [l.who for l in s.lines]) if k in keys][:4]
         s.shots = sorted(s.shots, key=lambda x: x.at)
         s.shots[0].at = 0.0
     return ep
@@ -215,13 +251,28 @@ class Cue:
     words: str
 
 
-def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None) -> tuple[str, list[Path], list[Path]]:
+_TITLES = {"mr", "mrs", "ms", "miss", "dr"}
+
+
+def _seen(series: Series, scene: Scene) -> list[Character]:
+    """Who is on screen: the writer's list, else (older episodes) anyone named in the summary or shots by a
+    word of their name that isn't a title; never more than four (with a plate, nine pictures in all)."""
+    if scene.on_screen:
+        keys = set(scene.on_screen) | {l.who for l in scene.lines}
+    else:
+        text = " ".join([scene.summary, *(s.action for s in scene.shots)])
+        keys = {l.who for l in scene.lines} | {c.key for c in series.cast if any(
+            re.search(rf"\b{re.escape(w)}\b", text, re.I) for w in c.name.split() if w.lower() not in _TITLES)}
+    return ([c for c in series.cast if c.key in keys] or list(series.cast[:1]))[:4]
+
+
+def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
+           bed: bool = False) -> tuple[str, list[Path], list[Path]]:
     """The scene's H3 prompt in its six sections, and its reference pictures and voice clips in the order the
-    prompt names them (<Picture N>, <Audio N>). Only the characters in the scene are referenced. With `cues`
-    the dialogue is recorded: the caller gives the track as <Audio 1>, and no voice clip is referenced."""
-    named = {l.who for l in scene.lines} | {c.key for c in series.cast if re.search(
-        rf"\b{re.escape(c.name.split()[0])}\b", " ".join([scene.summary, *(s.action for s in scene.shots)]), re.I)}
-    present = [c for c in series.cast if c.key in named] or list(series.cast[:1])
+    prompt names them (<Picture N>, <Audio N>). Only the characters on screen are referenced, then the place's
+    plate if it has one. With `cues` the sound is recorded (`bed`: the score and the place's ambience under
+    it): the caller gives the track as <Audio 1>, and no voice clip is referenced."""
+    present = _seen(series, scene)
     pics: list[Path] = []
     voices: list[Path] = []
     defs, keep = [], []
@@ -245,10 +296,23 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None) -> tuple
         defs.append(d)
         keep.append(f"<Subject {k}> (appears in every shot): fully_preserved - keep {c.name}'s shape, colours and "
                     f"look in the {series.style.split(':')[0]}")
-    shots = " ".join(f"[Shot {i + 1}] " + (f"At 00:{s.at:06.3f}, cut to " if i else "") + f"{s.action}, at "
+    shots = " ".join(f"[Shot {i + 1}] " + (f"At 00:{s.at:06.3f}, cut to " if i else "") + f"{s.action.rstrip('. ')}, at "
                      f"{scene.place}." for i, s in enumerate(scene.shots))
     said = " ".join(f"({speakers[l.who]}) <d>[English] {l.words}</d>" for l in scene.lines if l.who in speakers)
-    if cues:
+    plate = series.plate(scene.place)
+    if plate:
+        pics.append(plate)
+        setting = (f". The setting is {scene.place} in Port Wexley, retained exactly as seen in <Picture {len(pics)}>: "
+                   f"its buildings, layout, colours and drawing style, with nobody else in it; the light may change "
+                   f"with the time of day")
+    else:
+        setting = f". The reference images' background is not retained; the setting is {scene.place} in Port Wexley"
+    music = f"non_diegetic_music: {series.music}."
+    if cues is not None and not cues and bed:
+        sound = (f"overall_soundscape: Everything heard is <Audio 1> reproduced exactly: {scene.sounds.rstrip('. ')}, "
+                 f"and the score. Nobody speaks: no speech, no voices, no other sound.")
+        music = "non_diegetic_music: the cartoon score heard in <Audio 1>, reproduced exactly."
+    elif cues:
         # Plain quotes, never <d> tags: given a written line H3 voices it itself and leaves the recording
         # (the A/B's tea-cosy scene: the right words, its own timing, a 0.02 match to the track). Wan2GP's H3
         # handler says the same; the music videos quote their lyric the same way.
@@ -258,17 +322,18 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None) -> tuple
         sound = (f"overall_soundscape: Everything heard is <Audio 1> reproduced exactly, in time with it: {said}. Each "
                  f"speaker is visibly speaking with natural lip movements synchronized to <Audio 1>. Under the "
                  f"dialogue, {scene.sounds.rstrip('. ')}, as heard in <Audio 1>. No other speech, no other sound.")
+        if bed:
+            music = "non_diegetic_music: the cartoon score heard in <Audio 1>, reproduced exactly."
     else:
         sound = f"overall_soundscape: {scene.sounds.rstrip('. ')}. " + (f"Dialogue: {said} Only the dialogue above." if said else
                                                            "Nobody speaks.")
     text = "\n".join([
         "subject_definitions: " + " ".join(defs),
         f"summary: [reference generation] {scene.summary}",
-        "retention_analysis: " + ". ".join(keep) + f". The reference images' background is not retained; the setting "
-        f"is {scene.place} in Port Wexley.",
+        "retention_analysis: " + ". ".join(keep) + setting + ".",
         f"detailed_description: The target video is {series.style}, {scene.place}. {shots}",
         sound,
-        f"non_diegetic_music: {series.music}.",
+        music,
     ])
     return text, pics, voices
 
@@ -299,18 +364,59 @@ def _trim(a, sr: int):
     return a[max(0, loud[0] - m): loud[-1] + m]
 
 
+def _bed(series: Series, scene: Scene, i: int, n: int):
+    """Scene i's bed, `n` samples of stereo at TRACK_SR: the score from (i - 1) scenes in, so the slices join up
+    into one piece across the episode, and the place's ambience; None when the series has neither yet."""
+    import numpy as np
+    import soundfile as sf
+
+    def level(path: Path, start: float, rms: float):
+        a, sr = sf.read(path, dtype="float32", always_2d=True)
+        if a.shape[1] == 1:
+            a = np.repeat(a, 2, axis=1)
+        if sr != TRACK_SR:
+            x = np.arange(int(len(a) * TRACK_SR / sr)) * sr / TRACK_SR
+            a = np.stack([np.interp(x, np.arange(len(a)), a[:, ch]) for ch in (0, 1)], axis=1).astype(np.float32)
+        at = int(start * TRACK_SR) % max(1, len(a))
+        out = np.take(a, np.arange(at, at + n), axis=0, mode="wrap")     # a short bed loops
+        return out * (rms / (float(np.sqrt((a ** 2).mean())) or 1.0))
+
+    total = n / TRACK_SR
+    score = series.sound("score.wav")
+    place = series.sound(f"amb{series.places.index(scene.place) + 1}.wav") if scene.place in series.places else None
+    if not score and not place:
+        return None
+    bed = np.zeros((n, 2), dtype=np.float32)
+    if score:
+        bed += level(score, (i - 1) * total, MUSIC_RMS)
+    if place:
+        bed += level(place, (i * 7.3) % 20.0, AMB_RMS)                  # a different stretch of it each scene
+    fade = min(n, int(0.02 * TRACK_SR))                                  # no click at either end of a scene
+    bed[:fade] *= np.linspace(0, 1, fade)[:, None]
+    bed[-fade:] *= np.linspace(1, 0, fade)[:, None]
+    return bed
+
+
 def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, list[Cue]] | None:
-    """Scene i's dialogue: each line recorded once (kept in sceneNN/lines, so a retake is one file deleted), laid
-    on the scene's timeline with natural gaps, the spare time spread evenly between lines, and written as
-    sceneNN.dialogue.wav (stereo, the scene's exact length). None when nobody speaks."""
+    """Scene i's sound: each line recorded once (kept in sceneNN/lines, so a retake is one file deleted), laid
+    on the scene's timeline with natural gaps, the spare time spread evenly between lines, over the series' bed
+    (_bed), written as sceneNN.dialogue.wav (stereo, the scene's exact length). A scene nobody speaks in gets
+    the bed alone (cues []). None when there is nothing to record: no lines and no bed."""
     import numpy as np
     import soundfile as sf
     from newsroom.config import CONFIG
 
     talkers = {c.key for c in series.cast if c.voice}
     lines = [l for l in scene.lines if l.who in talkers]
+    total = frames(SCENE_S) / FPS
+    n = int(round(total * TRACK_SR))
+    bed = _bed(series, scene, i, n)
     if not lines:
-        return None
+        if bed is None:
+            return None
+        path = folder / f"scene{i:02d}.dialogue.wav"
+        sf.write(path, np.clip(bed, -1, 1), TRACK_SR)
+        return path, []
     sr = CONFIG.tts.sample_rate
     store = folder / f"scene{i:02d}" / "lines"
     store.mkdir(parents=True, exist_ok=True)
@@ -321,14 +427,13 @@ def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, li
             sf.write(wav, _trim(_speak(series, l.who, l.words), sr), sr)
         a, got = sf.read(wav, dtype="float32")
         clips.append(np.interp(np.arange(int(len(a) * TRACK_SR / got)) * got / TRACK_SR, np.arange(len(a)), a))
-    total = frames(SCENE_S) / FPS
     speech = sum(len(c) for c in clips) / TRACK_SR
     spare = total - LEAD_S - TAIL_S - speech - GAP_S * (len(clips) - 1)
     if spare < 0:
         raise ValueError(f"scene {i}'s lines run {speech:.1f}s: too long for {total:.1f}s")
     gap = GAP_S + (min(MAX_GAP_S - GAP_S, spare / (len(clips) - 1)) if len(clips) > 1 else 0.0)
     lead = LEAD_S + min(0.9, max(0.0, spare - (gap - GAP_S) * (len(clips) - 1)) / 2)
-    track = np.zeros(int(round(total * TRACK_SR)), dtype=np.float32)
+    track = np.zeros(n, dtype=np.float32)
     cues, t = [], lead
     for l, c in zip(lines, clips):
         at = int(round(t * TRACK_SR))
@@ -336,7 +441,8 @@ def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, li
         cues.append(Cue(round(t, 3), l.who, l.words))
         t += len(c) / TRACK_SR + gap
     path = folder / f"scene{i:02d}.dialogue.wav"
-    sf.write(path, np.stack([track, track], axis=1), TRACK_SR)
+    mix = np.stack([track, track], axis=1) + (bed if bed is not None else 0.0)
+    sf.write(path, np.clip(mix, -1, 1), TRACK_SR)
     return path, cues
 
 
@@ -478,7 +584,8 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
             log.info("cartoons: scene %d already rendered", i)
             continue
         rec = record(series, scene, folder, i) if DIALOGUE == "recorded" else None
-        text, pics, voices = prompt(series, scene, rec[1] if rec else None)
+        text, pics, voices = prompt(series, scene, rec[1] if rec else None,
+                                    bed=_bed(series, scene, i, 1) is not None)
         missing = [p for p in pics if not p.exists()]
         if missing:
             raise FileNotFoundError(f"no reference pictures yet: {', '.join(p.name for p in missing)} (the design stage)")
@@ -541,6 +648,9 @@ def assemble(folder: Path) -> Path:
         if still:
             args += ["-loop", "1", "-t", "3", "-i", str(src), "-f", "lavfi", "-t", "3", "-i",
                      "anullsrc=channel_layout=stereo:sample_rate=44100"]
+            v, a, i = i, i + 1, i + 2
+        elif (track := folder / f"scene{k:02d}.dialogue.wav").exists():   # our sound, not H3's copy of it
+            args += ["-i", str(src), "-i", str(track)]
             v, a, i = i, i + 1, i + 2
         else:
             args += ["-i", str(src)]
