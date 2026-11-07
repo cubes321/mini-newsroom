@@ -1923,3 +1923,4 @@ from . import christmas as _christmas  # noqa: E402
 
 SHOW_SYSTEMS.update(_christmas.systems(_COMMON_RULES, _GUEST_RULES))
 TEMPLATE_HOOKS.update({s.id: functools.partial(_christmas.template, s.id) for s in _christmas.NEW_SHOWS})
+_PLACE.update(_christmas.places(_MIDDLE))

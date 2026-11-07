@@ -48,6 +48,13 @@ TALES = Show(
             "THE CANNERY'S LAST CHRISTMAS: the women of the packing line and the party they threw before it shut",
             "THE BELLS UNDER THE SEA: the drowned chapel off the Salting whose bells ring at midnight on Christmas "
             "Eve, if you listen"), target_s=300.0),
+        # Two tales to a break: one each made a minute of adverts for every two of story (scratch run, 2026-11-07).
+        I(T.links, brief=(
+            "THE LANTERN ON THE SALTING: the light a widow kept in her window every Christmas for a boat that came "
+            "home at last",
+            "THE WREN HUNT: the old Boxing Day custom of the coast, and the year the wren won",
+            "THE DROWNED ORGANIST: why the harbour church's organ plays one note by itself on Christmas night"),
+          target_s=300.0),
         T.ad_break,
     ),
     loop_from=2,
@@ -458,8 +465,10 @@ def systems(common: str, guest_rules: str) -> dict[str, dict[T, str]]:
     return {
         "tales": {T.links: common + to_camera.format(who="Hugh Tremayne", id="historian", title="Christmas Tales")
                   + "When THIS ITEM is a TALE, tell it whole, as a storyteller by the fire: a beginning, a turn and "
-                    "an end, in the town's places, kept to the word budget. A legend is a legend: never claim it "
-                    "happened, and say where the story comes from.\n"},
+                    "an end, in the town's places, kept to the word budget, in six to ten lines of two to four "
+                    "sentences each (a line is a breath, never the whole tale: one line of a thousand characters "
+                    "failed twice). A legend is a legend: never claim it happened, and say where the story comes "
+                    "from. No welcome: the programme is under way.\n"},
         "midnight": {T.links: common + to_camera.format(who="Dana", id="anchor", title="Midnight on the Quay"),
                      T.interview: common + guest.format(lead="Dana (\"anchor\")"),
                      T.vox_pop: common + vox.format(lead="Dana (\"anchor\")")},
@@ -498,6 +507,16 @@ IDENTS = {
 }
 # Its set, when it has no location of its own (scenes.SHOW_SETS).
 SETS = {"tales": "studio_late", "mayor": "council_chamber", "past": "studio_interview"}
+
+def places(middle: str) -> dict:
+    """Where an item is in its programme (writers._PLACE): the middle of it, unless THIS ITEM opens or closes it.
+    Without one, Hugh opened a tale in the middle of the hour with "Good evening, and welcome"."""
+    from . import writers
+
+    return {(s.id, t): {"": middle.format(title=writers._title(s), extra="")}
+            for s in NEW_SHOWS for t in {e if isinstance(e, T) else e.type for e in s.pattern}
+            if t not in (T.bumper, T.ad_break)}
+
 
 # On the air: the new programmes join the shows, and the days the special days (schedule.special_day).
 SHOWS.update({s.id: s for s in NEW_SHOWS})

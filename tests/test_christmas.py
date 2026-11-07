@@ -85,3 +85,14 @@ def test_another_channel_has_no_christmas(by_calendar):
         assert schedule.show_at(_at(DAY, 11, 20)).id == "overnight"
     finally:
         undo()
+
+
+def test_a_tale_is_told_in_breaths_in_the_middle_of_the_hour_and_two_come_before_a_break(by_calendar):
+    """The scratch run, 2026-11-07: one tale came as one line of over a thousand characters, twice, and
+    opened "Good evening, and welcome"; and an ad break after every tale."""
+    w = world_mod.seed()
+    system, user = writers.build_prompt(T.links, w, target_s=300, show=christmas.TALES, brief="THE WREN HUNT",
+                                        at_ts=_at(EVE, 20, 20))
+    assert "six to ten lines" in system and "PLACE IN THE SHOW: the MIDDLE of Hugh's Christmas Tales" in user
+    loop = [schedule.as_item(e).type for e in christmas.TALES.pattern[christmas.TALES.loop_from:]]
+    assert loop == [T.links, T.links, T.ad_break]
