@@ -204,6 +204,15 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
             buffer.mark(ready, SegmentState.ready)
         return ready
 
+    if seg.type is SegmentType.film:
+        from . import bank
+
+        ready = bank.segment(seg, world)               # from the shelf, or the test card if it's empty
+        world_mod.save(world)                          # its airing, so a restart doesn't pick it again
+        if buffer:
+            buffer.mark(ready, SegmentState.ready)
+        return ready
+
     if seg.type is SegmentType.ad_break:
         # Filled from the advert pool as it airs (player.py): built now, up to the planning horizon
         # ahead, it could find the pool still empty at startup, and the gap adverts would lose

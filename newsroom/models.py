@@ -54,6 +54,7 @@ class SegmentType(StrEnum):
     sport = "sport"              # the sports desk: Fran at the sports corner (the news, and Full Time)
     call = "call"                # a phone-in: a caller on the line, the presenter, and maybe the studio guest
     review = "review"            # Out and About: a place to eat or a show, visited, with stars out of five
+    film = "film"                # a finished film from the content bank (bank.py): a cartoon, played as made
 
 
 class SegmentState(StrEnum):

@@ -15,6 +15,7 @@ import random
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "overnight"),
+    (19, "cartoons"),           # Cartoon Time: films from the bank (cartoons.py makes them, offline)
     (20, "wits"),
     ("20:20", "overnight"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
 )
@@ -25,11 +26,16 @@ def use():
     from newsroom import assets, locations, player, scenes, schedule, workers, writers
 
     from . import oche, quiz, wits
+    from .cartoons import CARTOON_TIME
 
     saved = (schedule.SCHEDULE, dict(schedule.SHOWS), dict(locations.MARKS), dict(assets.IDENTS),
-             list(workers.IDLE_JOBS), dict(writers._PLACE))
+             list(workers.IDLE_JOBS), dict(writers._PLACE), dict(assets.IDENT_MUSIC))
     schedule.SCHEDULE = SCHEDULE
     schedule.SHOWS[quiz.SHOW] = wits.SHOW
+    schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME
+    assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons.wav",
+                                      "It's Cartoon Time, on channel seven!")
+    assets.IDENT_MUSIC[CARTOON_TIME.id] = "rockpool"          # until Cartoon Time has music of its own
     locations.MARKS[wits.SET] = wits.MARKS
     scenes.SHOW_SETS[quiz.SHOW] = wits.SET
     player.SEATS[quiz.SHOW] = 4
@@ -60,6 +66,7 @@ def use():
         assets.IDENTS.clear(), assets.IDENTS.update(saved[3])
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
+        assets.IDENT_MUSIC.clear(), assets.IDENT_MUSIC.update(saved[6])
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
                     writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS):

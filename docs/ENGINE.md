@@ -140,3 +140,12 @@ engine never imports it. Instead a show from outside plugs into registries the e
 
 Channel 7's own shows still use their branches in those modules. They can move onto the registries
 when a change touches them anyway, as stage 1 says.
+
+## The content bank, built (2026-11-07)
+
+`newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them
+with a rule for how soon one repeats; when each aired is the world's, so a scratch run's airings stay in
+its copy. A `film` segment carries the soundtrack as its one line and the video in its work; the player's
+film mode draws frames from an ffmpeg pipe straight onto the window (`film.py`, `scenes.present`). The
+entertainment channel's Cartoon Time is its first user (`entertainment/cartoons.py` makes the films); the
+advert and continuity pools and the overnight repeats could move onto it when they are next touched.

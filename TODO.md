@@ -111,6 +111,15 @@ bottom with the date.
     said on channel 7, from Person.memories, none naming its speaker) and darts doubles at double twenty (most
     doubles wins; a miss mostly lands in the number ring, "No score."). Seven rounds now; not on air yet.
   - The result as town talk: the news or Coastwide mentioning who won.
+- [ ] **Cartoons** (the user, 2026-11-07): animated films made offline with H3 and aired from the content bank.
+  Part A built: the bank (`newsroom/bank.py`, the shelf in data/bank, airings in the world), films on air
+  (`SegmentType.film`, `film.py`: ffmpeg frames drawn at the window's size, the soundtrack through the mixer),
+  Cartoon Time 19:00-20:00 on the entertainment channel, and the production tool (`entertainment/cartoons.py`:
+  plan, render on Wan2GP headless, assemble, ingest). Two series of our own: Gully and Biscuit, and Morwenna
+  Kitto and Ballast (an inventor and her silent tortoise, the user's "inventor and companion" idea, our own).
+  Part B, only when the user says: the designs on a sheet, a speed test (ComfyUI H3 20 steps, its turbo LoRA,
+  Wan2GP FastH3 NVFP4 8 steps; confirm the voice-clip flags with --dry-run), then a pilot episode. Left: with
+  a small shelf an hour of Cartoon Time repeats the same few films.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after

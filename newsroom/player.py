@@ -105,6 +105,7 @@ class View:
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
     verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
     overlay: dict | None = None          # a show's own box over the set (OVERLAY_HOOKS; scenes.OVERLAYS draws it)
+    film: tuple[str, float] | None = None   # a film from the bank on air: (its video, seconds into it)
     bonfire: bool = False                # a special night out on location (schedule.SPECIAL_NIGHTS): a bonfire
     fireworks: bool = False              # and fireworks overhead, in their window on the clock
 
@@ -558,6 +559,9 @@ class Player:
         elif seg.type is SegmentType.testcard:
             v.mode, v.speaker = "testcard", None
             v.show, v.resume_at = on_air.id, schedule.next_start(on_air.id)
+        elif seg.type is SegmentType.film and seg.work.get("film"):
+            v.mode, v.speaker, v.show = "film", None, on_air.id
+            v.film = (seg.work["film"], elapsed)
         elif seg.type is SegmentType.teletext:
             page, prev, since = teletext.on_screen(seg.work.get("teletext") or {}, elapsed)
             v.mode, v.speaker, v.show = "teletext", None, on_air.id

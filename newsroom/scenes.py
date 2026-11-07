@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import backdrops, locations, logo, parallax, schedule
+from . import backdrops, film, locations, logo, parallax, schedule
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -179,6 +179,10 @@ def present(canvas: pygame.Surface, screen: pygame.Surface) -> None:
         _par.draw(screen)
     else:
         pygame.transform.scale(canvas, screen.get_size(), screen)
+    if _film_on:                                     # a cartoon from the bank, full size, not through the pixels
+        frame = film.frame(_film_on[0], _film_on[1], screen.get_size())
+        if frame is not None:
+            screen.blit(frame, (0, 0))
     k = screen.get_width() / canvas.get_width()
     for key, make, (x, y) in _pictures:
         n = max(1, round(k))
@@ -862,10 +866,16 @@ def shows_bug(v: View) -> bool:
     return v.mode in PROGRAMMES and not v.breaking and not (v.mode == "special" and _title_card(v))
 
 
+_film_on: tuple[str, float] | None = None   # the film present() draws over the window this frame
+
+
 def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
-    global _par
+    global _par, _film_on
     _layer.clear()
     _pictures.clear()
+    _film_on = v.film if v.mode == "film" else None
+    if _film_on is None:
+        film.stop()
     _par = _parallax(v, t)
     flat, canvas = canvas, (_par.overlay if _par else canvas)
     if v.mode == "testcard":
@@ -874,6 +884,8 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_clock(canvas, v)
     elif v.mode == "teletext":
         draw_teletext(canvas, v, t)                  # the page is the whole screen, its own clock included
+    elif v.mode == "film":
+        canvas.fill((0, 0, 0))                       # the film is drawn at the window's size (present)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
         if v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
