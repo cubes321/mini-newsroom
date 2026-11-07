@@ -25,7 +25,21 @@ def evening(monkeypatch):
 def test_the_writers_are_told_the_time_and_that_earlier_plans_have_happened(evening):
     _, user = writers.build_prompt(T.bulletin, world_mod.seed(), target_s=40.0)
     assert "It is 21:49 on the broadcast clock" in user
+    assert 'they say "coming up to ten to ten"' in user
     assert "earlier today has already happened" in user
+
+
+def test_the_time_is_said_in_words_worked_out_in_code():
+    """On 2026-11-07 Haiku, told 09:54, 09:57 and 09:59, said "ten to ten" for all three."""
+    at = lambda hm: datetime(2026, 11, 7, *map(int, hm.split(":"))).timestamp()
+    for hm, said in (("09:59", "coming up to ten o'clock"), ("09:58", "coming up to ten o'clock"),
+                     ("09:57", "just after five to ten"), ("09:54", "coming up to five to ten"),
+                     ("09:50", "ten to ten"), ("09:41", "just after twenty to ten"),
+                     ("09:30", "half past nine"), ("09:15", "quarter past nine"), ("13:25", "twenty-five past one"),
+                     ("11:58", "coming up to midday"), ("12:01", "just after midday"),
+                     ("23:59", "coming up to midnight"), ("00:02", "just after midnight"),
+                     ("22:45", "quarter to eleven"), ("11:40", "twenty to twelve")):
+        assert schedule.spoken_time(at(hm)) == said, hm
 
 
 def test_the_desk_is_told_the_time_after_the_cached_briefing(evening, monkeypatch):

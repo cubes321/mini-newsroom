@@ -948,12 +948,35 @@ def part_of_day(ts: float) -> str:
     return "night"
 
 
+_HOUR_WORDS = ("twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven")
+_FIVES = {5: "five past", 10: "ten past", 15: "quarter past", 20: "twenty past", 25: "twenty-five past",
+          30: "half past", 35: "twenty-five to", 40: "twenty to", 45: "quarter to", 50: "ten to", 55: "five to"}
+
+
+def _on_the_five(h: int, m: int) -> str:
+    if m == 0:
+        return "midnight" if h == 0 else "midday" if h == 12 else f"{_HOUR_WORDS[h % 12]} o'clock"
+    return f"{_FIVES[m]} {_HOUR_WORDS[(h + (m > 30)) % 12]}"
+
+
+def spoken_time(ts: float) -> str:
+    """The time as a presenter says it, worked out here: on 2026-11-07 Haiku, told 09:54, 09:57 and
+    09:59, said "ten to ten" for all three. 09:59 is "coming up to ten o'clock", 09:41 "just after
+    twenty to ten"."""
+    t = time.localtime(ts)
+    near = (t.tm_hour * 60 + t.tm_min + 2) // 5 * 5
+    said = _on_the_five(*divmod(near % (24 * 60), 60))
+    off = t.tm_min % 5
+    return said if off == 0 else f"just after {said}" if off <= 2 else f"coming up to {said}"
+
+
 def clock_line(ts: float) -> str:
     """The time on the broadcast clock, and what it means for today's dated plans. On 2026-11-05 the
     news still said "bonfire gates open at six" at eleven at night: the prompts gave the date and
     "it is the evening", never the time, so the six o'clock start in the calendar read as to come."""
-    return (f"It is {time.strftime('%H:%M', time.localtime(ts))} on the broadcast clock. Anything timed "
-            "earlier today has already happened: tell it as done or under way, never as still to come.")
+    return (f"It is {time.strftime('%H:%M', time.localtime(ts))} on the broadcast clock: if anyone gives "
+            f"the time, they say \"{spoken_time(ts)}\". Anything timed earlier today has already happened: "
+            "tell it as done or under way, never as still to come.")
 
 
 def get(show_id: str | None) -> Show:
