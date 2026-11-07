@@ -13,9 +13,9 @@ def test_a_provider_swap_moves_every_task_routed_to_it(monkeypatch):
 
 def test_a_task_swap_moves_only_that_task_and_wins_over_its_provider(monkeypatch):
     monkeypatch.delenv("NEWSROOM_LLM", raising=False)
-    monkeypatch.setenv("NEWSROOM_ROUTES", " editor = deepseek_pro , deepseek_flash_think=moonshot_k3")
+    monkeypatch.setenv("NEWSROOM_ROUTES", " editor = deepseek_pro , deepseek_flash_think=claude_sonnet")
     assert llm.provider_for("editor") == "deepseek_pro"
-    assert llm.provider_for("story_desk") == "moonshot_k3"
+    assert llm.provider_for("story_desk") == "claude_sonnet"
 
 
 def test_the_deepseek_providers_are_declared():

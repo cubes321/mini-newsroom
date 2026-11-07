@@ -406,7 +406,7 @@ bottom with the date.
   (each desk timeout was sent twice by the SDK retry; k3 now has
   `max_retries = 0`). Left to do: an estimate for those rows (prompt size, and
   max_tokens as the ceiling), or a check against the provider's dashboard.
-- [ ] Kimi sometimes writes a spoken line over 900 characters (Miles) and the
+- [x] Dropped with Kimi (2026-11-07: dearer than Haiku, Sonnet and DeepSeek). Was: Kimi sometimes writes a spoken line over 900 characters (Miles) and the
   script fails validation once; the retry usually works. Status notes are now
   clipped on parse (`models._clip`); spoken lines aren't, since cutting speech
   mid-sentence is worse than a retry. (Kimi doesn't get the JSON schema

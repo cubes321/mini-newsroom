@@ -7,7 +7,7 @@ under `[llm.providers.<name>]`.
 
 Provider kinds:
 - "openai": any OpenAI-compatible chat endpoint. LM Studio and llama.cpp
-  locally, Moonshot (Kimi) in the cloud. The `openai` package is used only
+  locally, DeepSeek in the cloud. The `openai` package is used only
   because that is the wire format these servers speak.
 - "anthropic": the official Anthropic SDK with structured outputs.
 
