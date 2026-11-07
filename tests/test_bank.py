@@ -136,6 +136,7 @@ def test_a_dry_run_writes_each_scenes_graph_and_a_rendered_scene_is_kept(monkeyp
 
     monkeypatch.setattr(cartoons, "ROOT", tmp_path)
     monkeypatch.setattr(cartoons, "_comfy", lambda *a, **k: pytest.fail("a dry run never calls ComfyUI"))
+    monkeypatch.setattr(cartoons, "DIALOGUE", "h3")                  # H3 voices the lines (no voice clips here)
     series = cartoons.SERIES["gully"]
     series.refs().mkdir(parents=True)
     for name in ("gully_full.png", "gully_face.png", "biscuit_full.png", "biscuit_face.png"):
@@ -155,6 +156,47 @@ def test_a_dry_run_writes_each_scenes_graph_and_a_rendered_scene_is_kept(monkeyp
     assert g["9"]["inputs"]["length"] == 362 and g["10"]["inputs"]["noise_seed"] == 1002
     assert g["18"]["inputs"]["filename_prefix"] == "cartoons/gully_gullys-kite_scene02"
     assert "Biscuit" in g["9"]["inputs"]["prompt"] and g["100"]["inputs"]["image"] == "biscuit_full.png"
+
+
+def test_the_recorded_dialogue_is_laid_on_the_scene_and_given_to_h3_as_audio_1(monkeypatch, tmp_path):
+    import numpy as np
+    import soundfile as sf
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    said = []
+
+    def speak(series, who, words):                                 # a tone a second long per line, at 24 kHz
+        said.append((who, words))
+        t = np.arange(24000) / 24000
+        return (0.3 * np.sin(2 * np.pi * (220 if who == "gully" else 150) * t)).astype(np.float32)
+
+    monkeypatch.setattr(cartoons, "_speak", speak)
+    series = cartoons.SERIES["inventor"]
+    scene = cartoons.Scene(place="the shed", summary="Morwenna explains; Ballast waits.",
+                           shots=[{"at": 0, "action": "Morwenna at the bench, Ballast on the floor"}],
+                           lines=[{"who": "morwenna", "words": "It nearly works!"},
+                                  {"who": "morwenna", "words": "Pass the spanner, Ballast."}], sounds="clanks")
+    folder = tmp_path / "inventor" / "ep"
+    folder.mkdir(parents=True)
+    track, cues = cartoons.record(series, scene, folder, 1)
+    assert [c.words for c in cues] == ["It nearly works!", "Pass the spanner, Ballast."] and len(said) == 2
+    a, sr = sf.read(track)
+    assert sr == cartoons.TRACK_SR and a.shape == (round(362 / 24 * sr), 2)    # the scene's exact length, stereo
+    first, second = cues
+    assert cartoons.LEAD_S <= first.at < 2.0 and second.at - first.at >= 1.0 + cartoons.GAP_S - 0.05
+    loud = np.flatnonzero(np.abs(a[:, 0]) > 0.05) / sr
+    assert abs(loud[0] - first.at) < 0.05 and loud[-1] < 362 / 24 - cartoons.TAIL_S + 0.05
+    cartoons.record(series, scene, folder, 1)
+    assert len(said) == 2                                           # recorded once: kept in scene01/lines
+    text, pics, voices = cartoons.prompt(series, scene, cues)
+    assert voices == [] and "her lines are heard in <Audio 1>" in text and "Ballast" in text
+    assert f'at 00:{first.at:06.3f} (S1) Morwenna says "It nearly works!"' in text and "<d>" not in text
+    assert "Everything heard is <Audio 1> reproduced exactly, in time with it" in text
+    assert "Under the dialogue, clanks, as heard in <Audio 1>. No other speech" in text
+    nobody = cartoons.Scene(place="the shed", summary="Ballast crawls.", shots=[{"at": 0, "action": "Ballast"}],
+                            lines=[], sounds="ticking")
+    assert cartoons.record(series, nobody, folder, 2) is None       # nothing to record: H3 makes the sound
 
 
 def test_a_series_never_speaks_for_its_silent_partner():

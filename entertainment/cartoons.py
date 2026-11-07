@@ -55,6 +55,14 @@ H3 = {"unet": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
       "vae": "minimax_h3_video_vae_int8_convrot.safetensors",
       "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"}
 TURBO_STEPS = 4
+# The dialogue (the user's idea, 2026-11-07, from the music videos): recorded first, one line at a time in the cast's
+# voices, laid on the scene's timeline, and given to H3 as <Audio 1>, which it copies almost sample for sample and
+# moves the mouths to. Every voice is the same in every scene, and no line is invented or garbled (H3 speaking for
+# itself babbled for three seconds in the pilot's scene 2). "h3" lets H3 voice the lines from the clips instead.
+DIALOGUE = os.environ.get("CARTOON_DIALOGUE", "recorded")
+TRACK_SR = 44100
+POSSESSIVE = {"He": "his", "She": "her", "They": "their", "It": "its"}
+LEAD_S, TAIL_S, GAP_S, MAX_GAP_S = 0.6, 0.8, 0.45, 2.2   # the first line's start, quiet at the end, between lines
 FPS = 24
 SCENE_S = 15.0
 MAX_LINES = 5
@@ -200,9 +208,17 @@ def _done(series: Series) -> str:
 # ------------------------------------------------------------------ H3's prompt for a scene
 
 
-def prompt(series: Series, scene: Scene) -> tuple[str, list[Path], list[Path]]:
+@dataclass(frozen=True)
+class Cue:
+    at: float                    # seconds into the scene the line starts, in the recorded track
+    who: str
+    words: str
+
+
+def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None) -> tuple[str, list[Path], list[Path]]:
     """The scene's H3 prompt in its six sections, and its reference pictures and voice clips in the order the
-    prompt names them (<Picture N>, <Audio N>). Only the characters in the scene are referenced."""
+    prompt names them (<Picture N>, <Audio N>). Only the characters in the scene are referenced. With `cues`
+    the dialogue is recorded: the caller gives the track as <Audio 1>, and no voice clip is referenced."""
     named = {l.who for l in scene.lines} | {c.key for c in series.cast if re.search(
         rf"\b{re.escape(c.name.split()[0])}\b", " ".join([scene.summary, *(s.action for s in scene.shots)]), re.I)}
     present = [c for c in series.cast if c.key in named] or list(series.cast[:1])
@@ -215,7 +231,9 @@ def prompt(series: Series, scene: Scene) -> tuple[str, list[Path], list[Path]]:
         pics += [full, face]
         d = (f"<Subject {k}> is {c.name}, {c.looks}, from <Picture {len(pics) - 1}> (full figure) and "
              f"<Picture {len(pics)}> (face).")
-        if c.voice:
+        if c.voice and cues is not None:
+            d += f" {c.pronoun} speaks ({speakers[c.key]}) in {c.voice}; {POSSESSIVE.get(c.pronoun, 'their')} lines are heard in <Audio 1>."
+        elif c.voice:
             clip = series.refs() / f"{c.key}_voice.wav"
             if clip.exists():
                 voices.append(clip)
@@ -230,17 +248,96 @@ def prompt(series: Series, scene: Scene) -> tuple[str, list[Path], list[Path]]:
     shots = " ".join(f"[Shot {i + 1}] " + (f"At 00:{s.at:06.3f}, cut to " if i else "") + f"{s.action}, at "
                      f"{scene.place}." for i, s in enumerate(scene.shots))
     said = " ".join(f"({speakers[l.who]}) <d>[English] {l.words}</d>" for l in scene.lines if l.who in speakers)
+    if cues:
+        # Plain quotes, never <d> tags: given a written line H3 voices it itself and leaves the recording
+        # (the A/B's tea-cosy scene: the right words, its own timing, a 0.02 match to the track). Wan2GP's H3
+        # handler says the same; the music videos quote their lyric the same way.
+        names = {c.key: c.name.split()[0] for c in present}
+        said = "; ".join(f'at 00:{q.at:06.3f} ({speakers[q.who]}) {names[q.who]} says "{q.words}"' for q in cues
+                         if q.who in speakers)
+        sound = (f"overall_soundscape: Everything heard is <Audio 1> reproduced exactly, in time with it: {said}. Each "
+                 f"speaker is visibly speaking with natural lip movements synchronized to <Audio 1>. Under the "
+                 f"dialogue, {scene.sounds.rstrip('. ')}, as heard in <Audio 1>. No other speech, no other sound.")
+    else:
+        sound = f"overall_soundscape: {scene.sounds.rstrip('. ')}. " + (f"Dialogue: {said} Only the dialogue above." if said else
+                                                           "Nobody speaks.")
     text = "\n".join([
         "subject_definitions: " + " ".join(defs),
         f"summary: [reference generation] {scene.summary}",
         "retention_analysis: " + ". ".join(keep) + f". The reference images' background is not retained; the setting "
         f"is {scene.place} in Port Wexley.",
         f"detailed_description: The target video is {series.style}, {scene.place}. {shots}",
-        f"overall_soundscape: {scene.sounds}. " + (f"Dialogue: {said} Only the dialogue above." if said else
-                                                   "Nobody speaks."),
+        sound,
         f"non_diegetic_music: {series.music}.",
     ])
     return text, pics, voices
+
+
+# ------------------------------------------------------------------ the recorded dialogue
+
+
+def _speak(series: Series, who: str, words: str):
+    """One line in a character's voice: Pocket TTS cloning their voice clip (CPU), as a float array at the TTS
+    rate. The engine is this one function, so a GPU voice can take its place."""
+    from newsroom import tts
+
+    clip = series.refs() / f"{who}_voice.wav"
+    if not clip.exists():
+        raise FileNotFoundError(f"no voice for {who} yet: {clip.name} (the casting stage)")
+    with tts._SYNTH_LOCK:
+        return tts._pocket_speak(words, clip)
+
+
+def _trim(a, sr: int):
+    """A line without the silence the voice engine leaves either side (a 30 ms margin kept)."""
+    import numpy as np
+
+    loud = np.flatnonzero(np.abs(a) > 0.02 * (float(np.abs(a).max()) or 1.0))
+    if not len(loud):
+        return a
+    m = int(0.03 * sr)
+    return a[max(0, loud[0] - m): loud[-1] + m]
+
+
+def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, list[Cue]] | None:
+    """Scene i's dialogue: each line recorded once (kept in sceneNN/lines, so a retake is one file deleted), laid
+    on the scene's timeline with natural gaps, the spare time spread evenly between lines, and written as
+    sceneNN.dialogue.wav (stereo, the scene's exact length). None when nobody speaks."""
+    import numpy as np
+    import soundfile as sf
+    from newsroom.config import CONFIG
+
+    talkers = {c.key for c in series.cast if c.voice}
+    lines = [l for l in scene.lines if l.who in talkers]
+    if not lines:
+        return None
+    sr = CONFIG.tts.sample_rate
+    store = folder / f"scene{i:02d}" / "lines"
+    store.mkdir(parents=True, exist_ok=True)
+    clips = []
+    for k, l in enumerate(lines, start=1):
+        wav = store / f"{k:02d}_{l.who}.wav"
+        if not wav.exists():
+            sf.write(wav, _trim(_speak(series, l.who, l.words), sr), sr)
+        a, got = sf.read(wav, dtype="float32")
+        clips.append(np.interp(np.arange(int(len(a) * TRACK_SR / got)) * got / TRACK_SR, np.arange(len(a)), a))
+    total = frames(SCENE_S) / FPS
+    speech = sum(len(c) for c in clips) / TRACK_SR
+    spare = total - LEAD_S - TAIL_S - speech - GAP_S * (len(clips) - 1)
+    if spare < 0:
+        raise ValueError(f"scene {i}'s lines run {speech:.1f}s: too long for {total:.1f}s")
+    gap = GAP_S + (min(MAX_GAP_S - GAP_S, spare / (len(clips) - 1)) if len(clips) > 1 else 0.0)
+    lead = LEAD_S + min(0.9, max(0.0, spare - (gap - GAP_S) * (len(clips) - 1)) / 2)
+    track = np.zeros(int(round(total * TRACK_SR)), dtype=np.float32)
+    cues, t = [], lead
+    for l, c in zip(lines, clips):
+        at = int(round(t * TRACK_SR))
+        track[at: at + len(c)] += c[: len(track) - at]
+        cues.append(Cue(round(t, 3), l.who, l.words))
+        t += len(c) / TRACK_SR + gap
+    path = folder / f"scene{i:02d}.dialogue.wav"
+    sf.write(path, np.stack([track, track], axis=1), TRACK_SR)
+    return path, cues
 
 
 # ------------------------------------------------------------------ the steps
@@ -334,11 +431,11 @@ def _comfy(path: str, body: dict | None = None) -> dict:
     return json.loads(raw) if raw else {}
 
 
-def _to_comfy(series: Series, path: Path) -> str:
+def _to_comfy(series: Series, path: Path, as_name: str | None = None) -> str:
     """A reference into ComfyUI's input folder, under a name that says whose it is (copied when changed)."""
     import shutil
 
-    name = f"cartoon_{series.id}_{path.name}"
+    name = f"cartoon_{series.id}_{as_name or path.name}"
     dst = COMFY_DIR / "input" / name
     if not dst.exists() or dst.stat().st_mtime < path.stat().st_mtime or dst.stat().st_size != path.stat().st_size:
         shutil.copy2(path, dst)
@@ -380,12 +477,15 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
         if _rendered(folder, i):
             log.info("cartoons: scene %d already rendered", i)
             continue
-        text, pics, voices = prompt(series, scene)
+        rec = record(series, scene, folder, i) if DIALOGUE == "recorded" else None
+        text, pics, voices = prompt(series, scene, rec[1] if rec else None)
         missing = [p for p in pics if not p.exists()]
         if missing:
             raise FileNotFoundError(f"no reference pictures yet: {', '.join(p.name for p in missing)} (the design stage)")
         names = [p.name if dry_run else _to_comfy(series, p) for p in pics]
         audio = [v.name if dry_run else _to_comfy(series, v) for v in voices]
+        if rec:                                          # the recorded dialogue is <Audio 1>, the only audio
+            audio = [rec[0].name if dry_run else _to_comfy(series, rec[0], f"{folder.name}_{rec[0].name}")]
         graph = comfy_graph(text, names, audio, seed=1000 + i, length=frames(SCENE_S),
                             prefix=f"{series.id}_{folder.name}_scene{i:02d}")
         (folder / f"scene{i:02d}.comfy.json").write_text(json.dumps(graph, indent=1), encoding="utf-8")
