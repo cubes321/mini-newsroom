@@ -372,6 +372,7 @@ def _guest(v: View, name: str | None):
 
 SET_OVERRIDE: str | None = None     # a one-off's own studio set (registered by tools/one_off.py), or none
 SHOW_SETS: dict[str, str] = {}      # a set per show from outside this package (entertainment/), by show id
+OVERLAYS: dict = {}                 # and its box over the set: (canvas, view) -> None, drawn when view.overlay
 
 
 def _interview_set(v: View) -> str:
@@ -445,6 +446,8 @@ def draw_interview(canvas: pygame.Surface, v: View, t: float) -> None:
         _interview_wide(canvas, v, t)
     if v.caller:
         _caller_box(canvas, v)
+    if v.overlay and v.show in OVERLAYS:
+        OVERLAYS[v.show](canvas, v)
 
 
 CALLER_BOX = pygame.Rect(214, 18, 98, 44)       # top right, under the clock, clear of the studio guest's head

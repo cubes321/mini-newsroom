@@ -1,6 +1,7 @@
 """Wexley Wits: the show, its prompts and its set. The quiz itself is quiz.py's.
 
-Half an hour from a darts pub: Clive Ashdown (mag_b) welcomes the two pubs, asks four rounds, and reads
+Half an hour from a darts pub: Clive Ashdown (mag_b) welcomes the two pubs, asks four rounds of questions and a
+darts round (oche.py: every dart in code, shown in a window as Clive calls it), and reads
 the final score. Each round is one interview item whose brief carries the round as booked ("{r2}"), so the
 writer sets the banter around results already decided. If items come in short, the order wraps to a chat
 with one team or the other (no questions, no score) until the result is read at the close.
@@ -17,7 +18,7 @@ from newsroom.writers import _COMMON_RULES, _MIDDLE
 from . import quiz
 
 SET = "pub"
-DONE = ("all four rounds are over and only the result is to come (no round is next), so no quiz questions "
+DONE = ("all five rounds are over and only the result is to come (no round is next), so no quiz questions "
         "and no score: ")
 # Clive standing at the left; the home pair, then the away pair, facing him across the floor.
 MARKS = {"host": (52, 152, 2, 1), "guest": (128, 150, 2, -1),
@@ -33,9 +34,10 @@ SHOW = Show(
         I(T.interview, brief="{r1}", target_s=240.0),
         T.ad_break,
         I(T.interview, brief="{r2}", target_s=240.0),
-        I(T.interview, brief="{r3}", target_s=240.0),
+        I(T.interview, brief="{r3}", target_s=200.0),            # the darts round
         T.ad_break,
         I(T.interview, brief="{r4}", target_s=240.0),
+        I(T.interview, brief="{r5}", target_s=240.0),
         # Wraps to here until the close: chats, no questions and no score, a different angle each lap.
         I(T.interview, brief=tuple(DONE + b for b in (
             "Clive chats with {chat1} about their pub, their darts season and who is the brains of the pair",
@@ -46,7 +48,7 @@ SHOW = Show(
             "Clive asks both pairs what the winners should do with tonight's prize, a tin of biscuits and the "
             "pub's cup")), target_s=120.0),
     ),
-    loop_from=8,
+    loop_from=9,
     closing=(I(T.interview, "close", brief="the RESULT, {close}; a word from each captain, a good loser and a "
                                            "happy winner, and Clive's goodnight", target_s=110.0),),
     target_s={T.bumper: 8.0, T.links: 50.0, T.interview: 240.0, T.ad_break: 60.0},
@@ -78,7 +80,8 @@ contestant speaks. headline = the point in under 12 words. lower_third = "Wexley
 This is Clive with the teams, as THIS ITEM says. When it is a ROUND: Clive names the round in a line,
 then asks its questions in order, with a quick word now and then for whoever answered; each goes as given (right; or wrong and over to the other team for
 the bonus; or nobody, and Clive gives the answer); a quick word between questions, never a long one;
-at the end Clive reads out THE SCORE exactly. At most 22 lines: Clive's verdict and his next question
+at the end Clive reads out THE SCORE exactly. When it is THE DARTS ROUND, it goes dart by dart as
+THIS ITEM gives it. At most 22 lines: Clive's verdict and his next question
 share a line. Every contestant speaks at least once. When it is a chat,
 there are no questions and no score. When it is the RESULT, it goes exactly as given. Every "guest" line
 names its speaker in guest_name. headline = the round or the chat and how it went, under 12 words.

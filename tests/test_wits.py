@@ -9,7 +9,7 @@ from collections import Counter
 import pytest
 
 import entertainment
-from entertainment import quiz
+from entertainment import oche, quiz
 from newsroom import darts, llm, player, scenes, schedule, world as world_mod, writers
 from newsroom.models import Segment, SegmentType as T
 
@@ -70,6 +70,13 @@ def test_the_quiz_is_played_in_code_and_the_score_adds_up(monkeypatch):
     q = quiz.tonight(w)
     score = [0, 0]
     for r in q["rounds"]:
+        if r["kind"] == "darts":
+            a, b = r["totals"]
+            assert a == sum(d["points"] for d in r["throws"] if d["to"] == 0)
+            score[0] += 1 if a == b else oche.POINTS if a > b else 0
+            score[1] += 1 if a == b else oche.POINTS if b > a else 0
+            assert r["scores_after"] == score
+            continue
         assert len(r["questions"]) == quiz.PER_ROUND
         assert Counter(x["to"] for x in r["questions"]) == {0: 3, 1: 3}         # three each a round
         for x in r["questions"]:
@@ -107,7 +114,7 @@ def test_the_stronger_pub_gets_more_right():
     for seed in range(200):
         rounds, *_ = quiz._play(_booking(), [strong, weak], f"x{seed}")
         for r in rounds:
-            right.update(x["to"] for x in r["questions"] if x["right"])
+            right.update(x["to"] for x in r.get("questions", []) if x["right"])
     assert right[0] > right[1] * 1.15
 
 
@@ -115,7 +122,7 @@ def test_with_no_model_the_stand_in_quiz_asks_the_towns_own_facts(monkeypatch):
     w = world_mod.seed()
     _stub(monkeypatch, llm.LLMError("down"))
     q = quiz.commission(w)
-    asked = [x["q"] for r in q["rounds"] for x in r["questions"]]
+    asked = [x["q"] for r in q["rounds"] for x in r.get("questions", [])]
     assert q["stand_in"] and len(asked) == 24 and len(set(asked)) == 24
     assert any(str(w.founded) == x["a"] for x in q["rounds"][1]["questions"])
 
@@ -182,11 +189,11 @@ def test_with_the_model_down_a_round_is_still_tonights_questions_and_score(chann
     w = world_mod.seed()
     q = quiz._record(w, quiz.teams(w), _booking())
     _stub(monkeypatch, llm.LLMError("down"))
-    seg = Segment(slot_id=4, type=T.interview, show="wits", brief="{r3}", target_s=240)
+    seg = Segment(slot_id=4, type=T.interview, show="wits", brief="{r4}", target_s=240)
     writers.script_segment(seg, w)
     said = " ".join(l.text for l in seg.lines)
-    s = q["rounds"][2]["scores_after"]
-    assert all(x["q"] in said for x in q["rounds"][2]["questions"])
+    s = q["rounds"][3]["scores_after"]
+    assert all(x["q"] in said for x in q["rounds"][3]["questions"])
     assert f"{q['teams'][0]['name']} {s[0]}, {q['teams'][1]['name']} {s[1]}" in said
     close = Segment(slot_id=5, type=T.interview, show="wits", part="close", brief="the RESULT, {close}", target_s=110)
     writers.script_segment(close, w)
@@ -207,3 +214,112 @@ def test_a_quiz_round_is_never_offered_a_return_guest(channel, monkeypatch):
     seen = _stub(monkeypatch, llm.LLMError("down"))
     writers.script_segment(Segment(slot_id=6, type=T.interview, show="wits", brief="{r1}", target_s=240), w)
     assert seen and all("A RETURN VISIT" not in user for _, _, user in seen)
+
+
+def test_the_board_scores_a_dart_by_where_it_lands():
+    assert oche.score_at(0, 0) == (50, "Bullseye!") and oche.score_at(0, 12)[0] == 25
+    assert oche.score_at(0, 103) == (60, "Treble twenty!") and oche.score_at(0, 166) == (40, "Double twenty!")
+    assert oche.score_at(0, 60) == (20, "Twenty.") and oche.score_at(0, 200) == (0, "Off the board!")
+    assert oche.score_at(40, 120)[0] == 1 and oche.score_at(-40, 120)[0] == 5      # either side of the twenty
+    assert oche.score_at(0, -103) == (9, "Treble three!")                            # the three, at the bottom
+    assert oche.words(66) == "sixty-six" and oche.words(112) == "one hundred and twelve"
+
+
+def test_every_dart_is_thrown_in_code_and_the_better_pub_scores_more():
+    ts = [{"name": "S", "pub": "S", "members": ["A", "B"], "strength": 1.15},
+          {"name": "W", "pub": "W", "members": ["C", "D"], "strength": 0.85}]
+    import random
+    throws, totals = oche.play(random.Random(1), ts)
+    assert [d["who"] for d in throws] == ["A"] * 3 + ["C"] * 3 + ["B"] * 3 + ["D"] * 3       # captains first
+    assert all(oche.score_at(d["x"], d["y"])[0] == d["points"] for d in throws)
+    assert totals == [sum(d["points"] for d in throws if d["to"] == t) for t in (0, 1)]
+    won = sum(oche.play(random.Random(k), ts)[1][0] > oche.play(random.Random(k), ts)[1][1] for k in range(200))
+    assert 0 < won < 200 and won > 100
+
+
+def _darts_lines(r, said=lambda d: d["call"]):
+    from newsroom.models import PanelLine
+    lines = [PanelLine(speaker="mag_b", text="The darts round!")]
+    for d in r["throws"]:
+        lines.append(PanelLine(speaker="mag_b", text=said(d) + " Lovely."))
+        if len(lines) % 6 == 5:
+            lines.append(PanelLine(speaker="guest", guest_name=d["who"], text="Ooh."))
+    return lines
+
+
+def test_the_darts_round_is_called_dart_by_dart_and_the_window_follows_the_calls(channel, monkeypatch):
+    w = world_mod.seed()
+    q = quiz._record(w, quiz.teams(w), _booking())
+    r = q["rounds"][2]
+    assert r["kind"] == "darts" and len(r["throws"]) == 12
+    brief = quiz.brief_for(w, "{r3}")
+    assert "THE DARTS ROUND" in brief and all(f'"{d["call"]}"' in brief for d in r["throws"])
+    from newsroom.models import PanelScript
+
+    def reply(schema):
+        return PanelScript(lines=_darts_lines(r), headline="The darts round", lower_third="Wexley Wits",
+                           guest_name=r["throws"][0]["who"])
+    _stub(monkeypatch, reply)
+    seg = Segment(slot_id=7, type=T.interview, show="wits", brief="{r3}", target_s=200)
+    writers.script_segment(seg, w)
+    lines = _darts_lines(r)
+    assert not seg.fallback and [d["line"] for d in seg.work["darts"]] == [
+        i for i, l in enumerate(lines) if l.speaker == "mag_b" and i > 0]
+    assert oche.overlay(seg, 0) == {"who": r["throws"][0]["who"], "to": 0, "darts": [], "total": 0, "call": ""}
+    at = [d["line"] for d in seg.work["darts"]]
+    two = oche.overlay(seg, at[1])                               # two darts called, the first thrower's
+    assert len(two["darts"]) == 2 and two["total"] == sum(d["points"] for d in r["throws"][:2])
+    fourth = oche.overlay(seg, at[3])                            # the next thrower's first dart: a fresh board
+    assert fourth["who"] == r["throws"][3]["who"] and len(fourth["darts"]) == 1 and fourth["to"] == 1
+
+
+def test_a_darts_round_with_a_call_missing_is_the_codes_own_round(channel, monkeypatch):
+    w = world_mod.seed()
+    q = quiz._record(w, quiz.teams(w), _booking())
+    r = q["rounds"][2]
+    from newsroom.models import PanelScript
+
+    _stub(monkeypatch, lambda schema: PanelScript(lines=_darts_lines(r, lambda d: "What a throw!"),
+                                                  headline="The darts round", lower_third="Wexley Wits",
+                                                  guest_name=r["throws"][0]["who"]))
+    seg = Segment(slot_id=8, type=T.interview, show="wits", brief="{r3}", target_s=200)
+    writers.script_segment(seg, w)
+    assert seg.lines[0].text.startswith("Round 3, the darts round")    # the code's own round
+    assert len(seg.work["darts"]) == 12                                   # which calls every dart itself
+    said = " ".join(l.text for l in seg.lines)
+    assert f"{q['teams'][0]['name']} {r['scores_after'][0]}, {q['teams'][1]['name']} {r['scores_after'][1]}" in said
+
+
+def test_twenty_is_not_twenty_five():
+    from newsroom.models import PanelLine
+    throws = [{"call": "Twenty."}, {"call": "Twenty-five."}]
+    lines = [PanelLine(speaker="mag_b", text="Twenty-five! Outer bull."), PanelLine(speaker="mag_b", text="Twenty."),
+             PanelLine(speaker="mag_b", text="Twenty-five.")]
+    assert oche.calls_in(lines, throws) == [1, 2]
+
+
+def test_the_window_draws_the_board_and_the_darts():
+    import pygame
+
+    from newsroom import scenes
+
+    pygame.font.init()
+    canvas = pygame.Surface(scenes.CANVAS)
+
+    class V:
+        show, overlay = "wits", {"who": "Gav Polglase", "to": 0, "darts": [(0.0, 103.0)], "total": 60, "call": ""}
+    entertainment.use()()                                        # registers the show for its colour, then undoes
+    from newsroom import schedule
+    schedule.SHOWS["wits"] = __import__("entertainment.wits", fromlist=["SHOW"]).SHOW
+    try:
+        oche.draw(canvas, V)
+    finally:
+        schedule.SHOWS.pop("wits")
+    cx, cy = oche.BOX.x + 3 + oche.BOARD_R, oche.BOX.y + 13 + oche.BOARD_R
+    assert canvas.get_at((cx, cy))[:3] == (200, 30, 40)                           # the bull
+    assert canvas.get_at((cx, round(cy - 103 * oche._SCALE)))[:3] == (255, 255, 255)   # the dart's point, treble 20
+
+
+def test_the_window_says_the_last_dart_in_darts_shorthand():
+    assert [oche.mark(*oche.score_at(x, y)) for x, y in ((0, 103), (0, 166), (0, 60), (0, 12), (0, 0), (0, 200))] == [
+        "T20", "D20", "20", "25", "BULL", "MISS"]

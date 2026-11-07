@@ -46,6 +46,8 @@ LET_FINISH_S = 12.0        # breaking news waits for a segment with less than th
 
 # How many guests a show from outside this package seats on its set (entertainment/ fills it).
 SEATS: dict[str, int] = {}
+# Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
+OVERLAY_HOOKS: dict = {}
 
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue,
@@ -102,6 +104,7 @@ class View:
     caller: tuple[str, str] | None = None   # a phone-in caller on the line: (name, where from)
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
     verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
+    overlay: dict | None = None          # a show's own box over the set (OVERLAY_HOOKS; scenes.OVERLAYS draws it)
     bonfire: bool = False                # a special night out on location (schedule.SPECIAL_NIGHTS): a bonfire
     fireworks: bool = False              # and fireworks overhead, in their window on the clock
 
@@ -597,6 +600,8 @@ class Player:
             v.advert = dict(cues.get("advert") or seg.work.get("advert", {}))     # a break: the advert airing now
             owner = self.world.presenter_named(v.advert.get("owner"))
             v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
+        if seg.show in OVERLAY_HOOKS:          # a show from outside this package: its box, at this line
+            v.overlay = OVERLAY_HOOKS[seg.show](seg, self.line_idx)
         if seg.type is SegmentType.call and seg.work.get("caller"):
             v.caller = (seg.work["caller"], seg.work.get("caller_from", ""))
             if line and line.guest_name == v.caller[0] and line.mouth_env:

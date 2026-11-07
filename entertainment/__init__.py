@@ -24,7 +24,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, locations, player, scenes, schedule, workers, writers
 
-    from . import quiz, wits
+    from . import oche, quiz, wits
 
     saved = (schedule.SCHEDULE, dict(schedule.SHOWS), dict(locations.MARKS), dict(assets.IDENTS),
              list(workers.IDLE_JOBS), dict(writers._PLACE))
@@ -42,6 +42,10 @@ def use():
     writers.SEAT_HOOKS[quiz.SHOW] = quiz.seats
     writers.CAPTION_HOOKS[quiz.SHOW] = quiz.caption
     writers.TEMPLATE_HOOKS[quiz.SHOW] = template
+    writers.CHECK_HOOKS[quiz.SHOW] = quiz.check
+    writers.AFTER_HOOKS[quiz.SHOW] = quiz.after
+    player.OVERLAY_HOOKS[quiz.SHOW] = oche.overlay
+    scenes.OVERLAYS[quiz.SHOW] = oche.draw
     writers.BOOKED_SHOWS.add(quiz.SHOW)
     writers.DEBATE_SHOWS.add(quiz.SHOW)
     writers.UNFILED_SHOWS.add(quiz.SHOW)
@@ -54,7 +58,8 @@ def use():
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
-                    writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS):
+                    writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
+                    writers.AFTER_HOOKS, player.OVERLAY_HOOKS, scenes.OVERLAYS):
             reg.pop(quiz.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
             reg.discard(quiz.SHOW)
@@ -82,9 +87,24 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
             headline=f"Wexley Wits: {teams[0]['name']} against {teams[1]['name']}", lower_third="Wexley Wits")
     if seg_type is not T.interview:
         return None
-    n = next((int(k[1]) - 1 for k in ("r1", "r2", "r3", "r4") if "{" + k + "}" in brief), None)
+    n = next((int(k[1]) - 1 for k in ("r1", "r2", "r3", "r4", "r5") if "{" + k + "}" in brief), None)
     lines: list = []
-    if n is not None:
+    if n is not None and q["rounds"][n]["kind"] == "darts":
+        from .oche import PER_PLAYER, words
+
+        r = q["rounds"][n]
+        lines.append(PanelLine(speaker="mag_b", text=f"Round {n + 1}, the darts round. Three darts each, at the oche."))
+        for k in range(0, len(r["throws"]), PER_PLAYER):
+            mine = r["throws"][k:k + PER_PLAYER]
+            lines.append(PanelLine(speaker="mag_b", text=f"{mine[0]['who']}, for {teams[mine[0]['to']]['name']}."))
+            lines += [PanelLine(speaker="mag_b", text=d["call"]) for d in mine]
+            lines.append(PanelLine(speaker="mag_b", text=f"That's {words(sum(d['points'] for d in mine))}."))
+        s = r["scores_after"]
+        lines.append(PanelLine(speaker="mag_b", text=f"Totals: {teams[0]['name']} {r['totals'][0]}, "
+                                                    f"{teams[1]['name']} {r['totals'][1]}. So after round {n + 1}: "
+                                                    f"{teams[0]['name']} {s[0]}, {teams[1]['name']} {s[1]}."))
+        head = "The darts round"
+    elif n is not None:
         r = q["rounds"][n]
         said = f"Round {n + 1}: {r['title']}."         # Clive's verdict shares a line with what he says next
         for x in r["questions"]:

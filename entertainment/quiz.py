@@ -2,7 +2,7 @@
 
 Two pubs from the darts league (newsroom/darts.py) send their two regulars, the captain first, and the
 home pub is the venue. In idle time from BOOK_FROM (or when the first item needs it), one call sets four
-rounds of six questions: general knowledge, Port Wexley from the briefing and the town's past, the
+rounds of six questions (a fifth, the darts round, is thrown in oche.py): general knowledge, Port Wexley from the briefing and the town's past, the
 week's news from its headlines, and pot luck, each question rated 1 to 3, and a tiebreak with a number for an answer.
 Then this module plays the quiz: which team each question goes to and who answers, whether they get it
 (a seeded draw on the question's difficulty and the pub's darts strength, with a small home-town edge
@@ -26,6 +26,8 @@ from datetime import date, datetime, timedelta
 from pydantic import BaseModel, Field
 
 from newsroom import darts, llm, schedule
+
+from . import oche
 from newsroom.config import CONFIG
 from newsroom.models import SegmentType
 from newsroom.world import World
@@ -36,15 +38,16 @@ SHOW = "wits"
 AIRS_AT = "20:00"
 BOOK_FROM = "18:00"
 PER_ROUND = 6                          # four made rounds of 85 s on 2026-11-07's scratch run: chat filled the rest
-ROUNDS = (("general", "general knowledge"), ("local", "Port Wexley and the coast"), ("news", "the week's news"),
-          ("potluck", "pot luck"))
+# The darts round (oche.py) has no questions: three darts each, thrown in code.
+ROUNDS = (("general", "general knowledge"), ("local", "Port Wexley and the coast"), ("darts", "the darts round"),
+          ("news", "the week's news"), ("potluck", "pot luck"))
 OWN_POINTS, BONUS_POINTS = 2, 1
 RIGHT = {1: 0.8, 2: 0.6, 3: 0.4}       # the chance a pub of strength 1.0 gets its own question, by difficulty
 BONUS = 0.6                            # a bonus is harder: the first team's guess is out, the clock is on
 LOCAL_EDGE = 1.1                       # regulars know their own town
 REST_PAIRS = 5                         # a pairing doesn't come back within this many quizzes
 HEADLINES = 30
-TOKEN = re.compile(r"\{(open|r[1-4]|close|chat[12])\}")
+TOKEN = re.compile(r"\{(open|r[1-5]|close|chat[12])\}")
 
 # The darts regulars' genders, for their voices and looks (darts.PUBS names them, nothing more).
 GENDER = {"Shirley Vosper": "f", "Dennis Rowe": "m", "Gav Polglase": "m", "Tracy Hendy": "f",
@@ -155,7 +158,7 @@ def _past(world: World) -> list[str]:
 def commission(world: World) -> dict:
     """Book tonight's quiz: the questions (the model, or the stand-in if it fails), then play it here."""
     ts = teams(world)
-    asked = [q["q"] for quiz in world.quizzes[-6:] for r in quiz["rounds"] for q in r["questions"]]
+    asked = [q["q"] for quiz in world.quizzes[-6:] for r in quiz["rounds"] for q in r.get("questions", [])]
     user = (f"BRIEFING\n{world.summary_for_editor()}\n\nTHIS WEEK'S HEADLINES:\n"
             + "\n".join(f"  - {h}" for h in _week(world))
             + "\n\nTHE TOWN'S PAST:\n" + ("\n".join(f"  - {p}" for p in _past(world)) or "  (nothing yet)")
@@ -191,6 +194,16 @@ def _play(booking: QuizBooking, ts: list[dict], seed: str) -> tuple[list[dict], 
     score = [0, 0]
     rounds = []
     for r, (kind, title) in enumerate(ROUNDS):
+        if kind == "darts":
+            throws, totals = oche.play(rng, ts)
+            if totals[0] == totals[1]:
+                score[0] += 1
+                score[1] += 1
+            else:
+                score[0 if totals[0] > totals[1] else 1] += oche.POINTS
+            rounds.append({"kind": kind, "title": title, "throws": throws, "totals": totals,
+                           "scores_after": list(score)})
+            continue
         qs = getattr(booking, kind)[:PER_ROUND]
         out = []
         for i, q in enumerate(qs):
@@ -249,6 +262,30 @@ def seats(world: World) -> list[str]:
     return [*q["teams"][0]["members"], *q["teams"][1]["members"]]
 
 
+def darts_round(world: World, brief: str) -> dict | None:
+    """The darts round, if this item's brief is it."""
+    m = re.search(r"\{r([1-5])\}", brief or "")
+    q = tonight(world)
+    r = q["rounds"][int(m.group(1)) - 1] if m and q else None
+    return r if r and r["kind"] == "darts" else None
+
+
+def check(seg, script, world: World) -> None:
+    """A darts round's script must call every dart, in order, each in a line of Clive's (oche.calls_in)."""
+    r = darts_round(world, seg.brief)
+    if r and oche.calls_in(script.lines, r["throws"]) is None:
+        raise llm.LLMError("the darts round's calls weren't all there, in order")
+
+
+def after(seg, world: World) -> None:
+    """Tie each dart to the line that calls it, for the window (oche.overlay)."""
+    seg.work.pop("darts", None)
+    r = darts_round(world, seg.brief)
+    found = oche.calls_in(seg.lines, r["throws"]) if r else None
+    if found:
+        seg.work["darts"] = [{**d, "line": i} for d, i in zip(r["throws"], found)]
+
+
 def caption(world: World, name: str) -> str | None:
     q = tonight(world)
     for t in (q or {}).get("teams", []):
@@ -268,6 +305,8 @@ def _score(q: dict, s: list[int]) -> str:
 
 def _round(q: dict, n: int) -> str:
     r = q["rounds"][n]
+    if r["kind"] == "darts":
+        return oche.brief(q, r, n, _score(q, r["scores_after"]))
     rows = []
     for i, x in enumerate(r["questions"]):
         team, other = q["teams"][x["to"]]["name"], q["teams"][1 - x["to"]]["name"]
@@ -292,15 +331,16 @@ def brief_for(world: World, brief: str) -> str:
     def part(m: re.Match) -> str:
         k = m.group(1)
         if k == "open":
-            return (f"tonight's quiz, at {q['venue']}: {_team(q, 0)}, at home, against {_team(q, 1)}. Four "
-                    f"rounds: {', '.join(t for _, t in ROUNDS)}; {OWN_POINTS} points for a question of your own, "
-                    f"{BONUS_POINTS} for a bonus when it's offered over")
+            return (f"tonight's quiz, at {q['venue']}: {_team(q, 0)}, at home, against {_team(q, 1)}. "
+                    f"{oche.words(len(ROUNDS)).capitalize()} rounds: {', '.join(t for _, t in ROUNDS)}; "
+                    f"{OWN_POINTS} points for a question of your own, {BONUS_POINTS} for a bonus when it's offered "
+                    f"over, and {oche.POINTS} for the pair with the higher total at the darts")
         if k.startswith("r"):
             return _round(q, int(k[1]) - 1)
         if k.startswith("chat"):
             return _team(q, int(k[4]) - 1)
         before = q["rounds"][-1]["scores_after"]
-        out = f"after four rounds: {_score(q, before)}. "
+        out = f"after all {oche.words(len(ROUNDS))} rounds: {_score(q, before)}. "
         if q["tiebreak"]:
             t = q["tiebreak"]
             unit = f" {t['unit']}" if t["unit"] else ""

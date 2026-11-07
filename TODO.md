@@ -92,7 +92,9 @@ bottom with the date.
   - **The rest of the channel's evening**: outside 20:00-20:30 it is the overnight test card, which still
     carries Channel 7's ident and would repeat Channel 7's cache. The content bank (ENGINE.md) is the answer.
   - The channel still wears Channel 7's logo and name in places.
-  - A darts round (three darts each, scored in code from `darts.py`) if rounds still come in short.
+  - The darts round (built 2026-11-07, `entertainment/oche.py`): round three, three darts each at treble twenty, every
+    dart drawn on a real board's geometry; the window at the top left shows the thrower's darts as Clive calls
+    them (a script missing a call in order gives way to the code's own round). Not on air yet.
   - The result as town talk: the news or Coastwide mentioning who won.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch

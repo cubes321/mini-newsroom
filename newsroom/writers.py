@@ -760,6 +760,8 @@ BOOKED_SHOWS: set[str] = set()      # every guest is booked: no recent-guest or 
 DEBATE_SHOWS: set[str] = set()      # an interview has several guests, each line naming its speaker
 UNFILED_SHOWS: set[str] = set()     # never files an item under a news story, whatever thread_id it sets
 CAPTION_HOOKS: dict[str, Callable] = {}   # (world, guest name) -> their caption on this show, or None
+CHECK_HOOKS: dict[str, Callable] = {}     # (seg, script, world): raise llm.LLMError if the script won't do
+AFTER_HOOKS: dict[str, Callable] = {}     # (seg, world): once seg.lines are set, e.g. which line shows what
 
 
 def big_story(world: World):
@@ -1531,6 +1533,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 script = before
             elif end:
                 seg.work["loose_end_of"] = known.name
+        if show.id in CHECK_HOOKS:
+            CHECK_HOOKS[show.id](seg, script, world)      # the template stands in if it won't do
         # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
         if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
             raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")
@@ -1586,6 +1590,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     if call:
         seg.work["caller"], seg.work["caller_from"] = script.caller_name, script.caller_from   # on the phone
     seg.headline = script.headline
+    if show.id in AFTER_HOOKS:
+        AFTER_HOOKS[show.id](seg, world)
     seg.cues = _cues_for(seg, script)
     _apply_to_world(seg, script, world, template=source == "template")
     seg.state = SegmentState.scripted
