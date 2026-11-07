@@ -1289,6 +1289,21 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
                           lower_third="Have Your Say", caller_name="Pam Rowe", caller_from="Harrow Street",
                           caller_gender="f", caller_age="old", caller_accent="british",
                           thread_id=booked.get("thread_id"))
+    if show.id == inquiry.SHOW and seg_type is SegmentType.feature:
+        # The stock feature below is off the story: "The lifeboat crew's newest volunteer" aired three times
+        # in the middle of The Inquiry on 2026-11-06. Pat on what the record shows stays on it.
+        s = inquiry.tonight(world) or {}
+        t = world.thread(s["thread_id"]) if s.get("thread_id") else None
+        beats = [b for b in (t.beats if t else []) if b.get("headline")]
+        said = [GuestLine(speaker="mag_a", text=f"On {b.get('day') or b.get('date')}: {b['headline'].rstrip('.')}.")
+                for b in sorted(rng.sample(beats, min(2, len(beats))), key=lambda b: b.get("date", ""))]
+        return FeatureScript(
+            lines=[GuestLine(speaker="mag_a", text="Before we go on, what the record shows so far."), *said,
+                   GuestLine(speaker="mag_a", text=(t.status if t and t.status else
+                                                    "Much of it is still to be answered.")),
+                   GuestLine(speaker="mag_a", text="That's the record. Now the people who can answer for it.")],
+            headline=f"{s.get('title') or 'The Inquiry'}: the record so far"[:90],
+            location="Wexley Town Hall", backdrop="town_hall", lower_third="The Inquiry: the record so far")
     if seg_type is SegmentType.feature:
         return FeatureScript(
             lines=[
@@ -1441,7 +1456,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
             user += (f"\n\nNOT the fish auction: the news has reported it already (\"{done}\"). Lead on an open "
                      "story from the briefing instead.")
             script = llm.complete_json(seg.type.value, schema, system, user)
-        if tid := _same_story_again(getattr(script, "thread_id", None), world, show, seg.type,
+        if tid := _same_story_again(_story_of(script, world), world, show, seg.type,
                                     seg.nominal_start_ts or schedule.now()):
             log.info("%s slot %d: [%s] had %d of the news's last %d items; asking for another story",
                      seg.type.value, seg.slot_id, tid, SAME_STORY_MAX, SAME_STORY_WINDOW)
@@ -1480,7 +1495,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
             # Asked about one guest, the model may book another: on 2026-11-03, asked about Tam Buchanan it
             # put THE GUEST back in the chair, four times. Then the script before the ask stands.
-            if (getattr(script, "guest_name", None) or "").strip().lower() != known.name.lower():
+            # Unless the one before was THE GUEST, out of place: then anyone else is the better script (on
+            # 2026-11-06 a film asked about Ivy Marchetti booked Dev Ramachandran, and Ivy's went to a template).
+            now_booked = (getattr(script, "guest_name", None) or "").strip().lower()
+            if taken and known.name.lower() == taken.lower() and now_booked and now_booked != taken.lower():
+                log.info("%s slot %d: asked about %s, it booked %s instead; keeping that", seg.type.value,
+                         seg.slot_id, known.name, getattr(script, "guest_name", None))
+            elif now_booked != known.name.lower():
                 log.info("%s slot %d: asked about %s, it booked %s; keeping the script before", seg.type.value,
                          seg.slot_id, known.name, getattr(script, "guest_name", None))
                 script = before
@@ -1523,10 +1544,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
             return p.role                     # each panellist, or the phone-in's guest, under their own caption
         return getattr(script, "guest_role", None)
     seg.lines = [Line(speaker=l.speaker, text=l.text.strip(),
-                      guest_name=(name := _guest_of(l, script, stayed, studio)),
+                      guest_name=(name := _guest_of(l, script, stayed, studio, before)),
                       guest_role=role(name) if l.speaker == "guest" else None,
                       mood=getattr(l, "mood", None))
-                 for l in script.lines if l.text.strip()]
+                 for before, l in zip([None, *script.lines], script.lines) if l.text.strip()]
     ration_moods(seg.lines)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
@@ -1598,9 +1619,21 @@ REPEAT_LIKENESS = 0.5           # headline words in common (of both together) th
 # The rolling news stayed on one story: on the morning of 2026-11-06, 27 news items in a row on the Salting
 # choir's programmes, and that afternoon four of the first five on a coffee stall, though the prompt listed
 # the headlines as "do NOT repeat". A story may have a bulletin and its report, then the next item is another.
+# On 2026-11-07 "Frost Keeps Harrow Street Busy as Remembrance Nears" still took every other item for twenty
+# minutes: 2 of 3 let a story alternate, and items that left thread_id null went unseen (_story_of).
 NEWS_STORY_TYPES = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview)
-SAME_STORY_WINDOW = 3           # of the news's last this many story items,
+SAME_STORY_WINDOW = 4           # of the news's last this many story items,
 SAME_STORY_MAX = 2              # a story with this many gets no next one
+
+
+def _story_of(script, world: World) -> str | None:
+    """The thread an item will file under: its own thread_id, or else the open story its headline
+    matches, as _apply_to_world will decide after it is checked."""
+    tid = getattr(script, "thread_id", None)
+    if tid and world.thread(tid):
+        return tid
+    same = world.same_story(getattr(script, "headline", "") or "")
+    return same[0].id if same else None
 
 
 def _same_story_again(thread_id: str | None, world: World, show: schedule.Show, seg_type: SegmentType,
@@ -1683,16 +1716,39 @@ def _remembered_note(p: Person) -> tuple[str, dict | None]:
     return note, end
 
 
-def _guest_of(line, script, stayed: str | None = None, studio: str | None = None) -> str | None:
+def _addressed(text: str, names: list[str]) -> str | None:
+    """Which of `names` (first names) a line speaks to last: "That's fair, Harold. Nora, you've heard
+    plenty of that" is to Nora. A name followed by a comma, full stop, question or exclamation mark."""
+    at = {m.start(): n for n in names if n for m in re.finditer(rf"\b{re.escape(n)}\b(?=\s*[,.?!])", text)}
+    return at[max(at)] if at else None
+
+
+def _guest_of(line, script, stayed: str | None = None, studio: str | None = None,
+              before=None) -> str | None:
     """The guest's name for a guest line: on the line (vox pops) or on the script (interviews).
     On the late couch a line is the guest who `stayed` on, or else the new guest. On a call it is
-    the `studio` guest if it names them, and otherwise the caller."""
+    the `studio` guest if it names them, and otherwise the caller, unless the line is plainly the
+    studio guest's: Jonah has just turned to them, or it speaks to the caller by name. On 2026-11-07
+    four calls in fourteen left the studio guest's answer unnamed, and the caller said it ("Walter, the
+    costing exists", in Walter's own voice)."""
     if line.speaker != "guest":
         return None
     name = getattr(line, "guest_name", None)
     if isinstance(script, CallScript):
         said, caller = (name or "").strip().lower().split(), script.caller_name.strip().lower().split()
         if not said or not studio or said == caller or said[-1] == caller[-1]:
+            if studio and caller:
+                names = [studio.split()[0], script.caller_name.split()[0]]
+                # "Walter, the costing exists" or "Absolutely, Claire.", not "Hiya, Jonah. It's Claire, ..."
+                opens = re.match(rf"(?:\w+,\s+)?{re.escape(names[1])}\b\s*[,.?!]", line.text.strip())
+                # Only when the script names the studio guest nowhere: where it names them elsewhere, an
+                # unnamed line after "Ivy, that's yours" was the caller chipping in (2026-11-06, twice).
+                unnamed = not any(l.speaker == "guest" and (l.guest_name or "").strip() for l in script.lines)
+                to = (_addressed(before.text, names)
+                      if unnamed and before is not None and before.speaker != "guest" else None)
+                own = re.search(rf"\b{re.escape(names[0])}\b", line.text)    # "Ivy's a good harbourmaster": a caller
+                if not own and (opens or to == names[0]):
+                    return studio
             return script.caller_name
         guest = studio.lower().split()
         # The full name, the surname, or the first name alone ("Ivy"): Jonah's on first-name terms.

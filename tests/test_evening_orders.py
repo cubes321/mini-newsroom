@@ -122,3 +122,46 @@ def test_asked_again_and_still_the_inquirys_guest_the_other_voice_is_dropped(mon
     writers.script_segment(seg, w)
     assert len(asked) == 2 and "Dougal Crane (harbour engineer) is on this story" in asked[1]
     assert all(l.guest_name != "Ivy Marchetti" for l in seg.lines)
+
+
+def test_the_inquirys_stock_film_stays_on_the_story():
+    """"The lifeboat crew's newest volunteer" aired three times in the middle of The Inquiry (2026-11-06)."""
+    import random
+
+    w = world_mod.seed()
+    tid = w.update_thread(None, "Quay fenders wait for the auction", "The crane is rebooked for the 17th.")
+    w.thread(tid).beats = [{"date": "2026-11-03", "day": "Tuesday 3 November", "headline": "Two fenders down"},
+                           {"date": "2026-11-05", "day": "Thursday 5 November", "headline": "Lift clashes with the auction"}]
+    w.inquiries = [{"date": w.last_date, "thread_id": tid, "title": "Who Pays When the Fenders Wait?", "angle": "a",
+                    "questions": ["q1", "q2"], "guest": "Ivy Marchetti"}]
+    s = writers._template(T.feature, w, random.Random(1), schedule.get("inquiry"))
+    said = " ".join(l.text for l in s.lines)
+    assert {l.speaker for l in s.lines} == {"mag_a"} and "lifeboat" not in said
+    assert "On Tuesday 3 November: Two fenders down." in said and "rebooked for the 17th" in said
+    assert s.headline == "Who Pays When the Fenders Wait?: the record so far"
+
+
+def test_a_film_that_swaps_the_inquirys_guest_for_someone_else_is_kept(monkeypatch):
+    """On 2026-11-06 a film asked about Ivy Marchetti's past booked Dev Ramachandran instead, and was thrown
+    away for Ivy's script, which then failed: the film was the lifeboat template."""
+    w = world_mod.seed()
+    tid = w.update_thread(None, "Quay fenders wait for the auction", "so far")
+    w.inquiries = [{"date": w.last_date, "thread_id": tid, "title": "Who Pays?", "angle": "a",
+                    "questions": ["q1", "q2"], "guest": "Ivy Marchetti"}]
+    w.remember_guest("Ivy Marchetti", "Coastwide", "says the fenders will be done by Christmas", None)
+    monkeypatch.setattr(writers, "_recent_guests", writers.deque(maxlen=8))
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        name = "Dev Ramachandran" if len(asked) == 3 else "Ivy Marchetti"
+        return schema.model_validate({
+            "headline": "Who pays when the fenders wait", "lower_third": "The Inquiry", "location": "the fish quay",
+            "backdrop": "fish_quay", "guest_name": name, "guest_role": "baker", "guest_gender": "m",
+            "lines": [{"speaker": "reporter", "text": "The quay at dawn."}, {"speaker": "guest", "text": "Nobody told us."},
+                      {"speaker": "mag_a", "text": "Thanks, Miles."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=43, type=T.feature, show="inquiry", target_s=90, brief="a film on the story")
+    writers.script_segment(seg, w)
+    assert len(asked) == 3 and not seg.fallback
+    assert [l.guest_name for l in seg.lines if l.speaker == "guest"] == ["Dev Ramachandran"]

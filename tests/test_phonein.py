@@ -158,6 +158,39 @@ def test_a_call_keeps_the_caller_on_the_phone_and_the_story_where_it_was(monkeyp
     assert sandra.kind == "resident" and sandra.memories[-1]["show"] == phonein.CALLED
 
 
+def test_the_studio_guests_unnamed_answer_is_theirs_not_the_callers(monkeypatch):
+    """On 2026-11-07 four calls in fourteen named the studio guest on no line, and the caller said their
+    answer, in the caller's voice: "Walter, the costing exists"."""
+    w = _town()
+    _stub(monkeypatch, _booking(w))
+    phonein.commission(w)
+    schema = script_schema(T.call, schedule.get("phonein").cast_for(T.call))
+
+    def said_by(lines):
+        script = _call(w, schema, lines, caller_name="Walter Hensley", caller_from="Quay Lane")
+        monkeypatch.setattr(writers.llm, "complete_json", lambda *a, **k: script)
+        seg = Segment(slot_id=5, type=T.call, show="phonein", target_s=100)
+        writers.script_segment(seg, w)
+        return [l.guest_name for l in seg.lines if l.speaker == "guest"]
+    walter, helen = "Walter Hensley", "Helen Strand"
+    assert said_by([
+        {"speaker": "host_b", "text": "Line three. What's your name?"},
+        {"speaker": "guest", "text": "Hello Jonah, it's Walter, from Quay Lane. Show me the numbers first."},
+        {"speaker": "host_b", "text": "That's fair, Walter. Helen, can you answer that?"},   # Jonah turns to her
+        {"speaker": "guest", "text": "The costing exists, and it's on the council's own paper."},
+        {"speaker": "guest", "text": "Walter, nobody is asking for a blank cheque."},           # speaks to him
+        {"speaker": "host_b", "text": "Walter, one more thing?"},
+        {"speaker": "guest", "text": "Helen's right about the paper, I'll give her that."},     # names her: him
+        {"speaker": "host_b", "text": "Thanks, Walter."}]) == [walter, helen, helen, walter]
+    assert said_by([                       # she is named elsewhere: an unnamed line after "Helen," is him chipping in
+        {"speaker": "host_b", "text": "Line four, you're on."},
+        {"speaker": "guest", "text": "Morning Jonah, it's Walter. Keep the ban."},
+        {"speaker": "guest", "text": "We'll review it in the spring.", "guest_name": "Helen Strand"},
+        {"speaker": "host_b", "text": "Helen, is that a promise?"},
+        {"speaker": "guest", "text": "Ha, I'd rather hear it from the bulletin."},
+        {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, helen, walter]
+
+
 def test_someone_who_rang_before_may_ring_again(monkeypatch):
     w = _town()
     _stub(monkeypatch, _booking(w))

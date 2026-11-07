@@ -119,3 +119,25 @@ def test_the_news_moves_on_after_a_bulletin_and_its_report(monkeypatch):
     writers.script_segment(seg, w)
     assert len(asked) == 2 and f"NOT [{stall}]" in asked[1]
     assert seg.headline == "Cyril Dunmore's model ferry finds a winter case"
+
+
+def test_the_news_check_sees_a_story_by_its_headline_and_one_that_alternates(monkeypatch):
+    """2026-11-07: "Frost Keeps Harrow Street Busy as Remembrance Nears" took every other news item for twenty
+    minutes, often with thread_id null and filed under the story by its headline afterwards."""
+    w = world_mod.seed()
+    frost = w.update_thread(None, "Frost Keeps Harrow Street Busy as Remembrance Nears", "busy")
+    other = w.update_thread(None, "Cyril Dunmore's model ferry finds a winter case", "the case is ordered")
+    for head, tid in (("Frost Keeps Harrow Street Busy as Remembrance Nears", frost), ("Model ferry", other),
+                      ("Frost Keeps Harrow Street Busy as Remembrance Nears", frost)):
+        w.record_aired("bulletin", head, tid, "...", show="news", aired=False)
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_bulletin("Frost Keeps Harrow Street Busy as Remembrance Nears", None)
+                                     if len(asked) == 1 else
+                                     _bulletin("Cyril Dunmore's model ferry finds a winter case", other))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=6, type=T.bulletin, show="news", target_s=75.0)
+    writers.script_segment(seg, w)                                   # frost, other, frost: no frost next
+    assert len(asked) == 2 and f"NOT [{frost}]" in asked[1]
