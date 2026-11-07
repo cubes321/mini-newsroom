@@ -112,8 +112,10 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
         said = f"Round {n + 1}: {r['title']}."         # Clive's verdict shares a line with what he says next
         for x in r["questions"]:
             lines.append(PanelLine(speaker="mag_b", text=f"{said} {teams[x['to']]['name']}: {x['q']}"))
+            wrong = x.get("wrong") or []
             lines.append(PanelLine(speaker="guest", guest_name=x["who"],
-                                   text=x["a"].capitalize() + "?" if x["right"] else "I'll have to guess. Pass."))
+                                   text=x["a"].capitalize() + "?" if x["right"] else
+                                   (f"{wrong[0]}?" if wrong else "I'll have to guess. Pass.")))
             if not x["right"] and x["stolen"]:
                 lines.append(PanelLine(speaker="guest", guest_name=x["bonus_who"], text=x["a"].capitalize() + "!"))
             said = rng.choice(_RIGHT) if x["right"] or x["stolen"] else f"{rng.choice(_WRONG)} It was {x['a']}."

@@ -398,3 +398,22 @@ def test_a_thrower_may_call_their_own_darts():
              PanelLine(speaker="mag_b", text="Shirley Vosper, over to you."),
              PanelLine(speaker="guest", guest_name="Shirley Vosper", text="Double twenty! Get in.")]
     assert oche.calls_in(lines, throws) == [1, 2, 4]
+
+
+def test_the_two_teams_never_give_the_same_wrong_answer(monkeypatch):
+    """Both teams said "the Thames" for the longest river in the United Kingdom on the seven-round scratch run
+    (2026-11-07), told only "another wrong answer": the wrong answers are booked now, two to a question."""
+    w = world_mod.seed()
+    b = _booking()
+    for k in ("general", "local", "news", "potluck"):
+        for q in getattr(b, k):
+            q.wrong = [f"{q.answer} the first", q.answer, f"{q.answer} the second"]   # the answer itself drops out
+    q = quiz._record(w, quiz.teams(w), b)
+    for n, r in enumerate(q["rounds"]):
+        if r["kind"] == "quotes":                    # no week of guests here: topped up from the bank
+            continue
+        for x in r.get("questions", []):
+            assert len(x["wrong"]) == 2 and x["a"] not in x["wrong"] and x["wrong"][0] != x["wrong"][1]
+            row = quiz._round(q, n)
+            if not x["right"] and not x["stolen"]:
+                assert f'saying "{x["wrong"][0]}"' in row and f'saying "{x["wrong"][1]}"' in row

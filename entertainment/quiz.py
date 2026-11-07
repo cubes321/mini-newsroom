@@ -68,6 +68,11 @@ class Question(BaseModel):
     question: str = Field(min_length=8, max_length=220, description="as Clive asks it aloud, short")
     answer: str = Field(min_length=1, max_length=80, description="the answer, a few words")
     difficulty: int = Field(ge=1, le=3, description="1 easy, 2 middling, 3 hard")
+    # Booked, so the second team never repeats the first's: both said "the Thames" for the longest river in the
+    # United Kingdom on the seven-round scratch run (2026-11-07), told only "another wrong answer".
+    wrong: list[str] = Field(default_factory=list, max_length=3,
+                             description="two plausible wrong answers a pub regular might give, different from "
+                                         "each other and from the answer")
 
 
 class Tiebreak(BaseModel):
@@ -97,7 +102,8 @@ rounds of SIX questions each:
   headline as given.
 - potluck: lighter general knowledge to finish: food and drink, animals, the sea and ships, sport,
   words and sayings. Same rules as general, none the same as it.
-Rate each 1 (easy), 2 or 3 (hard), and mix them in every round. Then a TIEBREAK: a question whose answer
+Rate each 1 (easy), 2 or 3 (hard), and mix them in every round. Give each two plausible wrong answers, the
+kind a pub regular would say with confidence, different from each other and from the answer. Then a TIEBREAK: a question whose answer
 is a whole number (a year, a height, a count), general or from the town's facts, with its unit.
 Questions as Clive would ask them aloud, short; no multiple choice; no question that gives away another's
 answer; none from RECENT QUIZZES again. Never name where a fact came from ("according to the town's
@@ -233,7 +239,9 @@ def _play(booking: QuizBooking, ts: list[dict], seed: str, quotes: list | None =
                 stolen = rng.random() < p2
                 if stolen:
                     score[other] += BONUS_POINTS
+            wrong = [w for w in q.wrong if w.strip().lower() != q.answer.strip().lower()][:2]
             out.append({"q": q.question, "a": q.answer, "difficulty": q.difficulty, "to": to, "who": who,
+                        "wrong": wrong,
                         "right": right, "stolen": stolen,
                         "bonus_who": ts[other]["members"][i % 2] if not right else None})
         rounds.append({"kind": kind, "title": title, "questions": out, "scores_after": list(score)})
@@ -276,6 +284,10 @@ def _quotes(world: World, ts: list[dict], booking: QuizBooking) -> list[Question
                                   difficulty=level))
     rng = random.Random(f"wits-quotes-{world.last_date}")
     picked = rng.sample(lines, min(PER_ROUND, len(lines)))
+    names = [q.answer.split(",")[0] for q in lines]
+    for q in picked:                 # the wrong guesses are other people heard this week
+        others = [n for n in names if n != q.answer.split(",")[0]]
+        q.wrong = rng.sample(others, min(2, len(others)))
     used = {q.question for k in ("general", "news", "potluck") for q in getattr(booking, k)}
     spare = [q for q in BANK if q.question not in used]
     return picked + rng.sample(spare, PER_ROUND - len(picked))
@@ -356,13 +368,15 @@ def _round(q: dict, n: int) -> str:
     for i, x in enumerate(r["questions"]):
         team, other = q["teams"][x["to"]]["name"], q["teams"][1 - x["to"]]["name"]
         row = f"{i + 1}. To {team.upper()}: \"{x['q']}\" (the answer: {x['a']}). {x['who']} answers: "
+        wrong = x.get("wrong") or []
+        first = f"WRONG, saying \"{wrong[0]}\"" if wrong else "WRONG (a wrong answer a pub regular might give)"
+        second = (f"WRONG too, saying \"{wrong[1]}\"" if len(wrong) > 1 else
+                  "WRONG too, with a DIFFERENT wrong answer from the first team's")
         if x["right"]:
             row += f"RIGHT, {OWN_POINTS} points."
         else:
-            row += (f"WRONG (a wrong answer of their own that a pub regular might give); Clive offers it over to "
-                    f"{other}, and {x['bonus_who']} answers: "
-                    + (f"RIGHT, a bonus point." if x["stolen"] else
-                       "WRONG too (another wrong answer); Clive gives the answer."))
+            row += (f"{first}; Clive offers it over to {other}, and {x['bonus_who']} answers: "
+                    + (f"RIGHT, a bonus point." if x["stolen"] else f"{second}; Clive gives the answer."))
         rows.append(row)
     how = ("Clive puts each line in his own words, as something someone said on channel 7 this week (never "
            "saying who: that is the question), and asks who said it" if r["kind"] == "quotes"
