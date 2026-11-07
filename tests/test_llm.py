@@ -86,3 +86,40 @@ def test_an_openai_style_server_reports_its_own_cache_hits():
     assert llm._cached_prompt_tokens(openai_style) == 640
     assert llm._cached_prompt_tokens(SimpleNamespace(prompt_tokens=10, prompt_tokens_details=None)) == 0
     assert "(1152 cache read, 0 written)" in llm._usage_text({"in": 4903, "out": 2538, "cache_read": 1152})
+
+
+class _TimingOut(_FakeClient):
+    def create(self, **kw):
+        import anthropic
+        import httpx
+        raise anthropic.APITimeoutError(request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+
+
+def test_a_timed_out_call_is_counted_as_billed_with_an_estimate(monkeypatch, tmp_path):
+    """A reply that never comes is still billed, maybe more than once: on 2026-10-25 Kimi billed 77 k3 calls where
+    the log showed 23. The row and LLM USAGE carry an estimate: the prompt from its length, max_tokens as the ceiling."""
+    import json
+
+    import pytest
+
+    from newsroom.config import CONFIG
+    monkeypatch.setattr(llm, "_ANTHROPIC", _TimingOut())
+    monkeypatch.setenv("NEWSROOM_LLM", "claude_haiku")
+    monkeypatch.setenv("NEWSROOM_LLM_LOG", "1")
+    monkeypatch.setattr(llm, "_USAGE", {})
+    import dataclasses
+    old = CONFIG.paths
+    object.__setattr__(CONFIG, "paths", dataclasses.replace(old, llm_calls=tmp_path))
+    try:
+        with pytest.raises(llm.LLMTimeout) as err:
+            llm.complete_json("weather", _Out, "system " * 100, USER)
+    finally:
+        object.__setattr__(CONFIG, "paths", old)
+    est = err.value.estimate
+    prov = CONFIG.llm.provider("claude_haiku")
+    assert est["sent"] == (prov.max_retries or 0) + 1 and est["out_max"] == (prov.max_tokens or 4000) and 150 < est["in"] < 2000
+    u = llm._USAGE["claude_haiku"]
+    assert u["failed"] == 1 and u["unanswered"] == est["sent"] and u["est_in"] == est["in"] * est["sent"]
+    assert f"plus {est['sent']} unanswered (~{u['est_in']} in" in llm.usage_summary()
+    [row] = [json.loads(l) for f in tmp_path.glob("*.jsonl") for l in f.read_text(encoding="utf-8").splitlines()]
+    assert row["estimate"] == est and "timed out" in row["error"] and row["usage"] is None

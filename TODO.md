@@ -398,7 +398,8 @@ bottom with the date.
   2026-10-26 night (see Done): about $3.70 a day, about $2.80 with the editor every 30
   minutes. Next: the DeepSeek bench to compare. The back office could use the Batch API
   at half price.
-- [ ] Price the calls the app abandons. Since 4ba630a a timeout is already a row
+- [x] Price the calls the app abandons (2026-11-07: a timeout is `LLMTimeout`, its row has an `estimate`, prompt
+  from its length, `max_tokens` the ceiling, times the SDK's sends; LLM USAGE adds "plus N unanswered"). Was: Since 4ba630a a timeout is already a row
   in the `--log-llm` file (with its error) and a `failed` call in LLM USAGE, but
   with no token counts: the reply never arrives, yet providers bill it in full.
   On the 2026-10-25 night Kimi billed 77 k3 calls ($3.18) where the log showed 23

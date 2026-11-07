@@ -69,6 +69,26 @@ class LLMUnavailable(LLMError):
     """No provider reachable (server down, model unloaded, bad key, or NEWSROOM_LLM=off)."""
 
 
+class LLMTimeout(LLMUnavailable):
+    """No reply in time. Unlike a refused connection, the provider got the request and bills it in full, and the
+    SDK may have sent it again: on 2026-10-25 Kimi billed 77 k3 calls where the log showed 23. `estimate` is
+    what it may have cost: {in (the prompt, from its length), out_max (max_tokens, the ceiling), sent}."""
+
+    def __init__(self, msg: str, estimate: dict):
+        super().__init__(msg)
+        self.estimate = estimate
+
+
+CHARS_PER_TOKEN = 3.5                # English prose and JSON, near enough for an estimate
+
+
+def _estimate(prov, system: str, messages: list, schema, max_tokens: int) -> dict:
+    """What an unanswered call may have been billed: the prompt's tokens (the schema goes in it too),
+    the output's ceiling, and how many times the SDK sent it."""
+    chars = len(system) + len(json.dumps(messages)) + len(json.dumps(schema.model_json_schema()))
+    return {"in": round(chars / CHARS_PER_TOKEN), "out_max": max_tokens, "sent": (prov.max_retries or 0) + 1}
+
+
 def provider_for(task: str) -> str:
     override = os.environ.get("NEWSROOM_LLM")
     if override:
@@ -108,7 +128,7 @@ _USAGE: dict[str, dict[str, int]] = {}    # provider -> calls, failed, tokens in
 _USAGE_LOCK = threading.Lock()
 
 
-def _count(provider: str, usage: dict | None, *, failed: bool = False) -> None:
+def _count(provider: str, usage: dict | None, *, failed: bool = False, estimate: dict | None = None) -> None:
     with _USAGE_LOCK:
         u = _USAGE.setdefault(provider, {"calls": 0, "failed": 0, "in": 0, "out": 0, "cache_read": 0, "cache_write": 0})
         u["calls"] += 1
@@ -116,6 +136,10 @@ def _count(provider: str, usage: dict | None, *, failed: bool = False) -> None:
         if usage:
             for k in ("in", "out", "cache_read", "cache_write"):
                 u[k] += usage.get(k, 0)
+        if estimate:                       # timed out: billed, never reported
+            u["unanswered"] = u.get("unanswered", 0) + estimate["sent"]
+            u["est_in"] = u.get("est_in", 0) + estimate["in"] * estimate["sent"]
+            u["est_out_max"] = u.get("est_out_max", 0) + estimate["out_max"] * estimate["sent"]
 
 
 def _cache_text(u: dict) -> str:
@@ -126,7 +150,14 @@ def usage_summary() -> str:
     """One line of per-provider totals since start, for STATS and the exit line."""
     with _USAGE_LOCK:
         return " | ".join(f"{p}: {u['calls']} calls ({u['failed']} failed), {u['in']} in{_cache_text(u)} / {u['out']} out"
-                          for p, u in sorted(_USAGE.items())) or "no llm calls"
+                          + _unanswered_text(u) for p, u in sorted(_USAGE.items())) or "no llm calls"
+
+
+def _unanswered_text(u: dict) -> str:
+    """The timed-out calls the provider still bills: their estimated prompt tokens and output ceiling."""
+    if not u.get("unanswered"):
+        return ""
+    return f", plus {u['unanswered']} unanswered (~{u['est_in']} in / up to {u['est_out_max']} out, estimated)"
 
 
 def _usage_text(usage: dict | None) -> str:
@@ -253,6 +284,9 @@ def _openai_raw(prov: ProviderCfg, system: str, messages: list[dict],
                 resp = object_call()
                 _USE_JSON_OBJECT.add(prov.name)
                 log.warning("%s: strict json_schema unsupported; using json_object mode from now on", prov.name)
+    except openai.APITimeoutError as e:   # before its parent, APIConnectionError: this one was sent
+        raise LLMTimeout(f"{prov.name} timed out after {timeout}s",
+                         _estimate(prov, system, messages, schema, max_tokens)) from e
     except openai.APIConnectionError as e:
         raise LLMUnavailable(f"{prov.name} unreachable: {e}") from e
     except openai.AuthenticationError as e:
@@ -299,18 +333,22 @@ def _anthropic_raw(prov: ProviderCfg, system: str, messages: list[dict],
     output_config: dict = {"format": {"type": "json_schema", "schema": anthropic.transform_schema(schema)}}
     if effort := extra.pop("effort", None):
         output_config["effort"] = effort
+    max_tokens = prov.max_tokens or max(CONFIG.llm.max_tokens * 4, 4000)
     try:
         resp = _ANTHROPIC.with_options(
             timeout=prov.timeout_s or CONFIG.llm.timeout_s, max_retries=prov.max_retries,
         ).messages.create(
             model=prov.model,
-            max_tokens=prov.max_tokens or max(CONFIG.llm.max_tokens * 4, 4000),
+            max_tokens=max_tokens,
             system=system,
             messages=messages,
             output_config=output_config,
             extra_body=extra or None,
         )
-    except anthropic.APIConnectionError as e:          # includes timeouts
+    except anthropic.APITimeoutError as e:             # sent, and billed: before APIConnectionError, its parent
+        raise LLMTimeout(f"Anthropic timed out after {prov.timeout_s or CONFIG.llm.timeout_s}s",
+                         _estimate(prov, system, messages, schema, max_tokens)) from e
+    except anthropic.APIConnectionError as e:
         raise LLMUnavailable(f"Anthropic unreachable: {e}") from e
     except anthropic.AuthenticationError as e:
         raise LLMUnavailable("Anthropic: authentication failed (ANTHROPIC_API_KEY)") from e
@@ -374,11 +412,13 @@ def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], sys
         raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
     messages: list[dict] = [{"role": "user", "content": _user_content(prov, user)}]
 
-    def record(attempt: int, t0: float, *, text: str = "", usage: dict | None = None, error: str = "") -> None:
-        _count(name, usage, failed=bool(error))
+    def record(attempt: int, t0: float, *, text: str = "", usage: dict | None = None, error: str = "",
+               estimate: dict | None = None) -> None:
+        _count(name, usage, failed=bool(error), estimate=estimate)
         _log_call({"ts": datetime.now().isoformat(timespec="seconds"), "task": task, "provider": name,
                    "model": prov.model, "attempt": attempt + 1, "elapsed_s": round(time.perf_counter() - t0, 1),
-                   "usage": usage, "error": error or None, "system": system, "messages": messages,
+                   "usage": usage, **({"estimate": estimate} if estimate else {}),
+                   "error": error or None, "system": system, "messages": messages,
                    "reply": text, **({"fallback_from": fallback_from} if fallback_from else {})})
 
     raw = _anthropic_raw if prov.kind == "anthropic" else _openai_raw
@@ -388,7 +428,7 @@ def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], sys
         try:
             text, usage = raw(prov, system, messages, schema)
         except LLMError as e:
-            record(attempt, t0, error=str(e))
+            record(attempt, t0, error=str(e), estimate=getattr(e, "estimate", None))
             raise
         try:
             out = _parse(schema, text)
