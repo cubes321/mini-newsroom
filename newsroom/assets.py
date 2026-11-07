@@ -126,6 +126,15 @@ def _ident_mix(music: np.ndarray, voice: np.ndarray, voice_at: float, voice_sr: 
     return out
 
 
+def _lang(speaker: str) -> str | None:
+    """A presenter's own pronunciation, as on air: Howard, Meg and Poppy speak British, and their Pocket clips
+    are British. Without it their bumpers asked for American clips they don't have, and Kokoro's stand-ins
+    voiced Quayside's, Out and About's and Rock Pool's idents (found 2026-11-07)."""
+    from .world import seed_characters
+
+    return next((c.lang or None for c in seed_characters() if c.id == speaker), None)
+
+
 def ensure_bumper(show: str = "news") -> Path:
     from . import schedule
 
@@ -141,7 +150,8 @@ def ensure_bumper(show: str = "news") -> Path:
 
         log.info("baking bumper from %s -> %s", stem.name, path.name)
         lead = schedule.get(show).lead
-        ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{key}.wav")
+        ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{key}.wav",
+                               lang=_lang(lead))
         voice, _ = sf.read(str(ident.wav_path), dtype="float32")
         voicing = key if key in jingle.VOICINGS else "news"
         _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
@@ -157,7 +167,8 @@ def ensure_bumper(show: str = "news") -> Path:
         notes = [220.0, 261.63, 329.63, 311.13]    # A C E E-flat: low, with a bluesy turn
     sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
     lead = schedule.get(show).lead
-    ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{show}.wav")
+    ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{show}.wav",
+                           lang=_lang(lead))
     voice, _ = sf.read(str(ident.wav_path), dtype="float32")
     gap = np.zeros(int(SR * 0.25), dtype=np.float32)
     _write(path, np.concatenate([sting, gap, voice, gap]))

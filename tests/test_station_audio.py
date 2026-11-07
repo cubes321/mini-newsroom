@@ -125,3 +125,19 @@ def test_a_newer_shows_bumper_is_its_own_stem_and_line(music):
     assert path.name == "bumper_inquiry.wav" and sf.info(str(path)).duration == pytest.approx(5.0, abs=0.05)
     voice_at = jingle.onsets(voicing="inquiry")[-1] + assets.VOICE_AFTER_S
     assert voice_at < 5.0                                    # the line comes in over the held chord
+
+
+def test_a_bumper_speaks_in_its_presenters_own_pronunciation(music, monkeypatch):
+    """Howard, Meg and Poppy speak British, with British clips only: without their lang, Kokoro's stand-ins voiced
+    Quayside's, Out and About's and Rock Pool's idents (found 2026-11-07)."""
+    said = {}
+
+    def synth(text, voice, out, speed=1.0, lang=None):
+        said[voice] = lang
+        sf.write(out, np.full(assets.SR, 0.1, dtype=np.float32), assets.SR, subtype="PCM_16")
+        return SynthResult(wav_path=out, duration_s=1.0, mouth_env=[0.5])
+    monkeypatch.setattr(tts, "synthesize", synth)
+    for show in ("quayside", "news"):
+        _stem(music / f"ident_{show}.wav", 2.0)
+        assets.ensure_bumper(show)
+    assert said == {"bm_lanyon": "b", "af_heart": None}
