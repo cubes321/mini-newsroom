@@ -38,12 +38,24 @@ def test_bumper_is_the_stem_then_the_spoken_ident(music):
     _stem(music / "ident_news.wav", 2.0)
     path = assets.ensure_bumper("news")
     audio, sr = sf.read(str(path))
-    assert sr == assets.SR and audio.ndim == 1                       # 44.1 kHz stereo came in, 24 kHz mono out
+    assert sr == assets.MUSIC_SR and audio.ndim == 2                 # 44.1 kHz stereo in and out since 2026-11-07
+    audio = audio.mean(axis=1)
     voice_at = jingle.onsets(voicing="news")[-1] + assets.VOICE_AFTER_S
     assert len(audio) / sr == pytest.approx(voice_at + 1.0 + 0.4, abs=0.05)
     before = audio[: int(sr * (voice_at - 0.2))]
     under = audio[int(sr * (voice_at + 0.2)): int(sr * (voice_at + 0.8))]
     assert np.abs(before).max() > 0.45 and np.abs(under - 0.1).max() < 0.5 * assets.DUCK + 0.01
+
+
+def test_the_music_keeps_its_top_end_and_a_voice_is_mixed_in_the_middle(music):
+    """Until 2026-11-07 the stems were cut to 24 kHz mono, and nothing above 12 kHz played."""
+    from newsroom import station_audio
+    t = np.arange(44100) / 44100
+    hi = np.stack([np.sin(2 * np.pi * 15000 * t), np.sin(2 * np.pi * 440 * t)], axis=1)
+    stem = station_audio.to_stem(hi, 44100, fade=False)
+    assert stem.shape == (44100, 2) and np.abs(stem[:, 0]).max() > 0.8          # 15 kHz kept, left and right apart
+    mix = assets._ident_mix(stem, np.full(assets.SR, 0.1, dtype=np.float32), 0.2)
+    assert mix.ndim == 2 and np.allclose(mix[int(0.5 * 44100):int(0.9 * 44100), 0] - stem[int(0.5 * 44100):int(0.9 * 44100), 0] * assets.DUCK, 0.1, atol=0.02)
 
 
 def test_a_newer_stem_rebuilds_the_bumper_and_an_older_one_does_not(music):

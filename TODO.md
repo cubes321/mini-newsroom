@@ -32,7 +32,10 @@ bottom with the date.
   a wide screen and the channel 7 ident; its marks moved up three pixels to sit at the desk.
 - [x] A fish quay backdrop for Quayside, 2026-11-01 (e977fc2): boxes on ice, the auctioneer's chalk board, the
   fish vans (`fish_quay`). Quayside's field report is always there, unless breaking news sends Miles out.
-- [ ] Station audio follow-ups: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
+- [ ] Station audio follow-ups. Done 2026-11-07: the mixer runs at 44.1 kHz stereo (assets.MUSIC_SR; SDL converts
+  each 24 kHz voice on load), stems and bumpers are baked stereo at 44.1 kHz; the re-rendered stems wait for the
+  user's ear (data/voice-samples/mixer-44k/); the bed's SA3 take wasn't kept, so it stays 24 kHz mono until a
+  new take. Left: a bed per show. Was: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start).
 - [ ] Parked (2026-10-27): parallax. True parallax needs the camera to move, and every backdrop is

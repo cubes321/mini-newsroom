@@ -8,7 +8,7 @@ Design points:
 - torch/kokoro are imported lazily inside `_pipeline()` so the window can
   appear before the 3-10 s import cost is paid, and so this module can be
   imported by code that never synthesises (tests, the player).
-- Output is always 24 kHz mono PCM_16 WAV, matching `pygame.mixer.pre_init`,
+- Output is always 24 kHz mono PCM_16 WAV; the mixer runs at 44.1 kHz stereo and SDL converts on load,
   so playback needs no resampling.
 - A mouth envelope (RMS per 50 ms window, 0..1) is computed here, once, at
   generation time. The player indexes it by elapsed time; no live analysis.

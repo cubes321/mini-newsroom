@@ -201,7 +201,7 @@ def bake_ident(show: str, n: int) -> Item:
     mix = assets._ident_mix(music, voice, jingle.onsets(voicing=voicing)[-1] + assets.VOICE_AFTER_S)
     wav = p.dir / f"{item_id}.wav"
     assets._write(wav, mix)
-    line = line.model_copy(update={"wav_path": wav, "duration_s": len(mix) / assets.SR, "mouth_env": []})
+    line = line.model_copy(update={"wav_path": wav, "duration_s": len(mix) / assets.MUSIC_SR, "mouth_env": []})
     return Item(id=item_id, kind="ident", show=show, source_mtime=stem.stat().st_mtime if stem.exists() else 0.0,
                 segment=_segment("ident", [line], show))
 

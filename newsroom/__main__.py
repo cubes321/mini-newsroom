@@ -237,11 +237,14 @@ def open_audio(cfg, wanted: str) -> None:
         device = pick_output(wanted, names)
         if device is None:
             log.warning("audio: no output called %r (there are %s); playing on the system's", wanted, names)
-    pygame.mixer.pre_init(cfg.tts.sample_rate, -16, 1, 512, devicename=device)
+    from .assets import MUSIC_SR
+
+    # 44.1 kHz stereo, the music's: SDL converts each voice (TTS's 24 kHz mono) as it loads.
+    pygame.mixer.pre_init(MUSIC_SR, -16, 2, 1024, devicename=device)
     pygame.init()
     if device and not pygame.mixer.get_init():
         log.warning("audio: %r wouldn't open; playing on the system's", device)
-        pygame.mixer.init(cfg.tts.sample_rate, -16, 1, 512)
+        pygame.mixer.init(MUSIC_SR, -16, 2, 1024)
     elif device:
         log.info("audio: playing into %s", device)
 

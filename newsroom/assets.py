@@ -27,7 +27,10 @@ from .models import Line, Segment, SegmentState
 
 log = logging.getLogger(__name__)
 
-SR = CONFIG.tts.sample_rate
+SR = CONFIG.tts.sample_rate          # the voices': 24 kHz mono, as TTS makes them
+# The mixer's, and the music's: 44.1 kHz stereo since 2026-11-07. Until then everything played at 24 kHz mono,
+# so the music stems were cut to that and lost everything above 12 kHz; SDL converts each voice as it loads.
+MUSIC_SR = 44100
 BUMPER = CONFIG.paths.assets / "bumper.wav"
 MUSIC_BED = CONFIG.paths.assets / "music_bed.wav"
 IDENT_TEXT = "You're watching Port Wexley News, on channel seven."
@@ -66,9 +69,10 @@ def _tone(freq: float, dur: float, vol: float = 0.3, harmonics: int = 3) -> np.n
 
 
 def _write(path: Path, audio: np.ndarray) -> None:
+    """Stereo (frames, 2) is music, at MUSIC_SR; mono is a voice or a placeholder tone, at SR."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".wav.tmp")
-    sf.write(tmp, np.clip(audio, -1, 1), SR, format="WAV", subtype="PCM_16")
+    sf.write(tmp, np.clip(audio, -1, 1), MUSIC_SR if audio.ndim == 2 else SR, format="WAV", subtype="PCM_16")
     os.replace(tmp, path)
 
 
@@ -90,29 +94,34 @@ def _stale(out: Path, stem: Path | None) -> bool:
 
 
 def _load(path: Path) -> np.ndarray:
-    """Any WAV as mono float32 at SR (stems may come in at 44.1 kHz stereo)."""
+    """Any WAV as stereo float32 at MUSIC_SR, shape (frames, 2): a mono file in both channels."""
     audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
     return _load_array(audio, sr)
 
 
 def _load_array(audio: np.ndarray, sr: int) -> np.ndarray:
-    mono = audio.mean(axis=1) if audio.ndim == 2 else audio
-    if sr != SR:
-        n = int(round(len(mono) * SR / sr))
-        mono = np.interp(np.arange(n) * sr / SR, np.arange(len(mono)), mono).astype(np.float32)
-    return mono
+    """Audio at `sr` (mono, or stereo as (frames, channels)) as stereo float32 at MUSIC_SR."""
+    a = audio[:, None] if audio.ndim == 1 else audio
+    a = np.repeat(a[:, :1], 2, axis=1) if a.shape[1] == 1 else a[:, :2]
+    if sr != MUSIC_SR:
+        n = int(round(len(a) * MUSIC_SR / sr))
+        at = np.arange(n) * sr / MUSIC_SR
+        a = np.stack([np.interp(at, np.arange(len(a)), a[:, c]) for c in range(2)], axis=1)
+    return a.astype(np.float32)
 
 
-def _ident_mix(music: np.ndarray, voice: np.ndarray, voice_at: float) -> np.ndarray:
-    """The tune, then the spoken ident over its tail with the music ducked under the voice."""
-    start = int(SR * voice_at)
-    total = max(len(music), start + len(voice) + int(SR * 0.4))
-    out = np.zeros(total, dtype=np.float32)
+def _ident_mix(music: np.ndarray, voice: np.ndarray, voice_at: float, voice_sr: int = SR) -> np.ndarray:
+    """The tune, then the spoken ident over its tail with the music ducked under the voice: stereo at MUSIC_SR,
+    the voice (TTS's, at `voice_sr`) in the middle."""
+    music, voice = _load_array(music, MUSIC_SR), _load_array(voice, voice_sr)
+    start = int(MUSIC_SR * voice_at)
+    total = max(len(music), start + len(voice) + int(MUSIC_SR * 0.4))
+    out = np.zeros((total, 2), dtype=np.float32)
     duck = np.ones(total, dtype=np.float32)
-    ramp = int(SR * 0.15)
+    ramp = int(MUSIC_SR * 0.15)
     duck[start:] = DUCK
     duck[max(0, start - ramp):start] = np.linspace(1.0, DUCK, min(ramp, start))
-    out[:len(music)] = music * duck[:len(music)]
+    out[:len(music)] = music * duck[:len(music), None]
     out[start:start + len(voice)] += voice
     return out
 
@@ -195,9 +204,9 @@ def ensure_band(kind: str) -> Path:
         return path
     log.info("baking house band %s from %s", kind, stem.name if stem else "the code render")
     audio = _load(stem) if stem else _load_array(jingle.band(BAND_STYLE[kind]), jingle.SR)
-    fade = int(SR * 0.3)
+    fade = int(MUSIC_SR * 0.3)
     audio = audio.copy()
-    audio[-fade:] *= np.linspace(1, 0, fade)
+    audio[-fade:] *= np.linspace(1, 0, fade)[:, None]
     _write(path, audio)
     return path
 

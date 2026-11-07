@@ -10,8 +10,8 @@ Offline, run by hand; assets.py bakes the bumpers, sting and bed from whatever s
     python -m newsroom.station_audio --idents inquiry panel  # just these shows' idents, the others untouched
 
 The other shows' idents and the breaking sting come from their code voicings unless a file is
-given (--breakfast, --magazine, --late, --sport, --breaking). Stems are written at 24 kHz mono, the
-mixer's own format. SA3 is called through the Pinokio app's Gradio API (`gradio_client` is not
+given (--breakfast, --magazine, --late, --sport, --breaking). Stems are written at 44.1 kHz stereo, the
+mixer's own format (assets.MUSIC_SR; 24 kHz mono until 2026-11-07). SA3 is called through the Pinokio app's Gradio API (`gradio_client` is not
 a project dependency: run --bed-takes with `uv run --with gradio_client`).
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from .config import CONFIG
 
 log = logging.getLogger(__name__)
 
-SR = CONFIG.tts.sample_rate
+SR = 44100                       # the mixer's rate (assets.MUSIC_SR): stems are stereo at it
 MUSIC = CONFIG.paths.assets / "music"
 PEAK = 0.89
 FADE_S = 0.4
@@ -40,16 +40,18 @@ BED_PROMPT = ("1970s British television continuity music, light and warm, gentle
 
 
 def to_stem(audio: np.ndarray, sr: int, fade: bool = True) -> np.ndarray:
-    """Mono, resampled to SR, peak-normalised, with a short fade out."""
-    mono = audio.mean(axis=1) if audio.ndim == 2 else audio
+    """Stereo (frames, 2), resampled to SR, peak-normalised, with a short fade out."""
+    a = audio[:, None] if audio.ndim == 1 else audio
+    a = np.repeat(a[:, :1], 2, axis=1) if a.shape[1] == 1 else a[:, :2]
     if sr != SR:
-        n = int(round(len(mono) * SR / sr))
-        mono = np.interp(np.arange(n) * sr / SR, np.arange(len(mono)), mono)
-    mono = mono / (np.abs(mono).max() or 1.0) * PEAK
+        n = int(round(len(a) * SR / sr))
+        at = np.arange(n) * sr / SR
+        a = np.stack([np.interp(at, np.arange(len(a)), a[:, c]) for c in range(2)], axis=1)
+    a = a / (np.abs(a).max() or 1.0) * PEAK
     if fade:
         f = int(SR * FADE_S)
-        mono[-f:] *= np.linspace(1, 0, f)
-    return mono.astype(np.float32)
+        a[-f:] *= np.linspace(1, 0, f)[:, None]
+    return a.astype(np.float32)
 
 
 def loop(audio: np.ndarray, sr: int) -> np.ndarray:
