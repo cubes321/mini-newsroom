@@ -1048,9 +1048,13 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + place.rstrip()
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
+        after = schedule.show_at(end)
         user += "\n\n" + _CLOSE.format(title=_title(show), goodbye="goodbye" if _part(show) == "morning" else "goodnight",
-                                        next_title=_title(schedule.show_at(end)),
+                                        next_title=_title(after),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
+        if after.id == "overnight":         # the test card, not a programme: Wexley Wits said "Port Wexley News follows"
+            user = user.replace(f"{_title(after)} follows at {time.strftime('%H:%M', time.localtime(end))}",
+                                "that's all for tonight (no programme follows: name none)")
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     return system, user

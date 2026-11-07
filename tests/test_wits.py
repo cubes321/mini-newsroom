@@ -128,7 +128,7 @@ def test_a_round_brief_carries_every_question_and_the_score_clive_reads(monkeypa
     for x in q["rounds"][1]["questions"]:
         assert x["q"] in two and x["who"] in two and f"(the answer: {x['a']})" in two
     s = q["rounds"][1]["scores_after"]
-    assert f"which Clive reads out exactly: {q['teams'][0]['name']} {s[0]}, {q['teams'][1]['name']} {s[1]}." in two
+    assert f"which Clive reads out in his own words: {q['teams'][0]['name']} {s[0]}, {q['teams'][1]['name']} {s[1]}." in two
     close = quiz.brief_for(w, "the RESULT, {close}")
     assert f"{q['teams'][0]['name']} {q['final'][0]}, {q['teams'][1]['name']} {q['final'][1]}" in close
     assert ("THE TIEBREAK" in close) == bool(q["tiebreak"])
@@ -173,6 +173,9 @@ def test_a_round_is_written_to_the_booking_on_the_pub_set_and_moves_no_story(cha
     assert seg.thread_id is None and w.thread(news).mentions == mentions        # the news round moves nothing
     system, user = writers.build_prompt(T.interview, w, target_s=240, show=schedule.get("wits"), brief="{r2}")
     assert "WEXLEY WITS, a pub quiz" in system and "THE SCORE AFTER ROUND 2" in user and "THE TEAMS" in user
+    _, close = writers.build_prompt(T.interview, w, target_s=110, show=schedule.get("wits"), part="close",
+                                    brief="the RESULT, {close}", at_ts=_at(20, 28))
+    assert "that's all for tonight" in close and "Port Wexley News" not in close   # the test card follows
 
 
 def test_with_the_model_down_a_round_is_still_tonights_questions_and_score(channel, monkeypatch):
