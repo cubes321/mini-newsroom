@@ -46,7 +46,9 @@ log = logging.getLogger(__name__)
 WIDTH, HEIGHT = 1024, 576            # 16:9 at a multiple of 16; the screen boxes crop from it
 # Every show while it's shadow mode: nothing airs, so the sheets can show what each would get (the user,
 # 2026-11-06). The pieces with a subject; not the furniture, the weather, the vox pops or the chat.
-TYPES = {T.bulletin, T.field_report, T.breaking, T.interview, T.feature, T.consumer, T.review, T.sofa,
+# Not the sofa's chat (the user, 2026-11-07): Morning Tide made 114 pictures in four hours on the 11-06 night,
+# 62 of them for sofa chats and a third of those loaves, buns and cakes; at that rate the day's cap was gone by lunch.
+TYPES = {T.bulletin, T.field_report, T.breaking, T.interview, T.feature, T.consumer, T.review,
          T.sport, T.call, T.monologue, T.documentary}
 CHILDREN_LINKS = "rockpool"          # Rock Pool's links are its pieces (story time, the make); others are chat
 SERIOUS = re.compile(r"\b(fire|blaze|crash|collision|accident|injur\w*|hurt|died|death|dead|body|police|arrest\w*|"

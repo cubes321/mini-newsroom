@@ -84,7 +84,7 @@ def test_a_story_gets_one_picture_by_its_thread_and_a_piece_by_its_headline():
     assert pictures.request_for(_seg(T.feature, "magazine", "Bonfire guys", thread=t.id), w).key == t.id
     for none in (_seg(T.vox_pop, "magazine"), _seg(T.weather), _seg(T.links, "magazine"), _seg(repeat=True),
                  _seg(fallback=True), _seg(T.feature, "magazine", part="open"), _seg(T.bumper),
-                 _seg(T.feature, "overnight")):
+                 _seg(T.feature, "overnight"), _seg(T.sofa, "breakfast", "Presenters' crater cake")):
         assert pictures.request_for(none, w) is None, none.type
 
 
@@ -219,7 +219,7 @@ def test_a_brief_naming_writing_or_the_studio_is_asked_for_again(monkeypatch):
     the programme itself (two presenters on a sofa) instead of what it was about."""
     from newsroom import llm
     from newsroom.models import PictureBrief
-    req = pictures.request_for(_seg(T.sofa, "breakfast", "Viewer asks why the Town Hall clock keeps stopping"),
+    req = pictures.request_for(_seg(T.interview, "breakfast", "Viewer asks why the Town Hall clock keeps stopping"),
                                world_mod.seed())
     for first in ("Two presenters sit on a bright sofa in a cosy studio with mugs of tea.",
                   "A shop window with a hand-painted sign above the door on Harrow Street."):
