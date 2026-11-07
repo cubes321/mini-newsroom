@@ -65,10 +65,11 @@ def test_the_film_is_decoded_at_the_windows_size(shelf):
     film.stop()
 
 
-def test_an_episode_is_written_as_h3_scenes_with_its_cast(monkeypatch):
+def test_an_episode_is_written_as_h3_scenes_with_its_cast(monkeypatch, tmp_path):
     from entertainment import cartoons
     from newsroom import llm
 
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)                # no designs on this shelf
     series = cartoons.SERIES["gully"]
     reply = cartoons.Episode.model_validate({"title": "Gully's Kite", "logline": "Gully flies a chip bag.", "scenes": [
         {"place": "the harbour wall at low tide", "summary": "Gully finds a chip bag and has an idea.",
@@ -95,6 +96,65 @@ def test_an_episode_is_written_as_h3_scenes_with_its_cast(monkeypatch):
     assert cartoons.frames(15) == 362 and cartoons.frames(5) == 124
     with pytest.raises(FileNotFoundError, match="design stage"):        # no pictures yet: no render
         cartoons.settings(series, ep.scenes[0], seed=1)
+
+
+def test_both_voices_reach_wan2gp_in_the_prompts_order(monkeypatch, tmp_path):
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    series = cartoons.SERIES["gully"]
+    series.refs().mkdir(parents=True)
+    for name in ("gully_full.png", "gully_face.png", "biscuit_full.png", "biscuit_face.png", "gully_voice.wav",
+                 "biscuit_voice.wav"):
+        (series.refs() / name).write_bytes(b"x")
+    scene = cartoons.Scene(place="the harbour wall", summary="Gully asks; Biscuit says no.",
+                           shots=[{"at": 0, "action": "Gully and Biscuit on the wall"}],
+                           lines=[{"who": "gully", "words": "Chips?"}, {"who": "biscuit", "words": "No."}], sounds="waves")
+    text, _, voices = cartoons.prompt(series, scene)
+    s = cartoons.settings(series, scene, seed=1)
+    assert s["audio_prompt_type"] == "AB" and len(s["image_refs"]) == 4
+    assert [s["audio_guide"], s["audio_guide2"]] == [str(v) for v in voices]
+    assert s["audio_guide"].endswith("gully_voice.wav") and "exactly the voice heard in <Audio 2>" in text
+
+
+def test_the_comfyui_graph_is_h3_ref2va_with_the_turbo_lora():
+    from entertainment import cartoons
+
+    g = cartoons.comfy_graph("the prompt", ["a.png", "b.png"], ["v.wav"], seed=5, length=362, prefix="gully_x_scene01")
+    h3 = g["9"]["inputs"]
+    assert g["9"]["class_type"] == "MiniMaxH3ReferenceToVideo" and h3["length"] == 362 and h3["prompt"] == "the prompt"
+    assert [g[h3[f"ref_images.ref_image_{i}"][0]]["inputs"]["image"] for i in range(2)] == ["a.png", "b.png"]
+    assert g[h3["ref_audios.ref_audio_0"][0]]["inputs"]["audio"] == "v.wav"
+    assert g["2"]["inputs"]["lora_name"] == cartoons.H3["turbo"] and g["12"]["inputs"]["steps"] == 4
+    assert g["12"]["inputs"]["model"] == ["2", 0] and g["13"]["inputs"]["model"] == ["2", 0]
+    full = cartoons.comfy_graph("p", ["a.png"], [], seed=5, length=124, prefix="x", steps=20)
+    assert "2" not in full and full["12"]["inputs"]["model"] == ["1", 0] and full["12"]["inputs"]["steps"] == 20
+
+
+def test_a_dry_run_writes_each_scenes_graph_and_a_rendered_scene_is_kept(monkeypatch, tmp_path):
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    monkeypatch.setattr(cartoons, "_comfy", lambda *a, **k: pytest.fail("a dry run never calls ComfyUI"))
+    series = cartoons.SERIES["gully"]
+    series.refs().mkdir(parents=True)
+    for name in ("gully_full.png", "gully_face.png", "biscuit_full.png", "biscuit_face.png"):
+        (series.refs() / name).write_bytes(b"x")
+    ep = cartoons.Episode.model_validate({"title": "Gully's Kite", "logline": "A kite.", "scenes": [
+        {"place": "the harbour wall", "summary": "Gully finds a bag.", "shots": [{"at": 0, "action": "Gully lands"}],
+         "lines": [{"who": "gully", "words": "Chips!"}], "sounds": "waves"},
+        {"place": "the quay", "summary": "Biscuit watches.", "shots": [{"at": 0, "action": "Biscuit sits"}],
+         "lines": [], "sounds": "a breeze"}]})
+    folder = tmp_path / "gully" / "gullys-kite"
+    (folder / "scene01").mkdir(parents=True)
+    (folder / "episode.json").write_text(ep.model_dump_json(), encoding="utf-8")
+    (folder / "scene01" / "done.mp4").write_bytes(b"x")                 # rendered on an earlier night
+    assert cartoons.render(folder, dry_run=True, engine="comfy") == [folder / "scene01" / "done.mp4"]
+    assert not (folder / "scene01.comfy.json").exists()
+    g = json.loads((folder / "scene02.comfy.json").read_text(encoding="utf-8"))
+    assert g["9"]["inputs"]["length"] == 362 and g["10"]["inputs"]["noise_seed"] == 1002
+    assert g["18"]["inputs"]["filename_prefix"] == "cartoons/gully_gullys-kite_scene02"
+    assert "Biscuit" in g["9"]["inputs"]["prompt"] and g["100"]["inputs"]["image"] == "biscuit_full.png"
 
 
 def test_a_series_never_speaks_for_its_silent_partner():
