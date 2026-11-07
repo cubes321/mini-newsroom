@@ -323,3 +323,16 @@ def test_the_window_draws_the_board_and_the_darts():
 def test_the_window_says_the_last_dart_in_darts_shorthand():
     assert [oche.mark(*oche.score_at(x, y)) for x, y in ((0, 103), (0, 166), (0, 60), (0, 12), (0, 0), (0, 200))] == [
         "T20", "D20", "20", "25", "BULL", "MISS"]
+
+
+def test_a_quiz_round_may_run_to_forty_lines(channel):
+    """Six questions with bonuses came to 25 lines and the twelve darts to 34; the debate's cap of 24 failed
+    three items of five on the scratch run (2026-11-07)."""
+    from newsroom.models import script_schema
+    schedule_show = schedule.get("wits")
+    schema = script_schema(T.interview, schedule_show.cast_for(T.interview), panel=True,
+                           max_lines=writers.LINE_CAPS["wits"])
+    lines = [{"speaker": "mag_b", "text": f"Question {i}?"} if i % 2 else
+             {"speaker": "guest", "guest_name": "Gav Polglase", "text": "Hmm."} for i in range(36)]
+    assert len(schema.model_validate({"headline": "Round one", "lower_third": "Wexley Wits", "lines": lines}).lines) == 36
+    assert script_schema(T.interview, ("anchor", "guest"), panel=True).model_fields["lines"].metadata  # others keep 24

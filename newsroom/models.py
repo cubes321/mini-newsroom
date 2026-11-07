@@ -810,7 +810,7 @@ _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 
 
 def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False,
-                  panel: bool = False, chatter: bool = False) -> type[BaseModel]:
+                  panel: bool = False, chatter: bool = False, max_lines: int | None = None) -> type[BaseModel]:
     """The script schema with `lines[].speaker` narrowed to one show's cast.
 
     The JSON schema the model sees then lists only that show's presenters, the
@@ -818,7 +818,7 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = Fa
     with two guests on The Last Ferry's couch; `panel`: The Panel's debate, three guests; `chatter`:
     Rock Pool's links and visitors, with more and shorter lines than a bulletin or an interview.
     """
-    key = (seg_type, cast, couch, panel, chatter)
+    key = (seg_type, cast, couch, panel, chatter, max_lines)
     if key not in _NARROWED:
         chat = {SegmentType.links: ChatterScript, SegmentType.interview: ChatterInterviewScript}
         base = (PanelScript if panel else CouchScript if couch else chat.get(seg_type) if chatter and seg_type in chat
@@ -828,6 +828,8 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = Fa
         line = create_model(f"{line_base.__name__}_{'_'.join(cast)}"[:64], __base__=line_base,
                             speaker=(Literal[*cast], Field(validation_alias=SPEAKER_KEY)))
         bounds = {k: getattr(m, k) for m in lf.metadata for k in ("min_length", "max_length") if hasattr(m, k)}
+        if max_lines:                                  # a show that needs more lines: a quiz round, the darts
+            bounds["max_length"] = max_lines
         # The class name becomes the json_schema name, which servers cap at 64 characters.
         _NARROWED[key] = create_model(f"{base.__name__}_{'_'.join(cast)}"[:64], __base__=base,
                                       lines=(list[line], Field(**bounds)))

@@ -43,6 +43,9 @@ def use():
     writers.CAPTION_HOOKS[quiz.SHOW] = quiz.caption
     writers.TEMPLATE_HOOKS[quiz.SHOW] = template
     writers.CHECK_HOOKS[quiz.SHOW] = quiz.check
+    # Six questions with bonuses came to 25 lines, the twelve darts to 34: the debate's 24 failed three items
+    # of five twice over on the scratch run (2026-11-07), and code's own rounds stood in.
+    writers.LINE_CAPS[quiz.SHOW] = 40
     writers.AFTER_HOOKS[quiz.SHOW] = quiz.after
     player.OVERLAY_HOOKS[quiz.SHOW] = oche.overlay
     scenes.OVERLAYS[quiz.SHOW] = oche.draw
@@ -59,7 +62,7 @@ def use():
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
-                    writers.AFTER_HOOKS, player.OVERLAY_HOOKS, scenes.OVERLAYS):
+                    writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS):
             reg.pop(quiz.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
             reg.discard(quiz.SHOW)

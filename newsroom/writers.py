@@ -762,6 +762,7 @@ DEBATE_SHOWS: set[str] = set()      # an interview has several guests, each line
 UNFILED_SHOWS: set[str] = set()     # never files an item under a news story, whatever thread_id it sets
 CAPTION_HOOKS: dict[str, Callable] = {}   # (world, guest name) -> their caption on this show, or None
 CHECK_HOOKS: dict[str, Callable] = {}     # (seg, script, world): raise llm.LLMError if the script won't do
+LINE_CAPS: dict[str, int] = {}          # a script's most lines, where the type's own cap is too few for the show
 AFTER_HOOKS: dict[str, Callable] = {}     # (seg, world): once seg.lines are set, e.g. which line shows what
 
 
@@ -1467,7 +1468,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     if show.id in SEAT_HOOKS:
         seg.work["seats"] = SEAT_HOOKS[show.id](world)     # on the set all show, speaking or not (player.py)
     chatter = show.id == "rockpool"           # Poppy and Gully (and a visitor): many short lines
-    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate, chatter=chatter)
+    schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate, chatter=chatter,
+                           max_lines=LINE_CAPS.get(show.id))
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)

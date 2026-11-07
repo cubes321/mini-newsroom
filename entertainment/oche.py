@@ -101,7 +101,7 @@ def brief(q: dict, r: dict, n: int, score: str) -> str:
     return (f"ROUND {n + 1}: THE DARTS ROUND, at the oche. Each contestant throws three darts at the board, in this "
             f"order. Clive calls EVERY dart in a line of his own that BEGINS with the call exactly as given (a word "
             f"after it is fine); before each player, a line to bring them up; a word from the thrower now and then. "
-            f"At most 22 lines.\n" + "\n".join(rows)
+            f"At most 36 lines.\n" + "\n".join(rows)
             + f"\nTEAM TOTALS: {q['teams'][0]['name']} {words(a)}, {q['teams'][1]['name']} {words(b)}, {won}."
             + f"\nTHE SCORE AFTER ROUND {n + 1}, which Clive reads out in his own words: {score}.")
 

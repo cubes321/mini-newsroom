@@ -81,7 +81,7 @@ This is Clive with the teams, as THIS ITEM says. When it is a ROUND: Clive names
 then asks its questions in order, with a quick word now and then for whoever answered; each goes as given (right; or wrong and over to the other team for
 the bonus; or nobody, and Clive gives the answer); a quick word between questions, never a long one;
 at the end Clive reads out THE SCORE exactly. When it is THE DARTS ROUND, it goes dart by dart as
-THIS ITEM gives it. At most 22 lines: Clive's verdict and his next question
+THIS ITEM gives it. At most 36 lines: Clive's verdict and his next question
 share a line. Every contestant speaks at least once. When it is a chat,
 there are no questions and no score. When it is the RESULT, it goes exactly as given. Every "guest" line
 names its speaker in guest_name. headline = the round or the chat and how it went, under 12 words.
