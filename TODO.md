@@ -103,7 +103,11 @@ bottom with the date.
   - The channel still wears Channel 7's logo and name in places.
   - The darts round (built 2026-11-07, `entertainment/oche.py`): round three, three darts each at treble twenty, every
     dart drawn on a real board's geometry; the window at the top left shows the thrower's darts as Clive calls
-    them (a script missing a call in order gives way to the code's own round). Not on air yet.
+    them (a script missing a call in order gives way to the code's own round). Second scratch run (2026-11-07, 13:40):
+    the 24-question booking validated; three items of five broke the 24-line cap and the code's rounds aired, so Wits
+    may now run to 40 lines (8efa096); the model took the throwers team by team, so the calls now follow the thrower
+    Clive names (7fbe0ee); two model darts rounds then mapped all twelve. The quiz was over 8 minutes in: chats
+    filled the other 22. Decide: a 20-minute slot, more rounds, or keep.
   - The result as town talk: the news or Coastwide mentioning who won.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch
