@@ -162,7 +162,7 @@ bottom with the date.
   (no TTS), so it costs nothing to voice and fills time the repeats leave over.
 - [ ] A model-planned running order for the magazine and the talk show (a
   theme and a topic per item) on top of the fixed hour orders.
-- [ ] Optional real-weather hook mapping the user's city onto Port Wexley.
+- [x] Not doing (the user, 2026-11-07): Port Wexley keeps its own weather. Was: an optional real-weather hook.
 
 ## Engineering
 
@@ -345,16 +345,19 @@ bottom with the date.
   end" (does the desk make news of a loose end, and is it news?), "has been on before" (how often
   a writer rebooks a remembered guest; each costs a second call).
 
-- [ ] LM Studio provider: thinking is off with `reasoning_effort: "none"` and
+- [x] Not doing (the user, 2026-11-07): the current routing stays (Haiku live, DeepSeek Flash back office,
+  Sonnet senior editor and fallback). A quick side-by-side that day, six live prompts from the town: Haiku
+  3-7 s; gemma-4-26b-a4b-qat 6-13 s, generic, American English, a phone-in reply left unnamed; qwen3.6-35b-a3b
+  11-19 s, facts wrong (Oliver Fenwick-Hale an MP). All passed the schema. Was: LM Studio provider: thinking is off with `reasoning_effort: "none"` and
   the local bench is done (qwen3.6-35b-a3b the most coherent, gemma-4-26b-a4b
   the fastest, qwen3.8-flash-next the best writer but about 15 s a script).
   Still to do: an end-to-end run through the app's own provider config rather
   than a rerouting script.
-- [ ] Hybrid routing as config: live segments on LM Studio, the story desk,
+- [x] Not doing, as above (2026-11-07). Was: hybrid routing as config: live segments on LM Studio, the story desk,
   editor and specials on Kimi k3. A one-hour trial with a scratchpad reroute
   ran 93 jobs cleanly; sofa chats took about 27 s on qwen3.8 (Kokoro competes
   for the CPU), and the back office would cost about $0.9 a night on k3.
-- [ ] Try DeepSeek (needs credits and `DEEPSEEK_API_KEY`). `deepseek_pro` (v4-pro, thinking on)
+- [x] Done: DeepSeek Flash (thinking) has run the back office since 2026-10-30. Was: try DeepSeek (needs credits and `DEEPSEEK_API_KEY`). `deepseek_pro` (v4-pro, thinking on)
   and `deepseek_flash` are declared in config.toml but not routed; `--route
   claude_sonnet=deepseek_pro` moves the back office to it for one run. On 2026-10-28 prices
   (third-party listings; confirm on the console) v4-pro is $0.66 in / $1.98 out per million
@@ -387,7 +390,7 @@ bottom with the date.
   fallback fires.
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
   `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
-- [ ] Claude on the `anthropic` route. Benched 2026-10-26 on the Kimi bench
+- [x] Claude on the `anthropic` route: Haiku live and Sonnet as senior editor since 2026-10-26. Benched 2026-10-26 on the Kimi bench
   prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
   timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
   Kimi, with real quotes and jokes, and its story desk moves stories on instead
