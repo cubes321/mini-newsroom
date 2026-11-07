@@ -283,7 +283,7 @@ def after(seg, world: World) -> None:
     r = darts_round(world, seg.brief)
     found = oche.calls_in(seg.lines, r["throws"]) if r else None
     if found:
-        seg.work["darts"] = [{**d, "line": i} for d, i in zip(r["throws"], found)]
+        seg.work["darts"] = sorted(({**d, "line": i} for d, i in zip(r["throws"], found)), key=lambda d: d["line"])
 
 
 def caption(world: World, name: str) -> str | None:
@@ -321,7 +321,7 @@ def _round(q: dict, n: int) -> str:
         rows.append(row)
     return (f"ROUND {n + 1}: {r['title'].upper()}. Clive asks these in this order, word for word, and each goes "
             f"exactly as given:\n" + "\n".join(rows)
-            + f"\nTHE SCORE AFTER ROUND {n + 1}, which Clive reads out in his own words: {_score(q, r['scores_after'])}.")
+            + f"\nTHE SCORE AFTER ROUND {n + 1}, for Clive to read out: {_score(q, r['scores_after'])}.")
 
 
 def brief_for(world: World, brief: str) -> str:
@@ -349,7 +349,7 @@ def brief_for(world: World, brief: str) -> str:
                     f"{q['teams'][1]['members'][0]} says {t['guesses'][1]}{unit}; the answer is {t['a']}{unit}, "
                     f"so {q['teams'][t['winner']]['name']} take it. ")
         w = q["teams"][q["winner"]]["name"]
-        return out + f"THE FINAL SCORE, which Clive reads out in his own words: {_score(q, q['final'])}. {w} win."
+        return out + f"THE FINAL SCORE, for Clive to read out: {_score(q, q['final'])}. {w} win."
     return TOKEN.sub(part, brief)
 
 

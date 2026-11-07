@@ -98,12 +98,12 @@ def brief(q: dict, r: dict, n: int, score: str) -> str:
     a, b = r["totals"]
     won = (f"so {q['teams'][0 if a > b else 1]['name']} take the darts round and {POINTS} points" if a != b
            else "level, so one point each")
-    return (f"ROUND {n + 1}: THE DARTS ROUND, at the oche. Each contestant throws three darts at the board, in this "
-            f"order. Clive calls EVERY dart in a line of his own that BEGINS with the call exactly as given (a word "
+    return (f"ROUND {n + 1}: THE DARTS ROUND, at the oche. Each contestant throws three darts at the board, the "
+            f"throwers in this order or team by team. Clive names each thrower as they step up and calls EVERY dart in a line of his own that BEGINS with the call exactly as given (a word "
             f"after it is fine); before each player, a line to bring them up; a word from the thrower now and then. "
             f"At most 36 lines.\n" + "\n".join(rows)
             + f"\nTEAM TOTALS: {q['teams'][0]['name']} {words(a)}, {q['teams'][1]['name']} {words(b)}, {won}."
-            + f"\nTHE SCORE AFTER ROUND {n + 1}, which Clive reads out in his own words: {score}.")
+            + f"\nTHE SCORE AFTER ROUND {n + 1}, for Clive to read out: {score}.")
 
 
 def _norm(s: str) -> list[str]:
@@ -111,19 +111,33 @@ def _norm(s: str) -> list[str]:
 
 
 def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | None:
-    """The line that calls each dart, in order: Clive's line beginning with that dart's call ("Twenty."
-    is not "Twenty-five."). None if any dart's call is missing."""
-    found, k = [], 0
+    """The line that calls each dart: Clive's line beginning with that dart's call ("Twenty." is not
+    "Twenty-five."), for the thrower he last named, whose darts go in their order. The throwers may come in
+    any order: on the scratch run (2026-11-07) Haiku took them team by team, not as booked. None if any
+    dart's call is missing."""
+    mine: dict[str, list[int]] = {}
+    for k, t in enumerate(throws):
+        mine.setdefault(t["who"], []).append(k)
+    names = {who: (who.lower(), who.split()[0].lower()) for who in mine}
+    done = {who: 0 for who in mine}
+    found: list[int | None] = [None] * len(throws)
+    current = None
     for i, line in enumerate(lines):
-        if k == len(throws):
-            break
         if line.speaker != caller:
             continue
-        said, call = _norm(line.text), _norm(throws[k]["call"])
-        if said[:len(call)] == call and (len(said) == len(call) or said[len(call)] not in _ONES[1:]):
-            found.append(i)
-            k += 1
-    return found if k == len(throws) else None
+        if current is not None and done[current] < len(mine[current]):
+            k = mine[current][done[current]]
+            said, call = _norm(line.text), _norm(throws[k]["call"])
+            if said[:len(call)] == call and (len(said) == len(call) or said[len(call)] not in _ONES[1:]):
+                found[k], done[current] = i, done[current] + 1
+                continue
+        text = line.text.lower()
+        at = {who: max(text.rfind(full), max((m.start() for m in re.finditer(rf"\b{re.escape(first)}\b", text)),
+                                             default=-1))
+              for who, (full, first) in names.items()}
+        if max(at.values()) >= 0:
+            current = max(at, key=at.get)          # the last thrower the line names is up
+    return found if all(f is not None for f in found) else None
 
 
 def overlay(seg, line_idx: int) -> dict | None:

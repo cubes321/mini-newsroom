@@ -135,7 +135,7 @@ def test_a_round_brief_carries_every_question_and_the_score_clive_reads(monkeypa
     for x in q["rounds"][1]["questions"]:
         assert x["q"] in two and x["who"] in two and f"(the answer: {x['a']})" in two
     s = q["rounds"][1]["scores_after"]
-    assert f"which Clive reads out in his own words: {q['teams'][0]['name']} {s[0]}, {q['teams'][1]['name']} {s[1]}." in two
+    assert f"for Clive to read out: {q['teams'][0]['name']} {s[0]}, {q['teams'][1]['name']} {s[1]}." in two
     close = quiz.brief_for(w, "the RESULT, {close}")
     assert f"{q['teams'][0]['name']} {q['final'][0]}, {q['teams'][1]['name']} {q['final'][1]}" in close
     assert ("THE TIEBREAK" in close) == bool(q["tiebreak"])
@@ -240,7 +240,9 @@ def test_every_dart_is_thrown_in_code_and_the_better_pub_scores_more():
 def _darts_lines(r, said=lambda d: d["call"]):
     from newsroom.models import PanelLine
     lines = [PanelLine(speaker="mag_b", text="The darts round!")]
-    for d in r["throws"]:
+    for k, d in enumerate(r["throws"]):
+        if k == 0 or r["throws"][k - 1]["who"] != d["who"]:
+            lines.append(PanelLine(speaker="mag_b", text=f"{d['who']}, step up."))
         lines.append(PanelLine(speaker="mag_b", text=said(d) + " Lovely."))
         if len(lines) % 6 == 5:
             lines.append(PanelLine(speaker="guest", guest_name=d["who"], text="Ooh."))
@@ -264,7 +266,7 @@ def test_the_darts_round_is_called_dart_by_dart_and_the_window_follows_the_calls
     writers.script_segment(seg, w)
     lines = _darts_lines(r)
     assert not seg.fallback and [d["line"] for d in seg.work["darts"]] == [
-        i for i, l in enumerate(lines) if l.speaker == "mag_b" and i > 0]
+        i for i, l in enumerate(lines) if l.speaker == "mag_b" and l.text.endswith("Lovely.")]
     assert oche.overlay(seg, 0) == {"who": r["throws"][0]["who"], "to": 0, "darts": [], "total": 0, "call": ""}
     at = [d["line"] for d in seg.work["darts"]]
     two = oche.overlay(seg, at[1])                               # two darts called, the first thrower's
@@ -292,10 +294,11 @@ def test_a_darts_round_with_a_call_missing_is_the_codes_own_round(channel, monke
 
 def test_twenty_is_not_twenty_five():
     from newsroom.models import PanelLine
-    throws = [{"call": "Twenty."}, {"call": "Twenty-five."}]
-    lines = [PanelLine(speaker="mag_b", text="Twenty-five! Outer bull."), PanelLine(speaker="mag_b", text="Twenty."),
+    throws = [{"who": "Gav Polglase", "call": "Twenty."}, {"who": "Gav Polglase", "call": "Twenty-five."}]
+    lines = [PanelLine(speaker="mag_b", text="Gav Polglase to throw."),
+             PanelLine(speaker="mag_b", text="Twenty-five! Outer bull."), PanelLine(speaker="mag_b", text="Twenty."),
              PanelLine(speaker="mag_b", text="Twenty-five.")]
-    assert oche.calls_in(lines, throws) == [1, 2]
+    assert oche.calls_in(lines, throws) == [2, 3]
 
 
 def test_the_window_draws_the_board_and_the_darts():
@@ -336,3 +339,17 @@ def test_a_quiz_round_may_run_to_forty_lines(channel):
              {"speaker": "guest", "guest_name": "Gav Polglase", "text": "Hmm."} for i in range(36)]
     assert len(schema.model_validate({"headline": "Round one", "lower_third": "Wexley Wits", "lines": lines}).lines) == 36
     assert script_schema(T.interview, ("anchor", "guest"), panel=True).model_fields["lines"].metadata  # others keep 24
+
+
+def test_the_darts_are_found_whichever_order_the_throwers_come_in():
+    """Haiku took the throwers team by team on the scratch run (2026-11-07), not as booked, and every call was
+    right: the round still went to the stand-in. Calls now follow the thrower Clive last named."""
+    from newsroom.models import PanelLine
+    throws = [{"who": w, "call": c} for w, c in (("Gav Polglase", "Twenty."), ("Gav Polglase", "One."),
+                                                  ("Shirley Vosper", "Twenty-five."), ("Shirley Vosper", "Five."))]
+    say = lambda t: PanelLine(speaker="mag_b", text=t)
+    lines = [say("Round three! Shirley Vosper first for the Anchor and Bell."), say("Twenty-five. Lovely."),
+             PanelLine(speaker="guest", guest_name="Shirley Vosper", text="Twenty, I said!"), say("Five."),
+             say("Thirty for Shirley. Gav, over to you."), say("Twenty."), say("One. Oh, Gav.")]
+    assert oche.calls_in(lines, throws) == [5, 6, 1, 3]
+    assert oche.calls_in(lines[:6], throws) is None                     # Gav's second dart never called
