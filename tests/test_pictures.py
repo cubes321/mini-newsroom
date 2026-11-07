@@ -212,3 +212,45 @@ def test_a_brief_naming_something_written_is_set_aside(monkeypatch):
         assert (pictures.brief_for(req) == said) is kept, said
     monkeypatch.setattr(llm, "complete_json", lambda *a, **k: (_ for _ in ()).throw(llm.LLMError("down")))
     assert pictures.brief_for(req) == ""                                      # the call failed: no brief
+
+
+def test_a_brief_naming_writing_or_the_studio_is_asked_for_again(monkeypatch):
+    """On the 11-06 night the twelve headline-only pictures were the ones with words in them, and 18 briefs drew
+    the programme itself (two presenters on a sofa) instead of what it was about."""
+    from newsroom import llm
+    from newsroom.models import PictureBrief
+    req = pictures.request_for(_seg(T.sofa, "breakfast", "Viewer asks why the Town Hall clock keeps stopping"),
+                               world_mod.seed())
+    for first in ("Two presenters sit on a bright sofa in a cosy studio with mugs of tea.",
+                  "A shop window with a hand-painted sign above the door on Harrow Street."):
+        said = iter([first, "A tall stone clock tower over a quiet harbour at dawn, its hands stopped."])
+        asked = []
+        monkeypatch.setattr(llm, "complete_json",
+                            lambda task, schema, system, user, **k: asked.append(user) or PictureBrief(picture=next(said)))
+        assert pictures.brief_for(req).startswith("A tall stone clock tower")
+        assert len(asked) == 2 and "Say it again" in asked[1] and first in asked[1]
+
+
+def test_football_is_soccer_and_the_tides_are_a_club():
+    assert pictures._soccer("A large bright football beside a football pitch") == \
+        "A large bright round soccer ball beside a soccer pitch"
+    assert "the Tides are the football (soccer) club" in pictures.BRIEF_SYSTEM
+    assert "ginger" not in pictures.BRIEF_SYSTEM                      # its example was copied three times
+    assert "faces on objects" in pictures.QWEN_NEGATIVE
+    req = pictures.Request(key="k", day="d", show="news", kind="sport", headline="h", subject="h",
+                           brief="A football on wet grass")
+    assert "round soccer ball on wet grass" in pictures.prompt_for(req)
+
+
+def test_a_panel_item_gets_its_questions_story_and_a_round_on_several_things_none():
+    w = world_mod.seed()
+    t = w.seed_thread("Fender costs and the auction", "the crane is rebooked for the 17th", "", [])
+    w.panels = [{"date": w.last_date, "questions": [{"question": "Pay now?", "thread_id": None},
+                                                    {"question": "Move the auction?", "thread_id": t.id}]}]
+    lines = [Line(speaker="anchor", text="Everyone's talking about bunting, boilers and the plaque.")]
+    two = pictures.request_for(_seg(T.interview, "panel", "Auction on the Quay or moved?", lines=lines,
+                                    brief="the SECOND question, {q2}: each answers"), w)
+    assert two.key == t.id and two.subject == t.title and "bunting" not in two.context
+    assert "rebooked for the 17th" in two.context
+    for brief in ("the FIRST question, {q1}", "quick fire: one line each on the week's stories", ""):
+        assert pictures.request_for(_seg(T.interview, "panel", "Quick fire", brief=brief), w) is None

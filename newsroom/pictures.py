@@ -103,11 +103,17 @@ def request_for(seg: Segment, world) -> Request | None:
             seg.type in TYPES or (seg.type is T.links and seg.show == CHILDREN_LINKS)):
         return None
     thread = world.thread(seg.thread_id) if seg.thread_id else None
+    debate = seg.show == PANEL
+    if debate:
+        thread = _panel_story(seg, world)
+        if thread is None:
+            return None
     day = date.fromtimestamp(seg.nominal_start_ts).isoformat()
     key = thread.id if thread else f"{seg.show}|{_slug(seg.headline)}"     # a story's picture, whichever show
     subject = thread.title if thread else seg.headline
     spoken = " ".join(l.text for l in seg.lines)
-    context = " ".join(p for p in (thread.status if thread else "", spoken) if p)[:CONTEXT_CHARS]
+    # A debate's words wander over every side of it and more: the story's own status says what it is about.
+    context = " ".join(p for p in (thread.status if thread else "", "" if debate else spoken) if p)[:CONTEXT_CHARS]
     req = Request(key=key, day=day, show=seg.show, kind=seg.type.value, headline=seg.headline,
                   thread=thread.id if thread else "", subject=subject,
                   serious=bool(SERIOUS.search(f"{subject} {seg.headline}")), context=context)
@@ -115,8 +121,34 @@ def request_for(seg: Segment, world) -> Request | None:
     return req
 
 
+PANEL = "panel"
+
+
+def _panel_story(seg: Segment, world):
+    """The story of the one question a Panel item debates ("{q2}" in its brief), or None. The 11-06 night's
+    seven Panel pictures were mash-ups of every noun in the debate: a round on several things (quick fire,
+    the week ahead, one change each) has nothing to show, and a question's picture is its story's, the
+    same one the news made for it (one picture per story a day)."""
+    from . import panel
+
+    m = re.search(r"\{q(\d)\}", seg.brief or "")
+    qs = (panel.tonight(world) or {}).get("questions") or []
+    q = qs[int(m.group(1)) - 1] if m and int(m.group(1)) <= len(qs) else None
+    return world.thread(q["thread_id"]) if q and q.get("thread_id") else None
+
+
+# The image model reads "football" the American way (an oval ball on the 11-06 night, twice): soccer.
+_FOOTBALL_THING = re.compile(r"\bfootball(?= (?:pitch|club|ground|match|shirt|kit|boots|goal|team|stand))", re.I)
+_FOOTBALL = re.compile(r"\bfootballs?\b", re.I)
+
+
+def _soccer(s: str) -> str:
+    return _FOOTBALL.sub("round soccer ball", _FOOTBALL_THING.sub("soccer", s))
+
+
 def prompt_for(req: Request) -> str:
     what = (req.brief or req.subject).rstrip(".")
+    what = _soccer(what)
     return " ".join(p for p in (SUBJECT.format(subject=what), STYLE,
                                 CHILDREN if req.show == "rockpool" else "", RULES) if p)
 
@@ -132,18 +164,39 @@ BRIEF_SYSTEM = (
     "You brief an illustrator who paints one picture for a story on Channel 7, the television station of "
     "Port Wexley, a small fishing town on the English coast. The illustrator only reads your sentence, "
     "knows nothing of the town, and doesn't know local foods, customs or names. Write ONE sentence of "
-    "15 to 35 words saying what to paint: the main thing itself, large, then where it is and what is "
-    "happening. Say what things look like rather than what they are called (not \"parkin\" but \"a tray of "
-    "dark, sticky ginger cake cut into squares\"). At most two people, described by their job or look, "
+    "15 to 35 words saying what to paint: ONE main thing itself, large, then where it is and what is "
+    "happening; one scene, not everything the story mentions. Say what things look like rather than what "
+    "they are called: a local food, dish or custom by its look, colour and shape, so someone who has never "
+    "heard its name could paint it. Never the television studio, the presenters, the interview or the chat "
+    "itself: paint what they are talking about. In Port Wexley the Tides are the football (soccer) club and "
+    "the Wreckers the rugby club; a story about them shows their game. At most two people, described by "
+    "their job or look, "
     "never by name. A serious story (a fire, a crash, a death) shows the place or the aftermath, calm, "
-    "with nobody hurt in view. A council or committee story shows the thing being decided (the harbour "
+    "with nobody hurt in view and nothing that could look like harm. A council or committee story shows the thing being decided (the harbour "
     "wall, the empty shop), not a meeting. A children's story is warm and original, never a character "
     "from a film, book or cartoon. Paint only things: no writing of any kind, and don't mention any.")
-# The image models draw whatever nouns they're given, so a brief naming a written thing is set aside for the
-# headline, rather than risk a sign on the wall (the cfg 1 lesson of the second trial).
+# The image models draw whatever nouns they're given, so a brief naming a written thing is asked for again,
+# rather than risk a sign on the wall (the cfg 1 lesson of the second trial). The headline used to stand in,
+# and on the 11-06 night those twelve were the pictures with words in them.
 WRITTEN = re.compile(r"\b(signs?|signpost\w*|signage|letters?|lettering|words?|writing|written|text|banners?|"
                      r"posters?|placards?|notices?|labels?|labelled|headlines?|newspapers?|menus?|"
                      r"chalkboards?|blackboards?|reading|reads|says|logos?|numbers?)\b", re.I)
+
+
+# The studio itself: on the 11-06 night 18 briefs drew the chat, not its subject (two presenters on a sofa).
+STUDIO = re.compile(r"\b(studio|presenters?|newsreaders?|television|tv|broadcast\w*|microphones?|"
+                    r"interview(?:er|s)?)\b", re.I)
+
+
+def _unpaintable(text: str) -> str:
+    """Why a brief won't do as it stands ('' if it will): it names something written, or the studio."""
+    if m := WRITTEN.search(text):
+        return (f"It names something written (\"{m.group(0)}\"); the painter would put words in it. Say it "
+                "again with only things that have no writing on them.")
+    if m := STUDIO.search(text):
+        return (f"It paints the programme itself (\"{m.group(0)}\"). Say it again as what they are talking "
+                "about, not the studio, the presenters or the chat.")
+    return ""
 
 
 def brief_for(req: Request) -> str:
@@ -160,9 +213,18 @@ def brief_for(req: Request) -> str:
     except Exception as e:  # noqa: BLE001
         log.info("pictures: no brief for %s (%s); the headline will do", req.key, e)
         return ""
-    if WRITTEN.search(text):
-        log.info("pictures: the brief for %s names something written (%r); the headline will do", req.key, text)
-        return ""
+    why = _unpaintable(text)
+    if why:
+        log.info("pictures: the brief for %s won't do (%r); asking again", req.key, text)
+        try:
+            text = llm.complete_json("picture_brief", PictureBrief, BRIEF_SYSTEM,
+                                     f"{user}\n\nYou said: \"{text}\". {why}").picture.strip()
+        except Exception as e:  # noqa: BLE001
+            log.info("pictures: no second brief for %s (%s); the headline will do", req.key, e)
+            return ""
+        if _unpaintable(text):
+            log.info("pictures: the second brief for %s won't do either (%r); the headline will do", req.key, text)
+            return ""
     return text
 
 
@@ -224,8 +286,10 @@ def graph(prompt: str, seed: int, width: int = WIDTH, height: int = HEIGHT) -> d
 
 
 # Without Lightning (cfg 2.5) the negative works. The first trial drew a mermaid as Disney's Ariel.
+# Faces on cups, buoys and house fronts, and a crane's slack cable like a noose, on the 11-06 night.
 QWEN_NEGATIVE = ("text, letters, words, numbers, writing, signs, logo, watermark, photograph, photorealistic, "
-                 "Disney, Ariel, famous cartoon characters, film characters")
+                 "Disney, Ariel, famous cartoon characters, film characters, faces on objects, eyes on objects, "
+                 "smiling objects, anthropomorphic objects, noose")
 
 
 def graph_qwen(prompt: str, seed: int, width: int = 1664, height: int = 928, *, lightning: bool = True) -> dict:
