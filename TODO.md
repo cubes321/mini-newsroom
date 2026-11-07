@@ -107,7 +107,9 @@ bottom with the date.
     the 24-question booking validated; three items of five broke the 24-line cap and the code's rounds aired, so Wits
     may now run to 40 lines (8efa096); the model took the throwers team by team, so the calls now follow the thrower
     Clive names (7fbe0ee); two model darts rounds then mapped all twelve. The quiz was over 8 minutes in: chats
-    filled the other 22. Decide: a 20-minute slot, more rounds, or keep.
+    filled the other 22. The user chose two more rounds (2026-11-07): Who Said That? (six lines the week's guests
+    said on channel 7, from Person.memories, none naming its speaker) and darts doubles at double twenty (most
+    doubles wins; a miss mostly lands in the number ring, "No score."). Seven rounds now; not on air yet.
   - The result as town talk: the news or Coastwide mentioning who won.
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch

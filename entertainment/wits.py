@@ -18,7 +18,7 @@ from newsroom.writers import _COMMON_RULES, _MIDDLE
 from . import quiz
 
 SET = "pub"
-DONE = ("all five rounds are over and only the result is to come (no round is next), so no quiz questions "
+DONE = ("all seven rounds are over and only the result is to come (no round is next), so no quiz questions "
         "and no score: ")
 # Clive standing at the left; the home pair, then the away pair, facing him across the floor.
 MARKS = {"host": (52, 152, 2, 1), "guest": (128, 150, 2, -1),
@@ -37,7 +37,10 @@ SHOW = Show(
         I(T.interview, brief="{r3}", target_s=200.0),            # the darts round
         T.ad_break,
         I(T.interview, brief="{r4}", target_s=240.0),
-        I(T.interview, brief="{r5}", target_s=240.0),
+        I(T.interview, brief="{r5}", target_s=200.0),            # who said that
+        T.ad_break,
+        I(T.interview, brief="{r6}", target_s=240.0),
+        I(T.interview, brief="{r7}", target_s=200.0),            # darts doubles
         # Wraps to here until the close: chats, no questions and no score, a different angle each lap.
         I(T.interview, brief=tuple(DONE + b for b in (
             "Clive chats with {chat1} about their pub, their darts season and who is the brains of the pair",
@@ -48,7 +51,7 @@ SHOW = Show(
             "Clive asks both pairs what the winners should do with tonight's prize, a tin of biscuits and the "
             "pub's cup")), target_s=120.0),
     ),
-    loop_from=9,
+    loop_from=12,
     closing=(I(T.interview, "close", brief="the RESULT, {close}; a word from each captain, a good loser and a "
                                            "happy winner, and Clive's goodnight", target_s=110.0),),
     target_s={T.bumper: 8.0, T.links: 50.0, T.interview: 240.0, T.ad_break: 60.0},

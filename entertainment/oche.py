@@ -20,11 +20,13 @@ import pygame
 
 PER_PLAYER = 3
 AIM = (0.0, 103.0)                   # treble twenty, in mm from the bull (y up)
+DOUBLE_AIM = (0.0, 166.0)            # double twenty, for the doubles round: half of what misses is off the board
 SPREAD_MM = 30.0                     # a pub regular of strength 1.0
 CAPTAIN = 1.05                       # the captain is a little steadier
 POINTS = 3                           # the darts round to the higher team total; level, one each
 ORDER = (20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5)   # clockwise from the top
 BULL, OUTER_BULL, TREBLE_IN, TREBLE_OUT, DOUBLE_IN, DOUBLE_OUT = 6.35, 15.9, 99.0, 107.0, 162.0, 170.0
+BOARD_EDGE = 225.0                   # the black number ring runs out to here: no score, but in the board
 
 _ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
          "sixteen seventeen eighteen nineteen").split()
@@ -47,8 +49,10 @@ def score_at(x: float, y: float) -> tuple[int, str]:
         return 50, "Bullseye!"
     if r <= OUTER_BULL:
         return 25, "Twenty-five."
-    if r > DOUBLE_OUT:
+    if r > BOARD_EDGE:
         return 0, "Off the board!"
+    if r > DOUBLE_OUT:
+        return 0, "No score."              # in the number ring: the doubles' near miss
     angle = (math.degrees(math.atan2(x, y)) + 360) % 360          # 0 at the top, clockwise
     n = ORDER[int(((angle + 9) % 360) // 18)]
     if TREBLE_IN <= r <= TREBLE_OUT:
@@ -71,7 +75,7 @@ def mark(points: int, call: str) -> str:
     return str(points)
 
 
-def play(rng: random.Random, teams: list[dict]) -> tuple[list[dict], list[int]]:
+def play(rng: random.Random, teams: list[dict], aim: tuple[float, float] = AIM) -> tuple[list[dict], list[int]]:
     """Every dart, captains first, the teams in turn: [{who, to, x, y, points, call}], and the team totals."""
     throws, totals = [], [0, 0]
     for k in range(2):
@@ -79,7 +83,7 @@ def play(rng: random.Random, teams: list[dict]) -> tuple[list[dict], list[int]]:
             who = t["members"][k]
             spread = SPREAD_MM / (t["strength"] * (CAPTAIN if k == 0 else 1.0))
             for _ in range(PER_PLAYER):
-                x, y = rng.gauss(AIM[0], spread), rng.gauss(AIM[1], spread)
+                x, y = rng.gauss(aim[0], spread), rng.gauss(aim[1], spread)
                 points, call = score_at(x, y)
                 totals[to] += points
                 throws.append({"who": who, "to": to, "x": round(x, 1), "y": round(y, 1), "points": points,
@@ -96,6 +100,18 @@ def brief(q: dict, r: dict, n: int, score: str) -> str:
         rows.append(f"{mine[0]['who']} ({team}): " + ", ".join(f"\"{d['call']}\"" for d in mine)
                     + f" = {words(sum(d['points'] for d in mine))}")
     a, b = r["totals"]
+    if r["kind"] == "doubles":
+        d = r["doubles"]
+        won = (f"{q['teams'][0]['name']} hit {words(d[0])} doubles and {q['teams'][1]['name']} {words(d[1])}, "
+               + (f"so {q['teams'][r['won']]['name']} take the doubles and {POINTS} points" if r["won"] is not None
+                  else "level on both, so one point each")
+               + (" (on the totals, as the doubles are level)" if d[0] == d[1] and r["won"] is not None else ""))
+        return (f"ROUND {n + 1}: DARTS DOUBLES, back at the oche. Each contestant throws three darts at DOUBLE TWENTY, "
+                f"the thin outer ring at the top; the pair with more doubles takes it. The throwers in this order or "
+                f"team by team. Clive names each thrower as they step up and calls EVERY dart in a line of his own "
+                f"that BEGINS with the call exactly as given (a word after it is fine); a dart off the board is part "
+                f"of the fun. At most 36 lines.\n" + "\n".join(rows)
+                + f"\n{won}.\nTHE SCORE AFTER ROUND {n + 1}, for Clive to read out: {score}.")
     won = (f"so {q['teams'][0 if a > b else 1]['name']} take the darts round and {POINTS} points" if a != b
            else "level, so one point each")
     return (f"ROUND {n + 1}: THE DARTS ROUND, at the oche. Each contestant throws three darts at the board, the "
@@ -112,7 +128,7 @@ def _norm(s: str) -> list[str]:
 
 def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | None:
     """The line that calls each dart: Clive's line beginning with that dart's call ("Twenty." is not
-    "Twenty-five."), for the thrower he last named, whose darts go in their order. The throwers may come in
+    "Twenty-five."), for the thrower he last named, or the thrower's own line calling it, their darts in order. The throwers may come in
     any order: on the scratch run (2026-11-07) Haiku took them team by team, not as booked. None if any
     dart's call is missing."""
     mine: dict[str, list[int]] = {}
@@ -123,7 +139,9 @@ def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | No
     found: list[int | None] = [None] * len(throws)
     current = None
     for i, line in enumerate(lines):
-        if line.speaker != caller:
+        if line.speaker == "guest" and getattr(line, "guest_name", None) in mine:
+            current = line.guest_name              # a thrower calling their own dart: Haiku's doubles, 2026-11-07
+        elif line.speaker != caller:
             continue
         if current is not None and done[current] < len(mine[current]):
             k = mine[current][done[current]]
@@ -131,6 +149,8 @@ def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | No
             if said[:len(call)] == call and (len(said) == len(call) or said[len(call)] not in _ONES[1:]):
                 found[k], done[current] = i, done[current] + 1
                 continue
+        if line.speaker != caller:
+            continue
         text = line.text.lower()
         at = {who: max(text.rfind(full), max((m.start() for m in re.finditer(rf"\b{re.escape(first)}\b", text)),
                                              default=-1))
@@ -158,7 +178,7 @@ def overlay(seg, line_idx: int) -> dict | None:
 
 BOX = pygame.Rect(6, 4, 100, 62)     # top left, above every head on the set (Clive's is at y 75)
 BOARD_R = 24                         # px to the outside of the number ring
-_SCALE = 22 / DOUBLE_OUT             # px per mm: the doubles' outer edge 22 px out
+_SCALE = BOARD_R / BOARD_EDGE        # px per mm: the whole board, number ring and all (a doubles miss lands there)
 TEAM = ((90, 160, 240), (250, 200, 70))   # the home pair's flights, the away pair's
 _board: pygame.Surface | None = None
 

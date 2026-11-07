@@ -39,15 +39,19 @@ AIRS_AT = "20:00"
 BOOK_FROM = "18:00"
 PER_ROUND = 6                          # four made rounds of 85 s on 2026-11-07's scratch run: chat filled the rest
 # The darts round (oche.py) has no questions: three darts each, thrown in code.
+# Who Said That? (the week's guests, from what the town remembers of them) and the doubles are the user's, to fill
+# the half hour: the quiz was over eight minutes in on 2026-11-07's second scratch run.
 ROUNDS = (("general", "general knowledge"), ("local", "Port Wexley and the coast"), ("darts", "the darts round"),
-          ("news", "the week's news"), ("potluck", "pot luck"))
+          ("news", "the week's news"), ("quotes", "who said that"), ("potluck", "pot luck"),
+          ("doubles", "darts doubles"))
+DARTS_ROUNDS = ("darts", "doubles")
 OWN_POINTS, BONUS_POINTS = 2, 1
 RIGHT = {1: 0.8, 2: 0.6, 3: 0.4}       # the chance a pub of strength 1.0 gets its own question, by difficulty
 BONUS = 0.6                            # a bonus is harder: the first team's guess is out, the clock is on
 LOCAL_EDGE = 1.1                       # regulars know their own town
 REST_PAIRS = 5                         # a pairing doesn't come back within this many quizzes
 HEADLINES = 30
-TOKEN = re.compile(r"\{(open|r[1-5]|close|chat[12])\}")
+TOKEN = re.compile(r"\{(open|r[1-7]|close|chat[12])\}")
 
 # The darts regulars' genders, for their voices and looks (darts.PUBS names them, nothing more).
 GENDER = {"Shirley Vosper": "f", "Dennis Rowe": "m", "Gav Polglase": "m", "Tracy Hendy": "f",
@@ -188,23 +192,32 @@ def _stand_in(world: World) -> QuizBooking:
                                          answer=round(world.population, -3), unit="people"))
 
 
-def _play(booking: QuizBooking, ts: list[dict], seed: str) -> tuple[list[dict], list[int], dict | None]:
+def _play(booking: QuizBooking, ts: list[dict], seed: str, quotes: list | None = None
+          ) -> tuple[list[dict], list[int], dict | None]:
     """Every question's outcome and the scores after each round; the tiebreak if the scores are level."""
     rng = random.Random(seed)
     score = [0, 0]
     rounds = []
     for r, (kind, title) in enumerate(ROUNDS):
-        if kind == "darts":
-            throws, totals = oche.play(rng, ts)
-            if totals[0] == totals[1]:
+        if kind in DARTS_ROUNDS:
+            throws, totals = oche.play(rng, ts, oche.DOUBLE_AIM if kind == "doubles" else oche.AIM)
+            entry = {"kind": kind, "title": title, "throws": throws, "totals": totals}
+            if kind == "doubles":            # more doubles hit; level, the higher total; level again, a point each
+                hits = [sum(1 for d in throws if d["to"] == t and d["call"].startswith(("Double", "Bullseye")))
+                        for t in (0, 1)]
+                key = hits if hits[0] != hits[1] else totals
+                entry |= {"doubles": hits, "won": None if key[0] == key[1] else (0 if key[0] > key[1] else 1)}
+                won = entry["won"]
+            else:
+                won = None if totals[0] == totals[1] else (0 if totals[0] > totals[1] else 1)
+            if won is None:
                 score[0] += 1
                 score[1] += 1
             else:
-                score[0 if totals[0] > totals[1] else 1] += oche.POINTS
-            rounds.append({"kind": kind, "title": title, "throws": throws, "totals": totals,
-                           "scores_after": list(score)})
+                score[won] += oche.POINTS
+            rounds.append(entry | {"scores_after": list(score)})
             continue
-        qs = getattr(booking, kind)[:PER_ROUND]
+        qs = (quotes or [])[:PER_ROUND] if kind == "quotes" else getattr(booking, kind)[:PER_ROUND]
         out = []
         for i, q in enumerate(qs):
             to = (i + r) % 2                   # the teams take turns, and the other one starts the next round
@@ -237,10 +250,42 @@ def _play(booking: QuizBooking, ts: list[dict], seed: str) -> tuple[list[dict], 
     return rounds, score, tie
 
 
+def _quotes(world: World, ts: list[dict], booking: QuizBooking) -> list[Question]:
+    """Who Said That?: six lines the week's guests said on channel 7, as the town remembers them (Person.memories),
+    six different people, none of tonight's contestants, and never a line that names its speaker. A public
+    figure is easy, a resident heard twice middling, a once-heard caller hard. Topped up from the bank if the
+    week is thin, so the round always has six."""
+    since = (date.fromisoformat(world.last_date) - timedelta(days=7)).isoformat()
+    playing = {m for t in ts for m in t["members"]}
+    lines = []
+    for p in world.people:
+        if p.name in playing:
+            continue
+        words = {w.lower() for w in re.findall(r"[A-Za-z']+", p.name) if len(w) > 2}
+        mine = [m for m in p.memories if m.get("date", "") >= since and m.get("said")
+                and not words & {w.lower() for w in re.findall(r"[A-Za-z']+", m["said"])}]
+        if mine:
+            m = mine[-1]
+            level = 1 if p.kind == "official" else 2 if len(p.memories) > 1 else 3
+            day = date.fromisoformat(m["date"]).strftime("%A")
+            said = m["said"].rstrip(".")
+            if len(said) > 170:                              # at a word, not mid-word
+                said = said[:170].rsplit(" ", 1)[0].rstrip(",;:")
+            lines.append(Question(question=f"Who said this on {m['show']} on {day}: {said}",
+                                  answer=(f"{p.name}, {p.role}" if p.role and p.role != "resident" else p.name)[:80],
+                                  difficulty=level))
+    rng = random.Random(f"wits-quotes-{world.last_date}")
+    picked = rng.sample(lines, min(PER_ROUND, len(lines)))
+    used = {q.question for k in ("general", "news", "potluck") for q in getattr(booking, k)}
+    spare = [q for q in BANK if q.question not in used]
+    return picked + rng.sample(spare, PER_ROUND - len(picked))
+
+
 def _record(world: World, ts: list[dict], booking: QuizBooking | None) -> dict:
     stand_in = booking is None
     booking = booking or _stand_in(world)
-    rounds, final, tie = _play(booking, ts, f"wits-play-{world.last_date}-{ts[0]['pub']}-{ts[1]['pub']}")
+    rounds, final, tie = _play(booking, ts, f"wits-play-{world.last_date}-{ts[0]['pub']}-{ts[1]['pub']}",
+                               _quotes(world, ts, booking))
     entry = {"date": world.last_date, "venue": ts[0]["name"], "teams": ts, "rounds": rounds, "tiebreak": tie,
              "final": final, "winner": 0 if final[0] > final[1] else 1, "stand_in": stand_in}
     _cast(world, ts)
@@ -264,10 +309,10 @@ def seats(world: World) -> list[str]:
 
 def darts_round(world: World, brief: str) -> dict | None:
     """The darts round, if this item's brief is it."""
-    m = re.search(r"\{r([1-5])\}", brief or "")
+    m = re.search(r"\{r([1-9])\}", brief or "")      # every round: at [1-5] the doubles (round 7) went unchecked
     q = tonight(world)
     r = q["rounds"][int(m.group(1)) - 1] if m and q else None
-    return r if r and r["kind"] == "darts" else None
+    return r if r and r["kind"] in DARTS_ROUNDS else None
 
 
 def check(seg, script, world: World) -> None:
@@ -305,7 +350,7 @@ def _score(q: dict, s: list[int]) -> str:
 
 def _round(q: dict, n: int) -> str:
     r = q["rounds"][n]
-    if r["kind"] == "darts":
+    if r["kind"] in DARTS_ROUNDS:
         return oche.brief(q, r, n, _score(q, r["scores_after"]))
     rows = []
     for i, x in enumerate(r["questions"]):
@@ -319,8 +364,10 @@ def _round(q: dict, n: int) -> str:
                     + (f"RIGHT, a bonus point." if x["stolen"] else
                        "WRONG too (another wrong answer); Clive gives the answer."))
         rows.append(row)
-    return (f"ROUND {n + 1}: {r['title'].upper()}. Clive asks these in this order, word for word, and each goes "
-            f"exactly as given:\n" + "\n".join(rows)
+    how = ("Clive puts each line in his own words, as something someone said on channel 7 this week (never "
+           "saying who: that is the question), and asks who said it" if r["kind"] == "quotes"
+           else "Clive asks these in this order, word for word")
+    return (f"ROUND {n + 1}: {r['title'].upper()}. {how}, and each goes exactly as given:\n" + "\n".join(rows)
             + f"\nTHE SCORE AFTER ROUND {n + 1}, for Clive to read out: {_score(q, r['scores_after'])}.")
 
 

@@ -70,9 +70,14 @@ def test_the_quiz_is_played_in_code_and_the_score_adds_up(monkeypatch):
     q = quiz.tonight(w)
     score = [0, 0]
     for r in q["rounds"]:
-        if r["kind"] == "darts":
+        if r["kind"] in quiz.DARTS_ROUNDS:
             a, b = r["totals"]
             assert a == sum(d["points"] for d in r["throws"] if d["to"] == 0)
+            if r["kind"] == "doubles":                       # more doubles; level, the higher total
+                hits = [sum(d["call"].startswith(("Double", "Bullseye")) for d in r["throws"] if d["to"] == t)
+                        for t in (0, 1)]
+                assert hits == r["doubles"]
+                a, b = hits if hits[0] != hits[1] else (a, b)
             score[0] += 1 if a == b else oche.POINTS if a > b else 0
             score[1] += 1 if a == b else oche.POINTS if b > a else 0
             assert r["scores_after"] == score
@@ -123,7 +128,7 @@ def test_with_no_model_the_stand_in_quiz_asks_the_towns_own_facts(monkeypatch):
     _stub(monkeypatch, llm.LLMError("down"))
     q = quiz.commission(w)
     asked = [x["q"] for r in q["rounds"] for x in r.get("questions", [])]
-    assert q["stand_in"] and len(asked) == 24 and len(set(asked)) == 24
+    assert q["stand_in"] and len(asked) == 30 and len(set(asked)) == 30
     assert any(str(w.founded) == x["a"] for x in q["rounds"][1]["questions"])
 
 
@@ -219,7 +224,8 @@ def test_a_quiz_round_is_never_offered_a_return_guest(channel, monkeypatch):
 def test_the_board_scores_a_dart_by_where_it_lands():
     assert oche.score_at(0, 0) == (50, "Bullseye!") and oche.score_at(0, 12)[0] == 25
     assert oche.score_at(0, 103) == (60, "Treble twenty!") and oche.score_at(0, 166) == (40, "Double twenty!")
-    assert oche.score_at(0, 60) == (20, "Twenty.") and oche.score_at(0, 200) == (0, "Off the board!")
+    assert oche.score_at(0, 60) == (20, "Twenty.") and oche.score_at(0, 200) == (0, "No score.")
+    assert oche.score_at(0, 240) == (0, "Off the board!")                          # past the number ring
     assert oche.score_at(40, 120)[0] == 1 and oche.score_at(-40, 120)[0] == 5      # either side of the twenty
     assert oche.score_at(0, -103) == (9, "Treble three!")                            # the three, at the bottom
     assert oche.words(66) == "sixty-six" and oche.words(112) == "one hundred and twelve"
@@ -353,3 +359,42 @@ def test_the_darts_are_found_whichever_order_the_throwers_come_in():
              say("Thirty for Shirley. Gav, over to you."), say("Twenty."), say("One. Oh, Gav.")]
     assert oche.calls_in(lines, throws) == [5, 6, 1, 3]
     assert oche.calls_in(lines[:6], throws) is None                     # Gav's second dart never called
+
+
+def test_who_said_that_uses_the_weeks_guests_and_never_gives_the_name_away():
+    w = world_mod.seed()
+    for i, (name, role, said) in enumerate((
+            ("Ruth Fairley", "chandler", "The crane is rebooked for the 17th, so there is time to publish."),
+            ("Tam Buchanan", "lifeboat coxswain", "Tam Buchanan says the boat is ready."),         # names himself
+            ("Gav Polglase", "darts captain", "Darts on Tuesday, quiz on Saturday."))):              # a contestant
+        w.ensure_person(name, role)
+        w.remember_guest(name, "Coastwide", said, None)
+    ts = [{"pub": "the Lugger", "name": "The Lugger", "members": ["Gav Polglase", "Tracy Hendy"], "strength": 1.0},
+          {"pub": "the Pilchard", "name": "The Pilchard", "members": ["Mick Jewell", "Lorraine Oates"], "strength": 1.0}]
+    qs = quiz._quotes(w, ts, _booking())
+    ours = [q for q in qs if "Coastwide" in q.question]
+    assert len(qs) == quiz.PER_ROUND and [q.answer for q in ours] == ["Ruth Fairley, chandler"]
+    assert "crane is rebooked for the 17th" in ours[0].question
+
+
+def test_the_doubles_aim_at_double_twenty_and_the_pair_with_more_take_it():
+    import random
+    ts = [{"name": "A", "pub": "A", "members": ["a", "b"], "strength": 1.0},
+          {"name": "B", "pub": "B", "members": ["c", "d"], "strength": 1.0}]
+    calls = [d["call"] for k in range(100) for d in oche.play(random.Random(k), ts, oche.DOUBLE_AIM)[0]]
+    # about half land just outside the double, in the number ring; a few miss the board altogether
+    assert 0.3 < calls.count("No score.") / len(calls) < 0.6 and calls.count("Off the board!") / len(calls) < 0.06
+    assert any(c == "Double twenty!" for c in calls)
+
+
+def test_a_thrower_may_call_their_own_darts():
+    """Haiku's doubles round, 2026-11-07: each thrower called their own darts ("Five.", "No score.")."""
+    from newsroom.models import PanelLine
+    throws = [{"who": "Gav Polglase", "call": c} for c in ("Five.", "No score.")] + \
+             [{"who": "Shirley Vosper", "call": "Double twenty!"}]
+    lines = [PanelLine(speaker="mag_b", text="Gav Polglase, you're up."),
+             PanelLine(speaker="guest", guest_name="Gav Polglase", text="Five."),
+             PanelLine(speaker="guest", guest_name="Gav Polglase", text="No score. Typical."),
+             PanelLine(speaker="mag_b", text="Shirley Vosper, over to you."),
+             PanelLine(speaker="guest", guest_name="Shirley Vosper", text="Double twenty! Get in.")]
+    assert oche.calls_in(lines, throws) == [1, 2, 4]

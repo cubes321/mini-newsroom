@@ -90,13 +90,13 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
             headline=f"Wexley Wits: {teams[0]['name']} against {teams[1]['name']}", lower_third="Wexley Wits")
     if seg_type is not T.interview:
         return None
-    n = next((int(k[1]) - 1 for k in ("r1", "r2", "r3", "r4", "r5") if "{" + k + "}" in brief), None)
+    n = next((int(k[1]) - 1 for k in ("r1", "r2", "r3", "r4", "r5", "r6", "r7") if "{" + k + "}" in brief), None)
     lines: list = []
-    if n is not None and q["rounds"][n]["kind"] == "darts":
+    if n is not None and q["rounds"][n]["kind"] in quiz.DARTS_ROUNDS:
         from .oche import PER_PLAYER, words
 
         r = q["rounds"][n]
-        lines.append(PanelLine(speaker="mag_b", text=f"Round {n + 1}, the darts round. Three darts each, at the oche."))
+        lines.append(PanelLine(speaker="mag_b", text=f"Round {n + 1}, {r['title']}. Three darts each, at the oche."))
         for k in range(0, len(r["throws"]), PER_PLAYER):
             mine = r["throws"][k:k + PER_PLAYER]
             lines.append(PanelLine(speaker="mag_b", text=f"{mine[0]['who']}, for {teams[mine[0]['to']]['name']}."))
@@ -106,7 +106,7 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
         lines.append(PanelLine(speaker="mag_b", text=f"Totals: {teams[0]['name']} {r['totals'][0]}, "
                                                     f"{teams[1]['name']} {r['totals'][1]}. So after round {n + 1}: "
                                                     f"{teams[0]['name']} {s[0]}, {teams[1]['name']} {s[1]}."))
-        head = "The darts round"
+        head = r["title"].capitalize()
     elif n is not None:
         r = q["rounds"][n]
         said = f"Round {n + 1}: {r['title']}."         # Clive's verdict shares a line with what he says next
