@@ -216,6 +216,9 @@ class Scene(BaseModel):
     # The episode's props seen here, each described the same way in every render: left to H3, the probe's
     # rope was green, then striped, then brown from one shot to the next.
     props: SkipJsonSchema[list[str]] = Field(default_factory=list)
+    # The start still's picture: one moment, each character once. Drawn from the action ("sets the cone down,
+    # then turns back to his fryer"), Qwen drew both moments, and so two Mr Tretheweys (the Chip Lift's stills).
+    first_frame: SkipJsonSchema[str] = ""
 
 
 def _start(ep: "Episode", i: int, folder: Path | None = None) -> float:
@@ -249,6 +252,9 @@ class Beat(BaseModel):
     framing: str = Field(max_length=140, description="the camera first: wide / medium / close-up / low angle, on "
                                                      "whom, and what must be in frame")
     action: str = Field(max_length=220, description="the ONE thing that happens in this shot")
+    first_frame: str = Field(default="", max_length=200, description="the shot's first frame as ONE still picture "
+                                                                     "for an illustrator: where each character is, "
+                                                                     "facing which way, doing what; no 'then'")
     props: list[str] = Field(default_factory=list, max_length=3, description="names from PROPS seen in this shot")
     line: Said | None = Field(default=None, description="at most one short line, said by the one speaker in shot")
     seconds: float = Field(default=4.0, ge=3, le=8, description="how long the shot runs; a line's shot is "
@@ -276,6 +282,9 @@ Original jokes only; no famous characters, catchphrases or brands.
   always shows it from its usual view, so use one to arrive somewhere; play character business in medium
   shots and close-ups.
 - ACTION is ONE thing that happens. A second beat ("then...") is the next shot.
+- FIRST_FRAME is the shot's opening picture, drawn before it is animated: one frozen moment, framed as
+  FRAMING says, with each character in it once, where they are, facing which way, doing what. Never two
+  moments ("sets it down and turns away" draws him twice); the action plays out from this picture.
 - LINE: at most one short line per shot (about ten words), said by a speaking character of THE CAST who is
   in the shot. A shot with a line shows its speaker, close or medium, and no other SPEAKING character: a
   conversation is cut shot by shot between them, each line its own shot, often with a silent reaction
@@ -299,7 +308,7 @@ def _episode(script: Script) -> Episode:
         action = f"{b.framing.strip().rstrip('.:')}: {b.action.strip()}"
         scenes.append(Scene(place=b.place, on_screen=b.on_screen, summary=b.action[:200],
                             shots=[Shot(at=0.0, action=action[:300])], lines=[b.line] if b.line else [],
-                            sounds=b.sounds, seconds=b.seconds,
+                            sounds=b.sounds, seconds=b.seconds, first_frame=b.first_frame,
                             props=[looks[k] for k in (n.strip().lower() for n in b.props) if k in looks]))
     return Episode(title=script.title, logline=script.logline, scenes=scenes)
 
@@ -373,18 +382,20 @@ def start_still(folder: Path, i: int) -> Path | None:
 
 
 def still_prompt(series: Series, scene: Scene) -> tuple[str, list[Path]]:
-    """The start still's prompt for Qwen-Image-Edit, and its pictures: the place's plate, then the full figures of
-    up to two of the cast on screen (Qwen takes three pictures; a third character is described in words). The
-    frame is the shot's opening moment, so H3 has the whole shot to play its action out."""
+    """The start still's prompt for Qwen-Image-Edit, and its pictures: the place's plate, then the faces of up to
+    two of the cast on screen (Qwen takes three pictures; a third character is described in words). Faces, not
+    full figures: Qwen copied a full figure as drawn and drew the shot's pose too, two Mr Tretheweys or two Dots,
+    whenever the pose differed (in the hatch, back turned); from the faces it drew one each, on model. The frame
+    is the shot's opening moment, so H3 has the whole shot to play its action out."""
     present = _seen(series, scene)
     plate = series.plate(scene.place)
     pics: list[Path] = [plate] if plate else []
     who = []
     for c in present:
-        full = series.refs() / f"{c.key}_full.png"
-        if len(pics) < 3 and full.exists():
-            pics.append(full)
-            who.append(f"{c.name}, exactly as drawn in Picture {len(pics)}: {c.looks}")
+        face = series.refs() / f"{c.key}_face.png"
+        if len(pics) < 3 and face.exists():
+            pics.append(face)
+            who.append(f"{c.name}, with exactly the face, colours and drawing of Picture {len(pics)}: {c.looks}")
         else:
             who.append(f"{c.name}: {c.looks}")
     medium = series.style.split(":")[0]
@@ -392,10 +403,13 @@ def still_prompt(series: Series, scene: Scene) -> tuple[str, list[Path]]:
             + (", drawn in exactly the style, outlines and flat colours of Picture 1. The setting is "
                f"{scene.place} in Port Wexley from Picture 1, seen from wherever the shot puts the camera."
                if plate else f". The setting is {scene.place} in Port Wexley, a small Cornish-looking fishing town."),
-            f"The frame is the opening moment of this shot: {scene.shots[0].action.rstrip('. ')}."]
+            f"The frame: {(scene.first_frame or scene.shots[0].action).rstrip('. ')}."]
     if who:
+        # The Chip Lift's 37 stills drew five characters twice ("Mr Trethewey's back turned" became a second Mr
+        # Trethewey), so the count is spelled out.
         text.append("In it: " + "; ".join(who) + ". Each character is drawn exactly once, and nobody else is in "
-                    "the frame. Every mouth and beak is closed.")
+                    "the frame: " + ", ".join(f"one {c.name}" for c in present) + ", and no second of anyone, not "
+                    "even seen from behind. Every mouth and beak is closed.")
     else:
         text.append("Nobody is in it: no people and no animals.")
     if scene.props:
@@ -727,6 +741,38 @@ def still_graph(text: str, pics: list[str], seed: int, prefix: str) -> dict:
     return g
 
 
+class _Frames(BaseModel):
+    frames: list[str]
+
+
+_FRAMES = """\
+You prepare a cartoon's shots for its illustrator, who draws each shot's FIRST FRAME as one still picture before
+it is animated. For each numbered shot write that picture in one sentence (at most 200 characters): framed as
+the shot's framing says, with each character in it once, where they are, facing which way, doing what. It is one
+frozen moment at the very start of the shot, before its action happens: never two moments, never "then", never a
+character in two places ("sets it down and turns away" draws him twice). A character seen from behind is still
+the same one character. Name only the characters the shot lists. Return ONLY JSON: {"frames": [one per shot,
+in order]}.
+"""
+
+
+def first_frames(series: Series, ep: Episode) -> int:
+    """Fill in the first frame of every one-shot scene that has none (episodes written before the field): one
+    call to the writer's model for the lot. Returns how many were filled."""
+    todo = [s for s in ep.scenes if len(s.shots) == 1 and not s.first_frame]
+    if not todo:
+        return 0
+    names = {c.key: c.name for c in series.cast}
+    user = "\n".join(f"{k}. at {s.place}; on screen: {', '.join(names.get(c.key, c.key) for c in _seen(series, s)) or 'nobody'}"
+                     f"; {s.shots[0].action}" for k, s in enumerate(todo, start=1))
+    reply = llm.complete_json(TASK, _Frames, _FRAMES, user)
+    if len(reply.frames) != len(todo):
+        raise ValueError(f"asked for {len(todo)} first frames, got {len(reply.frames)}")
+    for s, f in zip(todo, reply.frames):
+        s.first_frame = f.strip()[:200]
+    return len(todo)
+
+
 def stills(folder: Path, redo: tuple[int, ...] = (), dry_run: bool = False) -> Path | None:
     """A start still for every one-shot scene without one, and a new take of each scene in `redo` (the old take
     kept as sceneNN.start.K.png, each take on its own seed), then the sheet for the user. GPU: only when the
@@ -736,6 +782,8 @@ def stills(folder: Path, redo: tuple[int, ...] = (), dry_run: bool = False) -> P
 
     series = SERIES[folder.parent.name]
     ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
+    if first_frames(series, ep):                         # an episode written before the field
+        (folder / "episode.json").write_text(ep.model_dump_json(indent=1), encoding="utf-8")
     jobs: list[tuple[int, str]] = []
     for i, scene in enumerate(ep.scenes, start=1):
         if len(scene.shots) != 1:                        # an old three-shot scene keeps its cuts

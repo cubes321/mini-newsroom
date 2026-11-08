@@ -192,9 +192,12 @@ def test_a_start_still_is_drawn_from_the_plate_and_cast_and_is_h3s_only_picture(
                           shots=[{"at": 0, "action": "wide shot of the wall: Gully lands by the crate"}],
                           lines=[], sounds="waves", props=["the red bucket: small red plastic bucket"])
     text, pics = cartoons.still_prompt(series, trio)
-    assert [p.name for p in pics] == ["place1.png", "gully_full.png", "biscuit_full.png"]   # Qwen takes three
-    assert "exactly as drawn in Picture 2" in text and "Picture 3" in text and "Dot Penrose:" in text
-    assert "opening moment of this shot: wide shot of the wall: Gully lands by the crate." in text
+    assert [p.name for p in pics] == ["place1.png", "gully_face.png", "biscuit_face.png"]   # Qwen takes three
+    assert "face, colours and drawing of Picture 2" in text and "Picture 3" in text and "Dot Penrose:" in text
+    assert "The frame: wide shot of the wall: Gully lands by the crate." in text      # no first frame yet
+    assert "one Gully, one Biscuit, one Dot Penrose, and no second of anyone" in text
+    trio.first_frame = "wide shot of the wall, Gully landing beside the crate, Biscuit asleep, Dot behind"
+    assert "The frame: wide shot of the wall, Gully landing beside" in cartoons.still_prompt(series, trio)[0]
     assert "drawn exactly once" in text and "small red plastic bucket" in text and "every sign is blank" in text
     cone = cartoons.Scene(place="nowhere we have", summary="The cone.", shots=[{"at": 0, "action": "the cone"}],
                           lines=[], sounds="a sizzle")
@@ -213,8 +216,20 @@ def test_a_start_still_is_drawn_from_the_plate_and_cast_and_is_h3s_only_picture(
     folder = tmp_path / "gully" / "gullys-kite"
     (folder / "scene01").mkdir(parents=True)
     (folder / "episode.json").write_text(ep.model_dump_json(), encoding="utf-8")
+    asked = []
+
+    def frames(task, schema, system, user):
+        asked.append(user)
+        return schema(frames=["Gully on the wall, wings half open", "Biscuit sitting on the quay"])
+
+    monkeypatch.setattr(cartoons.llm, "complete_json", frames)
     assert cartoons.stills(folder, dry_run=True) is None                     # prompts written, nothing drawn yet
-    assert "Gully" in (folder / "scene01.still.txt").read_text(encoding="utf-8")
+    assert "1. at" in asked[0] and "on screen: Gully; Gully lands" in asked[0] and "2. at" in asked[0]
+    assert "The frame: Gully on the wall, wings half open." in (folder / "scene01.still.txt").read_text(encoding="utf-8")
+    saved = cartoons.Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
+    assert saved.scenes[1].first_frame == "Biscuit sitting on the quay"      # kept: asked once, not every run
+    cartoons.stills(folder, dry_run=True)
+    assert len(asked) == 1
     (folder / "scene01" / "done.mp4").write_bytes(b"x")
     os.utime(folder / "scene01" / "done.mp4", (1000, 1000))
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
