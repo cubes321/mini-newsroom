@@ -150,6 +150,8 @@ return its STAGE (as many stages as shots):
   FACING left or right, in one of their POSES. ENTER left/right walks (or waddles) them in at the start.
   HOLDS: a prop they carry all shot (in beak, mouth or hand): whenever someone carries something, say so with
   HOLDS or a TAKE beat, or it stays where it was put. Two who talk face each other.
+  A MARK can also be one of the place's SPOTS, where the shot lists them (the chip shop's sill): it stands
+  exactly there on the backdrop. Put a prop that rests on something (a cone on a sill) on its spot.
 - BEATS, timed in seconds or against the lines ("line", "line2", "line_end+0.3"): pose X until T, face X
   until T, lean (degrees forward), hop, turn (face the other way), walk to a mark, fly to a mark and height
   (only those who CAN FLY), take a prop (carried from then on), spin (degrees: 180 hangs it upside down by its
@@ -188,8 +190,9 @@ def _mark(m: str | None) -> float:
     return 0.0
 
 
-def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layout:
-    """A writer's stage as a Layout in stage units. Unknown characters and props are dropped (logged)."""
+def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str], spots: set[str] = frozenset()) -> Layout:
+    """A writer's stage as a Layout in stage units. Unknown characters and props are dropped (logged). A mark
+    that names one of the place's spots (its sill) puts them exactly there on the backdrop."""
     known = set(kits)
     actors, held = [], {}
     for a in st.actors:
@@ -201,8 +204,9 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
             continue
         k = kits[who]
         pose = a.pose if a.pose in k.poses else "normal"
-        actors.append(Actor(who=who, x=_mark(a.mark), y=HEIGHTS[a.height], facing=a.facing, pose=pose,
-                            enter=a.enter, depth=0 if who not in props else 0))
+        spot = a.mark.strip().lower() if a.mark.strip().lower() in spots else None
+        actors.append(Actor(who=who, x=0.0 if spot else _mark(a.mark), y=0.0 if spot else HEIGHTS[a.height],
+                            facing=a.facing, pose=pose, enter=a.enter, spot=spot))
         if a.holds and a.holds.strip().lower() in known:
             held[a.holds.strip().lower()] = who
     for prop, holder in held.items():
@@ -280,14 +284,19 @@ def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
     from newsroom import llm
     from entertainment import cartoons
 
+    from entertainment.cutout import engine
+
     props = "\n".join(f"  - {p.key}: {p.looks}" for p in script.props) or "  (none)"
+    places_spots = {pl: list(engine.spots_of(cartoons.ROOT / series.id, k + 1)) for k, pl in enumerate(series.places)}
     out: list[Stage] = []
     for b0 in range(0, len(script.shots), BATCH):
         batch = script.shots[b0:b0 + BATCH]
         rows = []
         for k, s in enumerate(batch, start=1):
             said = " / ".join(f"{l.who}{' (off screen)' if l.offscreen else ''}: \"{l.words}\"" for l in s.lines)
-            rows.append(f"{k}. at {s.place}; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
+            here = places_spots.get(s.place, [])
+            rows.append(f"{k}. at {s.place}" + (f" (its SPOTS: {', '.join(here)})" if here else "")
+                        + f"; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
                         + (f" Lines: {said}" if said else ""))
         user = (brief(series, kits, list(series.places)) + f"\n\nTHE PROPS:\n{props}\n\nTHE SHOTS:\n"
                 + "\n".join(rows))
@@ -366,7 +375,7 @@ def relayout(folder: Path) -> int:
     """sceneNN.layout.json from every sceneNN.stage.json, with the kits as they are now (a prop drawn since is
     staged; one still missing is left out, logged). Returns how many."""
     from entertainment import cartoons
-    from entertainment.cutout import kit as kitmod
+    from entertainment.cutout import engine, kit as kitmod
 
     series = cartoons.SERIES[folder.parent.name]
     ep = cartoons.Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
@@ -377,8 +386,9 @@ def relayout(folder: Path) -> int:
         src = folder / f"scene{i:02d}.stage.json"
         if not src.exists():
             continue
-        lay = stage(Stage.model_validate_json(src.read_text(encoding="utf-8")), place_number(series, scene.place),
-                    kits, props)
+        n = place_number(series, scene.place)
+        lay = stage(Stage.model_validate_json(src.read_text(encoding="utf-8")), n, kits, props,
+                    set(engine.spots_of(folder.parent, n)))
         (folder / f"scene{i:02d}.layout.json").write_text(lay.model_dump_json(indent=1), encoding="utf-8")
         done += 1
     return done

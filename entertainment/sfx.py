@@ -60,19 +60,36 @@ def generate(url: str, what: str, out: Path, seconds: int = 4, seed: int = 7) ->
         shutil.copy(src, out)
     else:
         out.write_bytes(_get(audio["url"], 300))
-    a, sr = sf.read(out, dtype="float32", always_2d=True)
-    loud = np.nonzero(np.abs(a).max(1) > 0.02 * np.abs(a).max())[0]
-    if len(loud):
-        a = a[: min(len(a), loud[-1] + int(0.15 * sr))]
-    fade = min(len(a), int(0.05 * sr))
-    a[-fade:] *= np.linspace(1, 0, fade)[:, None]
-    sf.write(out, a, sr)
-    return out
+    return tidy(out)
 
 
-def make(folder: Path, url: str = URL) -> list[Path]:
+LONGEST = 2.0                      # seconds: a cartoon effect is a twang or a thud, not a drum roll
+
+
+def tidy(path: Path) -> Path:
+    """An effect cut to its moment: from where it gets going (Stable Audio's takes started 0.2-1.2 s in, so
+    the sound landed late) for at most LONGEST seconds (it fills whatever length it is asked for, repeating
+    its thumps for five), faded out."""
+    import numpy as np
+    import soundfile as sf
+
+    a, sr = sf.read(path, dtype="float32", always_2d=True)
+    m = np.abs(a).max(1)
+    w = max(1, int(0.02 * sr))
+    env = np.sqrt(np.convolve(m ** 2, np.ones(w) / w, mode="same"))
+    on = np.nonzero(env > 0.25 * env.max())[0]
+    start = max(0, int(on[0]) - int(0.03 * sr)) if len(on) else 0
+    a = a[start: start + int(LONGEST * sr)]
+    fade = min(len(a), int(0.3 * sr))
+    a[-fade:] *= np.linspace(1, 0, fade)[:, None] ** 2
+    sf.write(path, a, sr)
+    return path
+
+
+def make(folder: Path, url: str = URL, tidy_old: bool = False) -> list[Path]:
     """Every effect the episode names that the series doesn't have yet; then every shot with effects is
-    recorded again (its lines are kept), so the next render takes it with its sound."""
+    recorded again (its lines are kept), so the next render takes it with its sound. `tidy_old` cuts effects
+    made before today's tidy() the same way."""
     from entertainment import cartoons
 
     series = cartoons.SERIES[folder.parent.name]
@@ -82,6 +99,8 @@ def make(folder: Path, url: str = URL) -> list[Path]:
         if series.sfx(what) is None:
             made.append(generate(url, what, series.sfx_path(what)))
             log.info("sfx: %s", what)
+        elif tidy_old:
+            tidy(series.sfx_path(what))
     for i, scene in enumerate(ep.scenes, start=1):
         if scene.sfx:
             cartoons.record(series, scene, folder, i, cartoons._start(ep, i, folder))

@@ -46,7 +46,26 @@ def shot_plan(folder: Path, i: int) -> dict:
 
     for who, k in kits.items():
         sizes[who] = pygame.image.load(str(k.piece(series_dir, "normal", "closed"))).get_size()
-    return plan(lay, kits, series_dir, n, speech, spans, kitmod.plate(series_dir, lay.place), sizes)
+    plate = kitmod.plate(series_dir, lay.place)
+    return plan(lay, kits, series_dir, n, speech, spans, plate, sizes, spots_of(series_dir, lay.place, plate))
+
+
+def spots_of(series_dir: Path, place: int, plate: Path | None = None) -> dict[str, tuple[float, float]]:
+    """The place's named points (places/spots.json: {"3": {"sill": [x, y]}} in the plate's pixels), in stage
+    units from the plate's bottom middle (it is PLATE_W wide); {} for a place with none."""
+    from entertainment.cutout.layout import PLATE_W
+
+    path = series_dir / "places" / "spots.json"
+    if not path.exists():
+        return {}
+    named = json.loads(path.read_text(encoding="utf-8")).get(str(place), {})
+    if not named or plate is None:
+        return {k: (0.0, 0.0) for k in named}
+    import pygame
+
+    w, h = pygame.image.load(str(plate)).get_size()
+    u = PLATE_W / w
+    return {k: (round((x - w / 2) * u, 3), round((h - y) * u, 3)) for k, (x, y) in named.items()}
 
 
 def play(shots: list[dict], log_to: Path) -> None:

@@ -1115,6 +1115,7 @@ def _cli() -> int:
     fx = sub.add_parser("sfx", help="make the episode's sound effects (Stable Audio, GPU) and record its shots again")
     fx.add_argument("folder", type=Path)
     fx.add_argument("--url", default="http://127.0.0.1:7860")
+    fx.add_argument("--tidy", action="store_true", help="cut the effects made before to their moment too")
     for cmd in ("stills", "draft", "render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
         b.add_argument("folder", type=Path)
@@ -1135,7 +1136,7 @@ def _cli() -> int:
     elif args.cmd == "sfx":
         from entertainment import sfx
 
-        for path in sfx.make(args.folder.resolve(), args.url):
+        for path in sfx.make(args.folder.resolve(), args.url, args.tidy):
             print(path)
     elif args.cmd == "props":
         from entertainment.cutout import kit as puppets, writer

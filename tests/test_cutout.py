@@ -239,6 +239,29 @@ def test_times_are_read_against_the_lines_and_effects_land_on_the_track(monkeypa
     assert cues == [] and abs(loud[0] / sr - 1.0) < 0.01 and abs(np.abs(a).max() - cartoons.SFX_PEAK) < 0.01
 
 
+def test_an_effect_is_cut_to_its_moment_and_a_prop_stands_on_its_spot(tmp_path):
+    from entertainment import sfx
+
+    sr = 44100
+    take = np.zeros((int(5.5 * sr), 2), np.float32)
+    take[int(0.8 * sr):] = 0.5 * np.random.default_rng(3).normal(size=(len(take) - int(0.8 * sr), 2))
+    sf.write(tmp_path / "thud.wav", take, sr)
+    a, _ = sf.read(sfx.tidy(tmp_path / "thud.wav"), always_2d=True)
+    assert len(a) == int(sfx.LONGEST * sr) and np.abs(a[: int(0.02 * sr)]).max() < 0.01   # starts on its cue
+    assert np.abs(a[int(0.1 * sr): int(0.3 * sr)]).max() > 0.3 and np.abs(a[-10:]).max() < 0.01
+
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    layout = lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull", "x": 9.0, "spot": "sill"}]})
+    p = lay.plan(layout, {"gull": k}, series_dir, 24, {}, [], d / "base.png", {"gull": (w, h)},
+                 spots={"sill": (-3.4, 7.8)})
+    x, y = p["cards"][0]["tf"][0][:2]
+    feet = y + (h - (56 + kitmod.PAD)) * k.upp
+    assert abs(x - (-3.4)) < 1e-6 and abs(feet - (-3.0 + 7.8)) < 0.05      # on the sill of a wide shot's plate
+
+
 def test_the_newest_video_is_the_scenes_whichever_engine_made_it(monkeypatch, tmp_path):
     from entertainment import cartoons
 

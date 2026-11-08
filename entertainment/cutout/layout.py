@@ -49,6 +49,7 @@ class Actor(BaseModel):
     scale: float = Field(1.0, gt=0.2, le=3.0)
     on: str | None = None          # "gully.hold": carried, its grip on that point of the holder every frame
     on_at: str = "0"               # from when (a snatched bucket sits where it is until it's taken)
+    spot: str | None = None        # a named point of the backdrop ("sill"): stands exactly there, not at x, y
 
 
 class Rope(BaseModel):
@@ -140,11 +141,22 @@ def _ease(u: float) -> float:
 
 
 def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech: dict[str, list[str]],
-         spans: list[tuple[str, float, float]], plate: Path, sizes: dict[str, tuple[int, int]]) -> dict:
+         spans: list[tuple[str, float, float]], plate: Path, sizes: dict[str, tuple[int, int]],
+         spots: dict[str, tuple[float, float]] | None = None) -> dict:
     """Every frame of the shot: the plate, the camera, each card's piece and transform, the ropes.
-    `speech` is lips.faces' per-frame faces by speaker; `sizes` each kit's piece size in pixels."""
+    `speech` is lips.faces' per-frame faces by speaker; `sizes` each kit's piece size in pixels; `spots` the
+    backdrop's named points, in stage units from the plate's bottom middle."""
     pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
     cam0 = _view(layout.camera.start, pup)              # first guess: rest spots (entrances start off its edges)
+    if spots and any(a.spot in spots for a in layout.actors):
+        # On the backdrop's sill, wherever the shot's camera puts the backdrop (it moves at half the camera's
+        # speed): the cone sat loose on the quay when the writer could only say "far_right, raised".
+        px, py = 0.5 * cam0[0], -3.0 + 0.5 * (cam0[1] - WIDE[1])
+        layout = layout.model_copy(update={"actors": [
+            a.model_copy(update={"x": round(px + spots[a.spot][0], 3), "y": round(py + spots[a.spot][1], 3)})
+            if a.spot in spots else a for a in layout.actors]})
+        pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
+        cam0 = _view(layout.camera.start, pup)
     m0, m1 = when(layout.camera.move_at, n, spans), when(layout.camera.move_until, n, spans)
     cards, by_who = [], {}
     for k, a in enumerate(layout.actors):
