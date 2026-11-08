@@ -57,7 +57,7 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent / "data" / "cartoons"
 WAN2GP = Path(os.environ.get("WAN2GP_DIR", "C:/pinokio/api/wan2gp.git/app"))
 ENGINE_MODEL = os.environ.get("CARTOON_MODEL", "minimax_h3_fasth3_omni_nvfp4")   # Wan2GP's model, if chosen
-ENGINE = os.environ.get("CARTOON_ENGINE", "comfy")                                 # "comfy" (turbo) or "wan2gp"
+ENGINE = os.environ.get("CARTOON_ENGINE", "comfy")           # "comfy" (H3 turbo), "wan2gp", or "cutout" (Blender)
 COMFY_DIR = Path(os.environ.get("COMFY_DIR", "C:/stabilitymatrix/Data/Packages/ComfyUI"))
 COMFY_API = os.environ.get("COMFY_API", "http://127.0.0.1:8188")
 H3 = {"unet": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
@@ -775,12 +775,21 @@ def first_frames(series: Series, ep: Episode) -> int:
     return len(todo)
 
 
-def stills(folder: Path, redo: tuple[int, ...] = (), dry_run: bool = False) -> Path | None:
+def stills(folder: Path, redo: tuple[int, ...] = (), dry_run: bool = False,
+           engine: str | None = None) -> Path | None:
     """A start still for every one-shot scene without one, and a new take of each scene in `redo` (the old take
     kept as sceneNN.start.K.png, each take on its own seed), then the sheet for the user. GPU: only when the
-    user says. A still newer than its scene's video makes `render` take that scene again."""
+    user says. A still newer than its scene's video makes `render` take that scene again. Cut-out: frame 1 of
+    every laid-out shot, drawn by Blender from its layout (no GPU, seconds)."""
     import shutil
     import time
+
+    if (engine or ENGINE) == "cutout":
+        from entertainment.cutout import engine as cutout
+
+        if not dry_run:
+            cutout.stills(folder)
+        return sheet(folder)
 
     series = SERIES[folder.parent.name]
     ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
@@ -866,13 +875,19 @@ def _to_comfy(series: Series, path: Path, as_name: str | None = None) -> str:
 
 
 def _rendered(folder: Path, i: int) -> Path | None:
-    return next(iter(sorted((folder / f"scene{i:02d}").glob("*.mp4"))[-1:]), None)
+    """The scene's newest video, whichever engine made it (by name, H3's takes sorted after cutout.mp4)."""
+    return max((folder / f"scene{i:02d}").glob("*.mp4"), key=lambda p: p.stat().st_mtime, default=None)
 
 
 def render(folder: Path, dry_run: bool = False, engine: str | None = None) -> list[Path]:
     """Every scene not yet rendered (GPU: only when the user says). ComfyUI: the whole episode is queued at once
     (its queue runs in order), then each scene is collected as it finishes; a scene with a video is kept, so a
-    stopped night resumes. Wan2GP: one headless run each."""
+    stopped night resumes. Wan2GP: one headless run each. Cut-out: every laid-out shot whose video is missing
+    or stale, in Blender (entertainment/cutout)."""
+    if (engine or ENGINE) == "cutout":
+        from entertainment.cutout import engine as cutout
+
+        return [] if dry_run else cutout.render(folder)
     if (engine or ENGINE) == "comfy":
         return _render_comfy(folder, dry_run)
     series = SERIES[folder.parent.name]
@@ -971,7 +986,9 @@ def assemble(folder: Path, draft: bool = False) -> Path:
         if missing := [i for i, c in enumerate(clips, start=1) if c is None]:
             raise FileNotFoundError(f"no start still yet for shots {missing} (run stills)")
     else:
-        clips = [sorted((folder / f"scene{i:02d}").glob("*.mp4"))[-1] for i in range(1, n + 1)]
+        clips = [_rendered(folder, i) for i in range(1, n + 1)]
+        if missing := [i for i, c in enumerate(clips, start=1) if c is None]:
+            raise FileNotFoundError(f"no video yet for shots {missing} (run render)")
     title = _card([series.title, ep.title], folder / "title.png")
     end = _card([series.title, "on channel seven"], folder / "end.png")
     w, h = (int(x) for x in RESOLUTION.split("x"))
@@ -1027,16 +1044,27 @@ def _cli() -> int:
         b.add_argument("folder", type=Path)
         if cmd in ("stills", "render"):
             b.add_argument("--dry-run", action="store_true")
+            b.add_argument("--engine", choices=("comfy", "wan2gp", "cutout"), default=None)
         if cmd == "stills":
             b.add_argument("--redo", type=int, nargs="+", default=[], help="shot numbers to draw again")
-        if cmd == "render":
-            b.add_argument("--engine", choices=("comfy", "wan2gp"), default=None)
+    k = sub.add_parser("kit", help="a puppet's variants (Qwen, GPU) and its paper pieces")
+    k.add_argument("series", choices=sorted(SERIES))
+    k.add_argument("who")
+    k.add_argument("--draw", action="store_true", help="draw the variants not yet drawn (GPU)")
+    k.add_argument("--redo", nargs="+", default=[], help="variants to draw again")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
         print(plan(args.series, args.shots, args.idea))
+    elif args.cmd == "kit":
+        from entertainment.cutout import kit as puppets
+
+        if args.draw or args.redo:
+            puppets.draw(ROOT / args.series, args.who, tuple(args.redo))
+        print(len(puppets.build(ROOT / args.series, args.who)), "pieces; sheet:",
+              ROOT / args.series / "puppets" / args.who / "sheet.png")
     elif args.cmd == "stills":
-        print(stills(args.folder, tuple(args.redo), args.dry_run))
+        print(stills(args.folder, tuple(args.redo), args.dry_run, args.engine))
     elif args.cmd == "render":
         print(render(args.folder, args.dry_run, args.engine))
     elif args.cmd == "draft":
