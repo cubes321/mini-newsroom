@@ -3,6 +3,7 @@ cartoons.py). A two-second test film is made with ffmpeg; the model is stubbed; 
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import time
 from datetime import date, timedelta
@@ -65,37 +66,51 @@ def test_the_film_is_decoded_at_the_windows_size(shelf):
     film.stop()
 
 
-def test_an_episode_is_written_as_h3_scenes_with_its_cast(monkeypatch, tmp_path):
+def _script(cartoons, shots, props=()):
+    """A writer's reply: the shots given, padded to the script's minimum with quiet wides of the wall."""
+    pad = {"place": "the harbour wall at low tide", "framing": "Wide", "action": "Waves", "sounds": "waves"}
+    return cartoons.Script.model_validate({"title": "Gully's Kite", "logline": "Gully flies a chip bag.",
+                                           "props": list(props), "shots": shots + [pad] * (8 - len(shots))})
+
+
+def test_an_episode_is_written_shot_by_shot_with_its_cast_and_props(monkeypatch, tmp_path):
     from entertainment import cartoons
     from newsroom import llm
 
     monkeypatch.setattr(cartoons, "ROOT", tmp_path)                # no designs on this shelf
     series = cartoons.SERIES["gully"]
-    reply = cartoons.Episode.model_validate({"title": "Gully's Kite", "logline": "Gully flies a chip bag.", "scenes": [
-        {"place": "the harbour wall at low tide", "summary": "Gully finds a chip bag and has an idea.",
-         "shots": [{"at": 3, "action": "wide on the wall, Gully lands"}, {"at": 0, "action": "close on the bag"}],
-         "lines": [{"who": "gully", "words": "Chips. Or the bag of chips. Close enough."},
-                   {"who": "nobody", "words": "Dropped."}],
+    reply = _script(cartoons, [
+        {"place": "the harbour wall at low tide", "on_screen": ["gully"], "framing": "Close-up of Gully on the wall, "
+         "the chip bag in his beak", "action": "Gully has an idea.", "props": ["The chip bag"],
+         "line": {"who": "gully", "words": "Chips. Or the bag of chips. Close enough."}, "seconds": 3,
          "sounds": "waves and gulls"},
-        {"place": "the chip shop on the quay", "summary": "Biscuit watches a kite go up and come down.",
-         "shots": [{"at": 0, "action": "Biscuit on the sill, unimpressed"}], "lines": [], "sounds": "a breeze"}]})
+        {"place": "the chip shop on the quay", "on_screen": ["biscuit"], "framing": "Medium shot of Biscuit on the sill",
+         "action": "Biscuit watches a kite go up and come down.", "line": {"who": "nobody", "words": "Dropped."},
+         "seconds": 6, "sounds": "a breeze"}],
+        props=[{"name": "the chip bag", "looks": "a small white paper bag with a red stripe, greasy at the corner."}])
     monkeypatch.setattr(llm, "complete_json", lambda *a, **k: reply.model_copy(deep=True))
-    ep = cartoons.write(series, 2)
-    assert [s.at for s in ep.scenes[0].shots] == [0.0, 3]           # in order, the first at 0
-    assert [l.who for l in ep.scenes[0].lines] == ["gully"]        # nobody else speaks
-    text, pics, voices = cartoons.prompt(series, ep.scenes[0])
+    ep = cartoons.write(series, 8)
+    gully, biscuit = ep.scenes[:2]
+    assert len(ep.scenes) == 8 and all(len(s.shots) == 1 and s.shots[0].at == 0 for s in ep.scenes)  # a render a shot
+    assert gully.shots[0].action.startswith("Close-up of Gully on the wall") and gully.seconds == 3
+    assert [l.who for l in gully.lines] == ["gully"] and biscuit.lines == []          # nobody else speaks
+    assert gully.props == ["the chip bag: a small white paper bag with a red stripe, greasy at the corner"]
+    text, pics, voices = cartoons.prompt(series, gully)
     for section in ("subject_definitions:", "summary: [reference generation]", "retention_analysis:",
                     "detailed_description: The target video is hand-drawn 2D cartoon", "overall_soundscape:",
                     "non_diegetic_music:"):
         assert section in text
     assert "(S1) <d>[English] Chips." in text and "Only the dialogue above." in text
-    assert "background is not retained" in text and "[Shot 2] At 00:03.000" in text
+    assert "Props, drawn exactly the same in every shot: the chip bag: a small white paper bag" in text
+    assert "background is not retained" in text and "[Shot 2]" not in text
     assert [p.name for p in pics] == ["gully_full.png", "gully_face.png"]
-    biscuit_scene, b_pics, _ = cartoons.prompt(series, ep.scenes[1])
-    assert "Nobody speaks." in biscuit_scene and [p.name for p in b_pics] == ["biscuit_full.png", "biscuit_face.png"]
-    assert cartoons.frames(15) == 362 and cartoons.frames(5) == 124
+    biscuit_scene, b_pics, _ = cartoons.prompt(series, biscuit)
+    assert "Nobody speaks." in biscuit_scene and "Props" not in biscuit_scene
+    assert [p.name for p in b_pics] == ["biscuit_full.png", "biscuit_face.png"]
+    assert cartoons.frames(15) == 362 and cartoons.frames(5) == 124 and cartoons.frames(3) == 73
+    assert cartoons.frames_at_least(3.85) == 107 and cartoons.frames_at_least(99) == 362
     with pytest.raises(FileNotFoundError, match="design stage"):        # no pictures yet: no render
-        cartoons.settings(series, ep.scenes[0], seed=1)
+        cartoons.settings(series, gully, seed=1)
 
 
 def test_both_voices_reach_wan2gp_in_the_prompts_order(monkeypatch, tmp_path):
@@ -272,6 +287,25 @@ def test_every_scene_has_a_bed_and_the_score_runs_on_across_the_cuts(monkeypatch
     assert [q.words for q in cues] == ["Pretty."]
 
 
+def test_a_short_shot_is_stretched_to_its_line_and_the_bed_runs_on_from_the_tracks(monkeypatch, tmp_path):
+    import numpy as np
+    import soundfile as sf
+
+    cartoons, series = _gully_shelf(tmp_path, monkeypatch)
+    monkeypatch.setattr(cartoons, "_speak", lambda series, who, words: np.full(48000, 0.2, dtype=np.float32))
+    folder = tmp_path / "gully" / "ep"
+    folder.mkdir()
+    wall = dict(place="the harbour wall at low tide", summary="s", shots=[{"at": 0, "action": "a"}], sounds="waves")
+    ep = cartoons.Episode(title="T", logline="L", scenes=[
+        cartoons.Scene(**wall, seconds=3, lines=[{"who": "gully", "words": "A two-second line."}]),
+        cartoons.Scene(**wall, seconds=4)])
+    track, cues = cartoons.record(series, ep.scenes[0], folder, 1, cartoons._start(ep, 1, folder))
+    want = cartoons.frames_at_least(cartoons.LEAD_S + 2.0 + cartoons.TAIL_S)
+    assert sf.info(track).duration == pytest.approx(want / 24, abs=1e-3) and want > cartoons.frames(3)
+    assert cartoons._start(ep, 2, folder) == pytest.approx(want / 24, abs=1e-3)   # the stretched track, not 3 s
+    assert cartoons._start(ep, 2) == pytest.approx(cartoons.frames(3) / 24)     # unrecorded: the asked length
+
+
 def test_the_episode_is_assembled_with_our_sound_not_h3s(monkeypatch, tmp_path):
     import numpy as np
     import soundfile as sf
@@ -299,19 +333,56 @@ def test_the_episode_is_assembled_with_our_sound_not_h3s(monkeypatch, tmp_path):
     assert abs(hz[spec.argmax()] - 1000) < 20                             # 3 s of title card, then our track
 
 
-def test_the_writer_keeps_to_the_series_places_and_its_cast(monkeypatch):
+def test_the_writer_keeps_to_the_series_places_and_its_cast(monkeypatch, caplog):
     from entertainment import cartoons
     from newsroom import llm
 
-    reply = cartoons.Episode.model_validate({"title": "T", "logline": "L", "scenes": [
+    reply = _script(cartoons, [
         {"place": "The Chip Shop on the quay at night", "on_screen": ["gully", "fishmonger", "gully"],
-         "summary": "s", "shots": [{"at": 2, "action": "a"}], "lines": [{"who": "biscuit", "words": "No."}],
-         "sounds": "x"},
-        {"place": "the harbour wall at low tide", "summary": "s", "shots": [{"at": 0, "action": "a"}], "sounds": "x"}]})
+         "framing": "Medium", "action": "a", "line": {"who": "biscuit", "words": "No."}, "sounds": "x"}])
     monkeypatch.setattr(llm, "complete_json", lambda *a, **k: reply.model_copy(deep=True))
-    ep = cartoons.write(cartoons.SERIES["gully"], 2)
+    with caplog.at_level(logging.WARNING, logger="entertainment.cartoons"):
+        ep = cartoons.write(cartoons.SERIES["gully"], 8)
     assert ep.scenes[0].place == "the chip shop on the quay"              # taken as the place it nearly is
     assert ep.scenes[0].on_screen == ["gully", "biscuit"]                 # no strangers, and whoever speaks is seen
+    assert "shot 1 has gully on screen while biscuit speaks" in caplog.text   # two speakers: flagged, not repaired
+
+
+def test_a_shot_with_nobody_named_has_no_cast_and_an_empty_list_is_filled_from_names(monkeypatch, tmp_path):
+    from entertainment import cartoons
+    from newsroom import llm
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    series = cartoons.SERIES["gully"]
+    reply = _script(cartoons, [
+        {"place": "the chip shop on the quay", "framing": "Close-up of the cone on the sill", "action": "Steam rises.",
+         "sounds": "sizzle"},
+        {"place": "the chip shop on the quay", "framing": "Medium shot of the hatch",
+         "action": "Mr Trethewey turns to the fryer as Gully lands on the sill.", "sounds": "sizzle"},
+        {"place": "the chip shop on the quay", "on_screen": ["gully"], "framing": "Close-up of Gully beak to nose "
+         "with Mr Trethewey", "action": "Gully grins.", "line": {"who": "gully", "words": "Morning!"}, "sounds": "x"}])
+    monkeypatch.setattr(llm, "complete_json", lambda *a, **k: reply.model_copy(deep=True))
+    cone, hatch, nose = cartoons.write(series, 8).scenes[:3]
+    assert cone.on_screen == [] and cartoons._seen(series, cone) == []          # not the series' lead
+    text, pics, _ = cartoons.prompt(series, cone)
+    assert pics == [] and "subject_definitions: No characters" in text           # no character pictures at all
+    assert "retention_analysis: The reference images' background" in text       # no stray ". " before it
+    assert hatch.on_screen == ["gully", "trethewey"]                             # named in the action: seen
+    assert nose.on_screen == ["gully", "trethewey"]                              # left out, but in the framing
+
+
+def test_a_shouted_word_is_spoken_and_real_initials_are_read_as_letters(monkeypatch, tmp_path):
+    from entertainment import cartoons
+    from newsroom import tts
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    series = cartoons.SERIES["gully"]
+    series.refs().mkdir(parents=True)
+    (series.refs() / "gully_voice.wav").write_bytes(b"x")
+    heard = []
+    monkeypatch.setattr(tts, "_pocket_speak", lambda words, clip: heard.append(words))
+    cartoons._speak(series, "gully", "The chips come to ME! The ferry is MOVING! OK, on TV.")
+    assert heard == ["The chips come to me! The ferry is moving! OK, on TV."]
 
 
 def test_a_series_never_speaks_for_its_silent_partner():

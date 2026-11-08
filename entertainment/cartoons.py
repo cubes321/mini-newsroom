@@ -4,22 +4,28 @@ The user's idea (2026-11-07): animated films made ahead, a series or two of our 
 from the content bank (newsroom/bank.py). Rendering is GPU work and only happens when the user says
 (`render` is never called by the station). One episode, step by step:
 
-    python -m entertainment.cartoons plan --series gully            write an episode: scenes, shots, lines
-    python -m entertainment.cartoons render data/cartoons/gully/<ep>   queue its scenes on ComfyUI (or Wan2GP)
-    python -m entertainment.cartoons assemble data/cartoons/gully/<ep> title card, the scenes, the end card
+    python -m entertainment.cartoons plan --series gully            write an episode, shot by shot
+    python -m entertainment.cartoons render data/cartoons/gully/<ep>   queue its shots on ComfyUI (or Wan2GP)
+    python -m entertainment.cartoons assemble data/cartoons/gully/<ep> title card, the shots, the end card
     python -m entertainment.cartoons ingest data/cartoons/gully/<ep>   onto the bank's shelf
 
-A scene is one H3 render: one place, up to 15 seconds, at most five short lines, two or three shots (the
-h3-reference-video skill's measured limits). The prompt is built here in H3's six sections from the series'
-characters and style; the writer only says what happens. Each character has reference pictures (a full
+Each shot is one H3 render (a Scene of one shot, sceneNN): one camera set-up, framing first, one action, at
+most one line, three to eight seconds, stretched to fit its line. The Zip-Chip pilot (2026-11-08) cut fifteen-
+second renders of three shots and five lines, and the characters mouthed through the silences after the lines;
+the scene-4 probes found that a render per shot puts each line in its shot, that a line's shot must hold only
+its speaker (with two speakers in frame H3 guessed whose mouth moved), and that props drift between renders
+unless described the same way each time. The writer gives most shots about four seconds, so 44 shots (the
+default) make about three minutes; at about two minutes a render, that is about 90 minutes of GPU.
+The prompt is built here in H3's six sections from the series' characters and style; the writer only says
+what happens. Older episodes of fifteen-second scenes still render and assemble as they were. Each character has reference pictures (a full
 figure and a face) and, once a voice is chosen, a voice clip, in data/cartoons/<series>/refs: they come
 from the design stage, which the user approves on a sheet.
 
 The engine (the speed test, 2026-11-07, one 5 s two-character scene): ComfyUI's H3 Ref2VA with the 4-step turbo
 LoRA took 1.7 min, 20 steps 7.2 min, Wan2GP's FastH3 NVFP4 2.5 min. All three spoke the lines word for word;
 the ComfyUI pair painted a storybook town that matches the characters, Wan2GP a semi-real one they sat on top
-of, with a second of dead air at the cut. Turbo smears a fast wing, which a dialogue cartoon can live with:
-about 10 min a 15 s scene, so a 3-minute episode is about 2 hours. CARTOON_ENGINE=wan2gp keeps the other.
+of, with a second of dead air at the cut. Turbo smears a fast wing, which a dialogue cartoon can live with.
+CARTOON_ENGINE=wan2gp keeps the other.
 
 Original characters only, never anyone else's: the inventor pair is in the spirit of a classic double act
 (an eccentric and a wiser, wordless companion) with its own names, look and town.
@@ -186,6 +192,8 @@ class Said(BaseModel):
 
 
 class Scene(BaseModel):
+    """One H3 render. Episodes written from 2026-11-08 have one shot each (the writer's Beat); older ones, like
+    the Zip-Chip pilot, two or three shots in fifteen seconds."""
     place: str = Field(max_length=120, description="one of THE PLACES, copied exactly")
     on_screen: list[str] = Field(default_factory=list, max_length=3,
                                  description="the keys of THE CAST who are seen in this scene")
@@ -193,58 +201,124 @@ class Scene(BaseModel):
     shots: list[Shot] = Field(min_length=1, max_length=3)
     lines: list[Said] = Field(default_factory=list, max_length=MAX_LINES)
     sounds: str = Field(max_length=200, description="what we hear besides the lines: waves, gulls, a contraption")
-    # How long the scene runs. Not the writer's (left out of its schema): a one-shot scene is cut to its lines
-    # (the scene-4 probe, 2026-11-08), so nobody's mouth moves through a long silence after them.
-    seconds: SkipJsonSchema[float] = Field(default=SCENE_S, ge=4, le=SCENE_S)
+    # How long the render runs: a one-shot scene is cut to its action, and stretched to fit its line (record()),
+    # so nobody's mouth moves through a long silence (the scene-4 probes, 2026-11-08).
+    seconds: SkipJsonSchema[float] = Field(default=SCENE_S, ge=3, le=SCENE_S)
+    # The episode's props seen here, each described the same way in every render: left to H3, the probe's
+    # rope was green, then striped, then brown from one shot to the next.
+    props: SkipJsonSchema[list[str]] = Field(default_factory=list)
 
 
-def _start(ep: "Episode", i: int) -> float:
-    """Seconds into the episode scene i starts (from 1), at the lengths H3 renders: where its slice of the score
-    begins, so the score runs on across scenes of any length."""
-    return sum(frames(s.seconds) / FPS for s in ep.scenes[: i - 1])
+def _start(ep: "Episode", i: int, folder: Path | None = None) -> float:
+    """Seconds into the episode scene i starts (from 1): where its slice of the bed begins, so the score and the
+    ambience run on across scenes of any length. A scene already recorded counts at its track's length (a line
+    can stretch a shot past what the writer asked), any other at the length H3 renders for its `seconds`."""
+    import soundfile as sf
+
+    total = 0.0
+    for k, s in enumerate(ep.scenes[: i - 1], start=1):
+        track = folder / f"scene{k:02d}.dialogue.wav" if folder else None
+        total += sf.info(track).duration if track and track.exists() else frames(s.seconds) / FPS
+    return total
 
 
 class Episode(BaseModel):
     title: str = Field(max_length=60)
     logline: str = Field(max_length=200)
-    scenes: list[Scene] = Field(min_length=2, max_length=12)
+    scenes: list[Scene] = Field(min_length=2, max_length=60)
+
+
+class Prop(BaseModel):
+    name: str = Field(max_length=40, description="what it is, short: 'the rope', 'the lifebuoy ring'")
+    looks: str = Field(max_length=160, description="one fixed look, the same in every shot: colour, material, size")
+
+
+class Beat(BaseModel):
+    """One shot of the script, which becomes one render (a Scene with one shot)."""
+    place: str = Field(max_length=120, description="one of THE PLACES, copied exactly")
+    on_screen: list[str] = Field(default_factory=list, max_length=3, description="the keys of THE CAST seen")
+    framing: str = Field(max_length=140, description="the camera first: wide / medium / close-up / low angle, on "
+                                                     "whom, and what must be in frame")
+    action: str = Field(max_length=220, description="the ONE thing that happens in this shot")
+    props: list[str] = Field(default_factory=list, max_length=3, description="names from PROPS seen in this shot")
+    line: Said | None = Field(default=None, description="at most one short line, said by the one speaker in shot")
+    seconds: float = Field(default=4.0, ge=3, le=8, description="how long the shot runs; a line's shot is "
+                                                                 "stretched to fit it")
+    sounds: str = Field(max_length=160, description="what we hear besides the line: waves, a sizzle, a twang")
+
+
+class Script(BaseModel):
+    title: str = Field(max_length=60)
+    logline: str = Field(max_length=200)
+    props: list[Prop] = Field(default_factory=list, max_length=6, description="objects seen in more than one shot")
+    shots: list[Beat] = Field(min_length=8, max_length=60)
 
 
 _SYSTEM = """\
 You write one episode of {title}, a cartoon on a small-town TV station's second channel, set in the
 FICTIONAL fishing town of Port Wexley. {premise} Tone: {tone}.
-Write {n} SCENES. Each scene is one continuous piece of animation in ONE of THE PLACES, at most fifteen
-seconds long: two or three shots (the first at 0 seconds, the others later, each restating where it is),
-and at most five SHORT lines in all (about three seconds each), spoken only by THE CAST's speaking
-characters. A character who never speaks acts, and that is often the joke. The episode has a beginning, a
-turn and a payoff across the scenes, and visual comedy that animation can show: things falling, flying,
-running, a contraption going wrong. Original jokes only; no famous characters, catchphrases or brands.
-- PLACE is one of THE PLACES copied exactly; say the time of day in the summary and shots instead.
-- ON_SCREEN lists who is seen in the scene (at most three of THE CAST). Only THE CAST are characters:
-  anyone else is an unnamed crowd far in the background, never featured, close up or acting.
+Write it as about {n} SHOTS, cut together like a classic cartoon: each shot is one camera set-up, three to
+eight seconds long, made as its own piece of animation. The episode has a beginning, a turn and a payoff,
+and visual comedy that animation can show: things falling, flying, running, a contraption going wrong.
+Original jokes only; no famous characters, catchphrases or brands.
+- PLACE is one of THE PLACES copied exactly; say the time of day in the action instead.
+- FRAMING comes first and decides the shot: wide, medium, close-up or a low or high angle, on whom, and
+  what must be in frame ("close-up of Biscuit on the step, the knot above her"). A wide shot of a place
+  always shows it from its usual view, so use one to arrive somewhere; play character business in medium
+  shots and close-ups.
+- ACTION is ONE thing that happens. A second beat ("then...") is the next shot.
+- LINE: at most one short line per shot (about ten words), said by a speaking character of THE CAST who is
+  in the shot. A shot with a line shows its speaker, close or medium, and no other SPEAKING character: a
+  conversation is cut shot by shot between them, each line its own shot, often with a silent reaction
+  shot between. A character who never speaks acts, and that is often the joke.
+- ON_SCREEN lists who is seen in the shot (at most three of THE CAST). Only THE CAST are characters: anyone
+  else is an unnamed crowd far in the background, never featured, close up or acting.
+- PROPS: every object seen in more than one shot, once, with one fixed look (colour, material, size); name
+  it in each shot's PROPS where it is seen, and never describe it differently in the action.
 - No written words anywhere: never ask for lettering on a sign, label, paper or plan.
 Return ONLY JSON.
 """
 
 
-def write(series: Series, n: int = 6, idea: str = "") -> Episode:
+def _episode(script: Script) -> Episode:
+    """The script as renders: each shot a Scene of one shot, its framing first in the action, its props'
+    fixed looks attached."""
+    looks = {p.name.strip().lower(): f"{p.name.strip()}: {p.looks.strip().rstrip('.')}" for p in script.props}
+    scenes = []
+    for b in script.shots:
+        action = f"{b.framing.strip().rstrip('.:')}: {b.action.strip()}"
+        scenes.append(Scene(place=b.place, on_screen=b.on_screen, summary=b.action[:200],
+                            shots=[Shot(at=0.0, action=action[:300])], lines=[b.line] if b.line else [],
+                            sounds=b.sounds, seconds=b.seconds,
+                            props=[looks[k] for k in (n.strip().lower() for n in b.props) if k in looks]))
+    return Episode(title=script.title, logline=script.logline, scenes=scenes)
+
+
+def write(series: Series, n: int = 44, idea: str = "") -> Episode:
     cast = "\n".join(f"  - {c.key}: {c.name}, {c.looks}; " + (f"speaks: {c.voice}" if c.voice else "NEVER SPEAKS")
                      for c in series.cast)
     user = (f"THE CAST:\n{cast}\n\nTHE PLACES:\n" + "\n".join(f"  - {p}" for p in series.places)
             + (f"\n\nTHIS EPISODE'S IDEA: {idea}" if idea else "")
             + _done(series))
-    ep = llm.complete_json(TASK, Episode, _SYSTEM.format(title=series.title, premise=series.premise,
-                                                          tone=series.tone, n=n), user)
+    script = llm.complete_json(TASK, Script, _SYSTEM.format(title=series.title, premise=series.premise,
+                                                            tone=series.tone, n=n), user)
     talkers = {c.key for c in series.cast if c.voice}
     keys = [c.key for c in series.cast]
-    for s in ep.scenes:                          # a line for a silent character, or nobody, is dropped
-        s.lines = [l for l in s.lines if l.who in talkers][:MAX_LINES]
-        if s.place not in series.places:         # a near miss is taken as the place it nearly is
-            s.place = (difflib.get_close_matches(s.place, series.places, n=1, cutoff=0.0) or [s.place])[0]
-        s.on_screen = [k for k in dict.fromkeys(s.on_screen + [l.who for l in s.lines]) if k in keys][:4]
-        s.shots = sorted(s.shots, key=lambda x: x.at)
-        s.shots[0].at = 0.0
-    return ep
+    for k, b in enumerate(script.shots, start=1):
+        if b.line and b.line.who not in talkers:  # a line for a silent character, or nobody, is dropped
+            b.line = None
+        if b.place not in series.places:         # a near miss is taken as the place it nearly is
+            b.place = (difflib.get_close_matches(b.place, series.places, n=1, cutoff=0.0) or [b.place])[0]
+        # The writer often leaves a silent shot's list empty and names the cast in the action instead, and
+        # sometimes leaves out someone its framing puts in frame ("beak to nose with Mr Trethewey", the Chip
+        # Lift's shot 29): left out, H3 draws a stranger. Whoever the framing names is seen.
+        seen = (b.on_screen or _named(series, f"{b.framing} {b.action}")) + _named(series, b.framing)
+        b.on_screen = [c for c in dict.fromkeys(seen + ([b.line.who] if b.line else [])) if c in keys][:3]
+        if b.line and (others := [c for c in b.on_screen if c in talkers and c != b.line.who]):
+            # Not repaired: dropping them would drop their pictures, and H3 would draw a stranger. With two
+            # speakers in shot H3 guesses whose mouth moves (probe 3 swapped them), so the review looks here.
+            log.warning("cartoons: shot %d has %s on screen while %s speaks", k, ", ".join(others), b.line.who)
+    return _episode(script)
 
 
 def _done(series: Series) -> str:
@@ -264,18 +338,22 @@ class Cue:
 
 
 _TITLES = {"mr", "mrs", "ms", "miss", "dr"}
+_INITIALS = {"OK", "TV", "UK", "DIY", "RNLI", "BBC"}       # read as letters; any other word in capitals is a shout
 
 
 def _seen(series: Series, scene: Scene) -> list[Character]:
-    """Who is on screen: the writer's list, else (older episodes) anyone named in the summary or shots by a
-    word of their name that isn't a title; never more than four (with a plate, nine pictures in all)."""
-    if scene.on_screen:
-        keys = set(scene.on_screen) | {l.who for l in scene.lines}
-    else:
-        text = " ".join([scene.summary, *(s.action for s in scene.shots)])
-        keys = {l.who for l in scene.lines} | {c.key for c in series.cast if any(
-            re.search(rf"\b{re.escape(w)}\b", text, re.I) for w in c.name.split() if w.lower() not in _TITLES)}
-    return ([c for c in series.cast if c.key in keys] or list(series.cast[:1]))[:4]
+    """Who is on screen: the writer's list, else anyone named in the summary or shots; never more than four
+    (with a plate, nine pictures in all). Nobody named is nobody: a close-up of a chip cone gets no cast (it
+    used to get the series' lead, whom H3 would then have drawn into it)."""
+    keys = {l.who for l in scene.lines}
+    keys |= set(scene.on_screen) or set(_named(series, " ".join([scene.summary, *(s.action for s in scene.shots)])))
+    return [c for c in series.cast if c.key in keys][:4]
+
+
+def _named(series: Series, text: str) -> list[str]:
+    """The cast named in `text` by a word of their name that isn't a title, in cast order."""
+    return [c.key for c in series.cast if any(re.search(rf"\b{re.escape(w)}\b", text, re.I)
+                                              for w in c.name.split() if w.lower() not in _TITLES)]
 
 
 def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
@@ -311,6 +389,8 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
     shots = " ".join(f"[Shot {i + 1}] " + (f"At 00:{s.at:06.3f}, cut to " if i else "") + f"{s.action.rstrip('. ')}, at "
                      f"{scene.place}." for i, s in enumerate(scene.shots))
     said = " ".join(f"({speakers[l.who]}) <d>[English] {l.words}</d>" for l in scene.lines if l.who in speakers)
+    kit = (" Props, drawn exactly the same in every shot: " + "; ".join(p.rstrip(". ") for p in scene.props) + "."
+           if scene.props else "")
     plate = series.plate(scene.place)
     if plate:
         pics.append(plate)
@@ -345,10 +425,11 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
         sound = f"overall_soundscape: {scene.sounds.rstrip('. ')}. " + (f"Dialogue: {said} Only the dialogue above." if said else
                                                            "Nobody speaks.")
     text = "\n".join([
-        "subject_definitions: " + " ".join(defs),
+        "subject_definitions: " + (" ".join(defs) or "No characters: the shot shows only the place and its props, "
+                                                       "with nobody in it."),
         f"summary: [reference generation] {scene.summary}",
-        "retention_analysis: " + ". ".join(keep) + setting + ".",
-        f"detailed_description: The target video is {series.style}, {scene.place}. {shots}",
+        "retention_analysis: " + (". ".join(keep) + setting if keep else setting.removeprefix(". ")) + ".",
+        f"detailed_description: The target video is {series.style}, {scene.place}. {shots}{kit}",
         sound,
         music,
     ])
@@ -367,8 +448,9 @@ def _speak(series: Series, who: str, words: str):
     if not clip.exists():
         raise FileNotFoundError(f"no voice for {who} yet: {clip.name} (the casting stage)")
     # A shouted word in capitals reads as letters: "The ferry is MOVING!" came out "emo-ving" (2026-11-08).
-    # The exclamation mark carries the shout; a short one like "OK" or "TV" stays as it is.
-    words = re.sub(r"\b[A-Z]{3,}\b", lambda m: m.group().lower(), words)
+    # The exclamation mark carries the shout. Two letters too ("come to ME!", the Chip Lift script); only real
+    # initials like "OK" or "TV" stay as they are.
+    words = re.sub(r"\b[A-Z]{2,}\b", lambda m: m.group() if m.group() in _INITIALS else m.group().lower(), words)
     with tts._SYNTH_LOCK:
         return tts._pocket_speak(words, clip)
 
@@ -411,8 +493,9 @@ def _bed(series: Series, scene: Scene, i: int, n: int, start: float | None = Non
     if score:
         bed += level(score, (i - 1) * total if start is None else start, MUSIC_RMS)
     if place:
-        bed += level(place, (i * 7.3) % 20.0, AMB_RMS)                  # a different stretch of it each scene
-    fade = min(n, int(0.02 * TRACK_SR))                                  # no click at either end of a scene
+        # Runs on like the score: with a shot a render, a stretch per scene jumped at every cut.
+        bed += level(place, (i * 7.3) % 20.0 if start is None else start, AMB_RMS)
+    fade = min(n, int(0.005 * TRACK_SR))                                 # no click at either end of a scene
     bed[:fade] *= np.linspace(0, 1, fade)[:, None]
     bed[-fade:] *= np.linspace(1, 0, fade)[:, None]
     return bed
@@ -422,8 +505,9 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
            start: float | None = None) -> tuple[Path, list[Cue]] | None:
     """Scene i's sound: each line recorded once (kept in sceneNN/lines, so a retake is one file deleted), laid
     on the scene's timeline with natural gaps, the spare time spread evenly between lines, over the series' bed
-    (_bed), written as sceneNN.dialogue.wav (stereo, the scene's exact length). A scene nobody speaks in gets
-    the bed alone (cues []). None when there is nothing to record: no lines and no bed."""
+    (_bed), written as sceneNN.dialogue.wav (stereo, the scene's exact length: its `seconds`, or longer when
+    its lines need it, which render() then follows). A scene nobody speaks in gets the bed alone (cues []).
+    None when there is nothing to record: no lines and no bed."""
     import numpy as np
     import soundfile as sf
     from newsroom.config import CONFIG
@@ -431,9 +515,9 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
     talkers = {c.key for c in series.cast if c.voice}
     lines = [l for l in scene.lines if l.who in talkers]
     total = frames(scene.seconds) / FPS
-    n = int(round(total * TRACK_SR))
-    bed = _bed(series, scene, i, n, start)
     if not lines:
+        n = int(round(total * TRACK_SR))
+        bed = _bed(series, scene, i, n, start)
         if bed is None:
             return None
         path = folder / f"scene{i:02d}.dialogue.wav"
@@ -450,6 +534,9 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
         a, got = sf.read(wav, dtype="float32")
         clips.append(np.interp(np.arange(int(len(a) * TRACK_SR / got)) * got / TRACK_SR, np.arange(len(a)), a))
     speech = sum(len(c) for c in clips) / TRACK_SR
+    total = max(total, frames_at_least(LEAD_S + speech + GAP_S * (len(clips) - 1) + TAIL_S) / FPS)
+    n = int(round(total * TRACK_SR))
+    bed = _bed(series, scene, i, n, start)
     spare = total - LEAD_S - TAIL_S - speech - GAP_S * (len(clips) - 1)
     if spare < 0:
         raise ValueError(f"scene {i}'s lines run {speech:.1f}s: too long for {total:.1f}s")
@@ -471,7 +558,7 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
 # ------------------------------------------------------------------ the steps
 
 
-def plan(series_id: str, n: int = 6, idea: str = "") -> Path:
+def plan(series_id: str, n: int = 44, idea: str = "") -> Path:
     series = SERIES[series_id]
     ep = write(series, n, idea)
     slug = re.sub(r"[^a-z0-9]+", "-", ep.title.lower()).strip("-")[:40]
@@ -488,6 +575,12 @@ def plan(series_id: str, n: int = 6, idea: str = "") -> Path:
 def frames(seconds: float) -> int:
     """H3's frame counts are 17k+5 at 24 fps: the nearest to `seconds` (124 = 5 s, 362 = 15.08 s, the top)."""
     return max(22, min(362, round((seconds * FPS - 5) / 17) * 17 + 5))
+
+
+def frames_at_least(seconds: float) -> int:
+    """The shortest of H3's frame counts (17k+5) that lasts `seconds`, at most 362."""
+    k = max(1, -(-(seconds * FPS - 5) // 17))
+    return int(min(362, k * 17 + 5))
 
 
 def settings(series: Series, scene: Scene, seed: int) -> dict:
@@ -605,7 +698,11 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
         if _rendered(folder, i):
             log.info("cartoons: scene %d already rendered", i)
             continue
-        rec = record(series, scene, folder, i, _start(ep, i)) if DIALOGUE == "recorded" else None
+        rec = record(series, scene, folder, i, _start(ep, i, folder)) if DIALOGUE == "recorded" else None
+        length = frames(scene.seconds)
+        if rec:                                          # the track's length, which a line may have stretched
+            import soundfile as sf
+            length = round(sf.info(rec[0]).duration * FPS)
         text, pics, voices = prompt(series, scene, rec[1] if rec else None,
                                     bed=_bed(series, scene, i, 1) is not None)
         missing = [p for p in pics if not p.exists()]
@@ -615,7 +712,7 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
         audio = [v.name if dry_run else _to_comfy(series, v) for v in voices]
         if rec:                                          # the recorded dialogue is <Audio 1>, the only audio
             audio = [rec[0].name if dry_run else _to_comfy(series, rec[0], f"{folder.name}_{rec[0].name}")]
-        graph = comfy_graph(text, names, audio, seed=1000 + i, length=frames(scene.seconds),
+        graph = comfy_graph(text, names, audio, seed=1000 + i, length=length,
                             prefix=f"{series.id}_{folder.name}_scene{i:02d}")
         (folder / f"scene{i:02d}.comfy.json").write_text(json.dumps(graph, indent=1), encoding="utf-8")
         if dry_run:
@@ -701,7 +798,7 @@ def _cli() -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("plan")
     a.add_argument("--series", choices=sorted(SERIES), required=True)
-    a.add_argument("--scenes", type=int, default=6)
+    a.add_argument("--shots", type=int, default=44, help="about how many shots (one render each)")
     a.add_argument("--idea", default="")
     for cmd in ("render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
@@ -712,7 +809,7 @@ def _cli() -> int:
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
-        print(plan(args.series, args.scenes, args.idea))
+        print(plan(args.series, args.shots, args.idea))
     elif args.cmd == "render":
         print(render(args.folder, args.dry_run, args.engine))
     elif args.cmd == "assemble":
