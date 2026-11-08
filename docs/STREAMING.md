@@ -1,6 +1,7 @@
-# Streaming Channel 7 on YouTube
+# Streaming Channel 7 on YouTube and Twitch
 
-How to put a night of Mini Newsroom on a YouTube live stream with OBS.
+How to put Mini Newsroom on a YouTube live stream with OBS, with the same picture going to Twitch at the
+same time. YouTube is OBS's own stream; Twitch is a second output from the obs-multi-rtmp plugin.
 
 ## Before the night
 
@@ -46,6 +47,16 @@ uv run python -m newsroom --log-llm
   ```
 
 - Esc or closing the window ends the run, and the world is saved on exit.
+
+**The kill switch.** If something on air must come off now, hold the station on the test card:
+
+```powershell
+uv run python -m newsroom.control testcard    # off air at once; what was playing never resumes
+uv run python -m newsroom.control air         # back on air
+```
+
+F12 in the station's window does the same. The stream keeps running on the test card, so neither YouTube nor
+Twitch sees a drop. Test it on the soak night (`docs/LAUNCH.md`) before the public launch.
 
 ## OBS
 
@@ -95,17 +106,168 @@ recording too. Send the station's sound to a virtual cable instead:
    Audio muted. Some versions call it "Microphone (VB-Audio Virtual Cable)" instead.
 5. To listen in, set that source's Advanced Audio Properties → Audio Monitoring to "Monitor and Output".
 
-**YouTube**
-- Create → Go live → Stream.
-- Visibility **Unlisted**, so only people with the link can watch.
+## YouTube
+
+YouTube is OBS's main output: Settings → Stream.
+
+- Create → Go live → **Stream** (the stream-key tab, not "Manage").
+- Visibility **Unlisted** for tests, so only people with the link can watch. **Public** from the soak night on.
 - Copy the stream key into OBS → Settings → Stream (Service: YouTube - RTMPS).
+- In the stream's settings, leave **Auto-start** and **Auto-stop** on. Auto-stop is what ends one saved
+  broadcast when OBS stops streaming, so the next start opens a new one (see the restarts below).
 - Turn on live chat for the comments. Turn latency to "Low" so replies to the chat feel live.
+- **Altered or synthetic content.** Answer **Yes** to YouTube's question about altered or synthetic content
+  (labelled "Altered content", or "AI use" under Attributes in newer versions of YouTube Studio). Set it in
+  the stream's details before going live, and check it on each saved part afterwards (Studio → Content →
+  Live). Strictly, YouTube asks for disclosure when content "seems realistic", and a pixel-art town might not
+  qualify, but the voices are realistic synthetic speech and YouTube judges a channel as a whole for
+  "inauthentic content", so being open about it is the safe side. YouTube's help page says disclosing AI
+  content alone "won't limit a video's audience or impact its eligibility to earn money"
+  ([Disclosing use of altered or synthetic content](https://support.google.com/youtube/answer/14328491)).
+  The disclosure line also goes at the top of every description (templates below); the DramaBox and DeepSeek
+  licences require that anyway (`docs/CREDITS.md`).
 - Send your friends the watch link once YouTube shows "Excellent connection".
+
+## Stream restarts: each saved part under 12 hours
+
+YouTube may not save a live stream that runs longer than 12 hours, and a stream that isn't saved stays off
+the channel afterwards and doesn't count towards the Partner Programme's watch hours. So the station stops
+and restarts OBS's stream (YouTube only) three times a day, and every saved broadcast is a part of the day
+under 12 hours:
+
+| restart | part | length | what it holds |
+|---|---|---|---|
+| 00:00 | overnight to breakfast | 9 h | test card, repeats, SEVENTEXT, *Morning Tide* |
+| 09:00 | the daytime | 10 h | the news, *Have Your Say*, *Quayside*, *Out and About*, *Rock Pool*, *Full Time* |
+| 19:00 | the evening | 5 h | *Coastwide*, *The Inquiry* or *The Chamber*, *The Panel*, the documentary, *The Last Ferry*, the late news |
+
+The times sit on programme changes, so a saved part opens on a bumper and the gap of a few seconds falls
+where nothing is lost. The evening part is the short one on purpose: it is the best of the day and the
+easiest to clip for Shorts.
+
+**Being built** by another session: the schedule goes in `config.toml` as
+
+```toml
+[stream]
+restart_at = ["00:00", "09:00", "19:00"]
+```
+
+and the station asks OBS (through the WebSocket server, as `--obs` does) to stop and start its stream at
+those times. Until that lands, there are no automatic restarts.
+
+**Check before launch** (a private test stream, `docs/LAUNCH.md`): after a restart, YouTube Studio → Content →
+Live should show a **new** saved broadcast, and the old one should be processing. If the restart reconnects
+into the same broadcast instead, check that Auto-stop is on, and that the gap is long enough for YouTube to
+notice the end (YouTube waits a little before ending a broadcast; the restart may need a longer pause).
+
+## Twitch, through obs-multi-rtmp
+
+OBS sends one stream on its own. The [obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp) plugin adds
+more outputs in a dock, each with its own server, key and (optionally) encoder.
+
+1. Install the plugin for your OBS version from its GitHub releases page, and restart OBS. The dock is
+   called "Multiple output"; if it doesn't show, Docks → Multiple output.
+2. In the Twitch dashboard: Settings → Stream → copy the **Primary Stream key**. Keep it private.
+3. In the dock: **Add new target**.
+   - Name: Twitch.
+   - Server: `rtmp://live.twitch.tv/app` (or the nearest ingest from Twitch's list).
+   - Key: the Twitch stream key.
+   - **Untick "Sync start with OBS"** (some versions say "sync start/stop"). This is the important setting.
+     Synced, the Twitch output starts and stops with OBS's own stream, so every YouTube restart would drop
+     Twitch as well. Unsynced, Twitch runs on through the restarts. A forum report says the tick can come
+     back after OBS restarts, so check it each time OBS opens.
+   - Encoder: give Twitch **its own** encoder rather than sharing OBS's (NVENC H.264, 6000 Kbps CBR,
+     keyframe interval 2 s, audio AAC 160 kbps). A shared encoder belongs to the YouTube output and may stop
+     with it at a restart.
+4. Start Twitch from the dock's **Start** button after OBS's own Start Streaming. They are now independent:
+   OBS's button (and the station's restarts) only touches YouTube.
+5. **Twitch ends any single broadcast at 48 hours.** Restart the Twitch output by hand once a day at a
+   quiet moment (Stop, then Start in the dock), for example at the morning check after 09:00, so the cut
+   never happens unattended in the middle of a programme. Twitch doesn't have the 12-hour question: its
+   past broadcasts are saved as VODs for 7 days (longer for Affiliates and Partners), and Highlights stay.
+
+**Twitch settings**
+- Category: look for an **Always On** (or similar 24/7) category; a vendor guide says Twitch has had one
+  since 2017, but that wasn't checked. Otherwise **Just Chatting**. Tags, up to ten: `AI`, `24Hours`,
+  `PixelArt`, `News`, `English`, `British`, `Cozy`, `Chill`.
+- Turn on "Store past broadcasts" (Settings → Stream → VOD Settings), so clips can be made from them.
+- Don't mark the stream as a rerun: the station is live, written as it airs. The overnight block (about six
+  hours of the day's segments replayed) is the grey area, since Twitch's rerun rule is about prerecorded
+  content presented as live. It's a judgement call, and what makes it defensible is the on-screen repeat
+  label and the published schedule; keep both.
+- Affiliate needs a small following, some hours streamed on several days and a few average viewers: check
+  the current numbers at sign-up ([Joining the Affiliate Program](https://help.twitch.tv/s/article/joining-the-affiliate-program)).
+
+## Titles and descriptions
+
+Every title or description carries the disclosure line, and every description the Pocket TTS credit.
+`docs/CREDITS.md` has the full credits block. Replace `TODO` with the real links.
+
+**YouTube live stream** (copied to each saved part by YouTube; add the date range to a saved part's title
+afterwards if you like)
+
+```text
+Title (max 100 characters):
+Channel 7 LIVE · Port Wexley, an AI-run TV station for a town that doesn't exist · 24/7
+
+Description:
+Port Wexley is a fictional town. Every programme is written and voiced by AI.
+
+Channel 7 is Port Wexley's local TV station, on air around the clock: breakfast on the sofa, the news,
+a phone-in, the fish quay's prices, children's TV with a seagull puppet, local sport, the evening
+magazine, a late-night talk show, a nightly documentary and, every other Thursday, the town council
+live. Stories run for days, the same people come back, and the foot ferry runs to the tides.
+
+Today's schedule: 06:00 Morning Tide · 10:00 Have Your Say · 13:00 Quayside · 15:00 Out and About ·
+16:00 Rock Pool · 18:45 Full Time · 19:00 Coastwide · 20:00 The Inquiry · 20:30 The Panel ·
+21:00 the news and Port Wexley Stories · 22:00 The Last Ferry · the news in between (UK time).
+
+Also live on Twitch: TODO
+Support the station (it costs about $1-2 a day to run): TODO (Ko-fi)
+How it's made, and the code: https://github.com/cubes321/mini-newsroom
+
+Voices: Pocket TTS by Kyutai (CC BY 4.0, https://huggingface.co/kyutai/pocket-tts) and Kokoro-82M (Apache 2.0).
+Scripts: Claude and DeepSeek. Full credits: https://github.com/cubes321/mini-newsroom/blob/master/docs/CREDITS.md
+```
+
+**Twitch**
+
+```text
+Title (max 140 characters):
+Channel 7 LIVE 24/7 · AI-written local TV for Port Wexley, a town that doesn't exist (fictional, written and voiced by AI)
+
+About panel (a panel under the stream):
+Port Wexley is a fictional town. Every programme is written and voiced by AI.
+[the same "Channel 7 is..." paragraph and schedule as YouTube]
+Voices: Pocket TTS by Kyutai (CC BY 4.0) and Kokoro-82M (Apache 2.0). Full credits: [CREDITS.md link]
+Support: TODO (Ko-fi)
+```
+
+**Shorts** (one moment from a saved part or a recording; `tools/shorts.py` is being built to cut them)
+
+```text
+Title (max 100 characters; the moment first):
+The mayor has had enough of the gulls 😤 | Channel 7, Port Wexley #shorts
+
+Description:
+Port Wexley is a fictional town; written and voiced by AI.
+From <programme>, <date>. Channel 7 is live around the clock: TODO (live link)
+Voices: Pocket TTS by Kyutai (CC BY 4.0). Credits: https://github.com/cubes321/mini-newsroom/blob/master/docs/CREDITS.md
+#AI #PixelArt #LocalNews #PortWexley
+```
+
+For a Short, answer the altered-content question **Yes** at upload as well. Keep the title about the moment
+("the ferry is cancelled again"), not about the AI: the disclosure is in the description and the label.
 
 ## If something goes wrong
 
+- **Something on air that shouldn't be.** `uv run python -m newsroom.control testcard` (or F12), then look.
 - **A frozen or blank picture.** OBS stopped capturing the window, which happens when it is minimised. Keep the window open behind OBS, not minimised.
 - **Silence with the picture moving.** Check that Application Audio Capture still points at python.exe. It loses the process if the app restarts.
 - **"We'll be right back" for a long time.** The model calls are failing; check the terminal.
   - Channel 7 fills a gap with adverts and idents first, then the card.
   - A restart keeps the town (the world is saved), and the first bumper covers the start.
+- **Twitch dropped at a YouTube restart.** "Sync start with OBS" is ticked on the Twitch target, or Twitch
+  shares OBS's encoder. Untick it, give Twitch its own encoder, and start it again from the dock.
+- **Twitch stuck on "stopping"** in the dock. Forum reports describe this after Twitch drops a connection.
+  Restart OBS (the YouTube part is saved, and the station keeps running), then start both again.

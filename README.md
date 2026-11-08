@@ -2,6 +2,18 @@
 
 **An always-on, pixel-art TV news channel for a town that doesn't exist.**
 
+> **Watching?** Welcome to Channel 7, Port Wexley's local station. Port Wexley is a fictional town: the
+> people, the council, the ferry and the news are all made up. Every programme is written and voiced by
+> AI, live, around the clock.
+>
+> - Watch live on YouTube: TODO (Cubes Channel, @cubes123)
+> - Watch live on Twitch: TODO
+> - The four-minute tour, the Channel 7 promo: TODO
+> - Help keep the lights on (the station costs about $1-2 a day to run): Ko-fi TODO
+>
+> Credits and licences: [docs/CREDITS.md](docs/CREDITS.md). Everything below is for people who want to run
+> it or read the code.
+
 Port Wexley has a mayor, a stopped Town Hall clock, ghost tours at the old
 cannery and a baker who renames his treacle tart after the news. None of it is
 real. An LLM writes the scripts, Pocket TTS and Kokoro voice the presenters on
@@ -440,6 +452,13 @@ Overnight repeats are drawn from the last two days of this cache.
 MIT; see [LICENSE](LICENSE). Port Wexley and everyone in it are fictional.
 
 Voices: [Pocket TTS](https://huggingface.co/kyutai/pocket-tts) by Kyutai (weights CC-BY-4.0, gated:
-accept the terms and `hf auth login` once), cloning reference clips in `assets/voices/`: the presenters'
-from [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), the local guests' designed
-with [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) VoiceDesign. Kokoro voices everyone else.
+accept the terms and `hf auth login` once), cloning reference clips in `assets/voices/`. Most presenters'
+clips are renders of their own [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) voices (Apache 2.0),
+and so are the visitors'. The local guests, the mayor and councillors, and three presenters (Tamsin Jago,
+Howard Lanyon and Meg Trethewey) were designed from a description with
+[DramaBox](https://huggingface.co/ResembleAI/Dramabox) by Resemble AI (LTX-2 Community License) on
+2026-11-01, replacing a first set of guest clips made with Qwen3-TTS VoiceDesign. Kokoro voices everyone
+else.
+
+Every model, font and licence, and what each means for a monetised stream, is in
+[docs/CREDITS.md](docs/CREDITS.md).
