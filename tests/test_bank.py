@@ -198,7 +198,7 @@ def test_a_start_still_is_drawn_from_the_plate_and_cast_and_is_h3s_only_picture(
     assert "one Gully, one Biscuit, one Dot Penrose, and no second of anyone" in text
     trio.first_frame = "wide shot of the wall, Gully landing beside the crate, Biscuit asleep, Dot behind"
     assert "The frame: wide shot of the wall, Gully landing beside" in cartoons.still_prompt(series, trio)[0]
-    assert "drawn exactly once" in text and "small red plastic bucket" in text and "every sign is blank" in text
+    assert "drawn exactly once" in text and "small red plastic bucket" in text and "no added signs" in text
     cone = cartoons.Scene(place="nowhere we have", summary="The cone.", shots=[{"at": 0, "action": "the cone"}],
                           lines=[], sounds="a sizzle")
     text, pics = cartoons.still_prompt(series, cone)
@@ -405,6 +405,19 @@ def test_the_episode_is_assembled_with_our_sound_not_h3s(monkeypatch, tmp_path):
     spec = np.abs(np.fft.rfft(a))
     hz = np.fft.rfftfreq(len(a), 1 / 8000)
     assert abs(hz[spec.argmax()] - 1000) < 20                             # 3 s of title card, then our track
+
+    with pytest.raises(FileNotFoundError, match=r"no start still yet for shots \[1, 2\]"):
+        cartoons.assemble(folder, draft=True)
+    (folder / "scene02.dialogue.wav").unlink()                            # a silent shot: held for its length
+    ep.scenes[1].seconds = 3.0
+    (folder / "episode.json").write_text(ep.model_dump_json(), encoding="utf-8")
+    for i in (1, 2):
+        pygame.image.save(pygame.Surface((64, 36)), str(folder / f"scene{i:02d}.start.png"))
+    draft = cartoons.assemble(folder, draft=True)
+    assert draft == folder / "draft.mp4" and (folder / "episode.mp4").exists()
+    took = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                 str(draft)], capture_output=True, text=True, check=True).stdout)
+    assert abs(took - (3 + 2 + 73 / 24 + 3)) < 0.15                       # cards, the track, the silent shot
 
 
 def test_the_writer_keeps_to_the_series_places_and_its_cast(monkeypatch, caplog):

@@ -7,6 +7,7 @@ from the content bank (newsroom/bank.py). Rendering is GPU work and only happens
     python -m entertainment.cartoons plan --series gully            write an episode, shot by shot
     python -m entertainment.cartoons stills data/cartoons/gully/<ep>   a start still per shot, and a sheet of them
     python -m entertainment.cartoons stills <ep> --redo 5 15           new takes of the stills the user turned down
+    python -m entertainment.cartoons draft <ep>                        the stills held over the recorded sound
     python -m entertainment.cartoons render data/cartoons/gully/<ep>   queue its shots on ComfyUI (or Wan2GP)
     python -m entertainment.cartoons assemble data/cartoons/gully/<ep> title card, the shots, the end card
     python -m entertainment.cartoons ingest data/cartoons/gully/<ep>   onto the bank's shelf
@@ -414,7 +415,8 @@ def still_prompt(series: Series, scene: Scene) -> tuple[str, list[Path]]:
         text.append("Nobody is in it: no people and no animals.")
     if scene.props:
         text.append("Props, drawn exactly so: " + "; ".join(p.rstrip(". ") for p in scene.props) + ".")
-    text.append("No text and no lettering anywhere: every sign is blank.")
+    # "Every sign is blank" drew blank boards on posts into close-ups that had no sign (the Chip Lift's stills).
+    text.append("No text and no lettering anywhere, and no added signs, boards or notices.")
     return " ".join(text), pics
 
 
@@ -957,19 +959,36 @@ def _card(text: list[str], path: Path, size=(1152, 640)) -> Path:
     return path
 
 
-def assemble(folder: Path) -> Path:
-    """The title card, every scene in order, the end card: one film, at the scenes' size, 24 fps."""
+def assemble(folder: Path, draft: bool = False) -> Path:
+    """The title card, every scene in order, the end card: one film, at the scenes' size, 24 fps. With `draft`,
+    the draft (draft.mp4) is made before any video (the user's idea, 2026-11-08): each shot is its start still
+    held for its recorded track, so the cut, the timing and the lines can be judged for nothing."""
     series = SERIES[folder.parent.name]
     ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
-    clips = [sorted((folder / f"scene{i:02d}").glob("*.mp4"))[-1] for i in range(1, len(ep.scenes) + 1)]
+    n = len(ep.scenes)
+    if draft:
+        clips = [start_still(folder, i) for i in range(1, n + 1)]
+        if missing := [i for i, c in enumerate(clips, start=1) if c is None]:
+            raise FileNotFoundError(f"no start still yet for shots {missing} (run stills)")
+    else:
+        clips = [sorted((folder / f"scene{i:02d}").glob("*.mp4"))[-1] for i in range(1, n + 1)]
     title = _card([series.title, ep.title], folder / "title.png")
     end = _card([series.title, "on channel seven"], folder / "end.png")
     w, h = (int(x) for x in RESOLUTION.split("x"))
     args, parts, i = [], [], 0          # i: the next input's index (a card is two inputs, a scene one)
     for k, (src, still) in enumerate([(title, True), *((c, False) for c in clips), (end, True)]):
-        if still:
-            args += ["-loop", "1", "-t", "3", "-i", str(src), "-f", "lavfi", "-t", "3", "-i",
-                     "anullsrc=channel_layout=stereo:sample_rate=44100"]
+        if still or draft:
+            track = folder / f"scene{k:02d}.dialogue.wav"
+            if still:
+                hold = 3.0
+            elif track.exists():
+                import soundfile as sf
+                hold = sf.info(str(track)).duration
+            else:
+                hold = frames(ep.scenes[k - 1].seconds) / FPS
+            args += ["-loop", "1", "-t", f"{hold:.3f}", "-i", str(src)]
+            args += (["-i", str(track)] if not still and track.exists() else
+                     ["-f", "lavfi", "-t", f"{hold:.3f}", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"])
             v, a, i = i, i + 1, i + 2
         elif (track := folder / f"scene{k:02d}.dialogue.wav").exists():   # our sound, not H3's copy of it
             args += ["-i", str(src), "-i", str(track)]
@@ -981,7 +1000,7 @@ def assemble(folder: Path) -> Path:
                      f"aformat=channel_layouts=stereo[a{k}]")
     n = len(parts)
     graph = ";".join(parts) + ";" + "".join(f"[v{k}][a{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=1[v][a]"
-    film = folder / "episode.mp4"
+    film = folder / ("draft.mp4" if draft else "episode.mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args, "-filter_complex", graph, "-map", "[v]",
                     "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(film)], check=True)
     return film
@@ -1003,7 +1022,7 @@ def _cli() -> int:
     a.add_argument("--series", choices=sorted(SERIES), required=True)
     a.add_argument("--shots", type=int, default=44, help="about how many shots (one render each)")
     a.add_argument("--idea", default="")
-    for cmd in ("stills", "render", "assemble", "ingest"):
+    for cmd in ("stills", "draft", "render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
         b.add_argument("folder", type=Path)
         if cmd in ("stills", "render"):
@@ -1020,6 +1039,8 @@ def _cli() -> int:
         print(stills(args.folder, tuple(args.redo), args.dry_run))
     elif args.cmd == "render":
         print(render(args.folder, args.dry_run, args.engine))
+    elif args.cmd == "draft":
+        print(assemble(args.folder, draft=True))
     elif args.cmd == "assemble":
         print(assemble(args.folder))
     else:
