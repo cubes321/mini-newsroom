@@ -14,8 +14,8 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 - Each YouTube part is saved (restarts at 00:00, 09:00, 19:00), and Twitch runs through the restarts.
 - Anything bad can be taken off air in seconds (the kill switch), and the content filter is on.
 - Every stream, Short and post says the town is fictional and everything is written and voiced by AI.
-- Nothing on air has a licence problem: no cartoons (MiniMax H3), and the Stable Audio bed replaced or
-  registered.
+- Nothing on air has a licence problem: no cartoons (MiniMax H3). (The Stable Audio bed was replaced by a
+  code bed on 8 November.)
 
 ## Week 1: Sun 8 to Sun 15 November, accounts and the quality test
 
@@ -50,9 +50,9 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 - [ ] The kill switch (`python -m newsroom.control testcard|air`, F12) and the content filter are
       committed (being built by another session). Try both on a `--scratch` run.
 - [ ] Stream restarts at `[stream] restart_at = ["00:00","09:00","19:00"]` are committed (being built).
-- [ ] **A new music bed rendered in code** by `newsroom/jingle.py`, at 44.1 kHz stereo, put on a listening
-      page with two or three takes; **you** pick one by ear; it replaces the Stable Audio bed. (If you
-      keep the SA3 bed instead: register for Stability's Community License before launch.)
+- [x] **A new music bed rendered in code** (`jingle.bed("vibes")`, 44.1 kHz stereo, 80 s), picked by ear on
+      2026-11-08 over "lounge" and "strings"; it replaced the Stable Audio bed. Listen for it on the next
+      night: under speech, on the cards and on the test card.
 - [ ] **You: a private YouTube test stream through a restart.** Stream **Unlisted** for an hour or two
       across a restart time (or set `restart_at` to a time a few minutes ahead for the test), with Twitch
       running from the obs-multi-rtmp dock. Confirm:

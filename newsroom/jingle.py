@@ -902,6 +902,100 @@ SHOW_ARRANGEMENTS = {"quayside": _quayside, "phonein": _phonein, "outabout": _ou
                      "panel": _panel, "chamber": _chamber, "inquiry": _inquiry}
 
 
+# --- the music bed: a seamless loop under the cards, the test card and SEVENTEXT, and quietly under speech ---
+#
+# Replaces the Stable Audio 3 bed (2026-11-08): the station's music is all code now. Eight bars in C, played
+# through a few times with the tune quoted in them, then the reverb tail folded back onto the start so the
+# loop has no seam. It plays at 6% under voices, so the comping stays soft and the melody sparse.
+
+# (bass, voicing) per bar: Cmaj9 | Am7 | Dm9 | G7sus | Cmaj9 | Fmaj7 | Dm9 | G7
+BED_CHORDS: list[tuple[int, list[int]]] = [
+    (36, [52, 55, 59, 62]), (45, [52, 55, 57, 60]), (38, [53, 57, 60, 64]), (43, [53, 55, 60, 62]),
+    (36, [52, 55, 59, 62]), (41, [52, 57, 60, 64]), (38, [53, 57, 60, 64]), (43, [53, 55, 59, 62]),
+]
+# Melodies as (bar, beat, midi, beats). BEACON_QUOTE is the station tune (C G C E, then the held G) in quarters.
+BEACON_QUOTE = [(0, 0, 72, 1), (0, 1, 67, 1), (0, 2, 72, 1), (0, 3, 76, 1), (1, 0, 79, 3.5)]
+_ANSWER = [(4, 0, 81, 1), (4, 1, 79, 1), (4, 2, 76, 1.5), (5, 0, 77, 1), (5, 1, 76, 1), (5, 2, 72, 2),
+           (6, 0, 74, 1), (6, 1, 76, 1), (6, 2, 77, 1), (6, 3, 81, 1), (7, 0, 79, 3)]
+_RUN = [(0, 0, 76, 1.5), (0, 2.5, 79, 1.5), (1, 0, 81, 1), (1, 1, 79, 2.5), (2, 0, 77, 1), (2, 1, 76, 1),
+        (2, 2, 74, 2), (3, 0, 72, 1), (3, 1, 74, 1), (3, 2, 79, 2)]
+BED_STYLES = ("vibes", "lounge", "strings")
+BED_STYLE = "vibes"             # chosen by ear 2026-11-08 over lounge and strings
+BED_TEMPO = {"vibes": (96, 4), "lounge": (76, 3), "strings": (88, 4)}    # bpm, times through the eight bars
+
+
+def _tremolo(x: np.ndarray, hz: float, depth: float) -> np.ndarray:
+    t = np.arange(len(x)) / SR
+    lfo = 1 - depth * (0.5 + 0.5 * np.sin(2 * np.pi * hz * t))
+    return x * (lfo[:, None] if x.ndim == 2 else lfo)
+
+
+def bed(style: str = BED_STYLE, passes: int | None = None) -> np.ndarray:
+    """The music bed, 44.1 kHz stereo float32, a loop with no seam. vibes: Rhodes comping, vibraphone on
+    the tune, upright bass and brushes, 96 BPM; lounge: slower, held Rhodes with tremolo and the vibes
+    alone, no drums; strings: a string pad, harp arpeggios and the tune on the glockenspiel."""
+    bpm, default_passes = BED_TEMPO[style]
+    passes = passes or default_passes
+    beat = 60.0 / bpm
+    bar = 4 * beat
+    loop_s = passes * len(BED_CHORDS) * bar
+    tail_s = 4.0
+    mix = _Mix(loop_s + tail_s)
+    keys = _Mix(loop_s + tail_s)                       # the Rhodes on their own, for the lounge's tremolo
+    # Which melody each pass carries: the tune first, a breather, and the tune again leading back round.
+    tunes = {"vibes": [BEACON_QUOTE + _ANSWER, _RUN + _ANSWER, [], BEACON_QUOTE + _RUN[4:]],
+             "lounge": [BEACON_QUOTE, _ANSWER, BEACON_QUOTE + _ANSWER],
+             "strings": [[], BEACON_QUOTE + _ANSWER, _RUN, BEACON_QUOTE]}[style]
+
+    for p in range(passes):
+        p0 = p * len(BED_CHORDS) * bar
+        sparse = style == "vibes" and p == 2           # the vibes take drops to held chords for a pass
+        for b, (root, voicing) in enumerate(BED_CHORDS):
+            at = p0 + b * bar
+            if style == "vibes":
+                hits = [(0.0, 1.4), (1.5, 0.4), (2.5, 1.4)] if not sparse else [(0.0, 3.8)]
+                for h, d in hits:
+                    for j, n in enumerate(voicing):
+                        keys.add(at + h * beat + 0.012 * j, rhodes(_hz(n), d * beat, 0.55), 0.22,
+                                 pan=-0.35 + 0.2 * j)
+                bass_line = [(0, root, 1.8), (2, root + 7, 1.8)] if not sparse else [(0, root, 3.8)]
+                for h, n, d in bass_line:
+                    mix.add(at + h * beat, upright(_hz(n), d * beat, 0.8), 0.5)
+                if not sparse:
+                    for k in range(8):
+                        mix.add(at + k * beat / 2, shaker(0.5 if k % 2 else 0.3), 0.35, pan=0.45)
+                    for h in (1, 3):
+                        mix.add(at + h * beat, brush(0.2, 0.6), 0.55, pan=-0.35)
+            elif style == "lounge":
+                for j, n in enumerate(voicing + [voicing[-1] + 12]):
+                    keys.add(at + 0.03 * j, rhodes(_hz(n), bar * 0.95, 0.5), 0.2, pan=-0.4 + 0.2 * j)
+                mix.add(at, upright(_hz(root), bar * 0.9, 0.7), 0.5)
+                mix.add(at + 2.5 * beat, upright(_hz(root + 7), beat * 1.3, 0.5), 0.3)
+            else:                                     # strings
+                for j, n in enumerate(voicing):
+                    mix.add(at, strings(_hz(n), bar * 0.98, 0.6), 0.16, pan=(-0.5, -0.2, 0.2, 0.5)[j])
+                arp = [voicing[0], voicing[1], voicing[2], voicing[3], voicing[2] + 12, voicing[3], voicing[2],
+                       voicing[1]]
+                for k, n in enumerate(arp):
+                    mix.add(at + k * beat / 2, harp(_hz(n + 12), 0.45), 0.16, pan=-0.5 + 0.12 * k)
+                mix.add(at, pizz(_hz(root), 0.5, 0.8), 0.45)
+                mix.add(at + 2 * beat, pizz(_hz(root + 7), 0.4, 0.6), 0.3)
+        for b, beat_at, n, beats in tunes[p]:
+            at = p0 + b * bar + beat_at * beat
+            if style == "strings":
+                mix.add(at, glock(_hz(n), beats * beat, 0.6), 0.22, pan=0.25)
+            else:
+                mix.add(at, vibes(_hz(n), beats * beat, 0.7), 0.3, pan=0.2)
+
+    keys_buf = _tremolo(keys.buf, 4.5, 0.35) if style == "lounge" else keys.buf
+    out = _reverb(mix.buf + keys_buf, 2.2, 0.28)
+    n = int(loop_s * SR)
+    out[: len(out) - n] += out[n:]                     # fold the tail over the start: the loop rings on
+    out = out[:n]
+    peak = np.max(np.abs(out)) or 1.0
+    return (out / peak * 0.89).astype(np.float32)
+
+
 def _write(path: Path, audio: np.ndarray, sr: int = SR) -> None:
     import soundfile as sf
 

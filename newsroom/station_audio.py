@@ -4,7 +4,8 @@ Offline, run by hand; assets.py bakes the bumpers, sting and bed from whatever s
 
     python -m newsroom.station_audio --news synth            # the news ident from a code voicing
     python -m newsroom.station_audio --news take.wav         # ...or from an approved SA3 take
-    python -m newsroom.station_audio --bed bed.wav           # an approved bed, looped
+    python -m newsroom.station_audio --bed vibes             # the bed rendered in code (jingle.bed)
+    python -m newsroom.station_audio --bed bed.wav           # ...or an approved bed WAV, looped
     python -m newsroom.station_audio --bed-takes DIR --url http://127.0.0.1:7860   # SA3 bed takes to audition
     python -m newsroom.station_audio --band                  # The Last Ferry's house band stings
     python -m newsroom.station_audio --idents inquiry panel  # just these shows' idents, the others untouched
@@ -104,7 +105,8 @@ def main() -> None:
     ap.add_argument("--news", help=f"a WAV, or a code style: {', '.join(jingle.NEWS_STYLES)}")
     for show in SHOWS:
         ap.add_argument(f"--{show}", help="a WAV instead of the code voicing")
-    ap.add_argument("--bed", help="an approved bed WAV (looped already by --bed-takes)")
+    ap.add_argument("--bed", help=f"a code bed style ({', '.join(jingle.BED_STYLES)}; jingle.bed), or an "
+                                  "approved bed WAV (looped already)")
     ap.add_argument("--bed-takes", type=Path, help="write SA3 bed takes here to audition")
     ap.add_argument("--styles", default="vibraphone and Rhodes;analog synthesizer;string orchestra",
                     help="bed styles for --bed-takes, separated by ;")
@@ -127,8 +129,11 @@ def main() -> None:
         write("ident_news", _source(args.news, "news"))
         for show in SHOWS:
             write("breaking" if show == "breaking" else f"ident_{show}", _source(getattr(args, show), show))
-    if args.bed:
-        audio, sr = sf.read(args.bed, always_2d=True)
+    if args.bed:                        # since 2026-11-08 the code "vibes" bed, replacing the Stable Audio 3 take
+        if args.bed in jingle.BED_STYLES:
+            audio, sr = jingle.bed(args.bed), jingle.SR
+        else:
+            audio, sr = sf.read(args.bed, always_2d=True)
         write("bed", to_stem(audio, sr, fade=False))
     if args.band:                       # chosen by ear 2026-10-27: walkon for a new guest, button after a break
         for kind in ("walkon", "button"):

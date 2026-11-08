@@ -12,7 +12,7 @@ The project's own code is MIT ([LICENSE](../LICENSE)). Port Wexley and everyone 
 | | what | verdict for a monetised channel |
 |---|---|---|
 | **BLOCKER** | MiniMax H3 (the cartoons) | **Not licensed in the UK, EU, US or South Korea at all**, for any use, without MiniMax's approval. Not on air yet. |
-| **Replace** | Stable Audio 3 Medium (the music bed) | Free under US $1M revenue, but commercial use requires registering with Stability. Swap it for a code-rendered bed before launch. |
+| **Done** | Stable Audio 3 Medium (the old music bed) | **Off air since 2026-11-08**: the bed is now rendered in code. Only the unaired cartoon beds still use it. |
 | **Condition** | DramaBox (guest, council and three presenter voices) | Free under US $10M revenue. The licence **requires** saying the content is machine-generated. |
 | **Credit** | Pocket TTS (every voice on air) | CC-BY-4.0: needs an attribution line. Also no cloning of real people without consent. |
 | **Fine** | Kokoro, misaki, Qwen-Image, Qwen-Image-Edit 2511, Z-Image Turbo, Qwen-Image-Lightning, Qwen3-TTS, Claude, DeepSeek, Windows fonts | Apache 2.0 / MIT / provider terms that give you the output. Details below. |
@@ -55,10 +55,14 @@ and the credit line for Pocket TTS is:
   Shorts until MiniMax says yes. Apply now if the cartoons matter for launch. The SA3 score and ambience
   beds used by the cartoons (`data/cartoons/gully/sound/`) have the Stable Audio question below as well.
 
-### Stable Audio 3 Medium: the music bed (`assets/music/bed.wav`, baked into `assets/music_bed.wav`)
+### Stable Audio 3 Medium: the old music bed, replaced 2026-11-08
 
-- **What it made:** the 87-second vibraphone-and-Rhodes bed that loops under the news, the test card and
-  SEVENTEXT (`newsroom/station_audio.py:1-15`, `TODO.md:749-753`). It is the only Stable Audio file on
+- **Replaced.** On 2026-11-08 the bed (`assets/music/bed.wav`, baked into `assets/music_bed.wav`) was
+  replaced by one rendered in code: `jingle.bed("vibes")`, chosen by ear over two other code takes. **No
+  Stable Audio output is on air now.** The notes below are kept for the cartoons' beds
+  (`data/cartoons/gully/sound/`, not on air) and in case SA3 is used again.
+- **What it made:** the 87-second vibraphone-and-Rhodes bed that looped under the news, the test card and
+  SEVENTEXT (`newsroom/station_audio.py:1-15`, `TODO.md:749-753`). It was the only Stable Audio file on
   air: every ident, bumper, sting and the house band are code renders of the *Beacon* motif from
   `newsroom/jingle.py` (the SA3 takes for the news ident were turned down by ear).
 - **Licence:** Stability AI Community License
@@ -73,11 +77,9 @@ and the credit line for Pocket TTS is:
 - **Open questions:** the model's own `LICENSE.md` could not be read (Hugging Face returned 401 to an
   unauthenticated reader), and the gate on the model page links the *Stable Audio Open 1.0* licence
   instead. The licence is also revocable (§II).
-- **Verdict:** not a hard block, but one 87-second loop carries a registration duty and two unknowns, and it
-  is also the last 24 kHz mono stem in a 44.1 kHz stereo mixer (its SA3 take wasn't kept). **The fix is a
-  bed rendered in code by `newsroom/jingle.py`**, like every other piece of station music, chosen by ear
-  before launch. Until then, if it stays on air: register for the Community License at stability.ai.
-  (Not built here.)
+- **Verdict:** not a hard block, but one 87-second loop carried a registration duty and two unknowns, and it
+  was also the last 24 kHz mono stem in a 44.1 kHz stereo mixer. Hence the code bed. If SA3 output goes on
+  air again (the cartoons), register for the Community License at stability.ai first.
 
 ### DramaBox (Resemble AI, on LTX-2.3 audio): the designed voices
 
@@ -201,8 +203,8 @@ Apache 2.0 puts no conditions on the images you make. The people on screen are d
 
 ### Everything else
 
-- Music: the station tune *Beacon* and all its arrangements are original and rendered in code
-  (`newsroom/jingle.py`). No library music, no samples.
+- Music: the station tune *Beacon*, all its arrangements and the music bed are original and rendered in
+  code (`newsroom/jingle.py`). No library music, no samples, no generated audio.
 - Backdrops, the logo, the people and the sets: made for this project (ComfyUI models above, or drawn in code).
 - Pygame (LGPL-2.1, used as an unmodified library), PyTorch (BSD), pydantic, numpy, soundfile, obsws-python,
   the `anthropic` and `openai` SDKs: permissive licences for the software; none affects the broadcast.
@@ -218,5 +220,5 @@ Apache 2.0 puts no conditions on the images you make. The people on screen are d
 > Pictures: Qwen-Image and Qwen-Image-Edit (Apache 2.0), made in ComfyUI. Music: original, rendered in code.
 > Code: MIT, https://github.com/cubes321/mini-newsroom
 
-Add "Music bed: Stable Audio 3 by Stability AI" while that bed is still on air, and "Animation: MiniMax H3" if
-the cartoons are ever licensed and aired.
+Add "Animation: MiniMax H3" (and "Music: Stable Audio 3 by Stability AI", for their beds) if the cartoons are
+ever licensed and aired.
