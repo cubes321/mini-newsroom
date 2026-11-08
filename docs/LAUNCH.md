@@ -34,8 +34,10 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       to 1440p before upload ([launch/uploads.md](launch/uploads.md#preparing-each-file)).
 - [ ] **You: create a Twitch account** for the channel (the same name as the YouTube channel if it's free)
       and turn on **two-factor authentication** (Settings → Security and Privacy).
-- [ ] **You: create a Ko-fi page** and turn on 2FA. Link it to the payout account (Stripe or PayPal) now:
-      the first payout check can take days.
+- [ ] **You: create a Ko-fi page** and turn on 2FA. Set its currency to **US dollars**: the API bills are in
+      dollars, so the goal and the bill compare directly (decided 8 November). Link it to the payout account
+      (Stripe or PayPal) now: the first payout check can take days. Converting to pounds on payout costs a
+      little; allow for it when comparing the month.
 - [ ] **You: turn on 2FA** on the Google account behind the YouTube channel and on GitHub, if not already.
       If the channel has never streamed, enable live streaming now: YouTube can take up to 24 hours to
       switch it on.
@@ -47,10 +49,10 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       ```
 
       and replace the Ko-fi `TODO` in the README and the description templates.
-- [ ] **You: decide about the cartoons.** The MiniMax H3 licence excludes the UK (and the EU, US and South
-      Korea), so the cartoons can't be rendered or aired from here without MiniMax's approval
-      ([CREDITS.md](CREDITS.md#minimax-h3-ref2va-the-cartoons-entertainmentcartoonspy-not-on-air)). Apply
-      through the form on the model card now if they matter for launch; otherwise leave them for 2027.
+- [x] **The cartoons are not part of the launch** (decided 8 November). The output isn't consistent enough
+      yet; the licence comes when it is. The MiniMax H3 licence excludes the UK (and the EU, US and South
+      Korea), so rendering or airing them from here needs MiniMax's approval, or another video model
+      ([CREDITS.md](CREDITS.md#minimax-h3-ref2va-the-cartoons-entertainmentcartoonspy-not-on-air)).
 - [ ] Check that the promo has no cartoon or H3 footage in it (it was cut from station recordings, so it
       shouldn't).
 
@@ -108,7 +110,8 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       scratch town with `--clock "2026-12-24 06:00"` (and 25th, 26th) and watch a few hours of each. Finish
       what's open there (the church set, the Christmas idents).
 - [ ] Channel pages: the YouTube banner, About text (the disclosure line first), links to Twitch, Ko-fi and
-      GitHub; the Twitch About panels; the Ko-fi page text and a goal of the monthly running cost.
+      GitHub; the Twitch About panels; the Ko-fi page text and a monthly goal of the running cost in dollars
+      (**$60 a month**, the top of the $30-60 estimate; adjust once a month of real bills is in).
 - [ ] Fill every `TODO` link in the README.
 - [ ] **The long videos made ready** ([launch/uploads.md](launch/uploads.md#preparing-each-file)): trimmed,
       upscaled to 1440p if the promo test said so, thumbnails, chapters for *The Chamber*, titles and
@@ -116,6 +119,31 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       story board, in your voice), alongside the making-of post.
 - [ ] **You: upload the launch shelf as Scheduled** for Sun 20 December, in two playlists: *Port Wexley
       Stories* and *Full programmes*.
+
+## Alongside: the entertainment channel, if it's ready
+
+A possible extra for launch, not a requirement (decided 8 November). Channel 7 launches on Christmas Eve
+either way. **Go or no-go on Sunday 6 December**, so there's a week of polish before the station is
+left on from 18 December.
+
+- [ ] What it needs before it can be public ([../TODO.md](../TODO.md) under Content, [ENGINE.md](ENGINE.md)):
+  - [ ] *Wexley Wits*' own quiz set (art, your approval) and its own ident (listen-then-commit).
+  - [ ] **The rest of its evening.** Outside 20:00-20:20 it is the overnight test card, wearing Channel 7's
+        ident and repeating Channel 7's cache. It needs its own programmes or the content bank's shelf,
+        and its own name and logo everywhere.
+  - [ ] **No cartoons** (above): Cartoon Time's hour needs something else, or the channel's evening is
+        shorter.
+  - [ ] A scratch run of a whole evening (`--channel entertainment --scratch`), reviewed like a Channel 7
+        night, with the content filter and the kill switch working on it too.
+- [ ] How it would go out:
+  - [ ] **A second station process** (`--channel entertainment`) and a **second OBS** (a second instance,
+        `obs64.exe --multi`, with its own profile, scene and stream keys); check the PC holds both
+        stations' voicing (Pocket TTS on the CPU) and frame rate.
+  - [ ] **Where:** its own YouTube channel or the Port Wexley one, and Twitch (one Twitch channel streams
+        one feed). Simplest first step: **scheduled evening blocks**, live only while its programmes are
+        on, not 24 hours.
+  - [ ] **Cost:** a second channel's scripts roughly double the model bill while it's on. Raise the Ko-fi
+        goal to match before launch, not after.
 
 ## Week 6: Mon 14 to Sun 20 December, always on
 
@@ -154,8 +182,9 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 - **The first goal is to cover the running costs**, about $1-2 a day ($30-60 a month) in API calls. Not
   wages, not the GPU, not the electricity.
 - **Fan money comes first, ad money later.**
-  - **Ko-fi**: one-off tips and monthly supporters, open from the first night, no thresholds. A handful of
-    regular supporters covers the month.
+  - **Ko-fi**, in US dollars: one-off tips and monthly supporters, open from the first night, no thresholds.
+    At $5 a month, six to twelve regular supporters cover the month before fees. The first perk to offer:
+    supporters choose which town story gets a Sunday recap.
   - **Twitch**: subs and Bits need Affiliate, which needs a small following, some streamed hours over
     several days and a few average viewers ([check the current criteria](https://help.twitch.tv/s/article/joining-the-affiliate-program)).
     A 24-hour channel gets the hours and days quickly; the average viewers are the hard part. A sub pays
