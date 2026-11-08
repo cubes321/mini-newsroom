@@ -67,6 +67,16 @@ def test_a_kit_is_cut_out_on_paper_and_a_face_changes_only_its_region(tmp_path):
     assert abs(k.upp - 10.0 / 64) < 1e-9
 
 
+def test_only_a_prop_has_its_big_holes_cut_out():
+    img = np.full((100, 100, 3), CREAM, np.float32)
+    img[10:90, 10:90] = 0                                  # a ring, like a bucket's handle
+    img[14:86, 14:86] = CREAM                              # its big middle is the background's own cream
+    img[14:86, 14:86, 2] += 6                              # (as a character's near-cream white could be)
+    _, kept = kitmod.cut(img, np.array(CREAM, np.float32))
+    _, holed = kitmod.cut(img, np.array(CREAM, np.float32), cut_holes=True)
+    assert kept[50, 50] == 1.0 and holed[50, 50] == 0.0 and holed[12, 50] == 1.0
+
+
 def test_a_lines_faces_follow_its_loudness_in_the_track(tmp_path):
     folder = tmp_path / "ep"
     (folder / "scene03" / "lines").mkdir(parents=True)

@@ -630,7 +630,7 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
 # ------------------------------------------------------------------ the steps
 
 
-def plan(series_id: str, n: int = 44, idea: str = "", engine: str | None = None) -> Path:
+def plan(series_id: str, n: int = 44, idea: str = "", engine: str | None = None, remake: bool = False) -> Path:
     """Write an episode into a folder of its own: a title already planned gets -2, -3 (re-planning the Chip
     Lift for the puppets would otherwise have written over the H3 episode). Cut-out: written for the puppets,
     with each shot's stage and layout (entertainment/cutout/writer.py)."""
@@ -639,7 +639,7 @@ def plan(series_id: str, n: int = 44, idea: str = "", engine: str | None = None)
     if cut:
         from entertainment.cutout import kit as kitmod, writer as puppets
 
-        ep, stages, props = puppets.write(series, kitmod.kits(ROOT / series_id), n, idea)
+        ep, stages, props = puppets.write(series, kitmod.kits(ROOT / series_id), n, idea, remake)
     else:
         ep = write(series, n, idea)
     slug = re.sub(r"[^a-z0-9]+", "-", ep.title.lower()).strip("-")[:40]
@@ -1058,6 +1058,7 @@ def _cli() -> int:
     a.add_argument("--shots", type=int, default=44, help="about how many shots (one render each)")
     a.add_argument("--idea", default="")
     a.add_argument("--engine", choices=("comfy", "wan2gp", "cutout"), default=None)
+    a.add_argument("--remake", action="store_true", help="retell an episode made before (the idea says which)")
     pr = sub.add_parser("props", help="draw the kit of every prop a cut-out episode names (GPU), then restage")
     pr.add_argument("folder", type=Path)
     for cmd in ("stills", "draft", "render", "assemble", "ingest"):
@@ -1076,7 +1077,7 @@ def _cli() -> int:
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
-        print(plan(args.series, args.shots, args.idea, args.engine))
+        print(plan(args.series, args.shots, args.idea, args.engine, args.remake))
     elif args.cmd == "props":
         from entertainment.cutout import kit as puppets, writer
 

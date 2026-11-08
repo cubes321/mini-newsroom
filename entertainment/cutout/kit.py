@@ -56,6 +56,7 @@ class Kit(BaseModel):
     poses: dict[str, str | None] = {"normal": None}   # pose -> its variant (None: the design)
     faces: dict[str, Face] = {}                # besides "closed", the design's own face
     loud: str = "talk"                         # the face for a loud syllable (Gully: squawk)
+    cut_holes: bool = False                    # a prop: its big enclosed holes of background are cut out
     facing: dict[str, Literal["left", "right", "front"]] = {}   # a pose drawn facing another way (walking)
     walk: list[str] = []                       # poses that alternate as a walk (two strides)
     fly: str | None = None                     # the pose for flying
@@ -148,7 +149,7 @@ def cream_of(img: np.ndarray) -> np.ndarray:
     return np.median(edge, axis=0).astype(np.float32)
 
 
-def cut(img: np.ndarray, cream: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def cut(img: np.ndarray, cream: np.ndarray, cut_holes: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """The drawing and its alpha: the background is the cream joined to the border; the outline's soft edge
     becomes partial black; an enclosed gap stays as uncut paper."""
     near = np.abs(img - cream).sum(2) < 45
@@ -161,6 +162,12 @@ def cut(img: np.ndarray, cream: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if n > 1:
         sizes = ndimage.sum(fg, parts, range(1, n + 1))
         fg = np.isin(parts, 1 + np.nonzero(sizes >= sizes.max() / 50)[0])
+    # A prop's big enclosed hole of background (inside a bucket's handle) is cut out; a small one stays uncut
+    # paper. Props only: a character's white is too near the cream to tell (Biscuit's chest went see-through).
+    holes, n = ndimage.label(fg & (np.abs(img - cream).sum(2) < 18)) if cut_holes else (None, 0)
+    if n:
+        sizes = ndimage.sum(np.ones_like(holes), holes, range(1, n + 1))
+        fg &= ~np.isin(holes, 1 + np.nonzero(sizes > fg.sum() * 0.015)[0])
     ring = ~fg & ndimage.binary_dilation(fg, iterations=2)
     a = fg.astype(np.float32)
     a[ring] = np.clip((cream.mean() - img.mean(2)[ring]) / cream.mean(), 0, 1)
@@ -215,7 +222,7 @@ def build(series_dir: Path, who: str) -> list[Path]:
                                  grow=10 if f.region == "head" else 6)
         for face, img in looks.items():
             path = d / "pieces" / f"{pose}_{face}.png"
-            save_rgba(paper(*cut(img, cream), g), path)
+            save_rgba(paper(*cut(img, cream, kit.cut_holes), g), path)
             out.append(path)
     (d / "pieces" / "feet.json").write_text(json.dumps(feet), encoding="utf-8")
     sheet(d, out)
@@ -336,7 +343,7 @@ def props(folder: Path) -> list[Path]:
         _, a = cut(img, cream_of(img))
         ys, xs = np.nonzero(a > 0.5)
         size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
-        kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front",
+        kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True,
                   height=round(size * img.shape[0] / max(1, ys.max() - ys.min()), 3), feet_y=int(ys.max()),
                   anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
                            "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})

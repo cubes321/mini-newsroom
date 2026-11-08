@@ -159,8 +159,8 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
     actors, held = [], {}
     for a in st.actors:
         who = a.who.strip().lower()
-        if who not in known:
-            log.warning("cutout writer: %r has no puppet; left out", a.who)
+        if who not in known:                              # a prop not drawn yet is staged once it is (props)
+            (log.debug if who in props else log.warning)("cutout writer: %r has no puppet; left out", a.who)
             continue
         if any(x.who == who for x in actors):             # listed twice: one puppet, the first place it was put
             continue
@@ -215,13 +215,14 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
                   camera=Camera(start=start, end=end, move_at="0.2" if end else "0", move_until="end-0.3" if end else "end"))
 
 
-def write(series, kits: dict[str, Kit], n: int = 40, idea: str = ""):
-    """The episode (cartoons.Episode, one shot a scene) and each shot's Layout; and the props to draw."""
+def write(series, kits: dict[str, Kit], n: int = 40, idea: str = "", remake: bool = False):
+    """The episode (cartoons.Episode, one shot a scene) and each shot's Layout; and the props to draw. A remake
+    retells an episode made before (the idea says which), so the list of episodes not to repeat is left out."""
     from newsroom import llm
     from entertainment import cartoons
 
     user = brief(series, kits, list(series.places)) + (f"\n\nTHIS EPISODE'S IDEA: {idea}" if idea else "") \
-        + cartoons._done(series)
+        + ("" if remake else cartoons._done(series))
     script = llm.complete_json(cartoons.TASK, PScript, SYSTEM.format(title=series.title, premise=series.premise,
                                                                      tone=series.tone, n=n), user)
     talkers = {c.key for c in series.cast if c.voice}
