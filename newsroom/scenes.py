@@ -872,7 +872,9 @@ def shows_bug(v: View) -> bool:
 _film_on: tuple[str, float] | None = None   # the film present() draws over the window this frame
 
 
-def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None) -> None:
+def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = None, overlays: bool = True) -> None:
+    """One frame of `v` on the canvas. overlays=False leaves off the station's own captions (the lower third,
+    ticker and clock), for a clip that carries its own (tools/shorts.py)."""
     global _par, _film_on
     _layer.clear()
     _pictures.clear()
@@ -883,7 +885,7 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
     flat, canvas = canvas, (_par.overlay if _par else canvas)
     if v.mode == "testcard":
         draw_test_card(canvas, t, v)
-        if v.resume_at:
+        if v.resume_at and overlays:
             draw_clock(canvas, v)
     elif v.mode == "teletext":
         draw_teletext(canvas, v, t)                  # the page is the whole screen, its own clock included
@@ -891,12 +893,13 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
         canvas.fill((0, 0, 0))                       # the film is drawn at the window's size (present)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
-        if v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
+        if overlays and v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
             draw_lower_third(canvas, v)
             draw_ticker(canvas, v, t)
         if shows_bug(v):
             logo.draw_bug(canvas)
-        draw_clock(canvas, v)
+        if overlays:
+            draw_clock(canvas, v)
     if debug:
         # Bottom-left, between the lower third and the ticker, clear of scene tags.
         text(canvas, debug, 2, canvas.get_height() - 24, 8, (255, 255, 120))
