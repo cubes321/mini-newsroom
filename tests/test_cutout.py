@@ -214,6 +214,31 @@ def test_a_snatched_prop_waits_until_taken_and_the_camera_finds_a_hanging_puppet
     assert p["camera"][0][1] < tf[1]                                          # the camera below his feet, on him
 
 
+def test_times_are_read_against_the_lines_and_effects_land_on_the_track(monkeypatch, tmp_path):
+    from entertainment import cartoons
+    from entertainment.cutout import at_seconds
+
+    spans = [(0.5, 1.0), (1.5, 2.2)]
+    assert at_seconds("line2", spans, 4) == 1.5 and at_seconds("line1_end", spans, 4) == 1.0
+    assert abs(at_seconds("line_end+0.2", spans, 4) - 2.4) < 1e-9 and at_seconds("end-0.5", spans, 4) == 3.5
+    assert at_seconds("2", spans, 4) == 2.0 and at_seconds("bogus", spans, 4) == 0.5 and at_seconds("9", [], 4) == 4
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    series = cartoons.SERIES["gully"]
+    bang = np.zeros((4410, 2), np.float32)
+    bang[:200] = 0.9
+    series.sfx_path("a bucket clang").parent.mkdir(parents=True)
+    sf.write(series.sfx_path("a bucket clang"), bang, 44100)
+    scene = cartoons.Scene(place="nowhere", summary="Off screen.", shots=[{"at": 0, "action": "a"}], lines=[],
+                           sounds="", seconds=3.0, sfx=[{"what": "a bucket clang", "at": "1.0"},
+                                                        {"what": "a splash not made yet", "at": "2"}])
+    folder = tmp_path / "gully" / "ep"
+    folder.mkdir(parents=True)
+    path, cues = cartoons.record(series, scene, folder, 1)
+    a, sr = sf.read(path)
+    loud = np.nonzero(np.abs(a).max(1) > 0.1)[0]
+    assert cues == [] and abs(loud[0] / sr - 1.0) < 0.01 and abs(np.abs(a).max() - cartoons.SFX_PEAK) < 0.01
+
+
 def test_the_newest_video_is_the_scenes_whichever_engine_made_it(monkeypatch, tmp_path):
     from entertainment import cartoons
 

@@ -19,7 +19,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from entertainment.cutout import FPS
+from entertainment.cutout import FPS, at_seconds
 from entertainment.cutout.kit import PAD, Kit
 
 WIDE = (32.0, 7.5)                 # the wide shot: ortho width, centre height (Gully a little over half its height)
@@ -85,19 +85,10 @@ class Layout(BaseModel):
 
 
 def when(ref: str, n: int, spans: list[tuple[str, float, float]]) -> int:
-    """A time reference as a frame (1-based, clamped to the shot)."""
-    ref = ref.replace(" ", "")
-    base, off = ref, 0.0
-    for sign in ("+", "-"):
-        if sign in ref[1:]:
-            k = ref.rindex(sign)
-            base, off = ref[:k], float(ref[k:])
-            break
-    t = {"start": 0.0, "line": min((s[1] for s in spans), default=0.0),
-         "line_end": max((s[2] for s in spans), default=0.0), "end": n / FPS}.get(base)
-    if t is None:
-        t, off = float(ref), 0.0
-    return max(1, min(n, round((t + off) * FPS) + 1))
+    """A time reference as a frame (1-based, clamped to the shot): seconds, or start / end / line / line_end /
+    lineN / lineN_end with +/- seconds (spans: the lines as (who, start, end), in order)."""
+    t = at_seconds(ref or "0", [(s[1], s[2]) for s in spans], n / FPS)
+    return max(1, min(n, round(t * FPS) + 1))
 
 
 class _Puppet:

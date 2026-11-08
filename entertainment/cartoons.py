@@ -51,6 +51,7 @@ from newsroom import llm
 from newsroom.config import CONFIG
 from newsroom.models import SegmentType as T
 from newsroom.schedule import Item as I, Show
+from entertainment.cutout import at_seconds
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +132,14 @@ class Series:
         path = ROOT / self.id / "sound" / name
         return path if path.exists() else None
 
+    def sfx_path(self, what: str) -> Path:
+        return ROOT / self.id / "sound" / "sfx" / (re.sub(r"[^a-z0-9]+", "-", what.lower()).strip("-")[:60] + ".wav")
+
+    def sfx(self, what: str) -> Path | None:
+        """A sound effect made before (sound/sfx/<what>.wav), shared by every episode of the series."""
+        path = self.sfx_path(what)
+        return path if path.exists() else None
+
 
 STYLE = ("hand-drawn 2D cartoon animation in the style of a classic British children's television cartoon: clean "
          "bold outlines, flat warm colours, simple painted backgrounds of a small Cornish-looking fishing town")
@@ -199,6 +208,16 @@ class Shot(BaseModel):
 class Said(BaseModel):
     who: str = Field(description="a character key from THE CAST")
     words: str = Field(max_length=160, description="one short line, as said")
+    # Heard, not seen: a shout or an "Ouch!" from something happening out of shot (the user's idea for the
+    # puppets, 2026-11-09: the action off-screen, a reaction on it). Recorded like any line; no mouth moves.
+    offscreen: SkipJsonSchema[bool] = False
+
+
+class Sfx(BaseModel):
+    """A sound effect in a shot: what it is, in a few words (a cached Stable Audio take, sound/sfx/), and when,
+    in seconds or against the lines ("line_end+0.2", "line2", "end-0.5")."""
+    what: str = Field(max_length=80)
+    at: str = "0.5"
 
 
 class Scene(BaseModel):
@@ -220,6 +239,7 @@ class Scene(BaseModel):
     # The start still's picture: one moment, each character once. Drawn from the action ("sets the cone down,
     # then turns back to his fryer"), Qwen drew both moments, and so two Mr Tretheweys (the Chip Lift's stills).
     first_frame: SkipJsonSchema[str] = ""
+    sfx: SkipJsonSchema[list[Sfx]] = Field(default_factory=list)
 
 
 def _start(ep: "Episode", i: int, folder: Path | None = None) -> float:
@@ -590,9 +610,10 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
     if not lines:
         n = int(round(total * TRACK_SR))
         bed = _bed(series, scene, i, n, start)
-        if bed is None:
+        if bed is None and not scene.sfx:
             return None
         path = folder / f"scene{i:02d}.dialogue.wav"
+        bed = _effects(series, scene, bed if bed is not None else np.zeros((n, 2), np.float32), [])
         sf.write(path, np.clip(bed, -1, 1), TRACK_SR)
         return path, []
     sr = CONFIG.tts.sample_rate
@@ -623,8 +644,38 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
         t += len(c) / TRACK_SR + gap
     path = folder / f"scene{i:02d}.dialogue.wav"
     mix = np.stack([track, track], axis=1) + (bed if bed is not None else 0.0)
+    spans = [(c.at, c.at + len(clip) / TRACK_SR) for c, clip in zip(cues, clips)]
+    mix = _effects(series, scene, mix, spans)
     sf.write(path, np.clip(mix, -1, 1), TRACK_SR)
     return path, cues
+
+
+SFX_PEAK = 0.4                     # an effect's peak, against Pocket's lines at about 0.085 RMS
+
+
+def _effects(series: Series, scene: Scene, mix, spans: list[tuple[float, float]]):
+    """The shot's sound effects laid on its track, each at its time; one not made yet is left out (logged):
+    `sfx <ep>` makes them (Stable Audio, GPU) and records the shots again."""
+    import numpy as np
+    import soundfile as sf
+
+    total = len(mix) / TRACK_SR
+    for e in scene.sfx:
+        path = series.sfx(e.what)
+        if path is None:
+            log.info("cartoons: no sound yet for %r", e.what)
+            continue
+        a, sr = sf.read(path, dtype="float32", always_2d=True)
+        if a.shape[1] == 1:
+            a = np.repeat(a, 2, axis=1)
+        if sr != TRACK_SR:
+            x = np.arange(int(len(a) * TRACK_SR / sr)) * sr / TRACK_SR
+            a = np.stack([np.interp(x, np.arange(len(a)), a[:, ch]) for ch in (0, 1)], axis=1).astype(np.float32)
+        a *= SFX_PEAK / (float(np.abs(a).max()) or 1.0)
+        at = int(at_seconds(e.at, spans, total) * TRACK_SR)
+        end = min(len(mix), at + len(a))
+        mix[at:end] += a[: end - at]
+    return mix
 
 
 # ------------------------------------------------------------------ the steps
@@ -1061,6 +1112,9 @@ def _cli() -> int:
     a.add_argument("--remake", action="store_true", help="retell an episode made before (the idea says which)")
     pr = sub.add_parser("props", help="draw the kit of every prop a cut-out episode names (GPU), then restage")
     pr.add_argument("folder", type=Path)
+    fx = sub.add_parser("sfx", help="make the episode's sound effects (Stable Audio, GPU) and record its shots again")
+    fx.add_argument("folder", type=Path)
+    fx.add_argument("--url", default="http://127.0.0.1:7860")
     for cmd in ("stills", "draft", "render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
         b.add_argument("folder", type=Path)
@@ -1078,6 +1132,11 @@ def _cli() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
         print(plan(args.series, args.shots, args.idea, args.engine, args.remake))
+    elif args.cmd == "sfx":
+        from entertainment import sfx
+
+        for path in sfx.make(args.folder.resolve(), args.url):
+            print(path)
     elif args.cmd == "props":
         from entertainment.cutout import kit as puppets, writer
 

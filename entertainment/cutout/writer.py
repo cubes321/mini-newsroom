@@ -34,6 +34,12 @@ HEIGHTS = {"ground": 0.0, "raised": 3.0, "air": 7.0}
 class Said(BaseModel):
     who: str
     words: str = Field(max_length=120)
+    offscreen: bool = Field(False, description="heard, not seen: a shout or a yelp from out of shot")
+
+
+class PSfx(BaseModel):
+    what: str = Field(max_length=80, description="the sound in a few words: 'a metal bucket clanging off a wall'")
+    at: str = Field("0.5", description="seconds, or against the lines: line_end+0.2, line2, end-0.5")
 
 
 class StageActor(BaseModel):
@@ -85,8 +91,9 @@ class PProp(BaseModel):
 class PShot(BaseModel):
     place: str = Field(max_length=120, description="one of THE PLACES, copied exactly")
     action: str = Field(max_length=200, description="what happens, in one sentence")
-    line: Said | None = None
-    seconds: float = Field(4.0, ge=2.5, le=8)
+    lines: list[Said] = Field(default_factory=list, max_length=3)
+    sfx: list[PSfx] = Field(default_factory=list, max_length=3)
+    seconds: float = Field(4.0, ge=2.5, le=10)
     sounds: str = Field(max_length=120)
     stage: Stage
 
@@ -102,13 +109,22 @@ SYSTEM = """\
 You write one episode of {title}, a PAPER CUT-OUT cartoon on a small-town TV station's second channel, set in
 the FICTIONAL fishing town of Port Wexley. {premise} Tone: {tone}.
 It is animated with paper puppets on a flat stage, like classic British cut-out cartoons: each character is a
-few drawings (poses and faces) that slide, hop, turn, tilt and swap. Write for that: big clear poses, things
-sliding in and out of shot, hops, spins, falls, and a deadpan face at the end. Comedy from timing, not from
-detailed motion. Original jokes only; no famous characters, catchphrases or brands.
-Write about {n} SHOTS, each 2.5 to 8 seconds, with a beginning, a turn and a payoff.
+few drawings (poses and faces) that slide, hop, turn, tilt and swap.
+THE COMEDY IS IN THE TALK. Most of the humour is the interplay between the characters: banter, bluster and
+deadpan replies, a running joke, a scheme explained and picked apart, one line topping another. Write a
+talking cartoon: most shots have lines, often two or three as a quick exchange in a two-shot.
+KEEP THE ACTION SIMPLE ON SCREEN. Puppets slide, hop and turn; they don't do fiddly things. The big physical
+business happens OFF SCREEN: we watch a character watching it, wincing, and hear it: a sound effect and a
+yelp or a shout from out of shot ("Ow!", "Oof!", "Not the bucket!"). A crash we only hear is funnier than one
+we see done badly. Original jokes only; no famous characters, catchphrases or brands.
+Write about {n} SHOTS, each 2.5 to 10 seconds, with a beginning, a turn and a payoff.
 - PLACE is one of THE PLACES copied exactly. Each place is one painted backdrop.
-- LINE: at most one short line per shot (about ten words), by a character who speaks. Others may be in the
-  shot (a two-shot is fine: only the speaker's mouth moves).
+- LINES: up to three short lines per shot (about ten words each), in order, each by a character who speaks.
+  A line's speaker is on stage, unless it is OFFSCREEN: heard, not seen (a shout or a yelp from what is
+  happening out of shot). Others may be on stage too: only the speaker's mouth moves.
+- SFX: up to three sound effects per shot, each a few words ("a metal bucket clanging off a wall", "a heavy
+  splash into mud", "a rope going twang") and when (seconds, or against the lines: "line_end+0.2", "line2").
+  Off-screen business is mostly SFX plus an OFFSCREEN line, played on someone's face.
 - STAGE puts the shot on the puppet stage:
   - ACTORS: who is in shot (characters and props), each on a MARK: far_left, left, centre, right, far_right
     (off_left / off_right to start out of shot and come in), at a HEIGHT (ground; raised: a sill, a rail, a
@@ -126,9 +142,10 @@ Write about {n} SHOTS, each 2.5 to 8 seconds, with a beginning, a turn and a pay
   - There is no swinging and no rope physics: a swing is a fly; a dangle is a spin of 180.
 - Use ONLY the POSES and FACES each character has (listed below); "normal" always exists. Faces for talking
   and blinking are automatic: never write them.
-- PROPS: every object the story needs, once, with one fixed look (colour, material, size in plain words, never
-  "the size of" another object); a prop's key is how the stage names it. At most six. Props are small beside
-  the cast and drawn as one object: "a few chips", not "a heap of chips".
+- PROPS: as few as the story can manage (at most three), each once with one fixed look (colour, material,
+  size in plain words, never "the size of" another object); a prop's key is how the stage names it. Props
+  are small beside the cast and drawn as one object: "a few chips", not "a heap of chips". A contraption is
+  talked about and heard, not built on screen.
 - No written words anywhere.
 Return ONLY JSON.
 """
@@ -248,20 +265,28 @@ def write(series, kits: dict[str, Kit], n: int = 40, idea: str = "", remake: boo
     props = {p.key.strip().lower(): p.looks for p in script.props}
     scenes, layouts = [], []
     for k, s in enumerate(script.shots, start=1):
-        if s.line and s.line.who not in talkers:
-            s.line = None
+        for l in s.lines:
+            l.who = l.who.strip().lower()
+        s.lines = [l for l in s.lines if l.who in talkers]
         if s.place not in series.places:
             s.place = (difflib.get_close_matches(s.place, series.places, n=1, cutoff=0.0) or [s.place])[0]
-        if s.line and s.line.who not in {a.who.strip().lower() for a in s.stage.actors}:
-            s.stage.actors.append(StageActor(who=s.line.who))        # the speaker is in his own shot
-            log.warning("cutout writer: shot %d's speaker %s was not on stage; put at centre", k, s.line.who)
+        on_stage = {a.who.strip().lower() for a in s.stage.actors}
+        for l in s.lines:
+            if not l.offscreen and l.who not in on_stage:
+                s.stage.actors.append(StageActor(who=l.who))          # a speaker seen is on stage
+                on_stage.add(l.who)
+                log.warning("cutout writer: shot %d's speaker %s was not on stage; put at centre", k, l.who)
+            elif l.offscreen and l.who in on_stage:
+                l.offscreen = False                                    # on stage after all: his mouth moves
         cast_here = [a.who.strip().lower() for a in s.stage.actors if a.who.strip().lower() in {c.key for c in series.cast}]
         props_here = [a.who.strip().lower() for a in s.stage.actors if a.who.strip().lower() in props]
         scenes.append(cartoons.Scene(
             place=s.place, on_screen=cast_here[:3], summary=s.action[:200],
             shots=[cartoons.Shot(at=0.0, action=f"{s.stage.camera.size} shot: {s.action}"[:300])],
-            lines=[cartoons.Said(who=s.line.who, words=s.line.words)] if s.line else [], sounds=s.sounds,
-            seconds=s.seconds, props=[f"{p}: {props[p]}" for p in props_here]))
+            lines=[cartoons.Said(who=l.who, words=l.words, offscreen=l.offscreen) for l in s.lines],
+            sounds=s.sounds, seconds=min(cartoons.SCENE_S, s.seconds),
+            props=[f"{p}: {props[p]}" for p in props_here],
+            sfx=[cartoons.Sfx(what=e.what, at=e.at) for e in s.sfx]))
         layouts.append(s.stage)
     ep = cartoons.Episode(title=script.title, logline=script.logline, scenes=scenes)
     return ep, layouts, props

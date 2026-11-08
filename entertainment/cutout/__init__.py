@@ -18,7 +18,29 @@ moves smoothly, with the plate behind at half its speed.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 BLENDER = Path(os.environ.get("BLENDER", "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe"))
 FPS = 24
+
+
+def at_seconds(ref: str, spans: list[tuple[float, float]], total: float) -> float:
+    """A time in a shot: seconds, or start / end / line / line_end / lineN / lineN_end, +/- seconds."""
+    ref = ref.replace(" ", "").lower() or "0"
+    base, off = ref, 0.0
+    m = re.match(r"^([a-z_0-9]+?)([+-][0-9.]+)?$", ref)
+    if m and not re.fullmatch(r"[0-9.]+", m.group(1)):
+        base, off = m.group(1), float(m.group(2) or 0)
+    else:
+        try:
+            return max(0.0, min(total, float(ref)))
+        except ValueError:
+            return 0.5
+    k = re.fullmatch(r"line(\d*)(_end)?", base)
+    if k and spans:
+        s = spans[min(len(spans), int(k.group(1) or (len(spans) if k.group(2) else 1))) - 1]
+        t = s[1] if k.group(2) else s[0]
+    else:
+        t = {"start": 0.0, "end": total}.get(base, 0.5)
+    return max(0.0, min(total, t + off))
