@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import time
 from pathlib import Path
@@ -154,6 +155,12 @@ def cut(img: np.ndarray, cream: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     lab, _ = ndimage.label(near)
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     fg = ~np.isin(lab, list(edge))
+    # Loose islands (a speck in Mr Trethewey's design, the motion marks by Dot's fist) would cut out as bits
+    # of paper of their own: only the main shape and anything at least a fiftieth of it is kept.
+    parts, n = ndimage.label(fg)
+    if n > 1:
+        sizes = ndimage.sum(fg, parts, range(1, n + 1))
+        fg = np.isin(parts, 1 + np.nonzero(sizes >= sizes.max() / 50)[0])
     ring = ~fg & ndimage.binary_dilation(fg, iterations=2)
     a = fg.astype(np.float32)
     a[ring] = np.clip((cream.mean() - img.mean(2)[ring]) / cream.mean(), 0, 1)
@@ -285,6 +292,60 @@ def edit_graph(prompt: str, image: str, seed: int, prefix: str) -> dict:
         "11": {"class_type": "VAEDecode", "inputs": {"samples": ["10", 0], "vae": ["5", 0]}},
         "12": {"class_type": "SaveImage", "inputs": {"images": ["11", 0], "filename_prefix": f"cartoons/{prefix}"}},
     }
+
+
+SIZES = (("tiny", 1.2), ("small", 2.0), ("little", 2.0), ("large", 4.0), ("big", 4.0), ("huge", 6.0))
+
+
+def props(folder: Path) -> list[Path]:
+    """A kit for every prop the episode names (props.json) that has none yet: Qwen redraws the series' lead's
+    design as the prop, alone, in the same style on the same cream (so it cuts out the same way), sized from
+    the plain words of its look (Gully stands 10). Each kit is one drawing; its grip is its top middle, where
+    a beak or a hand holds it. GPU: only when the user says."""
+    from entertainment import cartoons
+
+    series_dir = folder.parent
+    wanted = json.loads((folder / "props.json").read_text(encoding="utf-8"))
+    lead = cartoons.SERIES[series_dir.name].cast[0].key
+    style = series_dir / "puppets" / lead / "base.png"
+    name = f"cartoon_puppet_{series_dir.name}_style.png"
+    shutil.copy2(style, cartoons.COMFY_DIR / "input" / name)
+    jobs = []
+    for key, looks in wanted.items():
+        if (series_dir / "puppets" / key / "kit.json").exists():
+            continue
+        prompt = (f"Replace the character in this picture with {key}: {looks.rstrip('. ')}. Draw it alone, centred, "
+                  f"upright, about a third of the picture's height, in exactly the same flat cartoon style, bold black "
+                  f"outlines and flat colours, on the same plain cream background. No character, no animal, no text, "
+                  f"nothing else in the picture.")
+        r = cartoons._comfy("/prompt", {"prompt": edit_graph(prompt, name, 202, f"puppets/prop_{key}"),
+                                        "client_id": "cartoons"})
+        jobs.append((key, looks, r["prompt_id"]))
+    made = []
+    for key, looks, pid in jobs:
+        while not (h := cartoons._comfy(f"/history/{pid}").get(pid)):
+            time.sleep(3)
+        if h["status"].get("status_str") != "success":
+            raise RuntimeError(f"prop {key} failed: {json.dumps(h['status'].get('messages', [])[-1:])[:800]}")
+        d = series_dir / "puppets" / key
+        (d / "variants").mkdir(parents=True, exist_ok=True)
+        for o in h["outputs"].values():
+            for f in o.get("images", []):
+                shutil.copy2(cartoons.COMFY_DIR / "output" / f["subfolder"] / f["filename"], d / "base.png")
+        img = rgb(d / "base.png")
+        _, a = cut(img, cream_of(img))
+        ys, xs = np.nonzero(a > 0.5)
+        size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
+        kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front",
+                  height=round(size * img.shape[0] / max(1, ys.max() - ys.min()), 3), feet_y=int(ys.max()),
+                  anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
+                           "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
+        (d / "kit.json").write_text(kit.model_dump_json(indent=1), encoding="utf-8")
+        made += build(series_dir, key)
+        log.info("cutout: prop %s drawn", key)
+    if jobs:
+        cartoons._comfy("/free", {"unload_models": True, "free_memory": True})
+    return made
 
 
 def draw(series_dir: Path, who: str, redo: tuple[str, ...] = ()) -> list[Path]:

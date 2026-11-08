@@ -149,6 +149,37 @@ def test_a_walk_alternates_its_strides_and_a_flight_faces_the_way_it_goes(tmp_pa
     assert c["tf"][24][0] < -5.5 and names[58] == "normal_closed.png" and c["tf"][58][0] == 4.0
 
 
+def test_the_writers_stage_becomes_a_layout_and_its_slips_are_mended(tmp_path, caplog):
+    import logging
+
+    from entertainment.cutout import writer
+
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    st = writer.Stage.model_validate({
+        "actors": [{"who": "Gull", "mark": "far_left", "height": "raised", "facing": "right", "pose": "asleep",
+                    "holds": "bucket"},
+                   {"who": "bucket", "mark": "centre"},
+                   {"who": "kraken", "mark": "right"},
+                   {"who": "gull", "mark": "centre"}],
+        "beats": [{"who": "gull", "do": "fly", "to": "right", "height": "air", "at": "line"},
+                  {"who": "gull", "do": "walk", "to": "off_left", "at": "2"},
+                  {"who": "gull", "do": "spin", "value": "180 degrees", "at": "1"},
+                  {"who": "kraken", "do": "hop"}],
+        "rope": {"attach": "gull.ankle", "to": "somewhere"},
+        "camera": {"size": "close", "on": "gull", "move": "tilt_up"}})
+    with caplog.at_level(logging.WARNING):
+        lay_ = writer.stage(st, 3, {"gull": k, "bucket": k}, {"bucket"})
+    assert "kraken" in caplog.text and "somewhere" in caplog.text
+    gull, bucket = lay_.actors[0], lay_.actors[-1]
+    assert (gull.x, gull.y, gull.facing, gull.pose) == (-11.0, 3.0, "right", "normal")     # no "asleep": normal
+    assert bucket.on == "gull.hold" and [a.who for a in lay_.actors] == ["gull", "bucket"]  # once each, held
+    assert [(b.do, b.value) for b in lay_.beats] == [("fly", "6.0,7.0"), ("walk", "-24.0"), ("spin", "180")]
+    assert lay_.ropes[0].attach == "gull.ankle" and lay_.ropes[0].path[-1][0] == 0.0    # unknown mark: centre
+    assert lay_.camera.start.on == "gull.feet" and lay_.camera.end.on == "gull.head" and lay_.place == 3
+
+
 def test_the_newest_video_is_the_scenes_whichever_engine_made_it(monkeypatch, tmp_path):
     from entertainment import cartoons
 

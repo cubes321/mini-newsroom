@@ -22,16 +22,16 @@ from pydantic import BaseModel, Field
 from entertainment.cutout import FPS
 from entertainment.cutout.kit import PAD, Kit
 
-WIDE = (24.0, 5.4)                 # the wide shot: ortho width, centre height
-SIZES = {"wide": 24.0, "medium": 14.0, "close": 8.0}
+WIDE = (32.0, 7.5)                 # the wide shot: ortho width, centre height (Gully a little over half its height)
+SIZES = {"wide": 32.0, "medium": 16.0, "close": 8.0}
 ASPECT = 1152 / 640
-PLATE_W = 30.0
+PLATE_W = 40.0
 ENTER_S = 0.75
 
 
 class Beat(BaseModel):
     who: str
-    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly"]
+    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin"]
     value: str = ""                # pose or face name; lean degrees (forward +); exit side "left"/"right";
                                    # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s)
     at: str = "0"
@@ -47,6 +47,7 @@ class Actor(BaseModel):
     pose: str = "normal"
     enter: Literal["none", "left", "right"] = "none"
     scale: float = Field(1.0, gt=0.2, le=3.0)
+    on: str | None = None          # "gully.hold": carried, its grip on that point of the holder every frame
 
 
 class Rope(BaseModel):
@@ -148,10 +149,27 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         x, y, w = (a + (b - a) * u for a, b in zip(cam0, cam1))
         camera.append([round(x, 4), round(y, 4), round(w, 4)])
         plate_at.append([round(0.5 * x, 4), round(-3.0 + 0.5 * (y - WIDE[1]), 4)])
-    cards = []
+    cards, by_who = [], {}
     for k, a in enumerate(layout.actors):
-        cards.append(_card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
-                           speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir))
+        c = _card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
+                  speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir)
+        holder = (a.on or "").partition(".")[0]
+        if holder in by_who:                              # carried: its grip on the holder's point, every frame
+            hc, hp = by_who[holder]
+            point = a.on.partition(".")[2] or "hold"
+            ax, ay = hp.kit.anchors.get(point, hp.kit.anchors.get("head", (hp.w / 2 - PAD, 0)))
+            gx, gy = kits[a.who].anchors.get("grip", (pup[a.who].w / 2 - PAD, 0))
+            p = pup[a.who]
+            for f, (x, y, rot, sx, sy) in enumerate(hc["tf"]):
+                lx = (ax + PAD - hp.w / 2) * hp.upp / hp.a.scale * sx
+                ly = (hp.h - (ay + PAD)) * hp.upp / hp.a.scale * sy
+                wx = x + lx * math.cos(rot) - ly * math.sin(rot)
+                wy = y + lx * math.sin(rot) + ly * math.cos(rot)
+                c["tf"][f] = [round(wx - (gx + PAD - p.w / 2) * p.upp, 4),
+                              round(wy - (p.h - (gy + PAD)) * p.upp, 4), 0.0, round(a.scale, 4), round(a.scale, 4)]
+            c["z"] = round(hc["z"] + 0.02, 3)
+        by_who[a.who] = (c, pup[a.who])
+        cards.append(c)
     ropes = []
     for r in layout.ropes:
         pts = [list(pt) for pt in r.path]
@@ -257,13 +275,17 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
         for b in mine:                                    # a hop: eight frames up and down
             if b.do == "hop" and 0 <= f - when(b.at, n, spans) < 8:
                 cy += 0.8 * math.sin(math.pi * (f - when(b.at, n, spans)) / 8)
+            if b.do == "spin" and f >= when(b.at, n, spans):  # round its base: 180 hangs it from there
+                s = when(b.at, n, spans)
+                e = when(b.until, n, spans) if b.until else min(n, s + 8)
+                rot += math.radians(float(b.value or 360)) * min(1.0, (f - s + 1) / max(1, e - s)) * fwd
         if how in ("enter", "exit", "walk"):
             if walker:                                    # a step: up on each stride
                 cy += 0.12 if (f // 4) % 2 else 0.0
             else:                                         # no walk drawn: a waddle, rocking and bobbing
                 rot += math.radians(5.0) * (1 if (f // 4) % 2 else -1)
                 cy += 0.18 if (f // 2) % 2 else 0.0
-        elif how == "fly":
+        elif how == "fly" and kit.fly:                    # wings: a bob and a flap (a flung bucket just flies)
             cy += 0.25 * math.sin(2 * math.pi * f / 12)
             sy *= 1.0 + 0.05 * math.sin(2 * math.pi * f / 6)
         elif entering and 0 <= f - entering < 6:          # arriving: squash, stretch, settle

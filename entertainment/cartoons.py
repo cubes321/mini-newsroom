@@ -630,13 +630,31 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
 # ------------------------------------------------------------------ the steps
 
 
-def plan(series_id: str, n: int = 44, idea: str = "") -> Path:
+def plan(series_id: str, n: int = 44, idea: str = "", engine: str | None = None) -> Path:
+    """Write an episode into a folder of its own: a title already planned gets -2, -3 (re-planning the Chip
+    Lift for the puppets would otherwise have written over the H3 episode). Cut-out: written for the puppets,
+    with each shot's stage and layout (entertainment/cutout/writer.py)."""
     series = SERIES[series_id]
-    ep = write(series, n, idea)
+    cut = (engine or ENGINE) == "cutout"
+    if cut:
+        from entertainment.cutout import kit as kitmod, writer as puppets
+
+        ep, stages, props = puppets.write(series, kitmod.kits(ROOT / series_id), n, idea)
+    else:
+        ep = write(series, n, idea)
     slug = re.sub(r"[^a-z0-9]+", "-", ep.title.lower()).strip("-")[:40]
     folder = ROOT / series_id / slug
+    k = 1
+    while (folder / "episode.json").exists():
+        k += 1
+        folder = ROOT / series_id / f"{slug}-{k}"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "episode.json").write_text(ep.model_dump_json(indent=1), encoding="utf-8")
+    if cut:
+        puppets.save(folder, stages, props)
+        puppets.relayout(folder)
+        log.info("cartoons: %s, %d shots for the puppets, in %s", ep.title, len(ep.scenes), folder)
+        return folder
     for i, scene in enumerate(ep.scenes, start=1):
         text, pics, voices = prompt(series, scene)
         (folder / f"scene{i:02d}.prompt.txt").write_text(text, encoding="utf-8")
@@ -1039,6 +1057,9 @@ def _cli() -> int:
     a.add_argument("--series", choices=sorted(SERIES), required=True)
     a.add_argument("--shots", type=int, default=44, help="about how many shots (one render each)")
     a.add_argument("--idea", default="")
+    a.add_argument("--engine", choices=("comfy", "wan2gp", "cutout"), default=None)
+    pr = sub.add_parser("props", help="draw the kit of every prop a cut-out episode names (GPU), then restage")
+    pr.add_argument("folder", type=Path)
     for cmd in ("stills", "draft", "render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
         b.add_argument("folder", type=Path)
@@ -1055,7 +1076,13 @@ def _cli() -> int:
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
-        print(plan(args.series, args.shots, args.idea))
+        print(plan(args.series, args.shots, args.idea, args.engine))
+    elif args.cmd == "props":
+        from entertainment.cutout import kit as puppets, writer
+
+        for path in puppets.props(args.folder.resolve()):
+            print(path)
+        print(writer.relayout(args.folder.resolve()), "shots restaged")
     elif args.cmd == "kit":
         from entertainment.cutout import kit as puppets
 
