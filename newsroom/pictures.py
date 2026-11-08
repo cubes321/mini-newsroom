@@ -397,6 +397,7 @@ class Painter:
         self.brief = (brief or brief_for) if cfg.brief else None
         self.q: queue.Queue[Request] = queue.Queue(maxsize=cfg.queue_max)
         self.known: dict[str, set[str]] = {}          # day -> keys made or queued
+        self.headlines: dict[str, dict[str, tuple[str, str]]] = {}   # day -> key -> (headline, subject)
         self.warm = False                             # our models are loaded in ComfyUI: we /free when idle
         self.last_render = 0.0
         self.last_said = ""
@@ -408,15 +409,38 @@ class Painter:
             self.known[day] = {r.key for r in made(day)}
         return self.known[day]
 
+    def _told(self, day: str) -> dict[str, tuple[str, str]]:
+        """The day's pictures made or queued, key -> (headline, subject), for the near-repeat check."""
+        if day not in self.headlines:
+            self.headlines[day] = {r.key: (r.headline, r.subject) for r in made(day)}
+        return self.headlines[day]
+
+    def same_picture(self, req: Request) -> str:
+        """The headline of today's picture that already shows this story, or "". A light show's items have
+        no thread, so they are keyed by headline, and Breakfast rewords its bulletins every time: on the
+        2026-11-08 morning 27 of 89 pictures were the same Remembrance wreath and 14 the quay waking up.
+        Two headlines (or story titles) that world.same_story_words would file under one thread draw the
+        same picture; it caught 27 of 69 on 2026-11-08 and 34 of 150 on 2026-11-07, none of them wrong."""
+        from .world import same_story_words
+
+        for headline, subject in self._told(req.day).values():
+            if same_story_words(req.headline, headline) or same_story_words(req.subject, subject):
+                return headline
+        return ""
+
     def offer(self, req: Request) -> bool:
         keys = self._keys(req.day)
         if req.key in keys or len(keys) >= self.cfg.per_day:
+            return False
+        if seen := self.same_picture(req):
+            log.info("pictures: %r is %r again; no new picture", req.headline[:80], seen[:80])
             return False
         try:
             self.q.put_nowait(req)
         except queue.Full:
             return False
         keys.add(req.key)
+        self._told(req.day)[req.key] = (req.headline, req.subject)
         return True
 
     def _say(self, msg: str) -> None:
@@ -486,6 +510,7 @@ class Painter:
             self.q.put_nowait(req)
         except queue.Full:
             self._keys(req.day).discard(req.key)
+            self._told(req.day).pop(req.key, None)
 
     def _maybe_free(self) -> None:
         if self.warm and time.monotonic() - self.last_render > self.cfg.idle_free_s:

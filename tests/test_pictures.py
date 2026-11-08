@@ -98,6 +98,23 @@ def test_a_key_is_offered_once_a_day_and_the_day_has_a_cap(store):
     assert not p.offer(pictures.request_for(_seg(headline="Four"), w))          # per_day = 3
 
 
+def test_a_reworded_headline_is_the_same_picture(store):
+    """The 2026-11-08 morning: Breakfast reworded its Remembrance bulletin every time, and each got a picture."""
+    p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
+    w = world_mod.seed()
+    first = pictures.request_for(_seg(show="breakfast", headline="Remembrance Sunday Parade and Lifeboat Wreath Today"), w)
+    assert p.offer(first)
+    for again in ("Remembrance Parade and Lifeboat Wreath This Morning", "Remembrance Sunday Parade and Wreath Today"):
+        assert not p.offer(pictures.request_for(_seg(show="breakfast", headline=again), w)), again
+    t = w.seed_thread("Lifeboat crew lay Remembrance wreath on the harbour water", "laid at nine", "", [])
+    assert not p.offer(pictures.request_for(_seg(headline="Wreath laid", thread=t.id), w))   # a split thread's title
+    assert p.offer(pictures.request_for(_seg(show="breakfast", headline="Ruby Tennant Rows Twelve Hours for the Lifeboat Fund"), w))
+    assert p.step() and p.step()
+    restarted = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)                # a restart knows the day's headlines
+    assert not restarted.offer(pictures.request_for(_seg(show="news", headline="Remembrance Sunday parade and lifeboat wreath this morning"), w))
+    assert restarted.offer(pictures.request_for(_seg(headline="Fire Station Engine Bid Waits on Council Vote"), w))
+
+
 def test_the_painter_waits_for_comfyui_someone_elses_job_and_a_full_gpu(store):
     w = world_mod.seed()
     for client, gpu, why in ((FakeComfy(up=False), 15.0, "isn't up"), (FakeComfy(busy=True), 15.0, "busy"),
