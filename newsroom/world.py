@@ -883,6 +883,13 @@ def _story_words(title: str) -> set[str]:
             for w in words if w not in _STORY_STOP and len(w) > 2}
 
 
+def same_story_words(a: str, b: str) -> bool:
+    """Do two headlines tell the same story, by the rule same_story files a headline under an open thread?"""
+    wa, wb = _story_words(a), _story_words(b)
+    shared = wa & wb
+    return len(shared) >= SAME_STORY_WORDS and len(shared) >= SAME_STORY_SHARE * min(len(wa), len(wb))
+
+
 def _before(when: str, day: str) -> bool:
     """Is a timeline date ("1871", "March 1953", "Thursday 2026-10-29") history by `day` (ISO)? A
     documentary's background also holds what it expected to happen ("Scheduled: ... on Thursday"),

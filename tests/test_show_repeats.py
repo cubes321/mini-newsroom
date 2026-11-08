@@ -141,3 +141,40 @@ def test_the_news_check_sees_a_story_by_its_headline_and_one_that_alternates(mon
     seg = Segment(slot_id=6, type=T.bulletin, show="news", target_s=75.0)
     writers.script_segment(seg, w)                                   # frost, other, frost: no frost next
     assert len(asked) == 2 and f"NOT [{frost}]" in asked[1]
+
+
+def test_the_news_check_sees_one_story_split_across_threads(monkeypatch):
+    """2026-11-08: "Remembrance wreath laid on the harbour water" aired eleven times in 26 minutes. The desk
+    closed its thread, and the items filed under new threads and under two other stories' (Tessa's row)."""
+    w = world_mod.seed()
+    wreath = w.update_thread(None, "Remembrance wreath laid on the harbour water this morning", "laid")
+    row = w.update_thread(None, "Tessa Brannock Plans Four Hours Round the Lighthouse", "rowing at nine")
+    ferry = w.update_thread(None, "Saltby ferry readies first school run for Cliff Road pupils", "Wednesday")
+    news, now = schedule.get("news"), schedule.now()
+    w.record_aired("bulletin", "Remembrance wreath laid on the harbour water this morning", wreath, "...",
+                   show="news", aired=False)
+    w.thread(wreath).phase = "closed"                                  # the desk closed it
+    w.record_aired("field_report", "Lifeboat crew lay Remembrance wreath on the harbour water", row, "...",
+                   show="news", aired=False)                            # filed under Tessa's row
+    head = "Wreath laid on the harbour water this Remembrance Sunday"
+    assert writers._same_story_again(None, w, news, T.bulletin, now, head) == \
+        "Lifeboat crew lay Remembrance wreath on the harbour water"     # by headline, on no thread of its own
+    assert writers._same_story_again(ferry, w, news, T.bulletin, now, head) == \
+        "Lifeboat crew lay Remembrance wreath on the harbour water"     # whatever thread it names: not the ferry
+    assert writers._same_story_again(ferry, w, news, T.bulletin, now,
+                                     "Saltby ferry readies first school run for Cliff Road pupils") is None
+    assert writers._same_story_again(None, w, news, T.bulletin, now, "Harbour water clears for Sunday") is None
+    w.thread(row).breaking_ts = now - 600                             # one of them broke ten minutes ago
+    assert writers._same_story_again(None, w, news, T.bulletin, now, head) is None
+    w.thread(row).breaking_ts = None
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_bulletin(head, None) if len(asked) == 1 else
+                                     _bulletin("Saltby ferry readies first school run for Cliff Road pupils", ferry))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=7, type=T.bulletin, show="news", target_s=75.0)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and f'("{head}")' in asked[1] and "on another subject" in asked[1]
+    assert seg.headline == "Saltby ferry readies first school run for Cliff Road pupils"

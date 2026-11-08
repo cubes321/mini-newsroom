@@ -44,7 +44,7 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import RETURN_EXPIRE_S, Person, World
+from .world import RETURN_EXPIRE_S, Person, World, same_story_words
 
 log = logging.getLogger(__name__)
 
@@ -1485,13 +1485,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
             user += (f"\n\nNOT the fish auction: the news has reported it already (\"{done}\"). Lead on an open "
                      "story from the briefing instead.")
             script = llm.complete_json(seg.type.value, schema, system, user)
-        if tid := _same_story_again(_story_of(script, world), world, show, seg.type,
-                                    seg.nominal_start_ts or schedule.now()):
-            log.info("%s slot %d: [%s] had %d of the news's last %d items; asking for another story",
-                     seg.type.value, seg.slot_id, tid, SAME_STORY_MAX, SAME_STORY_WINDOW)
-            user += (f"\n\nNOT [{tid}]: the news has only just covered it, twice. Cover another open story from "
-                     "the briefing, with its own thread_id (or a new one with thread_id null); this one can come "
-                     "back later.")
+        headline = getattr(script, "headline", "") or ""
+        if again := _same_story_again(_story_of(script, world), world, show, seg.type,
+                                      seg.nominal_start_ts or schedule.now(), headline):
+            said = f"[{again}]" if world.thread(again) else f"\"{again}\""
+            log.info("%s slot %d: %s had %d of the news's last %d items; asking for another story",
+                     seg.type.value, seg.slot_id, said, SAME_STORY_MAX, SAME_STORY_WINDOW)
+            user += (f"\n\nNOT {said} (\"{headline}\"): the news has only just covered that story, twice. Cover "
+                     "another open story from the briefing, on another subject, with its own thread_id (or a new "
+                     "one with thread_id null); this one can come back later.")
             script = llm.complete_json(seg.type.value, schema, system, user)
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
         # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
@@ -1659,6 +1661,9 @@ REPEAT_LIKENESS = 0.5           # headline words in common (of both together) th
 # the headlines as "do NOT repeat". A story may have a bulletin and its report, then the next item is another.
 # On 2026-11-07 "Frost Keeps Harrow Street Busy as Remembrance Nears" still took every other item for twenty
 # minutes: 2 of 3 let a story alternate, and items that left thread_id null went unseen (_story_of).
+# On 2026-11-08 "Remembrance wreath laid on the harbour water" aired eleven times from 09:00 to 09:26: once the
+# desk closed its thread (t507), the items filed under new threads (t508, t512) and under two others' (Tessa's
+# row, Arthur's bench), so no one thread had 2 of 4. A story is now known by its headline too.
 NEWS_STORY_TYPES = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview)
 SAME_STORY_WINDOW = 4           # of the news's last this many story items,
 SAME_STORY_MAX = 2              # a story with this many gets no next one
@@ -1675,19 +1680,28 @@ def _story_of(script, world: World) -> str | None:
 
 
 def _same_story_again(thread_id: str | None, world: World, show: schedule.Show, seg_type: SegmentType,
-                      now: float) -> str | None:
-    """The news item's thread if it already had SAME_STORY_MAX of the news's last SAME_STORY_WINDOW
-    story items today, or None. A story that broke within BREAKING_LEAD_S leads as long as it likes."""
-    if show.id != "news" or seg_type not in NEWS_STORY_TYPES or not thread_id:
-        return None
-    t = world.thread(thread_id)
-    if t and t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S:
+                      now: float, headline: str = "") -> str | None:
+    """The story, if it already had SAME_STORY_MAX of the news's last SAME_STORY_WINDOW story items today,
+    or None: its thread id, or the earlier headline where only the headlines tie them. An earlier item is
+    the same story by its thread or by its headline's words, whatever thread it filed under. A story that
+    broke within BREAKING_LEAD_S leads as long as it likes."""
+    if show.id != "news" or seg_type not in NEWS_STORY_TYPES or not (thread_id or headline):
         return None
     kinds = {k.value for k in NEWS_STORY_TYPES}
     with world.lock:
-        last = [e.get("thread_id") for e in world.archive if e["date"] == world.last_date
-                and e.get("show") == show.id and e["type"] in kinds][-SAME_STORY_WINDOW:]
-    return thread_id if last.count(thread_id) >= SAME_STORY_MAX else None
+        last = [(e.get("thread_id"), e.get("headline") or "") for e in world.archive
+                if e["date"] == world.last_date and e.get("show") == show.id and e["type"] in kinds][-SAME_STORY_WINDOW:]
+    same = [(tid, head) for tid, head in last
+            if (thread_id and tid == thread_id) or (headline and same_story_words(headline, head))]
+    for tid in {thread_id, *(tid for tid, _ in same)} - {None}:
+        t = world.thread(tid)
+        if t and t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S:
+            return None
+    if len(same) < SAME_STORY_MAX:
+        return None
+    # Its thread only if an earlier item shares it: a wreath item filed under the ferry's thread must not
+    # have the writer steer clear of the ferry
+    return thread_id if any(tid == thread_id for tid, _ in same) else same[-1][1]
 
 NEWS_SHOWS = ("news", "overnight")
 
