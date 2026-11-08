@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 from newsroom import llm
 from newsroom.config import CONFIG
@@ -63,7 +64,9 @@ TURBO_STEPS = 4
 DIALOGUE = os.environ.get("CARTOON_DIALOGUE", "recorded")
 TRACK_SR = 44100
 POSSESSIVE = {"He": "his", "She": "her", "They": "their", "It": "its"}
-LEAD_S, TAIL_S, GAP_S, MAX_GAP_S = 0.6, 0.8, 0.45, 2.2   # the first line's start, quiet at the end, between lines
+# The first line's start, quiet at the end, between lines. A gap over about a second and a half is a pause H3
+# fills with moving mouths (the Zip-Chip pilot, 2026-11-08), so spare time beyond 1.2 s goes to the end.
+LEAD_S, TAIL_S, GAP_S, MAX_GAP_S = 0.6, 0.8, 0.45, 1.2
 # The bed under every scene's track (the copy probes, 2026-11-07): over silent gaps H3 made up speech of its own
 # (0.39 match to the track); over a continuous bed it copied the track (0.90). So no scene's track is ever quiet:
 # the series' score, sliced so it runs on across the cuts, and the place's ambience, under the lines (whose level
@@ -190,6 +193,15 @@ class Scene(BaseModel):
     shots: list[Shot] = Field(min_length=1, max_length=3)
     lines: list[Said] = Field(default_factory=list, max_length=MAX_LINES)
     sounds: str = Field(max_length=200, description="what we hear besides the lines: waves, gulls, a contraption")
+    # How long the scene runs. Not the writer's (left out of its schema): a one-shot scene is cut to its lines
+    # (the scene-4 probe, 2026-11-08), so nobody's mouth moves through a long silence after them.
+    seconds: SkipJsonSchema[float] = Field(default=SCENE_S, ge=4, le=SCENE_S)
+
+
+def _start(ep: "Episode", i: int) -> float:
+    """Seconds into the episode scene i starts (from 1), at the lengths H3 renders: where its slice of the score
+    begins, so the score runs on across scenes of any length."""
+    return sum(frames(s.seconds) / FPS for s in ep.scenes[: i - 1])
 
 
 class Episode(BaseModel):
@@ -302,9 +314,13 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
     plate = series.plate(scene.place)
     if plate:
         pics.append(plate)
-        setting = (f". The setting is {scene.place} in Port Wexley, retained exactly as seen in <Picture {len(pics)}>: "
-                   f"its buildings, layout, colours and drawing style, with nobody else in it; the light may change "
-                   f"with the time of day")
+        # "Retained exactly" also kept the plate's camera: a one-shot render never left its wide view, even for
+        # "close on Biscuit" (the scene-4 probe, 2026-11-08). The plate gives the place; each shot gives the framing.
+        setting = (f". The setting is {scene.place} in Port Wexley as seen in <Picture {len(pics)}>: its buildings, "
+                   f"colours and drawing style, with nobody else in it; the light may change with the time of day. "
+                   f"<Picture {len(pics)}> shows the place, not the camera: each shot is framed as its description "
+                   f"says, closer in or from another angle, and a close shot shows only the part of the place behind "
+                   f"its subject")
     else:
         setting = f". The reference images' background is not retained; the setting is {scene.place} in Port Wexley"
     music = f"non_diegetic_music: {series.music}."
@@ -320,7 +336,8 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
         said = "; ".join(f'at 00:{q.at:06.3f} ({speakers[q.who]}) {names[q.who]} says "{q.words}"' for q in cues
                          if q.who in speakers)
         sound = (f"overall_soundscape: Everything heard is <Audio 1> reproduced exactly, in time with it: {said}. Each "
-                 f"speaker is visibly speaking with natural lip movements synchronized to <Audio 1>. Under the "
+                 f"speaker is visibly speaking with natural lip movements synchronized to <Audio 1>; between the lines and "
+                 f"after the last one every mouth and beak is closed and still. Under the "
                  f"dialogue, {scene.sounds.rstrip('. ')}, as heard in <Audio 1>. No other speech, no other sound.")
         if bed:
             music = "non_diegetic_music: the cartoon score heard in <Audio 1>, reproduced exactly."
@@ -367,9 +384,10 @@ def _trim(a, sr: int):
     return a[max(0, loud[0] - m): loud[-1] + m]
 
 
-def _bed(series: Series, scene: Scene, i: int, n: int):
-    """Scene i's bed, `n` samples of stereo at TRACK_SR: the score from (i - 1) scenes in, so the slices join up
-    into one piece across the episode, and the place's ambience; None when the series has neither yet."""
+def _bed(series: Series, scene: Scene, i: int, n: int, start: float | None = None):
+    """Scene i's bed, `n` samples of stereo at TRACK_SR: the score from `start` seconds in (default (i - 1)
+    scenes of this length), so the slices join up into one piece across the episode, and the place's ambience;
+    None when the series has neither yet."""
     import numpy as np
     import soundfile as sf
 
@@ -391,7 +409,7 @@ def _bed(series: Series, scene: Scene, i: int, n: int):
         return None
     bed = np.zeros((n, 2), dtype=np.float32)
     if score:
-        bed += level(score, (i - 1) * total, MUSIC_RMS)
+        bed += level(score, (i - 1) * total if start is None else start, MUSIC_RMS)
     if place:
         bed += level(place, (i * 7.3) % 20.0, AMB_RMS)                  # a different stretch of it each scene
     fade = min(n, int(0.02 * TRACK_SR))                                  # no click at either end of a scene
@@ -400,7 +418,8 @@ def _bed(series: Series, scene: Scene, i: int, n: int):
     return bed
 
 
-def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, list[Cue]] | None:
+def record(series: Series, scene: Scene, folder: Path, i: int,
+           start: float | None = None) -> tuple[Path, list[Cue]] | None:
     """Scene i's sound: each line recorded once (kept in sceneNN/lines, so a retake is one file deleted), laid
     on the scene's timeline with natural gaps, the spare time spread evenly between lines, over the series' bed
     (_bed), written as sceneNN.dialogue.wav (stereo, the scene's exact length). A scene nobody speaks in gets
@@ -411,9 +430,9 @@ def record(series: Series, scene: Scene, folder: Path, i: int) -> tuple[Path, li
 
     talkers = {c.key for c in series.cast if c.voice}
     lines = [l for l in scene.lines if l.who in talkers]
-    total = frames(SCENE_S) / FPS
+    total = frames(scene.seconds) / FPS
     n = int(round(total * TRACK_SR))
-    bed = _bed(series, scene, i, n)
+    bed = _bed(series, scene, i, n, start)
     if not lines:
         if bed is None:
             return None
@@ -480,7 +499,7 @@ def settings(series: Series, scene: Scene, seed: int) -> dict:
     if missing:
         raise FileNotFoundError(f"no reference pictures yet: {', '.join(p.name for p in missing)} (the design stage)")
     s = {"model_type": ENGINE_MODEL, "prompt": text, "image_refs": [str(p) for p in pics], "video_prompt_type": "I",
-         "video_length": frames(SCENE_S), "resolution": RESOLUTION, "seed": seed}
+         "video_length": frames(scene.seconds), "resolution": RESOLUTION, "seed": seed}
     for key, clip in zip(("audio_guide", "audio_guide2", "audio_guide3"), voices):
         s[key] = str(clip)
     if voices:
@@ -586,7 +605,7 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
         if _rendered(folder, i):
             log.info("cartoons: scene %d already rendered", i)
             continue
-        rec = record(series, scene, folder, i) if DIALOGUE == "recorded" else None
+        rec = record(series, scene, folder, i, _start(ep, i)) if DIALOGUE == "recorded" else None
         text, pics, voices = prompt(series, scene, rec[1] if rec else None,
                                     bed=_bed(series, scene, i, 1) is not None)
         missing = [p for p in pics if not p.exists()]
@@ -596,7 +615,7 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
         audio = [v.name if dry_run else _to_comfy(series, v) for v in voices]
         if rec:                                          # the recorded dialogue is <Audio 1>, the only audio
             audio = [rec[0].name if dry_run else _to_comfy(series, rec[0], f"{folder.name}_{rec[0].name}")]
-        graph = comfy_graph(text, names, audio, seed=1000 + i, length=frames(SCENE_S),
+        graph = comfy_graph(text, names, audio, seed=1000 + i, length=frames(scene.seconds),
                             prefix=f"{series.id}_{folder.name}_scene{i:02d}")
         (folder / f"scene{i:02d}.comfy.json").write_text(json.dumps(graph, indent=1), encoding="utf-8")
         if dry_run:

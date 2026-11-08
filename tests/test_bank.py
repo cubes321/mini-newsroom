@@ -235,7 +235,7 @@ def test_a_place_with_a_plate_keeps_its_setting_and_the_regulars_are_seen_only_w
     text, pics, _ = cartoons.prompt(series, scene)
     assert [p.name for p in pics] == ["biscuit_full.png", "biscuit_face.png", "trethewey_full.png",
                                       "trethewey_face.png", "place3.png"]           # Gully is only mentioned
-    assert "retained exactly as seen in <Picture 5>" in text and "not retained" not in text
+    assert "as seen in <Picture 5>" in text and "shows the place, not the camera" in text and "not retained" not in text
     assert "Mr Trethewey" in text and "never speaks" in text
     scene.on_screen = []                                                  # an older episode: names in the text
     assert {p.name for p in cartoons.prompt(series, scene)[1]} >= {"trethewey_full.png", "gully_full.png"}
