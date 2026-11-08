@@ -5,6 +5,8 @@ from the content bank (newsroom/bank.py). Rendering is GPU work and only happens
 (`render` is never called by the station). One episode, step by step:
 
     python -m entertainment.cartoons plan --series gully            write an episode, shot by shot
+    python -m entertainment.cartoons stills data/cartoons/gully/<ep>   a start still per shot, and a sheet of them
+    python -m entertainment.cartoons stills <ep> --redo 5 15           new takes of the stills the user turned down
     python -m entertainment.cartoons render data/cartoons/gully/<ep>   queue its shots on ComfyUI (or Wan2GP)
     python -m entertainment.cartoons assemble data/cartoons/gully/<ep> title card, the shots, the end card
     python -m entertainment.cartoons ingest data/cartoons/gully/<ep>   onto the bank's shelf
@@ -63,6 +65,13 @@ H3 = {"unet": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
       "vae": "minimax_h3_video_vae_int8_convrot.safetensors",
       "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"}
 TURBO_STEPS = 4
+# The start still (the probes, 2026-11-08). Left to compose a shot from the refs, H3 drew two Gullys, a loose
+# bucket and a broad-shouldered Biscuit, and cut to the plate or a face ref as extra shots. A still drawn first by
+# Qwen-Image-Edit (about 12 s), approved on a sheet and given to H3 as its only picture, fixed all of it in one take.
+QWEN = {"unet": "qwen_image_edit_2511_int8_convrot_learned_rounding.safetensors",
+        "lora": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+        "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "vae": "qwen_image_vae.safetensors"}
 # The dialogue (the user's idea, 2026-11-07, from the music videos): recorded first, one line at a time in the cast's
 # voices, laid on the scene's timeline, and given to H3 as <Audio 1>, which it copies almost sample for sample and
 # moves the mouths to. Every voice is the same in every scene, and no line is invented or garbled (H3 speaking for
@@ -274,7 +283,8 @@ Original jokes only; no famous characters, catchphrases or brands.
 - ON_SCREEN lists who is seen in the shot (at most three of THE CAST). Only THE CAST are characters: anyone
   else is an unnamed crowd far in the background, never featured, close up or acting.
 - PROPS: every object seen in more than one shot, once, with one fixed look (colour, material, size); name
-  it in each shot's PROPS where it is seen, and never describe it differently in the action.
+  it in each shot's PROPS where it is seen, and never describe it differently in the action. Give a size in
+  plain words ("large", "knee-high"), never by another object: "the size of a suitcase" draws a suitcase.
 - No written words anywhere: never ask for lettering on a sign, label, paper or plan.
 Return ONLY JSON.
 """
@@ -356,22 +366,63 @@ def _named(series: Series, text: str) -> list[str]:
                                               for w in c.name.split() if w.lower() not in _TITLES)]
 
 
+def start_still(folder: Path, i: int) -> Path | None:
+    """Scene i's approved start still, if it has one (sceneNN.start.png; turned-down takes are sceneNN.start.K.png)."""
+    path = folder / f"scene{i:02d}.start.png"
+    return path if path.exists() else None
+
+
+def still_prompt(series: Series, scene: Scene) -> tuple[str, list[Path]]:
+    """The start still's prompt for Qwen-Image-Edit, and its pictures: the place's plate, then the full figures of
+    up to two of the cast on screen (Qwen takes three pictures; a third character is described in words). The
+    frame is the shot's opening moment, so H3 has the whole shot to play its action out."""
+    present = _seen(series, scene)
+    plate = series.plate(scene.place)
+    pics: list[Path] = [plate] if plate else []
+    who = []
+    for c in present:
+        full = series.refs() / f"{c.key}_full.png"
+        if len(pics) < 3 and full.exists():
+            pics.append(full)
+            who.append(f"{c.name}, exactly as drawn in Picture {len(pics)}: {c.looks}")
+        else:
+            who.append(f"{c.name}: {c.looks}")
+    medium = series.style.split(":")[0]
+    text = [f"A single frame of {medium}"
+            + (", drawn in exactly the style, outlines and flat colours of Picture 1. The setting is "
+               f"{scene.place} in Port Wexley from Picture 1, seen from wherever the shot puts the camera."
+               if plate else f". The setting is {scene.place} in Port Wexley, a small Cornish-looking fishing town."),
+            f"The frame is the opening moment of this shot: {scene.shots[0].action.rstrip('. ')}."]
+    if who:
+        text.append("In it: " + "; ".join(who) + ". Each character is drawn exactly once, and nobody else is in "
+                    "the frame. Every mouth and beak is closed.")
+    else:
+        text.append("Nobody is in it: no people and no animals.")
+    if scene.props:
+        text.append("Props, drawn exactly so: " + "; ".join(p.rstrip(". ") for p in scene.props) + ".")
+    text.append("No text and no lettering anywhere: every sign is blank.")
+    return " ".join(text), pics
+
+
 def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
-           bed: bool = False) -> tuple[str, list[Path], list[Path]]:
+           bed: bool = False, start: Path | None = None) -> tuple[str, list[Path], list[Path]]:
     """The scene's H3 prompt in its six sections, and its reference pictures and voice clips in the order the
     prompt names them (<Picture N>, <Audio N>). Only the characters on screen are referenced, then the place's
     plate if it has one. With `cues` the sound is recorded (`bed`: the score and the place's ambience under
-    it): the caller gives the track as <Audio 1>, and no voice clip is referenced."""
+    it): the caller gives the track as <Audio 1>, and no voice clip is referenced. With a `start` still, it is
+    the only picture: given the refs and the plate too, H3 cut to them as shots of their own (the probes)."""
     present = _seen(series, scene)
-    pics: list[Path] = []
+    pics: list[Path] = [start] if start else []
     voices: list[Path] = []
     defs, keep = [], []
     speakers = {c.key: f"S{i + 1}" for i, c in enumerate(c for c in present if c.voice)}
     for k, c in enumerate(present, start=1):
-        full, face = series.refs() / f"{c.key}_full.png", series.refs() / f"{c.key}_face.png"
-        pics += [full, face]
-        d = (f"<Subject {k}> is {c.name}, {c.looks}, from <Picture {len(pics) - 1}> (full figure) and "
-             f"<Picture {len(pics)}> (face).")
+        if start:
+            d = f"<Subject {k}> is {c.name}, {c.looks}, as drawn in <Picture 1>."
+        else:
+            pics += [series.refs() / f"{c.key}_full.png", series.refs() / f"{c.key}_face.png"]
+            d = (f"<Subject {k}> is {c.name}, {c.looks}, from <Picture {len(pics) - 1}> (full figure) and "
+                 f"<Picture {len(pics)}> (face).")
         if c.voice and cues is not None:
             d += f" {c.pronoun} speaks ({speakers[c.key]}) in {c.voice}; {POSSESSIVE.get(c.pronoun, 'their')} lines are heard in <Audio 1>."
         elif c.voice:
@@ -392,7 +443,12 @@ def prompt(series: Series, scene: Scene, cues: list[Cue] | None = None,
     kit = (" Props, drawn exactly the same in every shot: " + "; ".join(p.rstrip(". ") for p in scene.props) + "."
            if scene.props else "")
     plate = series.plate(scene.place)
-    if plate:
+    if start:
+        setting = (f". The setting is {scene.place} in Port Wexley as seen in <Picture 1>. The shot is one "
+                   f"continuous take that opens exactly on <Picture 1>, its first frame: the same camera, framing, "
+                   f"positions, poses, sizes and drawing, with every character and prop drawn once, as there; the "
+                   f"action carries on from it, with no cuts")
+    elif plate:
         pics.append(plate)
         # "Retained exactly" also kept the plate's camera: a one-shot render never left its wide view, even for
         # "close on Biscuit" (the scene-4 probe, 2026-11-08). The plate gives the place; each shot gives the framing.
@@ -642,6 +698,102 @@ def comfy_graph(text: str, pics: list[str], voices: list[str], seed: int, length
     return g
 
 
+def still_graph(text: str, pics: list[str], seed: int, prefix: str) -> dict:
+    """Qwen-Image-Edit 2511 with the 4-step Lightning LoRA (the backdrops' recipe), the pictures as its image1-3,
+    drawn fresh at the renders' size (an empty latent: the plate gives the place, not the camera)."""
+    w, h = (int(x) for x in RESOLUTION.split("x"))
+    g = {
+        "1": {"class_type": "UNETLoader", "inputs": {"unet_name": QWEN["unet"], "weight_dtype": "default"}},
+        "2": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "lora_name": QWEN["lora"],
+                                                              "strength_model": 1.0}},
+        "3": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": ["2", 0], "shift": 3.0}},
+        "4": {"class_type": "CLIPLoader", "inputs": {"clip_name": QWEN["clip"], "type": "qwen_image",
+                                                     "device": "default"}},
+        "5": {"class_type": "VAELoader", "inputs": {"vae_name": QWEN["vae"]}},
+        "6": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {"clip": ["4", 0], "prompt": text,
+                                                                      "vae": ["5", 0]}},
+        "7": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {"clip": ["4", 0], "prompt": "",
+                                                                      "vae": ["5", 0]}},
+        "8": {"class_type": "EmptySD3LatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}},
+        "9": {"class_type": "KSampler", "inputs": {"model": ["3", 0], "positive": ["6", 0], "negative": ["7", 0],
+                                                   "latent_image": ["8", 0], "seed": seed, "steps": 4, "cfg": 1.0,
+                                                   "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
+        "10": {"class_type": "VAEDecode", "inputs": {"samples": ["9", 0], "vae": ["5", 0]}},
+        "11": {"class_type": "SaveImage", "inputs": {"images": ["10", 0], "filename_prefix": f"cartoons/{prefix}"}},
+    }
+    for k, name in enumerate(pics[:3], start=1):
+        g[str(20 + k)] = {"class_type": "LoadImage", "inputs": {"image": name}}
+        g["6"]["inputs"][f"image{k}"] = g["7"]["inputs"][f"image{k}"] = [str(20 + k), 0]
+    return g
+
+
+def stills(folder: Path, redo: tuple[int, ...] = (), dry_run: bool = False) -> Path | None:
+    """A start still for every one-shot scene without one, and a new take of each scene in `redo` (the old take
+    kept as sceneNN.start.K.png, each take on its own seed), then the sheet for the user. GPU: only when the
+    user says. A still newer than its scene's video makes `render` take that scene again."""
+    import shutil
+    import time
+
+    series = SERIES[folder.parent.name]
+    ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
+    jobs: list[tuple[int, str]] = []
+    for i, scene in enumerate(ep.scenes, start=1):
+        if len(scene.shots) != 1:                        # an old three-shot scene keeps its cuts
+            continue
+        path = folder / f"scene{i:02d}.start.png"
+        if i in redo and path.exists():
+            path.rename(folder / f"scene{i:02d}.start.{len(list(folder.glob(f'scene{i:02d}.start.*.png'))) + 1}.png")
+        if path.exists():
+            continue
+        text, pics = still_prompt(series, scene)
+        (folder / f"scene{i:02d}.still.txt").write_text(text, encoding="utf-8")
+        if dry_run:
+            continue
+        take = len(list(folder.glob(f"scene{i:02d}.start.*.png")))
+        g = still_graph(text, [_to_comfy(series, p) for p in pics], seed=1000 + i + 100 * take,
+                        prefix=f"{series.id}_{folder.name}_scene{i:02d}_start")
+        r = _comfy("/prompt", {"prompt": g, "client_id": "cartoons"})
+        if r.get("node_errors"):
+            raise RuntimeError(f"ComfyUI refused still {i}: {json.dumps(r['node_errors'])[:1500]}")
+        jobs.append((i, r["prompt_id"]))
+    for i, pid in jobs:
+        while not (h := _comfy(f"/history/{pid}").get(pid)):
+            time.sleep(3)
+        if h["status"].get("status_str") != "success":
+            raise RuntimeError(f"still {i} failed on ComfyUI: {json.dumps(h['status'].get('messages', [])[-1:])[:1500]}")
+        for o in h["outputs"].values():
+            for f in o.get("images", []):
+                if f.get("type") == "output":
+                    shutil.copy2(COMFY_DIR / "output" / f["subfolder"] / f["filename"], folder / f"scene{i:02d}.start.png")
+        log.info("cartoons: still %d drawn", i)
+    if jobs:
+        _comfy("/free", {"unload_models": True, "free_memory": True})    # the card is H3's next
+    return sheet(folder)
+
+
+def sheet(folder: Path, cols: int = 4) -> Path | None:
+    """Every start still on one page, numbered by shot (with "line" where the shot has one), for approval."""
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    import pygame
+
+    ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
+    shown = [(i, p) for i in range(1, len(ep.scenes) + 1) if (p := start_still(folder, i))]
+    if not shown:
+        return None
+    pygame.font.init()
+    w, h = 384, 213
+    page = pygame.Surface((cols * w, -(-len(shown) // cols) * h))
+    font = pygame.font.SysFont("arial", 22, bold=True)
+    for k, (i, p) in enumerate(shown):
+        x, y = k % cols * w, k // cols * h
+        page.blit(pygame.transform.smoothscale(pygame.image.load(str(p)), (w, h)), (x, y))
+        page.blit(font.render(f" {i}{'  line' if ep.scenes[i - 1].lines else ''} ", True, (255, 225, 0), (0, 0, 0)),
+                  (x, y))
+    out = folder / "stills.png"
+    pygame.image.save(page, str(out))
+    return out
+
+
 def _comfy(path: str, body: dict | None = None) -> dict:
     import urllib.request
 
@@ -695,20 +847,23 @@ def _render_comfy(folder: Path, dry_run: bool) -> list[Path]:
     ep = Episode.model_validate_json((folder / "episode.json").read_text(encoding="utf-8"))
     jobs: list[tuple[int, str]] = []
     for i, scene in enumerate(ep.scenes, start=1):
-        if _rendered(folder, i):
+        start = start_still(folder, i)
+        done = _rendered(folder, i)
+        if done and not (start and start.stat().st_mtime > done.stat().st_mtime):
             log.info("cartoons: scene %d already rendered", i)
-            continue
+            continue                                     # a still newer than the video is a retake
         rec = record(series, scene, folder, i, _start(ep, i, folder)) if DIALOGUE == "recorded" else None
         length = frames(scene.seconds)
         if rec:                                          # the track's length, which a line may have stretched
             import soundfile as sf
             length = round(sf.info(rec[0]).duration * FPS)
         text, pics, voices = prompt(series, scene, rec[1] if rec else None,
-                                    bed=_bed(series, scene, i, 1) is not None)
+                                    bed=_bed(series, scene, i, 1) is not None, start=start)
         missing = [p for p in pics if not p.exists()]
         if missing:
             raise FileNotFoundError(f"no reference pictures yet: {', '.join(p.name for p in missing)} (the design stage)")
-        names = [p.name if dry_run else _to_comfy(series, p) for p in pics]
+        names = [p.name if dry_run else _to_comfy(series, p, f"{folder.name}_{p.name}" if p == start else None)
+                 for p in pics]
         audio = [v.name if dry_run else _to_comfy(series, v) for v in voices]
         if rec:                                          # the recorded dialogue is <Audio 1>, the only audio
             audio = [rec[0].name if dry_run else _to_comfy(series, rec[0], f"{folder.name}_{rec[0].name}")]
@@ -800,16 +955,21 @@ def _cli() -> int:
     a.add_argument("--series", choices=sorted(SERIES), required=True)
     a.add_argument("--shots", type=int, default=44, help="about how many shots (one render each)")
     a.add_argument("--idea", default="")
-    for cmd in ("render", "assemble", "ingest"):
+    for cmd in ("stills", "render", "assemble", "ingest"):
         b = sub.add_parser(cmd)
         b.add_argument("folder", type=Path)
-        if cmd == "render":
+        if cmd in ("stills", "render"):
             b.add_argument("--dry-run", action="store_true")
+        if cmd == "stills":
+            b.add_argument("--redo", type=int, nargs="+", default=[], help="shot numbers to draw again")
+        if cmd == "render":
             b.add_argument("--engine", choices=("comfy", "wan2gp"), default=None)
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if args.cmd == "plan":
         print(plan(args.series, args.shots, args.idea))
+    elif args.cmd == "stills":
+        print(stills(args.folder, tuple(args.redo), args.dry_run))
     elif args.cmd == "render":
         print(render(args.folder, args.dry_run, args.engine))
     elif args.cmd == "assemble":

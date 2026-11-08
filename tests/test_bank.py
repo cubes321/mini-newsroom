@@ -173,6 +173,65 @@ def test_a_dry_run_writes_each_scenes_graph_and_a_rendered_scene_is_kept(monkeyp
     assert "Biscuit" in g["9"]["inputs"]["prompt"] and g["100"]["inputs"]["image"] == "biscuit_full.png"
 
 
+def test_a_start_still_is_drawn_from_the_plate_and_cast_and_is_h3s_only_picture(monkeypatch, tmp_path):
+    import os
+
+    from entertainment import cartoons
+
+    monkeypatch.setattr(cartoons, "ROOT", tmp_path)
+    monkeypatch.setattr(cartoons, "_comfy", lambda *a, **k: pytest.fail("a dry run never calls ComfyUI"))
+    monkeypatch.setattr(cartoons, "DIALOGUE", "h3")
+    series = cartoons.SERIES["gully"]
+    series.refs().mkdir(parents=True)
+    for name in ("gully_full.png", "gully_face.png", "biscuit_full.png", "biscuit_face.png", "dot_full.png"):
+        (series.refs() / name).write_bytes(b"x")
+    (tmp_path / "gully" / "places").mkdir()
+    (tmp_path / "gully" / "places" / "place1.png").write_bytes(b"x")
+    wall = series.places[0]
+    trio = cartoons.Scene(place=wall, on_screen=["gully", "biscuit", "dot"], summary="All three.",
+                          shots=[{"at": 0, "action": "wide shot of the wall: Gully lands by the crate"}],
+                          lines=[], sounds="waves", props=["the red bucket: small red plastic bucket"])
+    text, pics = cartoons.still_prompt(series, trio)
+    assert [p.name for p in pics] == ["place1.png", "gully_full.png", "biscuit_full.png"]   # Qwen takes three
+    assert "exactly as drawn in Picture 2" in text and "Picture 3" in text and "Dot Penrose:" in text
+    assert "opening moment of this shot: wide shot of the wall: Gully lands by the crate." in text
+    assert "drawn exactly once" in text and "small red plastic bucket" in text and "every sign is blank" in text
+    cone = cartoons.Scene(place="nowhere we have", summary="The cone.", shots=[{"at": 0, "action": "the cone"}],
+                          lines=[], sounds="a sizzle")
+    text, pics = cartoons.still_prompt(series, cone)
+    assert pics == [] and "Nobody is in it" in text and "Picture" not in text
+
+    g = cartoons.still_graph("p", ["a.png", "b.png"], seed=7, prefix="gully_x_scene01_start")
+    assert g["6"]["inputs"]["image1"] == g["7"]["inputs"]["image1"] == ["21", 0] and "image3" not in g["6"]["inputs"]
+    assert g["8"]["inputs"]["width"] == 1152 and g["9"]["inputs"]["seed"] == 7 and g["9"]["inputs"]["steps"] == 4
+
+    ep = cartoons.Episode.model_validate({"title": "Gully's Kite", "logline": "A kite.", "scenes": [
+        {"place": wall, "summary": "Gully finds a bag.", "shots": [{"at": 0, "action": "Gully lands"}],
+         "lines": [{"who": "gully", "words": "Chips!"}], "sounds": "waves"},
+        {"place": wall, "summary": "Biscuit watches.", "shots": [{"at": 0, "action": "Biscuit sits"}],
+         "lines": [], "sounds": "a breeze"}]})
+    folder = tmp_path / "gully" / "gullys-kite"
+    (folder / "scene01").mkdir(parents=True)
+    (folder / "episode.json").write_text(ep.model_dump_json(), encoding="utf-8")
+    assert cartoons.stills(folder, dry_run=True) is None                     # prompts written, nothing drawn yet
+    assert "Gully" in (folder / "scene01.still.txt").read_text(encoding="utf-8")
+    (folder / "scene01" / "done.mp4").write_bytes(b"x")
+    os.utime(folder / "scene01" / "done.mp4", (1000, 1000))
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    import pygame
+
+    for i in (1, 2):                                                     # approved (os.utime: newer than the video)
+        pygame.image.save(pygame.Surface((16, 9)), str(folder / f"scene0{i}.start.png"))
+    cartoons.render(folder, dry_run=True, engine="comfy")
+    g = json.loads((folder / "scene01.comfy.json").read_text(encoding="utf-8"))  # a newer still is a retake
+    assert [v["inputs"]["image"] for v in g.values() if v["class_type"] == "LoadImage"] == ["scene01.start.png"]
+    p = g["9"]["inputs"]["prompt"]
+    assert "as drawn in <Picture 1>" in p and "opens exactly on <Picture 1>" in p and "no cuts" in p
+    assert "full figure" not in p and "<Picture 2>" not in p
+    assert cartoons.stills(folder, redo=(2,), dry_run=True) == folder / "stills.png"    # the sheet, of shot 1
+    assert (folder / "scene02.start.1.png").exists() and not (folder / "scene02.start.png").exists()
+
+
 def test_the_recorded_dialogue_is_laid_on_the_scene_and_given_to_h3_as_audio_1(monkeypatch, tmp_path):
     import numpy as np
     import soundfile as sf
