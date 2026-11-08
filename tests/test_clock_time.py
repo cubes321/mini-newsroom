@@ -67,3 +67,14 @@ def test_the_calendar_says_when_todays_event_has_begun():
     assert "It began at 18:00, so by now it is under way or over" in after
     assert "It began" not in calendar.for_prompt("news", datetime(2026, 11, 4, 21, 49))   # tomorrow, still to come
     assert "It began" not in calendar.for_prompt("news", date(2026, 11, 5))           # a date alone: no time
+
+
+def test_the_calendar_says_when_todays_event_is_still_to_come():
+    """2026-11-08: with no time on Remembrance Sunday, Morning Tide had the parade over by 08:45."""
+    early = calendar.for_prompt("breakfast", datetime(2026, 11, 8, 8, 45))
+    late = calendar.for_prompt("news", datetime(2026, 11, 8, 11, 30))
+    assert "Remembrance Sunday, today" in early and "silence at eleven" in early
+    assert "It starts at 10:45, so it has not happened yet" in early and "It began" not in early
+    assert "It began at 10:45" in late and "It starts" not in late
+    assert "It starts" not in calendar.for_prompt("news", datetime(2026, 11, 7, 8, 45))   # tomorrow: no clock line
+    assert "It starts" not in calendar.for_prompt("news", date(2026, 11, 8))           # a date alone: no time

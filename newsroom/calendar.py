@@ -188,8 +188,9 @@ EVENTS: tuple[Event, ...] = (
           "the town bonfire and fireworks on the Salting, gates at six", (NEWS, BREAKFAST, ROCKPOOL, MAGAZINE, PHONEIN),
           at="18:00"),
     Event("Remembrance Sunday", _day(lambda y: nth(y, 11, 6, 2)),
-          "the parade from the Town Hall to the war memorial; the lifeboat crew lay a wreath on the water",
-          (NEWS, BREAKFAST)),
+          "the parade leaves the Town Hall at quarter to eleven for the war memorial: the two minutes' silence at "
+          "eleven, the wreaths, then the lifeboat crew lay a wreath on the water off the harbour",
+          (NEWS, BREAKFAST), at="10:45"),
     Event("the Christmas lights", _day(lambda y: last(y, 11, 4)),
           "Harrow Street's lights switched on at six by someone the children choose; carols on the bandstand",
           (NEWS, BREAKFAST, ROCKPOOL, OUTABOUT, MAGAZINE), at="18:00"),
@@ -297,11 +298,16 @@ def for_prompt(show_id: str, day: date | datetime) -> str:
 
 
 def _started(o: On, now: datetime | None) -> str:
-    """' It began at 18:00, ...' for a one-day event today whose start time has passed, else ''."""
-    if not (now and o.event.at and o.first == o.last == now.date() and f"{now:%H:%M}" >= o.event.at):
+    """For a one-day event today with a start time: ' It began at 18:00, ...' once it has passed, and
+    ' It starts at 10:45, ...' before. On 2026-11-08 Remembrance Sunday had no time, and at 08:45 Morning
+    Tide had the parade already "ends in clear, cold sunshine", two hours before it set off."""
+    if not (now and o.event.at and o.first == o.last == now.date()):
         return ""
-    return (f" It began at {o.event.at}, so by now it is under way or over: tell it as happening or as "
-            "done, never as still to come.")
+    if f"{now:%H:%M}" >= o.event.at:
+        return (f" It began at {o.event.at}, so by now it is under way or over: tell it as happening or as "
+                "done, never as still to come.")
+    return (f" It starts at {o.event.at}, so it has not happened yet: tell it as still to come, never as "
+            "under way or done.")
 
 
 def due(text: str, day: date) -> date | None:
