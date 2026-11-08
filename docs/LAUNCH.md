@@ -1,28 +1,37 @@
 # Launch: Christmas Eve 2026
 
-Channel 7 goes public on **Thursday 24 December 2026**, live on YouTube (Cubes Channel, @cubes123) and Twitch,
-with a Short a day from 1 December and a making-of post in launch week. This is the checklist from Sunday
+Channel 7 goes public on **Thursday 24 December 2026**, live on YouTube (a new Port Wexley channel of its own,
+not Cubes Channel; name and handle to be chosen) and Twitch, with a shelf of long videos from 20 December, a
+Short a day from 1 December and a making-of post in launch week. This is the checklist from Sunday
 8 November. **You** marks the steps only the user can do (accounts, uploads, posting); the rest is work for a
 session.
 
 Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.md](CREDITS.md) (licences),
-[launch/making-of.md](launch/making-of.md) (the post).
+[launch/making-of.md](launch/making-of.md) (the post), [launch/uploads.md](launch/uploads.md) (the long videos).
 
 ## What has to be true on the night
 
 - The station runs all night unattended, on YouTube and Twitch at once.
 - Each YouTube part is saved (restarts at 00:00, 09:00, 19:00), and Twitch runs through the restarts.
 - Anything bad can be taken off air in seconds (the kill switch), and the content filter is on.
-- Every stream, Short and post says the town is fictional and everything is written and voiced by AI.
+- Every stream, Short, upload and post says the town is fictional and everything is written and voiced by AI.
+- The channel has finished things to watch besides the stream: the promo, the making-of video, three
+  documentaries and two full programmes ([launch/uploads.md](launch/uploads.md)).
 - Nothing on air has a licence problem: no cartoons (MiniMax H3). (The Stable Audio bed was replaced by a
   code bed on 8 November.)
 
 ## Week 1: Sun 8 to Sun 15 November, accounts and the quality test
 
-- [ ] **You: upload the promo as the quality test.** `E:/recordings/2026-11-08 Channel 7 Promo - final 1440p.mp4`,
-      **Unlisted**. Landscape uploads get a sparse quality ladder on YouTube; a 1440p upload should get the
-      better encode, so check on the watch page that 1440p is offered and that Auto plays sharp on a
-      desktop. Answer Yes to the altered-content question. Keep it unlisted until launch week.
+- [ ] **You: create the Port Wexley channel** as a Brand Account under your Google account (YouTube →
+      Settings → Add or manage your channel(s) → Create a channel), with its handle. Verify it
+      (youtube.com/verify) and turn on live streaming: the first time can take up to 24 hours. Then tell a
+      session the name and handle, to replace Cubes Channel (@cubes123) in the README and STREAMING.md.
+- [ ] **You: upload the promo to the new channel as the quality test.**
+      `E:/recordings/2026-11-08 Channel 7 Promo - final 1440p.mp4`, **Unlisted**. Landscape uploads get a
+      sparse quality ladder on YouTube; a 1440p upload should get the better encode, so check on the watch
+      page that 1440p is offered and that Auto plays sharp on a desktop. Answer Yes to the altered-content
+      question. Keep it unlisted until 20 December. The answer decides whether the long videos are upscaled
+      to 1440p before upload ([launch/uploads.md](launch/uploads.md#preparing-each-file)).
 - [ ] **You: create a Twitch account** for the channel (the same name as the YouTube channel if it's free)
       and turn on **two-factor authentication** (Settings → Security and Privacy).
 - [ ] **You: create a Ko-fi page** and turn on 2FA. Link it to the payout account (Stripe or PayPal) now:
@@ -61,6 +70,9 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
   - [ ] Twitch carried on through the restart without a drop;
   - [ ] the restart's gap on air is a few seconds, at a bumper.
 - [ ] Thu 19 November is a council night: watch *The Chamber* in the log the next day (no stream needed).
+- [ ] **You: watch the launch shelf** ([launch/uploads.md](launch/uploads.md)): the three documentaries,
+      *The Chamber* of 5 November and both *Last Ferry* candidates (5 and 6 November; keep the better one).
+      Note anything that shouldn't go out. Swap in a reserve if one doesn't hold up.
 
 ## Week 3: Mon 23 to Sun 29 November, the public soak night
 
@@ -81,8 +93,9 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       `tools/shorts.py` (being built); **you** choose the moments. Every Short gets the disclosure line,
       the Pocket TTS credit and the altered-content Yes ([templates](STREAMING.md#titles-and-descriptions)).
       Schedule them a few days ahead in YouTube Studio so a missed day doesn't break the run.
-- [ ] Vary them: a breaking-news cut-in, a *Rock Pool* moment, a phone-in caller, a council vote, Vincent's
-      monologue, Gordon's weather. YouTube judges the channel as a whole for "inauthentic content", and a
+- [ ] Vary them: a breaking-news cut-in, the fish auction on *Quayside*, a phone-in caller, a council vote,
+      Vincent's monologue, Gordon's weather. (Not *Rock Pool*: children's television would have to be marked
+      "made for kids".) YouTube judges the channel as a whole for "inauthentic content", and a
       run of near-identical clips is what that policy is about.
 - [ ] Thu 3 December is a council night. Stream it publicly if the soak night went well: a second public
       night, and *The Chamber* is the best clip material of the fortnight.
@@ -97,6 +110,12 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 - [ ] Channel pages: the YouTube banner, About text (the disclosure line first), links to Twitch, Ko-fi and
       GitHub; the Twitch About panels; the Ko-fi page text and a goal of the monthly running cost.
 - [ ] Fill every `TODO` link in the README.
+- [ ] **The long videos made ready** ([launch/uploads.md](launch/uploads.md#preparing-each-file)): trimmed,
+      upscaled to 1440p if the promo test said so, thumbnails, chapters for *The Chamber*, titles and
+      descriptions. **You: record the making-of video** (a screen recording of the station, the logs and the
+      story board, in your voice), alongside the making-of post.
+- [ ] **You: upload the launch shelf as Scheduled** for Sun 20 December, in two playlists: *Port Wexley
+      Stories* and *Full programmes*.
 
 ## Week 6: Mon 14 to Sun 20 December, always on
 
@@ -105,8 +124,11 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       launch night there are saved parts on the channel, a few days of Twitch history, and a week of
       real running to catch problems before visitors arrive.
 - [ ] Watch the costs in `LLM USAGE` against $1-2 a day.
-- [ ] Make the promo **Public** on Sun 20 December, linked from the stream descriptions and pinned on the
-      channel.
+- [ ] **Sun 20 December: the launch shelf goes public** (scheduled the week before): the promo (set as the
+      channel trailer, and linked from the stream descriptions), the making-of video, three documentaries,
+      *The Chamber* and *The Last Ferry*.
+- [ ] After launch: **one long video every Sunday** from 27 December, preferring the best of the latest week
+      over the reserve list.
 
 ## Launch week: Mon 21 to Thu 24 December
 
