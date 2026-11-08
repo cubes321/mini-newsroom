@@ -31,8 +31,9 @@ ENTER_S = 0.75
 
 class Beat(BaseModel):
     who: str
-    do: Literal["pose", "face", "lean", "hop", "turn", "exit"]
-    value: str = ""                # pose or face name; lean degrees (forward +); exit side "left"/"right"
+    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly"]
+    value: str = ""                # pose or face name; lean degrees (forward +); exit side "left"/"right";
+                                   # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s)
     at: str = "0"
     until: str | None = None       # pose/face/lean: when it ends (None: the shot's end)
 
@@ -149,66 +150,8 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         plate_at.append([round(0.5 * x, 4), round(-3.0 + 0.5 * (y - WIDE[1]), 4)])
     cards = []
     for k, a in enumerate(layout.actors):
-        p, kit = pup[a.who], kits[a.who]
-        mine = [b for b in layout.beats if b.who == a.who]
-        talk = speech.get(a.who, ["closed"] * n)
-        pieces, tf = [], []
-        flip = p.flip
-        entering = when(f"{ENTER_S}", n, spans) if a.enter != "none" else 0
-        exit_beat = next((b for b in mine if b.do == "exit"), None)
-        exit_at = when(exit_beat.at, n, spans) if exit_beat else n + 1
-        hold = None
-        for f in range(1, n + 1):
-            def active(b):
-                return when(b.at, n, spans) <= f < (when(b.until, n, spans) if b.until else n + 1)
-            pose = next((b.value for b in reversed(mine) if b.do == "pose" and active(b)), a.pose)
-            pose = pose if pose in kit.poses else "normal"
-            said = talk[f - 1]
-            face = {"talk": "talk", "loud": kit.loud}.get(said)
-            if face is None:
-                face = next((b.value for b in reversed(mine) if b.do == "face" and active(b)), None)
-            if face is None:                              # a blink about every three seconds, two frames
-                face = "blink" if (f + 23 * k) % 74 in (0, 1) and f > entering + 4 else "closed"
-            pieces.append(str(kit.piece(series_dir, pose, face)))
-            for b in mine:
-                if b.do == "turn" and when(b.at, n, spans) == f:
-                    flip = not flip
-            if f % 2 == 0 and hold is not None:            # on twos
-                tf.append(hold)
-                continue
-            t = f / FPS
-            x, y, rot = a.x, p.card_y, 0.0
-            sy = 1.0 + 0.01 * math.sin(2 * math.pi * 0.5 * t + k)
-            sx = 1.0
-            fwd = 1 if not flip else -1                   # rotation that tips the top forward
-            if kit.natural == "right":
-                fwd = -fwd
-            if said != "closed":
-                rot += math.radians(2.0) * fwd
-            if said == "loud":
-                rot += math.radians(1.5) * fwd
-                y += 0.06
-            lean = next((b for b in reversed(mine) if b.do == "lean" and active(b)), None)
-            if lean:
-                rot += math.radians(float(lean.value or 0)) * fwd
-            for b in mine:                                  # a hop: eight frames up and down
-                if b.do == "hop" and 0 <= f - when(b.at, n, spans) < 8:
-                    y += 0.8 * math.sin(math.pi * (f - when(b.at, n, spans)) / 8)
-            if f < entering or f >= exit_at:                # waddling in or out: slide, rock, bob
-                side = a.enter if f < entering else exit_beat.value
-                off = cam0[0] + (cam0[2] / 2 + p.w * p.upp / 2) * (-1 if side == "left" else 1)
-                u = 1 - (1 - f / entering) ** 2 if f < entering else ((f - exit_at) / (ENTER_S * FPS)) ** 2
-                x = off + (a.x - off) * u if f < entering else a.x + (off - a.x) * min(1.0, u)
-                rot += math.radians(5.0) * (1 if (f // 4) % 2 else -1)
-                y += 0.18 if (f // 2) % 2 else 0.0
-            elif entering and f - entering < 6:              # arriving: squash, stretch, settle
-                s = (0.94, 0.94, 1.03, 1.03, 1.0, 1.0)[f - entering]
-                sx, sy = 1 / s ** 0.5, s
-            hold = [round(x, 4), round(y, 4), round(rot, 5), round(sx * (-1 if flip else 1) * a.scale, 4),
-                    round(sy * a.scale, 4)]
-            tf.append(hold)
-        cards.append({"name": a.who, "pieces": pieces, "w_px": p.w, "h_px": p.h, "upp": kit.upp,
-                      "z": round(0.1 * (3 - a.depth) + 0.01 * k, 3), "tf": tf})
+        cards.append(_card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
+                           speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir))
     ropes = []
     for r in layout.ropes:
         pts = [list(pt) for pt in r.path]
@@ -222,3 +165,111 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         ropes.append({"points": pts, "loop": loop, "color": list(r.color), "width": r.width})
     return {"fps": FPS, "frames": n, "plate": {"path": str(plate), "width": PLATE_W, "at": plate_at},
             "camera": camera, "aspect": ASPECT, "cards": cards, "ropes": ropes}
+
+
+def _target(b: Beat, x: float, y: float) -> tuple[float, float]:
+    parts = [float(v) for v in b.value.replace(" ", "").split(",") if v]
+    return (parts[0] if parts else x), (parts[1] if len(parts) > 1 else y)
+
+
+def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], n: int, spans, cam0,
+          series_dir: Path) -> dict:
+    """One actor's card for every frame: its piece and its transform, all on twos."""
+    moves = sorted((b for b in mine if b.do in ("walk", "fly")), key=lambda b: when(b.at, n, spans))
+    walker = bool(kit.walk)
+    entering = when(f"{ENTER_S}", n, spans) if a.enter != "none" else 0
+    exit_beat = next((b for b in mine if b.do == "exit"), None)
+    exit_at = when(exit_beat.at, n, spans) if exit_beat else n + 1
+    off = {side: cam0[0] + (cam0[2] / 2 + p.w * p.upp / 2) * (-1 if side == "left" else 1)
+           for side in ("left", "right")}
+
+    def where(f):
+        """(x, y, how it is moving, which way): the rest spot, an entrance, a walk or flight, an exit."""
+        if f < entering:
+            u = f / entering if walker else 1 - (1 - f / entering) ** 2
+            x0 = off[a.enter]
+            return x0 + (a.x - x0) * u, a.y, "enter", 1 if a.x > x0 else -1
+        x, y = a.x, a.y
+        for b in moves:
+            s = when(b.at, n, spans)
+            e = when(b.until, n, spans) if b.until else min(n, s + int(1.2 * FPS))
+            tx, ty = _target(b, x, y)
+            if f < s:
+                break
+            if f >= e:
+                x, y = tx, ty
+                continue
+            u = (f - s) / max(1, e - s)
+            u = u if b.do == "walk" else _ease(u)
+            return x + (tx - x) * u, y + (ty - y) * u, b.do, (1 if tx > x else -1 if tx < x else 0)
+        if f >= exit_at:
+            u = min(1.0, (f - exit_at) / (ENTER_S * FPS))
+            u = u if walker else u * u
+            x1 = off[exit_beat.value if exit_beat.value in off else "right"]
+            return x + (x1 - x) * u, y, "exit", 1 if x1 > x else -1
+        return x, y, None, 0
+
+    facing = a.facing
+    pieces, tf = [], []
+    for f in range(1, n + 1):
+        if f % 2 == 0:                                    # on twos: the piece and the pose held
+            pieces.append(pieces[-1])
+            tf.append(tf[-1])
+            continue
+
+        def active(b):
+            return when(b.at, n, spans) <= f < (when(b.until, n, spans) if b.until else n + 1)
+        x, y, how, way = where(f)
+        if way:
+            facing = "right" if way > 0 else "left"
+        for b in mine:
+            if b.do == "turn" and when(b.at, n, spans) in (f, f + 1):
+                facing = "left" if facing == "right" else "right"
+        if how in ("walk", "enter", "exit") and walker:
+            pose = kit.walk[(f // 4) % len(kit.walk)]
+        elif how == "fly" and kit.fly:
+            pose = kit.fly
+        else:
+            pose = next((b.value for b in reversed(mine) if b.do == "pose" and active(b)), a.pose)
+            pose = pose if pose in kit.poses else "normal"
+        said = talk[f - 1]
+        face = {"talk": "talk", "loud": kit.loud}.get(said)
+        if face is None:
+            face = next((b.value for b in reversed(mine) if b.do == "face" and active(b)), None)
+        if face is None:                                  # a blink about every three seconds, two frames
+            face = "blink" if (f + 23 * k) % 74 in (0, 1) and f > entering + 4 else "closed"
+        pieces.append(str(kit.piece(series_dir, pose, face)))
+        natural = kit.natural_of(pose)
+        flip = natural != "front" and facing != natural
+        fwd = (1 if not flip else -1) * (-1 if natural == "right" else 1)    # the turn that tips the top forward
+        t = f / FPS
+        cy = y - (p.h - (kit.feet_of(series_dir, pose) + PAD)) * p.upp
+        rot, sx = 0.0, 1.0
+        sy = 1.0 + 0.01 * math.sin(2 * math.pi * 0.5 * t + k)
+        if said != "closed":
+            rot += math.radians(2.0) * fwd
+        if said == "loud":
+            rot += math.radians(1.5) * fwd
+            cy += 0.06
+        lean = next((b for b in reversed(mine) if b.do == "lean" and active(b)), None)
+        if lean:
+            rot += math.radians(float(lean.value or 0)) * fwd
+        for b in mine:                                    # a hop: eight frames up and down
+            if b.do == "hop" and 0 <= f - when(b.at, n, spans) < 8:
+                cy += 0.8 * math.sin(math.pi * (f - when(b.at, n, spans)) / 8)
+        if how in ("enter", "exit", "walk"):
+            if walker:                                    # a step: up on each stride
+                cy += 0.12 if (f // 4) % 2 else 0.0
+            else:                                         # no walk drawn: a waddle, rocking and bobbing
+                rot += math.radians(5.0) * (1 if (f // 4) % 2 else -1)
+                cy += 0.18 if (f // 2) % 2 else 0.0
+        elif how == "fly":
+            cy += 0.25 * math.sin(2 * math.pi * f / 12)
+            sy *= 1.0 + 0.05 * math.sin(2 * math.pi * f / 6)
+        elif entering and 0 <= f - entering < 6:          # arriving: squash, stretch, settle
+            s = (0.94, 0.94, 1.03, 1.03, 1.0, 1.0)[f - entering]
+            sx, sy = 1 / s ** 0.5, s
+        tf.append([round(x, 4), round(cy, 4), round(rot, 5), round(sx * (-1 if flip else 1) * a.scale, 4),
+                   round(sy * a.scale, 4)])
+    return {"name": a.who, "pieces": pieces, "w_px": p.w, "h_px": p.h, "upp": kit.upp,
+            "z": round(0.1 * (3 - a.depth) + 0.01 * k, 3), "tf": tf}

@@ -118,6 +118,37 @@ def test_a_layout_plans_every_frame_on_twos_with_its_beats_and_its_rope(tmp_path
     assert p["ropes"][0]["points"][1] == [0, 0.2]
 
 
+def test_a_walk_alternates_its_strides_and_a_flight_faces_the_way_it_goes(tmp_path):
+    series_dir, d = _series(tmp_path)
+    for v, shift in (("step1", 0), ("step2", 2), ("fly", 4)):
+        img = np.full((64, 48, 3), CREAM, np.float32)
+        img[20 + shift:50 + shift, 6:40] = 0
+        img[22 + shift:48 + shift, 8:38] = 250
+        kitmod.save_rgb(img, d / "variants" / f"{v}.png")
+    k = json.loads((d / "kit.json").read_text(encoding="utf-8"))
+    for v in ("step1", "step2", "fly"):
+        k["variants"][v] = {"prompt": v, "new_pose": True}
+        k.setdefault("poses", {"normal": None})[v] = v
+    k.update({"walk": ["step1", "step2"], "fly": "fly", "facing": {"step1": "right", "step2": "right"}})
+    (d / "kit.json").write_text(json.dumps(k), encoding="utf-8")
+    kitmod.build(series_dir, "gull")
+    kit = kitmod.load(series_dir, "gull")
+    assert kit.feet_of(series_dir, "step1") == 49 and kit.feet_of(series_dir, "step2") == 51   # each drawing's own
+    assert not (d / "pieces" / "step1_talk.png").exists() and kit.piece(series_dir, "step1", "talk").name == "step1_closed.png"
+    layout = lay.Layout.model_validate({
+        "place": 1, "actors": [{"who": "gull", "x": 0.0}],
+        "beats": [{"who": "gull", "do": "walk", "value": "-6", "at": "0", "until": "1"},
+                  {"who": "gull", "do": "fly", "value": "4,5", "at": "1", "until": "2"}]})
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    p = lay.plan(layout, {"gull": kit}, series_dir, 60, {}, [], d / "base.png", {"gull": (w, h)})
+    c = p["cards"][0]
+    names = [os.path.basename(x) for x in c["pieces"]]
+    assert {names[1], names[5]} == {"step1_closed.png", "step2_closed.png"}     # two strides, four frames each
+    assert c["tf"][10][3] < 0                                                 # walking left: the right-facing drawing mirrored
+    assert names[30] == "fly_closed.png" and c["tf"][34][3] < 0              # flying right, the left-facing gull mirrored
+    assert c["tf"][24][0] < -5.5 and names[58] == "normal_closed.png" and c["tf"][58][0] == 4.0
+
+
 def test_the_newest_video_is_the_scenes_whichever_engine_made_it(monkeypatch, tmp_path):
     from entertainment import cartoons
 

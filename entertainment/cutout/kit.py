@@ -35,6 +35,7 @@ PAPER = np.array([247, 243, 233], np.float32)
 class Variant(BaseModel):
     prompt: str                                # what Qwen changes; "change nothing else" is added
     seed: int = 202
+    new_pose: bool = False                     # a whole new drawing (in flight, walking): keep only the character
 
 
 class Face(BaseModel):
@@ -54,13 +55,33 @@ class Kit(BaseModel):
     poses: dict[str, str | None] = {"normal": None}   # pose -> its variant (None: the design)
     faces: dict[str, Face] = {}                # besides "closed", the design's own face
     loud: str = "talk"                         # the face for a loud syllable (Gully: squawk)
+    facing: dict[str, Literal["left", "right", "front"]] = {}   # a pose drawn facing another way (walking)
+    walk: list[str] = []                       # poses that alternate as a walk (two strides)
+    fly: str | None = None                     # the pose for flying
 
     def folder(self, series_dir: Path) -> Path:
         return series_dir / "puppets" / self.who
 
+    def faces_on(self, pose: str) -> bool:
+        """A new drawing's head is elsewhere: its faces would be spliced into thin air, so it keeps its own."""
+        v = self.poses.get(pose)
+        return v is None or not self.variants[v].new_pose
+
+    def natural_of(self, pose: str) -> str:
+        return self.facing.get(pose, self.natural)
+
     def piece(self, series_dir: Path, pose: str, face: str) -> Path:
         face = face if face == "closed" or face in self.faces else ("talk" if face in ("squawk",) else "closed")
+        if not self.faces_on(pose):
+            face = "closed"
         return self.folder(series_dir) / "pieces" / f"{pose}_{face}.png"
+
+    def feet_of(self, series_dir: Path, pose: str) -> int:
+        """The row a pose stands on: the design's feet, or a new drawing's lowest row (pieces/feet.json)."""
+        if pose == "normal" or self.faces_on(pose):
+            return self.feet_y
+        meta = self.folder(series_dir) / "pieces" / "feet.json"
+        return json.loads(meta.read_text())[pose] if meta.exists() else self.feet_y
 
     @property
     def upp(self) -> float:
@@ -172,16 +193,24 @@ def build(series_dir: Path, who: str) -> list[Path]:
     var = {k: rgb(d / "variants" / f"{k}.png") for k in kit.variants}
     g = grain((base.shape[0] + 2 * PAD, base.shape[1] + 2 * PAD), sum(map(ord, who)))
     out = []
+    feet = {}
     for pose, pv in kit.poses.items():
         body = base if pv is None else var[pv]
         looks = {"closed": body}
-        for face, f in kit.faces.items():
+        if not kit.faces_on(pose):
+            _, a = cut(body, cream)
+            feet[pose] = int(np.nonzero((a > 0.5).any(1))[0].max())
+            looks_faces = {}
+        else:
+            looks_faces = kit.faces
+        for face, f in looks_faces.items():
             looks[face] = splice(body, var[f.variant], kit.regions[f.region], ref=base,
                                  grow=10 if f.region == "head" else 6)
         for face, img in looks.items():
             path = d / "pieces" / f"{pose}_{face}.png"
             save_rgba(paper(*cut(img, cream), g), path)
             out.append(path)
+    (d / "pieces" / "feet.json").write_text(json.dumps(feet), encoding="utf-8")
     sheet(d, out)
     return out
 
@@ -225,6 +254,8 @@ def plate(series_dir: Path, n: int) -> Path:
 
 KEEP = (" Change nothing else at all: keep exactly the same pose, position, size, outlines, colours and the plain "
         "background, pixel for pixel. Same flat cartoon drawing style.")
+POSE = (" Keep exactly the same character: the same colours, markings, face, outlines and flat cartoon drawing "
+        "style, at the same size, alone on the same plain background, with nothing else in the picture.")
 
 
 def edit_graph(prompt: str, image: str, seed: int, prefix: str) -> dict:
@@ -273,7 +304,7 @@ def draw(series_dir: Path, who: str, redo: tuple[str, ...] = ()) -> list[Path]:
         if path.exists():
             continue
         seed = v.seed + 101 * len(list(d.glob(f"variants/{k}.*.png")))
-        r = cartoons._comfy("/prompt", {"prompt": edit_graph(v.prompt.rstrip() + KEEP, name, seed,
+        r = cartoons._comfy("/prompt", {"prompt": edit_graph(v.prompt.rstrip() + (POSE if v.new_pose else KEEP), name, seed,
                                                              f"puppets/{who}_{k}"), "client_id": "cartoons"})
         jobs.append((k, r["prompt_id"]))
     done = []
