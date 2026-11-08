@@ -349,6 +349,9 @@ def _speak(series: Series, who: str, words: str):
     clip = series.refs() / f"{who}_voice.wav"
     if not clip.exists():
         raise FileNotFoundError(f"no voice for {who} yet: {clip.name} (the casting stage)")
+    # A shouted word in capitals reads as letters: "The ferry is MOVING!" came out "emo-ving" (2026-11-08).
+    # The exclamation mark carries the shout; a short one like "OK" or "TV" stays as it is.
+    words = re.sub(r"\b[A-Z]{3,}\b", lambda m: m.group().lower(), words)
     with tts._SYNTH_LOCK:
         return tts._pocket_speak(words, clip)
 
