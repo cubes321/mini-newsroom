@@ -185,7 +185,7 @@ def test_the_writers_stage_becomes_a_layout_and_its_slips_are_mended(tmp_path, c
     gull, bucket = lay_.actors[0], lay_.actors[-1]
     assert (gull.x, gull.y, gull.facing, gull.pose) == (-11.0, 12.0, "right", "normal")    # no "asleep"; hung (spin)
     assert bucket.on == "gull.hold" and [a.who for a in lay_.actors] == ["gull", "bucket"]  # once each, held
-    assert [(b.do, b.value) for b in lay_.beats] == [("fly", "6.0,7.0"), ("walk", "-24.0"), ("spin", "180")]
+    assert [(b.do, b.value) for b in lay_.beats] == [("fly", "6.0,12.0"), ("walk", "-24.0"), ("spin", "180")]  # hung: swings at its height
     assert lay_.ropes[0].attach == "gull.ankle" and lay_.ropes[0].path[-1][0] == 0.0    # unknown mark: centre
     assert lay_.camera.start.on == "gull.feet" and lay_.camera.end.on == "gull.head" and lay_.place == 3
 

@@ -224,6 +224,8 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
             for x in actors:
                 if x is a or (x.who in props and x.x == a.x and x.y > 0 and not x.on):
                     x.y = hang
+    hung = {a.who: a.y for a in actors if any(b.who.strip().lower() == a.who and b.do == "spin"
+            and abs(float(re.sub(r"[^0-9.\-]", "", b.value) or 0)) >= 150 for b in st.beats)}
     beats = []
     for b in st.beats:
         who = b.who.strip().lower()
@@ -232,7 +234,10 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
         value = b.value
         if b.do in ("walk", "fly"):
             x = _mark(b.to)
-            value = f"{x}" if b.do == "walk" else f"{x},{HEIGHTS[b.height]}"
+            # A hanging puppet's move is a swing: along at its height (a fly "to the ground" dragged the
+            # upside-down Gully's head under it, the talking Chip Lift's shot 19).
+            y = hung.get(who, HEIGHTS[b.height])
+            value = f"{x}" if b.do == "walk" else f"{x},{y}"
         elif b.do == "spin":
             value = re.sub(r"[^0-9.\-]", "", value) or "360"
         elif b.do == "lean":
