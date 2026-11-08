@@ -5,7 +5,10 @@ station on YouTube and Twitch and earning money from it** (ads, Twitch subs, Ko-
 read on **2026-11-08**. Links go to the text that was read. This is a careful reading by a developer, not
 legal advice: before money depends on one of these, read the text yourself.
 
-The project's own code is MIT ([LICENSE](../LICENSE)). Port Wexley and everyone in it are fictional.
+The project's own code is MIT ([LICENSE](../LICENSE)). Port Wexley itself (the town, its people,
+programmes, music, pictures, voices and words) is under the [Port Wexley Content Licence](../LICENSE-CONTENT.md).
+The third-party terms below still apply to anything made with those tools. Port Wexley and everyone in it are
+fictional.
 
 ## The short version
 
@@ -218,7 +221,7 @@ Apache 2.0 puts no conditions on the images you make. The people on screen are d
 > Scripts: Claude (Anthropic) and DeepSeek. Voices: Pocket TTS by Kyutai (CC BY 4.0) and Kokoro-82M by
 > hexgrad (Apache 2.0); guest voices designed with DramaBox by Resemble AI (LTX-2 Community License).
 > Pictures: Qwen-Image and Qwen-Image-Edit (Apache 2.0), made in ComfyUI. Music: original, rendered in code.
-> Code: MIT, https://github.com/cubes321/mini-newsroom
+> Code: MIT, https://github.com/cubes321/mini-newsroom. Port Wexley © 2026 Mark Killingback.
 
 Add "Animation: MiniMax H3" (and "Music: Stable Audio 3 by Stability AI", for their beds) if the cartoons are
 ever licensed and aired.

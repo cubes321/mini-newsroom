@@ -20,7 +20,8 @@ night and, every other Thursday, the town council debating four motions live. Th
 overnight there's a test card, repeats and teletext pages turning under a music bed.
 
 Every word is written by a language model as it airs, and every voice is synthetic. It's pixel art (a
-320×180 canvas, scaled up) in a Pygame window, captured by OBS. The code is MIT: TODO (GitHub link).
+320×180 canvas, scaled up) in a Pygame window, captured by OBS. The code is MIT, so you can build your own town with it; Port Wexley itself stays
+mine: TODO (GitHub link).
 
 TODO: a 20-second clip or a grid of screenshots here.
 

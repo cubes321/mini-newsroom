@@ -449,7 +449,15 @@ Overnight repeats are drawn from the last two days of this cache.
 
 ## Licence
 
-MIT; see [LICENSE](LICENSE). Port Wexley and everyone in it are fictional.
+Two licences:
+
+- **The code is MIT** ([LICENSE](LICENSE)). Take the engine and build your own town with it.
+- **Port Wexley is not.** The town, its people, programmes, the *Beacon* tune, the backdrops, the voices and
+  the scripts are under the [Port Wexley Content Licence](LICENSE-CONTENT.md): you can run and enjoy it at
+  home, but publishing, streaming, spin-offs and commercial use need permission. That includes the parts
+  written into the source files.
+
+Port Wexley and everyone in it are fictional.
 
 Voices: [Pocket TTS](https://huggingface.co/kyutai/pocket-tts) by Kyutai (weights CC-BY-4.0, gated:
 accept the terms and `hf auth login` once), cloning reference clips in `assets/voices/`. Most presenters'

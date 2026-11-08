@@ -2,7 +2,8 @@
 name = "mini-newsroom"
 version = "0.1.0"
 description = "A pixel-art, always-on AI newsroom for a fictional town"
-license = "MIT"
+license = "MIT AND LicenseRef-Port-Wexley-Content"
+license-files = ["LICENSE", "LICENSE-CONTENT.md"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pygame>=2.6",
