@@ -48,6 +48,7 @@ class Actor(BaseModel):
     enter: Literal["none", "left", "right"] = "none"
     scale: float = Field(1.0, gt=0.2, le=3.0)
     on: str | None = None          # "gully.hold": carried, its grip on that point of the holder every frame
+    on_at: str = "0"               # from when (a snatched bucket sits where it is until it's taken)
 
 
 class Rope(BaseModel):
@@ -130,6 +131,18 @@ def _view(fr: Framing, pup: dict[str, _Puppet]) -> tuple[float, float, float]:
     return x + fr.dx, y + fr.dy, width
 
 
+def _world(c: dict, p: "_Puppet", f: int, point: str) -> tuple[float, float]:
+    """A point of a card at frame index f, in stage units: a named anchor, or (no name) the card's middle."""
+    x, y, rot, sx, sy = c["tf"][f]
+    upp = p.upp / p.a.scale                               # sx, sy carry the actor's scale and its mirroring
+    if point:
+        ax, ay = p.kit.anchors.get(point, p.kit.anchors.get("head", (p.w / 2 - PAD, 0)))
+        lx, ly = (ax + PAD - p.w / 2) * upp * sx, (p.h - (ay + PAD)) * upp * sy
+    else:
+        lx, ly = 0.0, p.h * upp * sy / 2
+    return x + lx * math.cos(rot) - ly * math.sin(rot), y + lx * math.sin(rot) + ly * math.cos(rot)
+
+
 def _ease(u: float) -> float:
     u = max(0.0, min(1.0, u))
     return u * u * (3 - 2 * u)
@@ -140,36 +153,44 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
     """Every frame of the shot: the plate, the camera, each card's piece and transform, the ropes.
     `speech` is lips.faces' per-frame faces by speaker; `sizes` each kit's piece size in pixels."""
     pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
-    cam0 = _view(layout.camera.start, pup)
-    cam1 = _view(layout.camera.end, pup) if layout.camera.end else cam0
+    cam0 = _view(layout.camera.start, pup)              # first guess: rest spots (entrances start off its edges)
     m0, m1 = when(layout.camera.move_at, n, spans), when(layout.camera.move_until, n, spans)
+    cards, by_who = [], {}
+    for k, a in enumerate(layout.actors):
+        c = _card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
+                  speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir)
+        holder = (a.on or "").partition(".")[0]
+        if holder in by_who:                              # carried: its grip on the holder's point, once taken
+            hc, hp = by_who[holder]
+            point = a.on.partition(".")[2] or "hold"
+            p = pup[a.who]
+            gx, gy = kits[a.who].anchors.get("grip", (p.w / 2 - PAD, 0))
+            for f in range(when(a.on_at, n, spans) - 1, n):
+                wx, wy = _world(hc, hp, f, point)
+                c["tf"][f] = [round(wx - (gx + PAD - p.w / 2) * p.upp, 4),
+                              round(wy - (p.h - (gy + PAD)) * p.upp, 4), 0.0, round(a.scale, 4), round(a.scale, 4)]
+            c["z"] = round(hc["z"] + 0.02, 3)
+        by_who[a.who] = (c, pup[a.who])
+        cards.append(c)
+
+    def view(fr: Framing, f: int) -> tuple[float, float, float]:
+        """The camera on someone where their card is at frame f: upside down, flying, wherever."""
+        width = SIZES[fr.size] / fr.zoom
+        who, _, point = (fr.on or "").partition(".")
+        if fr.size == "wide" or who not in by_who:
+            return _view(fr, pup)
+        c, p = by_who[who]
+        x, y = _world(c, p, f - 1, point or ("" if fr.size == "medium" else "head"))
+        return x + fr.dx, y + fr.dy, width
+    mid = m1 if layout.camera.end else (n + 1) // 2      # a held camera frames the shot's middle, after arrivals
+    cam0 = view(layout.camera.start, m0 if layout.camera.end else mid)
+    cam1 = view(layout.camera.end, m1) if layout.camera.end else cam0
     camera, plate_at = [], []
     for f in range(1, n + 1):
         u = _ease((f - m0) / max(1, m1 - m0))
         x, y, w = (a + (b - a) * u for a, b in zip(cam0, cam1))
         camera.append([round(x, 4), round(y, 4), round(w, 4)])
         plate_at.append([round(0.5 * x, 4), round(-3.0 + 0.5 * (y - WIDE[1]), 4)])
-    cards, by_who = [], {}
-    for k, a in enumerate(layout.actors):
-        c = _card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
-                  speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir)
-        holder = (a.on or "").partition(".")[0]
-        if holder in by_who:                              # carried: its grip on the holder's point, every frame
-            hc, hp = by_who[holder]
-            point = a.on.partition(".")[2] or "hold"
-            ax, ay = hp.kit.anchors.get(point, hp.kit.anchors.get("head", (hp.w / 2 - PAD, 0)))
-            gx, gy = kits[a.who].anchors.get("grip", (pup[a.who].w / 2 - PAD, 0))
-            p = pup[a.who]
-            for f, (x, y, rot, sx, sy) in enumerate(hc["tf"]):
-                lx = (ax + PAD - hp.w / 2) * hp.upp / hp.a.scale * sx
-                ly = (hp.h - (ay + PAD)) * hp.upp / hp.a.scale * sy
-                wx = x + lx * math.cos(rot) - ly * math.sin(rot)
-                wy = y + lx * math.sin(rot) + ly * math.cos(rot)
-                c["tf"][f] = [round(wx - (gx + PAD - p.w / 2) * p.upp, 4),
-                              round(wy - (p.h - (gy + PAD)) * p.upp, 4), 0.0, round(a.scale, 4), round(a.scale, 4)]
-            c["z"] = round(hc["z"] + 0.02, 3)
-        by_who[a.who] = (c, pup[a.who])
-        cards.append(c)
     ropes = []
     for r in layout.ropes:
         pts = [list(pt) for pt in r.path]
@@ -278,7 +299,8 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
             if b.do == "spin" and f >= when(b.at, n, spans):  # round its base: 180 hangs it from there
                 s = when(b.at, n, spans)
                 e = when(b.until, n, spans) if b.until else min(n, s + 8)
-                rot += math.radians(float(b.value or 360)) * min(1.0, (f - s + 1) / max(1, e - s)) * fwd
+                done = 1.0 if s <= 1 else min(1.0, (f - s + 1) / max(1, e - s))   # at 0: already so
+                rot += math.radians(float(b.value or 360)) * done * fwd
         if how in ("enter", "exit", "walk"):
             if walker:                                    # a step: up on each stride
                 cy += 0.12 if (f // 4) % 2 else 0.0

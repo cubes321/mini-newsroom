@@ -49,9 +49,10 @@ class StageActor(BaseModel):
 
 class StageBeat(BaseModel):
     who: str
-    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin"]
+    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin", "take"]
     value: str = Field("", description="pose: a POSE; face: a FACE; lean: degrees forward, 3 to 8; spin: "
-                                       "degrees (180 hangs it upside down, 360 a full turn); exit: left or right")
+                                       "degrees (180 hangs it upside down, 360 a full turn); exit: left or right; "
+                                       "take: the prop key picked up (carried from then on)")
     to: str | None = Field(None, description="walk or fly: the mark to go to")
     height: Literal["ground", "raised", "air"] = "ground"
     at: str = Field("0", description="seconds, or line / line_end / end with +/- seconds")
@@ -112,11 +113,13 @@ Write about {n} SHOTS, each 2.5 to 8 seconds, with a beginning, a turn and a pay
   - ACTORS: who is in shot (characters and props), each on a MARK: far_left, left, centre, right, far_right
     (off_left / off_right to start out of shot and come in), at a HEIGHT (ground; raised: a sill, a rail, a
     wall top; air), FACING left or right, in one of their POSES. ENTER left/right walks (or waddles) them in at
-    the start. HOLDS: a prop they carry.
+    the start. HOLDS: a prop they carry all shot (in beak, mouth or hand): whenever the story has someone
+    carrying something, say so with HOLDS or TAKE, or it stays where it was put.
   - BEATS, timed in seconds or against the line ("line", "line_end+0.3"): pose X until T, face X until T,
     lean (degrees forward), hop, turn (face the other way), walk to a mark, fly to a mark and height (only
-    those who CAN FLY), spin (degrees: 180 hangs it upside down from where it's tied, 360 a full flip), exit
-    left/right. A prop can fly too: that is how things fall, are flung or shoot up.
+    those who CAN FLY), take a prop (carried from then on: a snatch is a fly to the prop's mark, then take),
+    spin (degrees: 180 hangs it upside down by its feet, and the stage lifts it high enough to hang; 360 a
+    full flip), exit left/right. A prop can fly too: that is how things fall, are flung or shoot up.
   - ROPE: a rope tied to who.part (or to a prop) running along the ground to a mark.
   - CAMERA: wide (the whole stage), medium on someone, or close on someone or on who.head / who.feet; it can
     hold, push_in, pull_out, tilt_up (from feet to head) or tilt_down.
@@ -124,7 +127,8 @@ Write about {n} SHOTS, each 2.5 to 8 seconds, with a beginning, a turn and a pay
 - Use ONLY the POSES and FACES each character has (listed below); "normal" always exists. Faces for talking
   and blinking are automatic: never write them.
 - PROPS: every object the story needs, once, with one fixed look (colour, material, size in plain words, never
-  "the size of" another object); a prop's key is how the stage names it. At most six.
+  "the size of" another object); a prop's key is how the stage names it. At most six. Props are small beside
+  the cast and drawn as one object: "a few chips", not "a heap of chips".
 - No written words anywhere.
 Return ONLY JSON.
 """
@@ -174,10 +178,25 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
         actors = [x for x in actors if x.who != prop]
         actors.append(Actor(who=prop, on=f"{holder}.hold"))
     names = {x.who for x in actors}
+    for b in st.beats:                                    # a prop taken mid-shot sits where it is until then
+        who, prop = b.who.strip().lower(), b.value.strip().lower()
+        if b.do == "take" and who in names and prop in names and prop != who:
+            a = next(x for x in actors if x.who == prop)
+            actors = [x for x in actors if x.who != prop] + [a.model_copy(update={"on": f"{who}.hold", "on_at": b.at or "0"})]
+    for a in actors:
+        # Hung upside down: a spin turns a card round its feet, so from the writer's "air" Gully's body hung
+        # below the ground (the Chip Lift, 2026-11-08). He hangs from a height he fits under, and whatever is
+        # on his mark up there (the hook) goes up with him.
+        if any(b.who.strip().lower() == a.who and b.do == "spin" and abs(float(re.sub(r"[^0-9.\-]", "", b.value) or 0)) >= 150
+               for b in st.beats):
+            hang = round(kits[a.who].height * 1.1 + 1.0, 2)
+            for x in actors:
+                if x is a or (x.who in props and x.x == a.x and x.y > 0 and not x.on):
+                    x.y = hang
     beats = []
     for b in st.beats:
         who = b.who.strip().lower()
-        if who not in names:
+        if who not in names or b.do == "take":
             continue
         value = b.value
         if b.do in ("walk", "fly"):

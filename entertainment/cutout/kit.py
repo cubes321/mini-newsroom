@@ -304,6 +304,27 @@ def edit_graph(prompt: str, image: str, seed: int, prefix: str) -> dict:
 SIZES = (("tiny", 1.2), ("small", 2.0), ("little", 2.0), ("large", 4.0), ("big", 4.0), ("huge", 6.0))
 
 
+PROP_W = 3.5                                   # stage units: the widest a prop is drawn (Gully is about 8 wide)
+
+
+def fit_prop(series_dir: Path, key: str, looks: str) -> Kit:
+    """A prop's kit.json from its drawing: tall as the plain words of its look say, but never wider than
+    PROP_W (a "heap of chips" came out wider than Biscuit); its grip the top middle, where it's held."""
+    d = series_dir / "puppets" / key
+    img = rgb(d / "base.png")
+    _, a = cut(img, cream_of(img), cut_holes=True)
+    ys, xs = np.nonzero(a > 0.5)
+    bh, bw = max(1, ys.max() - ys.min()), max(1, xs.max() - xs.min())
+    size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
+    size = min(size, PROP_W * bh / bw)
+    kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True,
+              height=round(size * img.shape[0] / bh, 3), feet_y=int(ys.max()),
+              anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
+                       "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
+    (d / "kit.json").write_text(kit.model_dump_json(indent=1), encoding="utf-8")
+    return kit
+
+
 def props(folder: Path) -> list[Path]:
     """A kit for every prop the episode names (props.json) that has none yet: Qwen redraws the series' lead's
     design as the prop, alone, in the same style on the same cream (so it cuts out the same way), sized from
@@ -319,7 +340,9 @@ def props(folder: Path) -> list[Path]:
     shutil.copy2(style, cartoons.COMFY_DIR / "input" / name)
     jobs = []
     for key, looks in wanted.items():
-        if (series_dir / "puppets" / key / "kit.json").exists():
+        if (series_dir / "puppets" / key / "kit.json").exists():    # drawn before: sized by today's rules
+            fit_prop(series_dir, key, looks)
+            build(series_dir, key)
             continue
         prompt = (f"Replace the character in this picture with {key}: {looks.rstrip('. ')}. Draw it alone, centred, "
                   f"upright, about a third of the picture's height, in exactly the same flat cartoon style, bold black "
@@ -339,15 +362,7 @@ def props(folder: Path) -> list[Path]:
         for o in h["outputs"].values():
             for f in o.get("images", []):
                 shutil.copy2(cartoons.COMFY_DIR / "output" / f["subfolder"] / f["filename"], d / "base.png")
-        img = rgb(d / "base.png")
-        _, a = cut(img, cream_of(img))
-        ys, xs = np.nonzero(a > 0.5)
-        size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
-        kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True,
-                  height=round(size * img.shape[0] / max(1, ys.max() - ys.min()), 3), feet_y=int(ys.max()),
-                  anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
-                           "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
-        (d / "kit.json").write_text(kit.model_dump_json(indent=1), encoding="utf-8")
+        fit_prop(series_dir, key, looks)
         made += build(series_dir, key)
         log.info("cutout: prop %s drawn", key)
     if jobs:

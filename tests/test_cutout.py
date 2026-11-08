@@ -183,11 +183,35 @@ def test_the_writers_stage_becomes_a_layout_and_its_slips_are_mended(tmp_path, c
         lay_ = writer.stage(st, 3, {"gull": k, "bucket": k}, {"bucket"})
     assert "kraken" in caplog.text and "somewhere" in caplog.text
     gull, bucket = lay_.actors[0], lay_.actors[-1]
-    assert (gull.x, gull.y, gull.facing, gull.pose) == (-11.0, 3.0, "right", "normal")     # no "asleep": normal
+    assert (gull.x, gull.y, gull.facing, gull.pose) == (-11.0, 12.0, "right", "normal")    # no "asleep"; hung (spin)
     assert bucket.on == "gull.hold" and [a.who for a in lay_.actors] == ["gull", "bucket"]  # once each, held
     assert [(b.do, b.value) for b in lay_.beats] == [("fly", "6.0,7.0"), ("walk", "-24.0"), ("spin", "180")]
     assert lay_.ropes[0].attach == "gull.ankle" and lay_.ropes[0].path[-1][0] == 0.0    # unknown mark: centre
     assert lay_.camera.start.on == "gull.feet" and lay_.camera.end.on == "gull.head" and lay_.place == 3
+
+
+def test_a_snatched_prop_waits_until_taken_and_the_camera_finds_a_hanging_puppet(tmp_path):
+    from entertainment.cutout import writer
+
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    st = writer.Stage.model_validate({
+        "actors": [{"who": "bucket", "mark": "right"}, {"who": "gull", "mark": "left"}],
+        "beats": [{"who": "gull", "do": "take", "value": "bucket", "at": "1"}]})
+    lay_ = writer.stage(st, 1, {"gull": k, "bucket": k}, {"bucket"})
+    assert [(a.who, a.on, a.on_at) for a in lay_.actors] == [("gull", None, "0"), ("bucket", "gull.hold", "1")]
+    p = lay.plan(lay_, {"gull": k, "bucket": k}, series_dir, 48, {}, [], d / "base.png", {"gull": (w, h), "bucket": (w, h)})
+    bucket = p["cards"][1]["tf"]
+    assert bucket[0][0] == 6.0 and bucket[30][0] != 6.0                     # on its mark, then in the beak
+    hung = lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull", "x": 0.0, "y": 12.0}],
+                                      "beats": [{"who": "gull", "do": "spin", "value": "180", "at": "0"}],
+                                      "camera": {"start": {"size": "medium", "on": "gull"}}})
+    p = lay.plan(hung, {"gull": k}, series_dir, 48, {}, [], d / "base.png", {"gull": (w, h)})
+    tf = p["cards"][0]["tf"][24]
+    assert abs(abs(tf[2]) - 3.14159) < 0.01                                  # upside down by mid-shot
+    assert p["camera"][0][1] < tf[1]                                          # the camera below his feet, on him
 
 
 def test_the_newest_video_is_the_scenes_whichever_engine_made_it(monkeypatch, tmp_path):
