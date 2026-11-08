@@ -20,8 +20,8 @@ from collections import deque
 from datetime import date, datetime
 from typing import Callable
 
-from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, schedule, sport,
-               tides, tipline)
+from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, safety, schedule,
+               sport, tides, tipline)
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -1094,17 +1094,21 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             map_state=state, temp_c=temp,
         )
     if seg_type is SegmentType.breaking:
-        tip = (work or {}).get("tip", "reports of an incident in town")
+        # Never the tip's own words: this stands in when the model failed or refused the story, and
+        # the tip is the one thing nobody on the station wrote (a viewer's, on a public stream).
         back = (work or {}).get("interrupting", "the programme")
+        viewer = (work or {}).get("source", breaking.FROM_VIEWER) == breaking.FROM_VIEWER
+        came = ("A viewer has been in touch with us about it" if viewer
+                else "It's come in to the newsroom in the last few minutes")
         return BulletinScript(
             lines=[
                 LiveLine(speaker="anchor", text="We're interrupting the programme with some breaking news."),
-                LiveLine(speaker="anchor", text=f"We're hearing reports that {tip[:1].lower() + tip[1:].rstrip('.')}. "
-                                                "That hasn't been confirmed yet; it came in from a viewer a few minutes ago."),
+                LiveLine(speaker="anchor", text=f"We're hearing reports of an incident in {world.town}. {came}, "
+                                                "and we're working to confirm the details now."),
                 LiveLine(speaker="anchor", text=f"We'll have more in our next bulletin. Now, back to {back}."),
             ],
-            headline=tip[:80],
-            lower_third="Breaking: reports from a viewer",
+            headline=f"Reports of an incident in {world.town}",
+            lower_third="Breaking news",
         )
     if seg_type is SegmentType.sofa and part_ == "close":
         return BulletinScript(
@@ -1538,6 +1542,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 script = before
             elif end:
                 seg.work["loose_end_of"] = known.name
+        if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
+            log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
+            user += ("\n\nKeep every word suitable for daytime television: no swearing, no slurs. Channel 7 "
+                     "is a family station.")
+            script = llm.complete_json(seg.type.value, schema, system, user)
+            if bad := safety.check(safety.strings(script)):
+                raise llm.LLMError(f"the script failed the content check twice ({bad!r})")
         if show.id in CHECK_HOOKS:
             CHECK_HOOKS[show.id](seg, script, world)      # the template stands in if it won't do
         # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).

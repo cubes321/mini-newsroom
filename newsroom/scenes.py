@@ -256,7 +256,10 @@ def draw_test_card(canvas: pygame.Surface, t: float, v: View | None = None) -> N
     pygame.draw.circle(canvas, (20, 20, 24), (w // 2, int(h * 0.35)), 30)
     logo.draw_mark(canvas, w // 2, int(h * 0.35), show, r=22, t=t)
     overnight = v is not None and v.resume_at
-    if overnight:
+    if v is not None and getattr(v, "held", False):
+        logo.draw_wordmark(canvas, w // 2, int(h * 0.76), show)
+        text(canvas, "WE'LL BE BACK SHORTLY", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
+    elif overnight:
         logo.draw_wordmark(canvas, w // 2, int(h * 0.76), show)
         text(canvas, f"PROGRAMMES RESUME AT {v.resume_at}", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
     else:

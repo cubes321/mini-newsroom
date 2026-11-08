@@ -1,0 +1,55 @@
+# Words that never go on air (newsroom/safety.py). One term a line, any case; "#" starts a comment.
+# A plain term matches only the whole word; a term ending in "*" also matches words it starts
+# ("fuck*" catches "fucking"). Keep stems out that start ordinary words: "cock" would catch "cockle",
+# "dyke" a sea wall, "retard*" a fire retardant. Add station-specific terms in config.toml
+# under [safety] extra_terms instead of here.
+
+# Swearing (Channel 7 is pre-watershed all day)
+fuck*
+motherfuck*
+shit
+shits
+shitty
+shithead*
+bullshit*
+cunt*
+twat*
+wank*
+bollocks
+arsehole*
+asshole*
+bastard*
+bitch*
+cocksucker*
+slut*
+whore*
+
+# Slurs
+nigger*
+nigga*
+paki
+pakis
+chink
+chinks
+spic
+spics
+kike*
+wog
+wogs
+golliwog*
+gook*
+raghead*
+towelhead*
+wetback*
+pikey*
+gyppo*
+faggot*
+fag
+fags
+tranny
+trannies
+retard
+retards
+retarded
+spastic*
+spaz

@@ -154,6 +154,14 @@ max_in_a_row = 3         # then the filler card and the weather replay
 notice_every_s = 2700    # a community notice from the day's open stories, in idle time
 notices_per_day = 4
 
+[safety]                 # the word check on everything that goes on air (newsroom/safety.py)
+enabled = true
+extra_terms = []         # more words, as in assets/safety/blocklist.txt ("word", or "stem*")
+
+[stream]                 # with --obs while OBS is streaming: restart it on the first break after each time,
+restart_at = ["00:00", "09:00", "19:00"]   # so YouTube keeps every part as a video (it won't past 12 h)
+gap_s = 5                # off air between stopping and starting again
+
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, DeepSeek, ...). api_key_env names the env var holding the
 # key; leave it empty for local servers. extra_body is passed through as-is.

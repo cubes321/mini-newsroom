@@ -252,7 +252,7 @@ def open_audio(cfg, wanted: str) -> None:
 def run_window(cfg, args) -> None:
     import pygame
 
-    from . import scenes, schedule
+    from . import control, scenes, schedule
 
     open_audio(cfg, args.audio_device or cfg.broadcast.audio_device)
     screen = pygame.display.set_mode((cfg.broadcast.width, cfg.broadcast.height))
@@ -278,6 +278,8 @@ def run_window(cfg, args) -> None:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
                 running = False
+            elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_F12:
+                log.warning("F12: %s", control.toggle())     # the kill switch (control.py)
         now = schedule.now()
         if now - last_tick > 2.0:
             producer.tick(now)

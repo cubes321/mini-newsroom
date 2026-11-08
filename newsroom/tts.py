@@ -30,6 +30,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+from . import safety
 from .config import CONFIG
 
 log = logging.getLogger(__name__)
@@ -277,6 +278,7 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
     written "bm_fable@puppet" is that voice raised a third, spoken slower to keep its pace: a puppet's, and nobody else's. A voice with a
     reference clip (`clip_for`) is Pocket's, unless it carries an effect; Kokoro takes the line if
     Pocket fails (a designed voice through its stand-in, `kokoro_voice`), so a bad line costs a voice, never the air."""
+    safety.require(text, f"a line for {voice}")   # the last look before anything is spoken
     voice, _, effect = voice.partition("@")
     pitch = PUPPET if effect == "puppet" else 1.0
     speed /= pitch

@@ -9,3 +9,4 @@ data/tipline.state.json
 data/llm_calls/
 data/ads/
 data/continuity/
+data/control.txt

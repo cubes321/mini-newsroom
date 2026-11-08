@@ -17,6 +17,11 @@ film on 2026-11-01. SEVENTEXT, the overnight teletext pages, is recorded a littl
 blocks (two by default, about four minutes), each a file of its own that ends at the next repeat or
 test card. OBS's connection (port, password) is read from its own obs-websocket config; turn the
 WebSocket server on in OBS.
+
+The live stream is restarted at the times in config.toml's [stream] restart_at (StreamDirector), on
+the first bumper, test card or teletext page at or after each: YouTube doesn't keep a stream longer
+than 12 hours as a video, and an unkept stream's watch time doesn't count. Only OBS's own stream is
+restarted; a second service sent by a plugin (Twitch, docs/STREAMING.md) carries on.
 """
 from __future__ import annotations
 
@@ -27,7 +32,7 @@ import queue
 import re
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import schedule
@@ -166,6 +171,55 @@ class Director:
             self.rec.stop()
 
 
+BREAKS = {"bumper", "testcard", "teletext"}     # a restart's few seconds of nothing fall on one of these
+
+
+class StreamDirector:
+    """Restarts OBS's live stream at the configured times, on the next break in the programmes.
+
+    `restart_at` is "HH:MM" on the broadcast clock (schedule.now, so --clock tests it). A time
+    passed while nothing was a break is caught at the next one; several passed together make one
+    restart. Times before the station started never count."""
+
+    def __init__(self, ws, restart_at: list[str], gap_s: float = 5.0, say=print, clock=None, sleep=time.sleep):
+        self.ws, self.say, self.gap_s, self.sleep = ws, say, gap_s, sleep
+        self.clock = clock or schedule.now
+        self.marks = sorted((int(h), int(m)) for h, m in (t.split(":") for t in restart_at))
+        self.last = self.clock()
+
+    def _due(self, now: float) -> bool:
+        day = datetime.fromtimestamp(now).date()
+        for d in (day - timedelta(days=1), day):
+            for h, m in self.marks:
+                at = datetime(d.year, d.month, d.day, h, m).timestamp()
+                if self.last < at <= now:
+                    return True
+        return False
+
+    def segment(self, slot: int, seg_type: str, show: str) -> None:
+        if not self.marks or seg_type not in BREAKS:
+            return
+        now = self.clock()
+        if self._due(now):
+            self.last = now
+            self.restart()
+
+    def restart(self) -> None:
+        ws = self.ws()
+        if not ws.get_stream_status().output_active:
+            self.say(f"{datetime.now():%H:%M:%S} stream restart due, but OBS isn't streaming; left alone")
+            return
+        self.say(f"{datetime.now():%H:%M:%S} RESTART the stream (YouTube keeps each part as a video)")
+        ws.stop_stream()
+        for _ in range(30):                         # OBS takes a moment to let go of the connection
+            if not ws.get_stream_status().output_active:
+                break
+            self.sleep(1)
+        self.sleep(self.gap_s)
+        ws.start_stream()
+        self.say(f"{datetime.now():%H:%M:%S} streaming again")
+
+
 # --- the station's own recorder (`--obs`) ----------------------------------------------------------
 
 _STOP = object()
@@ -184,6 +238,8 @@ class _Feed(logging.Handler):
 
 
 def _run(q: queue.Queue, teletext: int, dry: bool) -> None:
+    from .config import CONFIG
+
     say = lambda s: log.info("obs: %s", s.strip())      # noqa: E731
     try:
         director = Director(Recorder(dry, say), teletext)
@@ -192,6 +248,12 @@ def _run(q: queue.Queue, teletext: int, dry: bool) -> None:
         while q.get() is not _STOP:                     # drain until the station stops
             pass
         return
+    stream = None
+    if CONFIG.stream.restart_at and not dry:
+        conn = {}                                       # its own connection, made when a restart is due
+        stream = StreamDirector(lambda: conn.get("ws") or conn.setdefault("ws", obs_client()),
+                                CONFIG.stream.restart_at, CONFIG.stream.gap_s, say)
+        say(f"the stream restarts at the first break after {', '.join(CONFIG.stream.restart_at)}")
     while True:
         item = q.get()
         try:
@@ -199,9 +261,13 @@ def _run(q: queue.Queue, teletext: int, dry: bool) -> None:
                 director.close()
                 return
             director.line(item)
+            if stream and (m := PLAYING.search(item)):
+                stream.segment(int(m.group(1)), m.group(2), m.group(3))
         except Exception as e:  # noqa: BLE001
             log.warning("obs: %s (%s); carrying on", e, type(e).__name__)
             director.rec.ws = None                      # reconnect on the next start or stop
+            if stream:
+                conn.clear()
 
 
 def attach(teletext: int = 2, dry: bool = False) -> None:

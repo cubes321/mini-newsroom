@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, continuity, council, documentary, schedule, teletext
+from . import adverts, continuity, control, council, documentary, schedule, teletext
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -72,6 +72,7 @@ class View:
     reporter: str = "reporter"           # who is out on location: Miles, or Tamsin on Full Time
     tag: str = ""                        # field scenes: LIVE, VOX POP, or nothing for a filmed piece
     resume_at: str = ""                  # overnight card: when programmes start again
+    held: bool = False                   # off air by the kill switch (control.py): "back shortly"
     speaker: str | None = None
     guest_name: str | None = None
     guests: dict = field(default_factory=dict)   # every guest in shot: name -> (voice, role, age), for their look
@@ -137,6 +138,7 @@ class Player:
         self.filler_total_s = 0.0
         self._voice = None
         self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
+        self.holding = False                 # held on the test card by the kill switch (control.py)
         if audio:
             import pygame
 
@@ -308,8 +310,30 @@ class Player:
                                      " ".join(l.text for l in seg.lines if l.text), show=seg.show,
                                      brief=seg.brief, content_hash=seg.content_hash)
 
+    def _hold(self, now: float) -> None:
+        """The kill switch: off air at once. What was playing is dropped, never resumed (it may be
+        why), the ticker is cleared, and view() shows the test card with the bed under it."""
+        seg = self.current
+        if self.audio and self._voice is not None:
+            self._voice.stop()
+        if seg is not None and not self.replaying and seg.slot_id == self.next_slot:
+            self.next_slot += 1              # back on air, the slot after it
+        log.warning("KILL SWITCH: off air to the test card%s",
+                    f" (dropped slot {seg.slot_id} {seg.type.value} at line {self.line_idx + 1})" if seg else "")
+        self.current, self.stash, self.replaying, self.filler_since = None, None, False, None
+        self.ticker.clear()
+        self.holding = True
+        self._set_music(0.25)
+
     def update(self, now: float | None = None) -> None:
         now = now or schedule.now()
+        if control.held():
+            if not self.holding:
+                self._hold(now)
+            return
+        if self.holding:
+            self.holding = False
+            log.warning("KILL SWITCH: back on air with slot %d", self.next_slot)
         if self.current is not None:
             if not self.current.lines:
                 self._finish(now)
@@ -511,6 +535,7 @@ class Player:
         on_air = schedule.show_at(now)
         v.show = on_air.id
         seg = self.current
+        v.held = self.holding
         if seg is None:
             v.mode = "filler" if self.filler_since is not None else "testcard"
             waited = now - self.filler_since if self.filler_since else 0.0

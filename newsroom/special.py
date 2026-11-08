@@ -36,7 +36,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import documentary, llm, schedule
+from . import documentary, llm, safety, schedule
 from .config import CONFIG
 from . import locations
 from .locations import locations_for_prompt
@@ -391,6 +391,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
 
     elif stage == "outline":
         outline = write_outline(seg, world)
+        safety.require(outline, f"the outline of special {outline.title!r}")
         if _is_doc(seg):
             documentary.check_placed(seg, outline)
         # A new piece under the key of one that already aired (same title, thread and day):
@@ -409,6 +410,7 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         n = len(outline.sections)
         words = _word_budget(seg.target_s) // n
         sec = write_section(seg, world, outline, i, words)
+        safety.require(sec, f"section {i + 1} of special {outline.title!r}")
         seg.work["starts"].append(len(seg.lines))     # after the call: a retried stage mustn't add it twice
         plan = outline.sections[i]
         if plan.guest_name:

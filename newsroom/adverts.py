@@ -34,7 +34,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from . import llm, tts
+from . import llm, safety, tts
 from .config import CONFIG
 from .locations import locations_for_prompt
 from .models import AdLine, AdvertScript, Line, Segment, SegmentState, SegmentType, VisualCue
@@ -358,6 +358,9 @@ def make(world: World) -> Advert | None:
         script = write_script(world)
     except llm.LLMError as e:
         log.warning("advert not written: %s", e)
+        return None
+    if bad := safety.check(safety.strings(script)):
+        log.warning("advert for %r has %r in it; dropped", script.business, bad)
         return None
     if script.business.strip().lower() in {b.lower() for b in pool().businesses()}:
         log.info("advert for %r is already on air; skipping", script.business)

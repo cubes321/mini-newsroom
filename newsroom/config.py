@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # PathsCfg field -> environment variable that overrides it.
 PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE",
                   "ads": "NEWSROOM_ADS", "llm_calls": "NEWSROOM_LLM_CALLS",
-                  "continuity": "NEWSROOM_CONTINUITY", "pictures": "NEWSROOM_PICTURES_DIR"}
+                  "continuity": "NEWSROOM_CONTINUITY", "pictures": "NEWSROOM_PICTURES_DIR",
+                  "control": "NEWSROOM_CONTROL"}
 
 
 @dataclass(frozen=True)
@@ -184,6 +185,20 @@ class PicturesCfg:
 
 
 @dataclass(frozen=True)
+class SafetyCfg:
+    """The word check on everything that goes on air (safety.py)."""
+    enabled: bool = True
+    extra_terms: list[str] = field(default_factory=list)   # more terms, as in assets/safety/blocklist.txt
+
+
+@dataclass(frozen=True)
+class StreamCfg:
+    """Restarting the OBS stream so YouTube keeps each part (obs.StreamDirector; only with --obs)."""
+    restart_at: list[str] = field(default_factory=list)    # "HH:MM": restart on the first bumper at or after each
+    gap_s: float = 5.0                   # between stopping and starting again
+
+
+@dataclass(frozen=True)
 class PathsCfg:
     data: Path = ROOT / "data"
     cache: Path = ROOT / "data" / "cache"
@@ -194,6 +209,7 @@ class PathsCfg:
     ads: Path = ROOT / "data" / "ads"
     continuity: Path = ROOT / "data" / "continuity"
     pictures: Path = ROOT / "data" / "pictures"
+    control: Path = ROOT / "data" / "control.txt"     # "testcard" or "air" (control.py)
 
 
 @dataclass(frozen=True)
@@ -213,6 +229,8 @@ class Config:
     adverts: AdvertsCfg
     continuity: ContinuityCfg
     pictures: PicturesCfg
+    safety: SafetyCfg = field(default_factory=SafetyCfg)
+    stream: StreamCfg = field(default_factory=StreamCfg)
 
 
 def load(path: Path | None = None) -> Config:
@@ -249,6 +267,8 @@ def load(path: Path | None = None) -> Config:
         adverts=AdvertsCfg(**raw.get("adverts", {})),
         continuity=ContinuityCfg(**raw.get("continuity", {})),
         pictures=PicturesCfg(**raw.get("pictures", {})),
+        safety=SafetyCfg(**raw.get("safety", {})),
+        stream=StreamCfg(**raw.get("stream", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import datetime
 
-from . import chamber, llm, schedule
+from . import chamber, llm, safety, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan
 from .world import THREAD_PEOPLE, Thread, World
@@ -156,6 +156,9 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         return None                                # the same batch comes round again next time
     if todo and not _in_turn(p, todo):
         log.warning("story desk planned none of %s again; that batch comes round next time", ids)
+        return None
+    if bad := safety.check(safety.strings(p)):     # its titles reach teletext and notices unvoiced
+        log.warning("story desk plan has %r in it; that batch comes round next time", bad)
         return None
     if not dry:
         with world.lock:                           # threads are changed in place

@@ -35,7 +35,7 @@ import numpy as np
 import soundfile as sf
 from pydantic import BaseModel
 
-from . import assets, schedule, tides, tts
+from . import assets, safety, schedule, tides, tts
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
 
@@ -436,6 +436,8 @@ def bake_trail(world, seg: Segment, airs: float, now: float) -> Item:
             + f"\n\nRead out just before your words: \"{lead}\"" + _keys_hint(TrailScript))
     try:
         script = llm.complete_json("promo", TrailScript, _TRAIL_SYSTEM, user)
+        if bad := safety.check(safety.strings(script)):
+            raise llm.LLMError(f"the trail failed the content check ({bad!r})")
         shown = [s for s in script.shown if s.strip().lower() != title.lower()]   # the title is on the slide
         pitch = script.spoken.strip()
     except llm.LLMError as e:
@@ -464,6 +466,9 @@ def bake_community(world, now: float) -> Item | None:
         n = llm.complete_json("promo", CommunityNotice, _NOTICE_SYSTEM, user)
     except llm.LLMError as e:
         log.info("no community notice: %s", e)
+        return None
+    if bad := safety.check(safety.strings(n)):
+        log.warning("community notice has %r in it; none this time", bad)
         return None
     item_id = f"community_{day:%Y%m%d}_{len(done)}"
     card = _read_card(item_id, "notice", n.issuer.upper(), list(n.lines))
