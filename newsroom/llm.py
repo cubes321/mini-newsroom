@@ -384,17 +384,24 @@ def _user_content(prov: ProviderCfg, user: str) -> str | list[dict]:
 # -------------------------------------------------------------------- public
 
 
-def complete_json(task: str, schema: type[T], system: str, user: str, *, retries: int = 1) -> T:
+def complete_json(task: str, schema: type[T], system: str, user: str, *, retries: int = 1,
+                  max_tokens: int | None = None, timeout_s: float | None = None) -> T:
     """Ask the model for an instance of `schema`. Raises LLMError on failure.
 
     A provider with a `fallback` hands a call it failed (unreachable, an API error, or no valid
     output after its retries) to that provider, once and from a fresh prompt, so a DeepSeek outage
     in the back office costs a Sonnet call rather than a lost desk plan. Not when NEWSROOM_LLM
-    pins one provider (or switches the models off): that run asked for exactly that provider."""
+    pins one provider (or switches the models off): that run asked for exactly that provider.
+    `max_tokens` / `timeout_s` give one call more room than its provider's (the cartoon writer: Sonnet's
+    thinking on a talking cartoon used all 16,000 tokens and left a few hundred characters of reply)."""
     name = provider_for(task)
     if name == "off":
         raise LLMUnavailable("NEWSROOM_LLM=off")
     prov = CONFIG.llm.provider(name)
+    if max_tokens or timeout_s:
+        import dataclasses
+
+        prov = dataclasses.replace(prov, **{k: v for k, v in (("max_tokens", max_tokens), ("timeout_s", timeout_s)) if v})
     try:
         return _complete_with(name, prov, task, schema, system, user, retries)
     except LLMError as e:

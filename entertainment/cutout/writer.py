@@ -90,12 +90,12 @@ class PProp(BaseModel):
 
 class PShot(BaseModel):
     place: str = Field(max_length=120, description="one of THE PLACES, copied exactly")
-    action: str = Field(max_length=200, description="what happens, in one sentence")
+    seen: list[str] = Field(default_factory=list, max_length=4, description="keys of who and what is seen")
+    action: str = Field(max_length=200, description="what we see happen, in one sentence")
     lines: list[Said] = Field(default_factory=list, max_length=3)
     sfx: list[PSfx] = Field(default_factory=list, max_length=3)
     seconds: float = Field(4.0, ge=2.5, le=10)
-    sounds: str = Field(max_length=120)
-    stage: Stage
+    sounds: str = Field(max_length=120, description="the place's own sound under it")
 
 
 class PScript(BaseModel):
@@ -105,6 +105,13 @@ class PScript(BaseModel):
     shots: list[PShot] = Field(min_length=8, max_length=60)
 
 
+class PStages(BaseModel):
+    stages: list[Stage]
+
+
+# Two calls, not one (2026-11-09): the talking script and every shot's stage in one reply ran past Sonnet's
+# 16,000 output tokens twice, its thinking included. The writer writes the talk; the stager, eight shots a
+# call, puts it on the puppets' stage.
 SYSTEM = """\
 You write one episode of {title}, a PAPER CUT-OUT cartoon on a small-town TV station's second channel, set in
 the FICTIONAL fishing town of Port Wexley. {premise} Tone: {tone}.
@@ -113,41 +120,48 @@ few drawings (poses and faces) that slide, hop, turn, tilt and swap.
 THE COMEDY IS IN THE TALK. Most of the humour is the interplay between the characters: banter, bluster and
 deadpan replies, a running joke, a scheme explained and picked apart, one line topping another. Write a
 talking cartoon: most shots have lines, often two or three as a quick exchange in a two-shot.
-KEEP THE ACTION SIMPLE ON SCREEN. Puppets slide, hop and turn; they don't do fiddly things. The big physical
-business happens OFF SCREEN: we watch a character watching it, wincing, and hear it: a sound effect and a
-yelp or a shout from out of shot ("Ow!", "Oof!", "Not the bucket!"). A crash we only hear is funnier than one
-we see done badly. Original jokes only; no famous characters, catchphrases or brands.
+KEEP THE ACTION SIMPLE ON SCREEN. Puppets slide, hop, walk, fly and turn; they don't do fiddly things. The big
+physical business happens OFF SCREEN: we watch a character watching it, wincing, and hear it: a sound effect
+and a yelp or a shout from out of shot ("Ow!", "Oof!", "Not the bucket!"). A crash we only hear is funnier
+than one we see done badly. Original jokes only; no famous characters, catchphrases or brands.
 Write about {n} SHOTS, each 2.5 to 10 seconds, with a beginning, a turn and a payoff.
 - PLACE is one of THE PLACES copied exactly. Each place is one painted backdrop.
+- SEEN: who and what is in shot (cast keys and prop keys).
+- ACTION: what we see, simply (who comes in, who turns, who hops, who stares); never fiddly handiwork.
 - LINES: up to three short lines per shot (about ten words each), in order, each by a character who speaks.
-  A line's speaker is on stage, unless it is OFFSCREEN: heard, not seen (a shout or a yelp from what is
-  happening out of shot). Others may be on stage too: only the speaker's mouth moves.
+  A line's speaker is seen, unless it is OFFSCREEN: heard, not seen (a shout or a yelp from what is
+  happening out of shot). Others may be seen too: only the speaker's mouth moves.
 - SFX: up to three sound effects per shot, each a few words ("a metal bucket clanging off a wall", "a heavy
   splash into mud", "a rope going twang") and when (seconds, or against the lines: "line_end+0.2", "line2").
   Off-screen business is mostly SFX plus an OFFSCREEN line, played on someone's face.
-- STAGE puts the shot on the puppet stage:
-  - ACTORS: who is in shot (characters and props), each on a MARK: far_left, left, centre, right, far_right
-    (off_left / off_right to start out of shot and come in), at a HEIGHT (ground; raised: a sill, a rail, a
-    wall top; air), FACING left or right, in one of their POSES. ENTER left/right walks (or waddles) them in at
-    the start. HOLDS: a prop they carry all shot (in beak, mouth or hand): whenever the story has someone
-    carrying something, say so with HOLDS or TAKE, or it stays where it was put.
-  - BEATS, timed in seconds or against the line ("line", "line_end+0.3"): pose X until T, face X until T,
-    lean (degrees forward), hop, turn (face the other way), walk to a mark, fly to a mark and height (only
-    those who CAN FLY), take a prop (carried from then on: a snatch is a fly to the prop's mark, then take),
-    spin (degrees: 180 hangs it upside down by its feet, and the stage lifts it high enough to hang; 360 a
-    full flip), exit left/right. A prop can fly too: that is how things fall, are flung or shoot up.
-  - ROPE: a rope tied to who.part (or to a prop) running along the ground to a mark.
-  - CAMERA: wide (the whole stage), medium on someone, or close on someone or on who.head / who.feet; it can
-    hold, push_in, pull_out, tilt_up (from feet to head) or tilt_down.
-  - There is no swinging and no rope physics: a swing is a fly; a dangle is a spin of 180.
-- Use ONLY the POSES and FACES each character has (listed below); "normal" always exists. Faces for talking
-  and blinking are automatic: never write them.
 - PROPS: as few as the story can manage (at most three), each once with one fixed look (colour, material,
-  size in plain words, never "the size of" another object); a prop's key is how the stage names it. Props
-  are small beside the cast and drawn as one object: "a few chips", not "a heap of chips". A contraption is
+  size in plain words, never "the size of" another object); a prop's key is how SEEN names it. Props are
+  small beside the cast and drawn as one object: "a few chips", not "a heap of chips". A contraption is
   talked about and heard, not built on screen.
 - No written words anywhere.
 Return ONLY JSON.
+"""
+
+STAGER = """\
+You stage shots of a PAPER CUT-OUT cartoon on the puppets' flat stage. For each numbered shot, in order,
+return its STAGE (as many stages as shots):
+- ACTORS: everyone and everything SEEN, each on a MARK: far_left, left, centre, right, far_right (off_left /
+  off_right to start out of shot and come in), at a HEIGHT (ground; raised: a sill, a rail, a wall top; air),
+  FACING left or right, in one of their POSES. ENTER left/right walks (or waddles) them in at the start.
+  HOLDS: a prop they carry all shot (in beak, mouth or hand): whenever someone carries something, say so with
+  HOLDS or a TAKE beat, or it stays where it was put. Two who talk face each other.
+- BEATS, timed in seconds or against the lines ("line", "line2", "line_end+0.3"): pose X until T, face X
+  until T, lean (degrees forward), hop, turn (face the other way), walk to a mark, fly to a mark and height
+  (only those who CAN FLY), take a prop (carried from then on), spin (degrees: 180 hangs it upside down by its
+  feet, and the stage lifts it high enough to hang; 360 a full flip), exit left/right. A prop can fly too.
+  Keep it simple: a reaction (a turn, a hop, a lean, a look) sells off-screen business.
+- ROPE: a rope tied to who.part (or to a prop) running along the ground to a mark, if the shot shows one.
+- CAMERA: wide (the whole stage), medium on someone, or close on someone or on who.head / who.feet; hold,
+  push_in, pull_out, tilt_up (from feet to head) or tilt_down. A two-shot exchange is wide or medium.
+- There is no swinging and no rope physics: a swing is a fly; a dangle is a spin of 180.
+- Use ONLY the POSES and FACES each character has (listed below); "normal" always exists. Faces for talking
+  and blinking are automatic: never write them.
+Return ONLY JSON: {"stages": [...]}.
 """
 
 
@@ -251,43 +265,81 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str]) -> Layou
                   camera=Camera(start=start, end=end, move_at="0.2" if end else "0", move_until="end-0.3" if end else "end"))
 
 
+BATCH = 8                                      # shots staged per call
+ROOM = 32000                                   # output tokens: Sonnet thinks hard about a talking cartoon
+
+
+def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
+    """Every shot's stage, eight shots a call. A batch that comes back short is filled with the plain stage:
+    who is seen, standing in a row, a wide shot."""
+    from newsroom import llm
+    from entertainment import cartoons
+
+    props = "\n".join(f"  - {p.key}: {p.looks}" for p in script.props) or "  (none)"
+    out: list[Stage] = []
+    for b0 in range(0, len(script.shots), BATCH):
+        batch = script.shots[b0:b0 + BATCH]
+        rows = []
+        for k, s in enumerate(batch, start=1):
+            said = " / ".join(f"{l.who}{' (off screen)' if l.offscreen else ''}: \"{l.words}\"" for l in s.lines)
+            rows.append(f"{k}. at {s.place}; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
+                        + (f" Lines: {said}" if said else ""))
+        user = (brief(series, kits, list(series.places)) + f"\n\nTHE PROPS:\n{props}\n\nTHE SHOTS:\n"
+                + "\n".join(rows))
+        try:
+            got = llm.complete_json(cartoons.TASK, PStages, STAGER, user, max_tokens=ROOM, timeout_s=600).stages
+        except llm.LLMError as e:
+            log.warning("cutout writer: staging shots %d-%d failed (%s); plain stages", b0 + 1, b0 + len(batch), e)
+            got = []
+        for k, s in enumerate(batch):
+            if k < len(got):
+                out.append(got[k])
+            else:
+                marks = ["left", "right", "centre", "far_left"]
+                out.append(Stage(actors=[StageActor(who=w, mark=marks[j % 4]) for j, w in enumerate(s.seen)]))
+    return out
+
+
 def write(series, kits: dict[str, Kit], n: int = 40, idea: str = "", remake: bool = False):
-    """The episode (cartoons.Episode, one shot a scene) and each shot's Layout; and the props to draw. A remake
-    retells an episode made before (the idea says which), so the list of episodes not to repeat is left out."""
+    """The episode (cartoons.Episode, one shot a scene), each shot's stage, and the props to draw: the talk
+    written first, then staged. A remake retells an episode made before (the idea says which), so the list
+    of episodes not to repeat is left out."""
     from newsroom import llm
     from entertainment import cartoons
 
     user = brief(series, kits, list(series.places)) + (f"\n\nTHIS EPISODE'S IDEA: {idea}" if idea else "") \
         + ("" if remake else cartoons._done(series))
     script = llm.complete_json(cartoons.TASK, PScript, SYSTEM.format(title=series.title, premise=series.premise,
-                                                                     tone=series.tone, n=n), user)
+                                                                     tone=series.tone, n=n), user,
+                               max_tokens=ROOM, timeout_s=600)
+    stages = staged(series, kits, script)
     talkers = {c.key for c in series.cast if c.voice}
     props = {p.key.strip().lower(): p.looks for p in script.props}
     scenes, layouts = [], []
-    for k, s in enumerate(script.shots, start=1):
+    for k, (s, st) in enumerate(zip(script.shots, stages), start=1):
         for l in s.lines:
             l.who = l.who.strip().lower()
         s.lines = [l for l in s.lines if l.who in talkers]
         if s.place not in series.places:
             s.place = (difflib.get_close_matches(s.place, series.places, n=1, cutoff=0.0) or [s.place])[0]
-        on_stage = {a.who.strip().lower() for a in s.stage.actors}
+        on_stage = {a.who.strip().lower() for a in st.actors}
         for l in s.lines:
             if not l.offscreen and l.who not in on_stage:
-                s.stage.actors.append(StageActor(who=l.who))          # a speaker seen is on stage
+                st.actors.append(StageActor(who=l.who))               # a speaker seen is on stage
                 on_stage.add(l.who)
                 log.warning("cutout writer: shot %d's speaker %s was not on stage; put at centre", k, l.who)
             elif l.offscreen and l.who in on_stage:
                 l.offscreen = False                                    # on stage after all: his mouth moves
-        cast_here = [a.who.strip().lower() for a in s.stage.actors if a.who.strip().lower() in {c.key for c in series.cast}]
-        props_here = [a.who.strip().lower() for a in s.stage.actors if a.who.strip().lower() in props]
+        cast_here = [a.who.strip().lower() for a in st.actors if a.who.strip().lower() in {c.key for c in series.cast}]
+        props_here = [a.who.strip().lower() for a in st.actors if a.who.strip().lower() in props]
         scenes.append(cartoons.Scene(
             place=s.place, on_screen=cast_here[:3], summary=s.action[:200],
-            shots=[cartoons.Shot(at=0.0, action=f"{s.stage.camera.size} shot: {s.action}"[:300])],
+            shots=[cartoons.Shot(at=0.0, action=f"{st.camera.size} shot: {s.action}"[:300])],
             lines=[cartoons.Said(who=l.who, words=l.words, offscreen=l.offscreen) for l in s.lines],
             sounds=s.sounds, seconds=min(cartoons.SCENE_S, s.seconds),
             props=[f"{p}: {props[p]}" for p in props_here],
             sfx=[cartoons.Sfx(what=e.what, at=e.at) for e in s.sfx]))
-        layouts.append(s.stage)
+        layouts.append(st)
     ep = cartoons.Episode(title=script.title, logline=script.logline, scenes=scenes)
     return ep, layouts, props
 

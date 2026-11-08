@@ -57,6 +57,7 @@ class Kit(BaseModel):
     faces: dict[str, Face] = {}                # besides "closed", the design's own face
     loud: str = "talk"                         # the face for a loud syllable (Gully: squawk)
     cut_holes: bool = False                    # a prop: its big enclosed holes of background are cut out
+    looks: str = ""                            # a prop: the look it was drawn from (another look, another drawing)
     facing: dict[str, Literal["left", "right", "front"]] = {}   # a pose drawn facing another way (walking)
     walk: list[str] = []                       # poses that alternate as a walk (two strides)
     fly: str | None = None                     # the pose for flying
@@ -317,7 +318,7 @@ def fit_prop(series_dir: Path, key: str, looks: str) -> Kit:
     bh, bw = max(1, ys.max() - ys.min()), max(1, xs.max() - xs.min())
     size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
     size = min(size, PROP_W * bh / bw)
-    kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True,
+    kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True, looks=looks,
               height=round(size * img.shape[0] / bh, 3), feet_y=int(ys.max()),
               anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
                        "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
@@ -340,10 +341,12 @@ def props(folder: Path) -> list[Path]:
     shutil.copy2(style, cartoons.COMFY_DIR / "input" / name)
     jobs = []
     for key, looks in wanted.items():
-        if (series_dir / "puppets" / key / "kit.json").exists():    # drawn before: sized by today's rules
-            fit_prop(series_dir, key, looks)
-            build(series_dir, key)
-            continue
+        old = series_dir / "puppets" / key
+        if (old / "kit.json").exists():
+            if json.loads((old / "kit.json").read_text(encoding="utf-8")).get("looks") == looks:
+                fit_prop(series_dir, key, looks)       # drawn before from this look: sized by today's rules
+                build(series_dir, key)
+                continue
         prompt = (f"Replace the character in this picture with {key}: {looks.rstrip('. ')}. Draw it alone, centred, "
                   f"upright, about a third of the picture's height, in exactly the same flat cartoon style, bold black "
                   f"outlines and flat colours, on the same plain cream background. No character, no animal, no text, "
@@ -358,6 +361,8 @@ def props(folder: Path) -> list[Path]:
         if h["status"].get("status_str") != "success":
             raise RuntimeError(f"prop {key} failed: {json.dumps(h['status'].get('messages', [])[-1:])[:800]}")
         d = series_dir / "puppets" / key
+        if d.exists():   # the same key, another look ("chips" was a heap, then a cone): the old kept aside, now
+            d.rename(series_dir / "puppets" / f"{key}.{len(list(d.parent.glob(f'{key}.*'))) + 1}")
         (d / "variants").mkdir(parents=True, exist_ok=True)
         for o in h["outputs"].values():
             for f in o.get("images", []):
