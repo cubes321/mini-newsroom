@@ -310,6 +310,10 @@ class Player:
             self.world.confirm_aired(seg.type.value, seg.headline, seg.thread_id,
                                      " ".join(l.text for l in seg.lines if l.text), show=seg.show,
                                      brief=seg.brief, content_hash=seg.content_hash)
+        if seg.type in SCRIPT_SCHEMAS and not seg.repeat:
+            from .workers import mark_aired
+
+            mark_aired(seg.content_hash)             # a restart today writes this slot afresh
 
     def _drop(self) -> Segment | None:
         """Take what is on air off for good, and with it anything breaking news had set aside. Returns
@@ -337,6 +341,10 @@ class Player:
                 self.buffer.forget(s.slot_id)
             else:
                 self.next_slot = max(self.next_slot, s.slot_id + 1)
+            if s.type is not SegmentType.documentary and not s.repeat:
+                from .workers import mark_aired
+
+                mark_aired(s.content_hash)           # taken off air: a restart mustn't read it out again
         self.current, self.stash, self.replaying = None, None, False
         return seg
 

@@ -59,9 +59,25 @@ def _cache_paths(h: str) -> tuple[Path, Path]:
     return CONFIG.paths.cache / f"{h}.json", CONFIG.paths.cache
 
 
+def aired_path(h: str) -> Path:
+    return CONFIG.paths.cache / f"{h}.aired"
+
+
+def mark_aired(h: str) -> None:
+    """An empty marker next to a cache entry: it has been on air (or was taken off part-way), so a
+    restart writes that slot afresh. Slot numbers start at 0 on every run and are in the key: until
+    2026-11-09 a station restarted the same day read its earlier news again, word for word. The
+    overnight repeats read the cache themselves and take no notice of the marker."""
+    if h:
+        try:
+            aired_path(h).touch()
+        except OSError as e:
+            log.warning("could not mark %s aired: %s", h, e)
+
+
 def _load_cached(seg: Segment, h: str) -> Segment | None:
     meta, _ = _cache_paths(h)
-    if not meta.exists() or (CONFIG.paths.cache / f"{h}.aired").exists():   # a special that has aired
+    if not meta.exists() or aired_path(h).exists():      # made and never aired: a restart picks it up
         return None
     try:
         cached = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
@@ -84,6 +100,7 @@ def _save_cached(seg: Segment, h: str) -> None:
     tmp = meta.with_suffix(".json.tmp")
     tmp.write_text(seg.model_dump_json(indent=1), encoding="utf-8")
     tmp.replace(meta)
+    aired_path(h).unlink(missing_ok=True)                # written afresh under an old key: not aired yet
 
 
 # ----------------------------------------------------------------- repeats

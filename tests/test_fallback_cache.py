@@ -88,3 +88,44 @@ def test_the_overnight_repeats_come_from_the_day_that_began_at_six(tmp_cache, mo
     for _ in range(5):
         rep = workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight"))
         assert rep.headline == "Gorse fire out"                    # last evening's, never the day before's
+
+
+def test_a_script_that_has_aired_is_written_afresh_after_a_restart(tmp_cache):
+    """Slot numbers start at 0 on every run and are in the cache key: a station restarted the same day
+    read its earlier news again, word for word. What was made and never aired is still picked up; the
+    overnight repeats still have the aired one."""
+    from newsroom import adverts
+    from newsroom.buffer import Buffer
+    from newsroom.player import Player
+    from newsroom.producer import Producer
+
+    wav = tmp_cache / "x_00.wav"
+    wav.write_bytes(b"")
+
+    def made(slot, h):
+        seg = Segment(slot_id=slot, type=SegmentType.bulletin, show="news", state=SegmentState.ready, content_hash=h,
+                      headline=f"Story {slot}", lines=[Line(speaker="anchor", text="Hi.", wav_path=wav, duration_s=4.0)])
+        workers._save_cached(seg, h)
+        return seg
+
+    buf = Buffer()
+    pl = Player(buf, world_mod.seed(), Producer(buf, 600), audio=False, ads=adverts.AdPool(tmp_cache / "ads"))
+    first, second, third = made(0, "h0"), made(1, "h1"), made(2, "h2")
+    for seg in (first, second, third):
+        buf.submit(seg)
+        buf.mark(seg, SegmentState.ready)
+    now = 1_000_000.0
+    pl.update(now)
+    pl.update(now + 5)                                   # the first has aired; the second is on
+    assert pl.current is second
+    pl.drop(now + 6, "a fault")                          # taken off part-way: not to be read out again either
+
+    slot = lambda n: Segment(slot_id=n, type=SegmentType.bulletin, show="news")       # the next run's plan
+    assert workers._load_cached(slot(0), "h0") is None and workers._load_cached(slot(1), "h1") is None
+    assert workers._load_cached(slot(2), "h2") is not None                             # made, never aired
+    heads = {workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight")).headline
+             for _ in range(30)}
+    assert "Story 0" in heads                            # the repeats take no notice of the marker
+
+    made(0, "h0")                                        # the restart writes slot 0 again under its old key
+    assert workers._load_cached(slot(0), "h0") is not None                             # new, and not aired yet
