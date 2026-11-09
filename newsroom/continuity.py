@@ -293,12 +293,16 @@ def bake_programmes(now: float, world=None) -> Item:
     if world is not None and now < airs and documentary.due(world, airs):
         # The documentary opens the news hour it airs in: it takes that line (21:00 has been a news
         # start since The Panel took 20:30), or goes between the shows if it falls inside one.
+        from . import review
+
+        # On a Sunday the slot is the week in review, on New Year's Eve the year's (review.py).
+        nine = review.strand_tonight(world, datetime.fromtimestamp(now).date())
         at = next((i for i, (ts, sid) in enumerate(ups[:3]) if ts == airs and sid == "news"), None)
         if at is not None:
-            entries[at] = (airs, CONFIG.documentary.title)
+            entries[at] = (airs, nine)
             entries += [(ts, schedule.get(sid).title) for ts, sid in ups[3:4]]
         elif airs < entries[-1][0]:
-            entries.append((airs, CONFIG.documentary.title))
+            entries.append((airs, nine))
     entries.sort()
     item_id = f"programmes_{datetime.fromtimestamp(now):%Y%m%d}_{time.strftime('%H%M', time.localtime(entries[0][0]))}"
     shown = [f"{time.strftime('%H:%M', time.localtime(ts))}  {title}" for ts, title in entries]
@@ -461,7 +465,8 @@ def bake_trail(world, seg: Segment, airs: float, now: float) -> Item:
     outline = seg.work.get("outline") or {}
     title = outline.get("title") or seg.headline or "a special report"
     standfirst = outline.get("standfirst", "")
-    strand = CONFIG.documentary.title.title() if documentary.is_documentary(seg) else "a special report"
+    strand = (documentary.strand_name(seg.work.get("strand") or CONFIG.documentary.title)
+              if documentary.is_documentary(seg) else "a special report")
     said_when, header = _when(airs)
     lead = f"{said_when} on Channel 7: {strand}, {title}" + ("" if title[-1:] in ".?!" else ".")
     thread = world.thread(seg.thread_id) if seg.thread_id else None

@@ -249,8 +249,7 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
     )
     if doc:
         return llm.complete_json("special_outline", DocumentaryOutline,
-                                 documentary.OUTLINE_SYSTEM.format(strand=_strand(seg), **documentary.prompt_vars(seg)),
-                                 user)
+                                 documentary.outline_system(seg, _strand(seg)), user)
     return llm.complete_json("special_outline", SpecialOutline, _OUTLINE_SYSTEM, user)
 
 
@@ -315,8 +314,7 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
     footage = documentary.clip(seg, sec.archive_clip) if doc else None
     if footage:
         user += "\n" + documentary.clip_brief(footage)
-    system = (documentary.SECTION_SYSTEM.format(strand=_strand(seg), **documentary.prompt_vars(seg)) if doc
-              else _SECTION_SYSTEM)
+    system = documentary.section_system(seg, _strand(seg)) if doc else _SECTION_SYSTEM
     return llm.complete_json("special_section", SpecialSection, system, user)
 
 
@@ -352,7 +350,8 @@ def build_cues(seg: Segment, outline: SpecialOutline, starts: list[int],
             elif j > start_idx and (seg.lines[j - 1].speaker == "guest" or seg.lines[j - 1].archive):
                 cues.append(VisualCue(at_s=line_start[j], kind="lower_third", payload={}))
     cues.append(VisualCue(at_s=line_start[-1], kind="lower_third",
-                          payload={"title": outline.title, "subtitle": strand.title() if _is_doc(seg) else "Special report"}))
+                          payload={"title": outline.title,
+                                   "subtitle": documentary.strand_name(strand) if _is_doc(seg) else "Special report"}))
     return cues
 
 
@@ -512,7 +511,7 @@ def mark_aired(seg: Segment, world: World | None = None) -> None:
     if world is not None:
         title = (seg.work.get("outline") or {}).get("title") or seg.headline or "a special report"
         if _is_doc(seg):
-            world.record_headline(f"{_strand(seg).title()}: {title}")
+            world.record_headline(f"{documentary.strand_name(_strand(seg))}: {title}")
             world.record_aired("documentary", title, seg.thread_id, " ".join(l.text for l in seg.lines),
                                content_hash=seg.content_hash)
             world.last_documentary_aired = datetime.fromtimestamp(schedule.now()).date().isoformat()

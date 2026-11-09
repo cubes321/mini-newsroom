@@ -49,6 +49,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--special-now", action="store_true", help="have the editor consider a special immediately")
     p.add_argument("--documentary-now", action="store_true",
                    help="commission today's documentary at the first idle moment, whatever the hour")
+    p.add_argument("--review", choices=("week", "year"), default="",
+                   help="make tonight's documentary the week's or the year's review, at the first idle moment (review.py)")
     p.add_argument("--breaking-now", action="store_true",
                    help="have the story desk break a story at its next idle moment, whatever the cap and the hour")
     p.add_argument("--clock", type=str, default="", help="pretend the local time is HH:MM, or YYYY-MM-DD HH:MM for another day (test the schedule)")
@@ -104,6 +106,10 @@ def redirect_paths(args: argparse.Namespace) -> None:
     os.environ["NEWSROOM_ADS"] = str(scratch / "ads")
     os.environ["NEWSROOM_CONTINUITY"] = str(scratch / "continuity")   # baked afresh: idents, cards, notices
     os.environ["NEWSROOM_PICTURES_DIR"] = str(scratch / "pictures")
+    annals = Path(os.environ.get("NEWSROOM_ANNALS") or data / "annals")
+    if annals.exists():                      # the pages and keepsakes, so a review has its week to look back on
+        shutil.copytree(annals, scratch / "annals")
+    os.environ["NEWSROOM_ANNALS"] = str(scratch / "annals")
     os.environ["NEWSROOM_WORLD"] = str(scratch / "world.json")
     os.environ["NEWSROOM_CACHE"] = str(scratch / "cache")
     os.environ["NEWSROOM_TIPLINE"] = str(scratch / "tipline.txt")
@@ -452,8 +458,10 @@ def main(argv: list[str] | None = None) -> int:
                         "the pretend date. Add --scratch to try a time or a day without that.", CONFIG.paths.world)
     if args.special_now:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
-    if args.documentary_now:
+    if args.documentary_now or args.review:
         os.environ["NEWSROOM_DOCUMENTARY_NOW"] = "1"
+    if args.review:
+        os.environ["NEWSROOM_REVIEW"] = args.review
     if args.breaking_now:
         os.environ["NEWSROOM_BREAKING_NOW"] = "1"
     if args.log_llm:

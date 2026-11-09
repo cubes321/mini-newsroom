@@ -390,10 +390,12 @@ class WorkerPool:
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import (adverts, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein, prune,
-                       senior, special)
+        from . import (adverts, annals, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein,
+                       prune, review, senior, special)
 
         try:
+            if annals.tick(self.world):
+                return                        # yesterday's page of the annals: disk only, a moment, once a day
             if adverts.seed_one(self.world):
                 world_mod.save(self.world)    # their owners joined the cast
                 return
@@ -441,6 +443,10 @@ class WorkerPool:
             # After the evening's bookings, which are one call each and due by 20:00: started at 19:40, the
             # documentary's eight stages kept the workers busy until The Chamber opened on its stand-in (2026-11-01).
             if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
+                if kind := review.tonight(self.world):       # a Sunday, or New Year's Eve: no editor is asked
+                    self.buffer.submit_special(review.commission(self.world, kind))
+                    world_mod.save(self.world)
+                    return
                 d = documentary.decide(self.world)
                 world_mod.save(self.world)
                 if d is not None:

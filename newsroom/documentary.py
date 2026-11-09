@@ -122,13 +122,43 @@ PRESENTERS = {"reporter": "the field reporter, Miles Okafor",
 
 
 def presenter(seg: Segment) -> str:
-    return "historian" if seg.work.get("subject") == "history" else "reporter"
+    # Hugh has the year in review too (review.py): he tells it as he tells the town's history.
+    return "historian" if seg.work.get("subject") in ("history", "year") else "reporter"
 
 
 def prompt_vars(seg: Segment) -> dict:
     """The presenter for the outline and section prompts."""
     who = presenter(seg)
     return {"presenter": who, "presenter_is": PRESENTERS[who]}
+
+
+def outline_system(seg: Segment, strand: str) -> str:
+    """The producer's instructions: the documentary's, or a review's (review.py)."""
+    from . import review
+
+    if review.is_review(seg):
+        return review.OUTLINE_SYSTEM.format(strand=strand, **prompt_vars(seg), **review.prompt_vars(seg))
+    return OUTLINE_SYSTEM.format(strand=strand, **prompt_vars(seg))
+
+
+def section_system(seg: Segment, strand: str) -> str:
+    """A section writer's instructions; a review's add that nothing new happens in it."""
+    from . import review
+
+    system = SECTION_SYSTEM.format(strand=strand, **prompt_vars(seg))
+    if review.is_review(seg):
+        system = system.replace(" Return ONLY JSON.", review.SECTION_RULE.format(**review.prompt_vars(seg))
+                                + " Return ONLY JSON.")
+    return system
+
+
+_SMALL = ("a", "an", "and", "at", "in", "of", "on", "the", "to")
+
+
+def strand_name(strand: str) -> str:
+    """'THE WEEK IN PORT WEXLEY' as it is written and said: 'The Week in Port Wexley'."""
+    words = strand.lower().split()
+    return " ".join(w if i and w in _SMALL else w.capitalize() for i, w in enumerate(words))
 
 
 def _today_at(hhmm: str, now: float) -> float:
@@ -206,7 +236,12 @@ def _extract(e: dict) -> str:
 
 
 def research(seg: Segment, world: World) -> DocumentaryResearch:
-    """The researcher's notes from the archive: every piece on the thread, then a keyword search."""
+    """The researcher's notes from the archive: every piece on the thread, then a keyword search.
+    A review's notes come from the annals instead, in code (review.research)."""
+    from . import review
+
+    if review.is_review(seg):
+        return review.research(seg, world)
     thread = world.thread(seg.thread_id)
     on_thread = [e for e in world.aired_archive() if thread and e.get("thread_id") == thread.id][-30:]
     seen = {id(e) for e in on_thread}

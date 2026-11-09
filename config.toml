@@ -73,6 +73,8 @@ commission_from = "18:00" # late enough to cover the day; making one takes minut
 airs_at = "21:00"
 window_s = 3600          # not ready within an hour of airs_at: it waits for tomorrow's slot
 repeat_at = "02:00"      # and the night's documentary airs again after the first overnight test card from here
+week_review = true       # Sundays: the slot is The Week in Port Wexley, from the annals (newsroom/review.py)
+year_review = true       # 31 December: The Year in Port Wexley
 
 # The Inquiry (inquiry.py, docs/SHOWS.md): Pat Holloway takes one story in depth at 20:00. From
 # commission_from the back office picks it from the stories with min_mentions or more that haven't been

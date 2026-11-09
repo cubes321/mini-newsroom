@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PATH_OVERRIDES = {"world": "NEWSROOM_WORLD", "cache": "NEWSROOM_CACHE", "tipline": "NEWSROOM_TIPLINE",
                   "ads": "NEWSROOM_ADS", "llm_calls": "NEWSROOM_LLM_CALLS",
                   "continuity": "NEWSROOM_CONTINUITY", "pictures": "NEWSROOM_PICTURES_DIR",
-                  "control": "NEWSROOM_CONTROL"}
+                  "control": "NEWSROOM_CONTROL", "annals": "NEWSROOM_ANNALS"}
 
 
 @dataclass(frozen=True)
@@ -94,6 +94,8 @@ class DocumentaryCfg:
     airs_at: str = "21:00"               # and airs at the first news bumper from here
     window_s: float = 3600.0             # not ready within this: it waits for tomorrow's slot
     repeat_at: str = "02:00"             # it airs again after the first overnight test card from here
+    week_review: bool = True             # Sundays: the slot is The Week in Port Wexley (review.py)
+    year_review: bool = True             # 31 December: The Year in Port Wexley
 
 
 @dataclass(frozen=True)
@@ -223,6 +225,7 @@ class PathsCfg:
     continuity: Path = ROOT / "data" / "continuity"
     pictures: Path = ROOT / "data" / "pictures"
     control: Path = ROOT / "data" / "control.txt"     # "testcard" or "air" (control.py)
+    annals: Path = ROOT / "data" / "annals"            # a page a day, and its keepsake clips (annals.py)
 
 
 @dataclass(frozen=True)

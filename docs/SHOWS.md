@@ -191,6 +191,38 @@ reach an end instead of waiting at the council door.
   links, and her handover to Miles, come from the press seats (`chamber_press`), a press bench at the
   side of the chamber. A failed booking gets a stand-in agenda (reports
   noted). For a test run on any night: `NEWSROOM_COUNCIL_NIGHT=1`.
+- **Council promises** (`promises.py`, 2026-11-09): what a carried motion says will follow is kept as a
+  promise with the day it falls due, read from its own words or else the next full council. The story
+  desk sees the open ones on the threads it is planning, the overdue ones marked, and gives the verdict
+  (kept or broken) when a next step settles one; The Chamber's booking and its hour are told what the
+  council still owes; SEVENTEXT page 175 is COUNCIL WATCH. `python -m newsroom.promises` prints them.
+
+### The Week in Port Wexley (Sundays, 21:00) and The Year (31 December). BUILT 2026-11-09
+
+On a Sunday the documentary slot is the week in review, with Miles looking back from where the stories
+happened; on New Year's Eve it is the year, with Hugh. Both are documentaries in every way but one: the
+research is not a model's reading of the archive but notes put together in code from the **annals**.
+
+- **The annals** (`annals.py`, `data/annals/`): the morning after each day the worker writes its page, with
+  no model call: the day's stories (the most covered first, with their headlines, where each stood and
+  what was due next), the weather, the sport, the auction, full council's votes and promises, the quiz,
+  and up to three **keepsakes**, one line of the day's own audio copied to `data/annals/clips`. A page is
+  about 5 kB and a keepsake about a megabyte. Nothing deletes them, and clearing the cache
+  (`[cache] keep_days`) never touches them: that is what lets a review play a clip from months ago.
+- **The review** (`review.py`): the notes are the main stories' first headline of the span and where each
+  stood at the end (the timeline), the scores and votes (the details), what each has due next (to end on),
+  and the keepsakes as archive clips. The producer plans a section a story and a lighter one for the rest;
+  the section writers are told nothing new happens in a look back.
+- A week needs three days on the page, a year fourteen, or the slot has an ordinary documentary.
+  `[documentary] week_review` / `year_review` switch them off.
+- To try one: `python -m newsroom.review week` prints the notes (no model);
+  `python -m newsroom --scratch --review week` makes and airs one on a copy of the town.
+
+### Town talk (`talk.py`, 2026-11-09)
+
+The other channel shares the town, so for two days after a Wexley Wits has aired the writers' briefing
+carries its result as talk: a passing mention on the sofa or from a caller, never a headline. The story
+desk doesn't see it.
 
 ## New pieces, shared
 
