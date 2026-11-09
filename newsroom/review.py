@@ -53,16 +53,25 @@ the research notes, the biggest or the earliest first; one lighter section for t
 sport, the weather, the quiz, the oddities under Details); and an ending that looks ahead from Still
 open. Each section has a heading, the beats it establishes, a backdrop from the allowed list (the place
 its story happened; vary them), and optionally one person from the notes to hear from, looking back on
-their own {span}. The research notes are everything that happened: a review reports nothing new, and
-nothing in Still open has happened yet. If ARCHIVE CLIPS are listed, place up to three, one per section,
-by their id in archive_clip, each in the section of its own story. The title is the {span} in a phrase
-of the town's own ("{example}"). Warm, local, specific, a little dry. Everything is fiction. Return
-ONLY JSON.
+their own {span}. The research notes are everything that happened: a review reports nothing new.
+REPORTED IS NOT HAPPENED: the timeline gives the day a headline was REPORTED, which is often an
+announcement or a plan ("to row twelve hours", "wants", "booked for", "due"): then what happened that
+day is the announcing, and the event itself has NOT taken place. Nothing marked "Still to come", nothing
+in Still open and no thread's NEXT in the briefing has happened: write its beats as what is planned or
+due, never as done, and never plan a section that describes it happening. If ARCHIVE CLIPS are listed,
+place up to three, one per section, by their id in archive_clip, each in the section of its own story.
+The title is the {span} in a phrase of the town's own ("{example}"). Warm, local, specific, a little
+dry. Everything is fiction. Return ONLY JSON.
 """
 
+# The 2026-11-09 trial told Ruby Tennant's twelve-hour row as rowed, the harbour wall full and the
+# coxswain remembering it: the notes had only Sunday's headline "Ruby Tennant to row twelve hours".
 SECTION_RULE = """ THIS IS A LOOK BACK at the {span}: everything in it has been reported already, on the
 days the notes give. Tell it in the past tense, by its day ("on Tuesday"); add no new development, no new
-decision and no new number; a guest remembers and reflects, and announces nothing."""
+decision and no new number; a guest remembers and reflects, and announces nothing. REPORTED IS NOT
+HAPPENED: a timeline entry is what was reported that day, often a plan or an announcement; anything the
+notes mark "Still to come" or list under Still open has NOT taken place, whatever a beat says. Say that it
+was announced, and that it is due; nobody describes it happening or remembers it."""
 
 
 def _today(world: World) -> date:
@@ -122,7 +131,7 @@ def commission(world: World, kind: str) -> Segment:
              f"What {today.year} was for Port Wexley: the stories that ran, how they ended, and what is carried over.")
     seg = documentary.commission(world, DocumentaryCommission(subject="history", working_title=title, angle=angle))
     seg.work.update(subject=kind, strand=STRANDS[kind])
-    log.info("review: tonight is %s (%s)", STRANDS[kind].title(), title)
+    log.info("review: tonight is %s (%s)", documentary.strand_name(STRANDS[kind]), title)
     return seg
 
 
@@ -167,10 +176,12 @@ def _fit(text: str, n: int = 230) -> str:
     if len(text) <= n:
         return text
     cut = max(text.rfind("; ", 0, n), text.rfind(", ", 0, n))
+    if cut <= n // 2:                      # no clause to stop at: at a word, at least ("gets the St Al")
+        cut = text.rfind(" ", 0, n)
     return text[:cut if cut > n // 2 else n].rstrip(" ,;")
 
 
-def _details(ps: list[dict], kind: str, told: int) -> list[str]:
+def _details(ps: list[dict], kind: str) -> list[str]:
     """The rest of the span, in a line each: the newest first of each sort, eight at most."""
     out: list[str] = []
     carried = [(p["date"], m) for p in ps for m in p.get("council", [])]
@@ -196,9 +207,8 @@ def _details(ps: list[dict], kind: str, told: int) -> list[str]:
     if docs:
         out.append("Documentaries shown: " + "; ".join(docs[-4:])[:200])
     opened, closed = sum(len(p.get("opened", [])) for p in ps), sum(len(p.get("closed", [])) for p in ps)
-    pieces = sum(p.get("pieces", 0) for p in ps)
-    out.append(f"The {kind} on Channel 7: {pieces} pieces on air over {len(ps)} days; {opened} stories opened, "
-               f"{closed} closed; {told} are told here")
+    if opened or closed:               # in the town's words: read out, "25 stories opened on Channel 7" was the station
+        out.append(f"Over the {kind}: {opened} new stories began in the town and {closed} came to an end")
     weather = [(p["date"], p["weather"]) for p in ps if p.get("weather")]
     if weather:
         out.append(f"The weather, {_day(weather[-1][0])}: {weather[-1][1]}"[:200])
@@ -213,10 +223,17 @@ def notes(world: World, kind: str, today: date | None = None) -> tuple[Documenta
     for s in top:
         d0, h0 = s["beats"][0] if s["beats"] else (s["first"], s["title"])
         same = h0.strip().lower() == s["title"].strip().lower()        # a story is often named by its first headline
-        firsts.append((d0, s["title"] if same else f"{s['title']}: {h0}"))
-        if s["status"] and (s["days"] > 1 or len(s["beats"]) > 1):
+        live = s["phase"] not in ("closed", "faded")
+        # A story's title and headlines are written like news ("Ruby Tennant Rows Twelve Hours") even when
+        # the thing is still to come, so what is due goes beside where it stood, marked as not happened.
+        coming = f" STILL TO COME (has NOT happened): {s['next']}" if s.get("next") and live else ""
+        named = f'"{h0}"' if same else f'"{h0}" (the story: {s["title"]})'
+        multi = s["days"] > 1 or len(s["beats"]) > 1
+        firsts.append((d0, _fit(f"REPORTED that day: {named}." + ("" if multi else coming), 300)))
+        if multi and (s["status"] or coming):
             where = {"closed": "closed", "resolving": "being settled", "faded": "gone quiet"}.get(s["phase"], "still running")
-            lasts.append((s["last"], f"{s['title']}, {where}: {s['status']}"))
+            stood = s["status"].rstrip(". ")
+            lasts.append((s["last"], _fit(f"{s['title']}: where it stood, {where}: {stood}.{coming}", 300)))
     rows = (firsts + lasts)[:14]                      # every story's start before any story's end
     timeline = [TimelineEntry(date=_day(d), event=e[:300], on_record=True) for d, e in sorted(rows, key=lambda r: r[0])]
     if not timeline:
@@ -233,7 +250,7 @@ def notes(world: World, kind: str, today: date | None = None) -> tuple[Documenta
                                       stance=f"in the story of {s['title']}: {s['status']}"))
     questions = [f"{s['title']}: expected next, {s['next']}"[:300] for s in top
                  if s.get("next") and s["phase"] not in ("closed", "faded")][:5]
-    research = DocumentaryResearch(timeline=timeline, people=people, details=_details(ps, kind, len(top)),
+    research = DocumentaryResearch(timeline=timeline, people=people, details=_details(ps, kind),
                                    questions=questions)
     mine = {s["thread_id"] for s in top}
     clips: list[dict] = []

@@ -289,6 +289,10 @@ def _cached_segments() -> dict[str, Segment]:
     return out
 
 
+_OPENERS = ("thanks", "thank you", "morning", "good morning", "afternoon", "good afternoon", "evening",
+            "good evening", "hello", "hi ", "hi,")
+
+
 def _clip_line(seg: Segment) -> Line | None:
     """The line worth replaying: a guest's quote, or else the reporter in the field. Never an anchor
     reading the news, and never a clip of a clip."""
@@ -296,7 +300,8 @@ def _clip_line(seg: Segment) -> Line | None:
               and l.wav_path and Path(l.wav_path).exists() and CLIP_S[0] <= (l.duration_s or 0) <= CLIP_S[1]]
     # A guest first; then a report line that doesn't open with a handback ("Thanks, Dana."), which
     # sounds odd out of its bulletin.
-    usable.sort(key=lambda l: (l.speaker != "guest", l.text.lower().startswith(("thanks", "thank you"))))
+    # Nor a line that is only a hello: "Morning, Jonah. It's Ruth Blackwood..." was a keepsake on 2026-11-09.
+    usable.sort(key=lambda l: (l.speaker != "guest", l.text.lower().startswith(_OPENERS)))
     return usable[0] if usable else None
 
 

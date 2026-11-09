@@ -215,8 +215,12 @@ research is not a model's reading of the archive but notes put together in code 
   the section writers are told nothing new happens in a look back.
 - A week needs three days on the page, a year fourteen, or the slot has an ordinary documentary.
   `[documentary] week_review` / `year_review` switch them off.
-- To try one: `python -m newsroom.review week` prints the notes (no model);
-  `python -m newsroom --scratch --review week` makes and airs one on a copy of the town.
+- To try one: `uv run python tools/review_trial.py` makes a real one on a copy of the town, without the
+  station (about six minutes and a few pence), and leaves its script, its notes and one audio file in
+  `data/review-trial/`; `--notes` prints only the notes, with no model. On the station,
+  `python -m newsroom --scratch --review week` books one at the first idle moment.
+- The first trial (2026-11-09) told a row that had only been announced as rowed, so the notes mark each
+  story's next step "STILL TO COME (has NOT happened)" and the prompts say that reported is not happened.
 
 ### Town talk (`talk.py`, 2026-11-09)
 

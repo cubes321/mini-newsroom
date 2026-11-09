@@ -269,6 +269,12 @@ def spoken(text: str, world: World, *also: str | None) -> str:
     return text[m.end():].strip() if m.group(1).lower() in names else text.strip()
 
 
+def _echoes(line: str, clip: str) -> bool:
+    """Is this line the archive clip's words over again (all of them, or its opening)?"""
+    a, b = (" ".join(re.findall(r"[a-z0-9']+", t.lower())) for t in (line, clip))
+    return len(a) >= 30 and len(b) >= 30 and (a[:60] == b[:60] or a in b or b in a)
+
+
 ALREADY_SAID_WORDS = 2500     # a documentary's eighth section sees about 1,800 words before it
 
 
@@ -415,14 +421,20 @@ def advance(seg: Segment, world: World, buffer=None) -> Segment:
         if plan.guest_name:
             world.ensure_person(plan.guest_name, plan.guest_role, gender=plan.guest_gender, age=plan.guest_age,
                                 accent=plan.guest_accent)
+        footage = documentary.clip(seg, plan.archive_clip) if _is_doc(seg) else None
         for l in sec.lines:
             if not l.text.strip():
+                continue
+            if footage and _echoes(l.text, footage["text"]):
+                # Told the clip's words so as to lead into them, the writer may write them out again as the
+                # guest's own line: on the 2026-11-09 trial Ivy Marchetti and Kit Anand each said their
+                # archive quote twice, once on the footage and once "live".
+                log.info("special %r section %d: dropping a line that repeats its archive clip", outline.title, i + 1)
                 continue
             name = (l.guest_name or plan.guest_name) if l.speaker == "guest" else None
             # The presenter is whoever this piece has: a model that writes "reporter" for Hugh means him.
             who = documentary.presenter(seg) if _is_doc(seg) and l.speaker in ("reporter", "historian") else l.speaker
             seg.lines.append(Line(speaker=who, text=spoken(l.text, world, name), guest_name=name))
-        footage = documentary.clip(seg, plan.archive_clip) if _is_doc(seg) else None
         start = seg.work["starts"][-1]
         if footage and len(seg.lines) > start and (line := documentary.clip_line(footage, h, i)):
             seg.lines.insert(start + 1, line)         # after the line that leads into it

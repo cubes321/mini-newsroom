@@ -148,13 +148,14 @@ def test_the_notes_are_the_weeks_record_and_nothing_else(tmp_paths):
     events = [(t.date, t.event) for t in notes.timeline]
     assert all(t.on_record for t in notes.timeline) and events == sorted(events, key=lambda e: date(
         2026, 11, int(e[0].split()[1])))                                         # in the order it happened
-    assert ("Monday 9 November", "Second fire engine petition") in events                   # named by its first headline
-    assert any(d == "Sunday 15 November" and "still running: Petition reaches 2200 names." in e for d, e in events)
+    assert ("Monday 9 November", 'REPORTED that day: "Second fire engine petition".') in events   # named by its first headline
+    assert any(d == "Sunday 15 November" and "where it stood, still running: Petition reaches 2200 names. STILL TO COME (has NOT happened): Full council "
+               "debates the petition" in e for d, e in events)
     assert any("Harbour wall tender" in e for _, e in events) and any("clock" in e.lower() for _, e in events)
     assert notes.people[0].name == "Bea Kowalczyk"
     assert notes.questions == ["Second fire engine petition: expected next, Full council debates the petition on "
                                "Thursday 19 November."]
-    assert any(d.startswith("The week on Channel 7: 25 pieces on air over 7 days; 3 stories opened") for d in notes.details)
+    assert any(d == "Over the week: 3 new stories began in the town and 0 came to an end" for d in notes.details)
     assert any("The weather, Sunday 15 November: Frost on day 6" in d for d in notes.details)
     assert [c["id"] for c in clips] == ["C1"] and clips[0]["date"] == SUNDAY.isoformat()   # the story's latest keepsake
 
@@ -169,6 +170,10 @@ def _stub_writers(monkeypatch):
                 title="Frost, a Petition and a Slow Clock", standfirst="Seven days in Port Wexley", intro="Tonight.",
                 outro="Goodnight.", sections=[SectionPlan(heading=f"Part {i}", beats=["a beat"], backdrop="fire_station",
                                                           archive_clip="C1" if i == 1 else None) for i in range(6)])
+        if "ARCHIVE FOOTAGE in this section" in user:      # as the 2026-11-09 trial's writer did: the quote, again
+            return SpecialSection(lines=[ScriptLine(speaker="reporter", text="On Sunday Bea Kowalczyk put it plainly."),
+                                         ScriptLine(speaker="guest", guest_name="Bea Kowalczyk", text=QUOTE),
+                                         ScriptLine(speaker="reporter", text="That was the station officer.")])
         return SpecialSection(lines=[ScriptLine(speaker="reporter", text=f"Line {k}.") for k in range(2)])
 
     def synth(text, voice, out, speed=1.0, lang=None, phone=False, age=None):
@@ -196,6 +201,10 @@ def test_the_week_is_made_like_a_documentary_from_the_annals_with_no_editor_or_r
     system, user = seen["special_section"][0]
     assert "THIS IS A LOOK BACK at the week" in system and "announces nothing" in system
     assert seg.headline == "Frost, a Petition and a Slow Clock"
+    said = [l for l in seg.lines if l.text == QUOTE]
+    assert len(said) == 1 and said[0].archive              # on the footage, and not again "live" after it
+    i = seg.lines.index(said[0])
+    assert seg.lines[i - 1].text.startswith("On Sunday") and seg.lines[i + 1].text == "That was the station officer."
     clip = next(l for l in seg.lines if l.archive)
     assert clip.text == QUOTE and clip.archive == "Archive · Sunday 15 November" and clip.wav_path.exists()
     assert seg.cues[0].payload["text"] == "THE WEEK IN PORT WEXLEY: Frost, a Petition and a Slow Clock"
@@ -249,7 +258,7 @@ def test_new_years_eve_is_the_year_with_hugh(tmp_paths, monkeypatch):
     assert seg.headline == "Port Wexley in 2026" and documentary.presenter(seg) == "historian"
     notes, clips = review.notes(w, review.YEAR)
     assert notes.timeline[0].date == "Monday 9 November" and "Second fire engine petition" in notes.timeline[0].event
-    assert any("The year on Channel 7" in d for d in notes.details)
+    assert any(d.startswith("Over the year: ") for d in notes.details)
     assert len(clips) == 6 and len({c["date"] for c in clips}) == 6              # a keepsake from each day it has one
     assert "look back at the year" in documentary.outline_system(seg, seg.work["strand"])
     assert "Hugh Tremayne" in documentary.outline_system(seg, seg.work["strand"])
@@ -271,3 +280,17 @@ def test_todays_page_read_live_has_no_result_of_a_match_still_to_come(tmp_paths,
     assert annals.digest(w, friday)["auction"] == ""                             # before the hammer
     monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 7, 18, 0).timestamp())
     assert any("the Tides lost 4-1" in line for line in annals.digest(w, saturday)["sport"])
+
+
+def test_a_keepsake_is_not_somebody_saying_hello(tmp_paths):
+    """A day's keepsake on 2026-11-09 was a caller's "Morning, Jonah. It's Ruth Blackwood...": the first guest
+    line, whatever it said."""
+    wav = CONFIG.paths.cache / "x.wav"
+    wav.write_bytes(b"RIFF")
+    hello = Line(speaker="guest", guest_name="Ruth Blackwood", text="Morning, Jonah. It's Ruth Blackwood.",
+                 wav_path=wav, duration_s=6.0)
+    point = Line(speaker="guest", guest_name="Ruth Blackwood", text="A row like that wants a cut-off time written down.",
+                 wav_path=wav, duration_s=7.0)
+    seg = Segment(slot_id=1, type=SegmentType.call, lines=[hello, point])
+    assert documentary._clip_line(seg) is point
+    assert documentary._clip_line(Segment(slot_id=1, type=SegmentType.call, lines=[hello])) is hello   # better than none
