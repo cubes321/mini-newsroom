@@ -303,13 +303,17 @@ class World:
             f"Presenters (the ONLY allowed speaker ids in live segments):\n{chars}\n"
             f"Public figures who may be quoted or interviewed (by name, in the text):\n"
             f"{self._people_lines(('official', 'worthy'), 10)}\n{self._council_line()}"
-            f"{self._history(full=False)}{CACHE_BREAK}"
-            f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
-            f"Last weather: {wx_line}\n"
+            f"{self._history(full=False)}"
+            # The sport, the auction and the council's calendar change once a day at most (a result, the
+            # hammer, a meeting), so they sit in the cached head with the town. Until 2026-11-09 they came
+            # after the break: some 350 tokens at full price on every call (the 11-07 night: 44% of the
+            # live writers' input read from the cache, 52% paid in full).
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             + (f"{QUAY_LABEL}{q}\n" if auction and (q := quay.summary(datetime.fromtimestamp(schedule.now())))
                else "") +
-            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
+            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n{CACHE_BREAK}"
+            f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
+            f"Last weather: {wx_line}\n"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"{self._waiting_line()}"
             f"Recent headlines (do NOT repeat these):\n{heads}"

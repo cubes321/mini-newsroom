@@ -123,3 +123,18 @@ def test_a_timed_out_call_is_counted_as_billed_with_an_estimate(monkeypatch, tmp
     assert f"plus {est['sent']} unanswered (~{u['est_in']} in" in llm.usage_summary()
     [row] = [json.loads(l) for f in tmp_path.glob("*.jsonl") for l in f.read_text(encoding="utf-8").splitlines()]
     assert row["estimate"] == est and "timed out" in row["error"] and row["usage"] is None
+
+
+def test_the_sport_the_auction_and_the_council_calendar_are_in_the_cached_head():
+    """They change once a day at most; after the break they were paid for in full on every call."""
+    w = world_mod.seed()
+    head, _, tail = w.summary_for_prompt().partition(llm.CACHE_BREAK)
+    assert "Sport: Tidewater Town FC" in head and "Council: full council meets" in head
+    assert "Sport:" not in tail and "Open story threads" in tail and "Last weather" in tail
+    # What changes from script to script stays after the break: the head is the same bytes.
+    w.update_thread(None, "Harbour wall report due Friday", "The report goes to council on Friday.")
+    w.record_headline("Harbour wall report due Friday")
+    w.last_weather = {"map_state": "rain", "temp_c": 9, "headline": "Wet"}
+    w.ensure_person("Nora Ellison", "runs the pool petition")
+    assert w.summary_for_prompt().partition(llm.CACHE_BREAK)[0] == head
+    assert world_mod.QUAY_LABEL not in w.summary_for_prompt(auction=False).partition(llm.CACHE_BREAK)[0]
