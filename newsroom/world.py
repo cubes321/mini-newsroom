@@ -858,9 +858,16 @@ class World:
     @_locked
     def roll_day_if_needed(self) -> None:
         today = date.fromtimestamp(schedule.now()).isoformat()     # the broadcast clock's day (--clock)
-        if today != self.last_date:
+        if today > self.last_date:
             self.last_date = today
             self.broadcast_day += 1
+        elif today < self.last_date:
+            # The clock was ahead (a --clock run on this world) and has been put back. The date follows it,
+            # or the town would sit in the future until the calendar caught up; but that is no new day.
+            # Until 2026-11-09 each such run counted two: there and back.
+            log.warning("the broadcast clock is behind the world's last day (%s, now %s): the date goes back, "
+                        "broadcast day stays %d", self.last_date, today, self.broadcast_day)
+            self.last_date = today
 
     @_locked
     def search_archive(self, query: str, limit: int = 12) -> list[dict]:

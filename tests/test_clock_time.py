@@ -78,3 +78,25 @@ def test_the_calendar_says_when_todays_event_is_still_to_come():
     assert "It began at 10:45" in late and "It starts" not in late
     assert "It starts" not in calendar.for_prompt("news", datetime(2026, 11, 7, 8, 45))   # tomorrow: no clock line
     assert "It starts" not in calendar.for_prompt("news", date(2026, 11, 8))           # a date alone: no time
+
+
+def test_a_clock_put_forward_and_back_is_one_new_day_not_two(monkeypatch, caplog):
+    """A --clock run on the station's own world rolled the day on the way out and again on the way back:
+    "broadcast day" counted two for every test, and it is in every prompt and the cache key."""
+    w = world_mod.seed()
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 9, 12).timestamp())
+    w.roll_day_if_needed()
+    day = w.broadcast_day
+    assert w.last_date == "2026-11-09"
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 12, 25, 6).timestamp())
+    w.roll_day_if_needed()
+    assert (w.last_date, w.broadcast_day) == ("2026-12-25", day + 1)
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 9, 13).timestamp())
+    w.roll_day_if_needed()
+    assert (w.last_date, w.broadcast_day) == ("2026-11-09", day + 1)       # the date follows the clock back
+    assert "the date goes back" in caplog.text
+    w.roll_day_if_needed()
+    assert caplog.text.count("the date goes back") == 1 and w.broadcast_day == day + 1
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 10, 0, 1).timestamp())
+    w.roll_day_if_needed()
+    assert (w.last_date, w.broadcast_day) == ("2026-11-10", day + 2)

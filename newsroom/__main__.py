@@ -443,6 +443,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.clock:
         schedule.set_clock(args.clock)
         log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)
+        if not (args.scratch or args.world):
+            log.warning("--clock on the station's own world (%s): what airs now goes into the town's history under "
+                        "the pretend date. Add --scratch to try a time or a day without that.", CONFIG.paths.world)
     if args.special_now:
         os.environ["NEWSROOM_SPECIAL_NOW"] = "1"
     if args.documentary_now:
