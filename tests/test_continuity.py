@@ -221,3 +221,61 @@ def test_community_notices_come_from_the_model_a_few_a_day(cont, monkeypatch):
     continuity.make(w, buf, now + 3000)
     assert "[t001] HARBOUR OFFICE" in asked[-1]                  # told what is already up
     assert len(continuity._community(date(2026, 10, 27))) == 2
+
+
+def _notice(cont, item_id, until=0.0):
+    wav = cont.dir / f"{item_id}_00.wav"
+    wav.parent.mkdir(parents=True, exist_ok=True)
+    wav.write_bytes(b"")
+    seg = Segment(slot_id=-1, type=SegmentType.continuity, show="news", state=SegmentState.ready,
+                  work={"continuity": {"kind": "notice"}},
+                  lines=[Line(speaker="voiceover", text="A notice.", wav_path=wav, duration_s=0.5)])
+    cont.add(continuity.Item(id=item_id, kind="notice", valid_until=until, segment=seg))
+    return wav
+
+
+def test_removing_an_item_takes_its_own_files_and_nobody_elses(cont):
+    """remove() deleted by prefix: the day's second notice went and took the eleventh to the twentieth
+    with it, and an ident "_1" would have taken "_10"."""
+    one, ten = _notice(cont, "community_20261109_1"), _notice(cont, "community_20261109_10")
+    cont.remove("community_20261109_1")
+    assert not one.exists() and not (cont.dir / "community_20261109_1.json").exists()
+    assert ten.exists() and (cont.dir / "community_20261109_10.json").exists()
+    assert cont.get("community_20261109_10") is not None and cont.get("community_20261109_1") is None
+
+
+def test_an_item_that_expires_while_it_is_being_read_keeps_its_audio_until_it_is_over(cont, monkeypatch):
+    """The worker's _expire deleted the WAVs of a card the player had just picked: the rest of it was silence."""
+    until = _ts("20:00")
+    wav = _notice(cont, "community_20261027_0", until)
+    old = _notice(cont, "community_20261027_1", until)
+    clock = [1_000_000.0]
+    monkeypatch.setattr(continuity.time, "time", lambda: clock[0])
+    cont._aired["community_20261027_1"] = 1.0                        # the other aired long ago
+    assert cont.pick("card", "news", _ts("19:59")) is not None       # on air now: the first, never aired
+    continuity._expire(cont, _ts("20:00"))
+    assert cont.pick("card", "news", _ts("20:00")) is None           # out of the pool at once, and off the disk
+    assert not (cont.dir / "community_20261027_0.json").exists()
+    assert wav.exists() and not old.exists()                         # but its audio stays while it may be playing
+    clock[0] += continuity.RETIRE_S + 1
+    continuity._expire(cont, _ts("20:20"))
+    assert not wav.exists()
+
+
+def test_audio_nothing_owns_is_cleared_when_the_pool_opens(cont):
+    import os
+    import time as real_time
+
+    keep = _notice(cont, "community_20261109_3")
+    mix = cont.dir / "ident_news_10.wav"                             # an ident's mix: named for its own item
+    for f in (mix, cont.dir / "ident_news_10_vo.wav", cont.dir / "trail_gone_00.wav", cont.dir / "trail_new_00.wav"):
+        f.write_bytes(b"")
+    (cont.dir / "ident_news_10.json").write_text("{}")
+    long_ago = real_time.time() - continuity.RETIRE_S - 60
+    for f in cont.dir.glob("*.wav"):
+        if f.name != "trail_new_00.wav":
+            os.utime(f, (long_ago, long_ago))
+    continuity.Pool(cont.dir)
+    left = sorted(f.name for f in cont.dir.glob("*.wav"))
+    assert left == ["community_20261109_3_00.wav", "ident_news_10.wav", "ident_news_10_vo.wav", "trail_new_00.wav"]
+    assert keep.exists()

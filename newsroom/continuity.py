@@ -24,8 +24,10 @@ Items live in [paths] continuity (data/continuity/) as <id>.json plus their WAVs
 from __future__ import annotations
 
 import argparse
+import glob
 import logging
 import random
+import re
 import threading
 import time
 from datetime import date, datetime
@@ -48,6 +50,8 @@ SHOWS = ("news", "breakfast", "magazine", "late", "sport")
 GAP_PATTERN = ("ident", "advert", "card", "advert", "advert", "ident", "card")
 CARDS = ("programmes", "trail", "notice")       # a "card" in the gap, first first when none has aired
 PROGRAMMES_EVERY_S = 3600.0     # the programme card also airs ahead of a news bumper this often (player.py)
+RETIRE_S = 900.0                # a removed item's audio outlives a reading of it already on air
+_OWNER = re.compile(r"(?:_vo|_\d\d)$")    # "tides_20261109_00" (a line's audio) -> its item's id
 
 IDENT_LINES = {
     "news": ["This is Channel 7.", "Channel 7, for Port Wexley and the Greymouth coast."],
@@ -94,6 +98,7 @@ class Pool:
         self._lock = threading.Lock()
         self._items: dict[str, Item] = {}
         self._aired: dict[str, float] = {}
+        self._retired: dict[str, float] = {}     # removed while it may be on air: when its audio can go
         self._rng = random.Random()
         self.load()
 
@@ -109,6 +114,15 @@ class Pool:
                 items[it.id] = it
         with self._lock:
             self._items = items
+        # Audio left by an item retired in a run that ended before its sweep: nothing owns it now.
+        for f in self.dir.glob("*.wav") if self.dir.exists() else []:
+            owners = {f.stem, _OWNER.sub("", f.stem)}     # an ident's mix has its item's own name
+            try:
+                owned = any(o in items or (self.dir / f"{o}.json").exists() for o in owners)
+                if not owned and time.time() - f.stat().st_mtime > RETIRE_S:
+                    f.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def __len__(self) -> int:
         with self._lock:
@@ -131,11 +145,35 @@ class Pool:
         with self._lock:
             self._items[it.id] = it
 
-    def remove(self, item_id: str) -> None:
+    def _files(self, item_id: str) -> list[Path]:
+        """The item's own files: its entry, and its audio (`<id>.wav`, `<id>_vo.wav`, `<id>_00.wav`...).
+        Never by prefix: until 2026-11-09 removing `community_..._1` took `_10` to `_19` with it."""
+        mine = re.compile(re.escape(item_id) + r"(?:\.json(?:\.tmp)?|(?:_vo|_\d\d)?\.wav)")
+        return [f for f in self.dir.glob(f"{glob.escape(item_id)}*") if mine.fullmatch(f.name)]
+
+    def remove(self, item_id: str, now: float | None = None) -> None:
+        """Out of the pool at once, so it is never picked again. Its audio goes now if it hasn't aired
+        lately, else after RETIRE_S (sweep): the player may be part-way through reading it."""
+        now = time.time() if now is None else now
         with self._lock:
             self._items.pop(item_id, None)
-        for f in self.dir.glob(f"{item_id}*"):
-            f.unlink(missing_ok=True)
+            on_air = now - self._aired.get(item_id, -RETIRE_S) < RETIRE_S
+            if on_air:
+                self._retired[item_id] = self._aired[item_id] + RETIRE_S
+        for f in self._files(item_id):
+            if not on_air or f.suffix != ".wav":
+                f.unlink(missing_ok=True)
+
+    def sweep(self, now: float | None = None) -> None:
+        """Delete the audio of items retired long enough ago."""
+        now = time.time() if now is None else now
+        with self._lock:
+            due = [i for i, at in self._retired.items() if at <= now and i not in self._items]
+            for i in due:
+                del self._retired[i]
+        for item_id in due:
+            for f in self._files(item_id):
+                f.unlink(missing_ok=True)
 
     def pick(self, kind: str, show: str, now: float | None = None) -> Segment | None:
         """The least recently aired item of `kind` that is valid now; an ident in this show's
@@ -488,6 +526,7 @@ def _expire(p: Pool, now: float) -> None:
     for it in p.items():
         if it.valid_until and it.valid_until <= now:
             p.remove(it.id)
+    p.sweep()
 
 
 def main() -> None:
