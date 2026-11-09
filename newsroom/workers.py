@@ -386,8 +386,8 @@ class WorkerPool:
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import (adverts, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein, senior,
-                       special)
+        from . import (adverts, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein, prune,
+                       senior, special)
 
         try:
             if adverts.seed_one(self.world):
@@ -397,6 +397,9 @@ class WorkerPool:
                 return                        # an ident, the programme card or a notice: TTS only
             force = special.take_force()
             if not force and not self._buffer_healthy():
+                return
+            if prune.due():
+                prune.tick(self.world)        # [cache] keep_days: a batch of old cache entries, disk only
                 return
             breaking_now = breaking.take_force()
             if breaking_now or desk.should_plan(self.world):

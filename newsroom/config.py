@@ -185,6 +185,12 @@ class PicturesCfg:
 
 
 @dataclass(frozen=True)
+class CacheCfg:
+    """Clearing old scripts and audio out of the segment cache (prune.py)."""
+    keep_days: float = 0.0               # 0: never. Else entries this old that the archive doesn't hold go, in idle time
+
+
+@dataclass(frozen=True)
 class SafetyCfg:
     """The word check on everything that goes on air (safety.py)."""
     enabled: bool = True
@@ -231,6 +237,7 @@ class Config:
     continuity: ContinuityCfg
     pictures: PicturesCfg
     safety: SafetyCfg = field(default_factory=SafetyCfg)
+    cache: CacheCfg = field(default_factory=CacheCfg)
     stream: StreamCfg = field(default_factory=StreamCfg)
 
 
@@ -269,6 +276,7 @@ def load(path: Path | None = None) -> Config:
         continuity=ContinuityCfg(**raw.get("continuity", {})),
         pictures=PicturesCfg(**raw.get("pictures", {})),
         safety=SafetyCfg(**raw.get("safety", {})),
+        cache=CacheCfg(**raw.get("cache", {})),
         stream=StreamCfg(**raw.get("stream", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
