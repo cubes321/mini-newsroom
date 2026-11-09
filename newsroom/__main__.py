@@ -184,6 +184,70 @@ def log_llm_usage() -> None:
     log.info("LLM USAGE %s", llm.usage_summary())
 
 
+class Guard:
+    """Keeps the station on air when part of a frame goes wrong.
+
+    The frame loop used to trust everything it called: one exception in the producer, the player or the
+    picture ended the run, with no worker shutdown and no last save. Now each part fails on its own. The
+    error is logged with its traceback (the first of a run of them, then once a minute) and the loop carries
+    on with the next frame.
+
+    A part that fails `DROP_AFTER` frames in a row is stuck, most likely on the segment on air, so the player
+    drops that segment (player.drop) and the rundown moves on. The player is asked again after twice as many
+    failures, then twice again: a fault that isn't the segment's mustn't spend the whole rundown. The picture
+    asks once only; if it still fails, the sound carries on without it."""
+
+    DROP_AFTER = 30                 # frames in a row: about a second
+    LOG_EVERY_S = 60.0
+
+    def __init__(self, player=None) -> None:
+        self.player = player
+        self.fails: dict[str, int] = {}          # part -> failures in a row
+        self.drop_at: dict[str, int] = {}
+        self.logged: dict[str, float] = {}
+        self.errors = 0
+
+    def run(self, what: str, fn, *args):
+        """`fn(*args)`, or None if it raised."""
+        try:
+            out = fn(*args)
+        except Exception:  # noqa: BLE001
+            self.errors += 1
+            n = self.fails[what] = self.fails.get(what, 0) + 1
+            if n == 1 or time.monotonic() - self.logged.get(what, 0.0) >= self.LOG_EVERY_S:
+                self.logged[what] = time.monotonic()
+                log.exception("the %s failed (%d frames in a row); carrying on", what, n)
+            if n == self.drop_at.get(what, self.DROP_AFTER) and what in ("player", "picture"):
+                self.drop_at[what] = n * 2 if what == "player" else 0
+                self._drop(what, n)
+            return None
+        if self.fails.get(what):
+            log.warning("the %s is working again after %d failed frames", what, self.fails[what])
+        self.fails[what] = 0
+        self.drop_at.pop(what, None)
+        return out
+
+    def _drop(self, what: str, n: int) -> None:
+        if self.player is None:
+            return
+        from . import schedule
+
+        try:
+            self.player.drop(schedule.now(), f"the {what} failed {n} frames in a row", or_skip=what == "player")
+        except Exception:  # noqa: BLE001
+            log.exception("could not drop what the %s was stuck on", what)
+
+
+def shut_down(steps: list[tuple[str, object]]) -> None:
+    """The station's last jobs, each tried whatever happened to the one before: a recorder that won't
+    stop mustn't cost the world its last save."""
+    for what, fn in steps:
+        try:
+            fn()
+        except Exception:  # noqa: BLE001
+            log.exception("exit: %s failed", what)
+
+
 def build(cfg, *, audio: bool, workers: int):
     from . import assets, tts, world as world_mod
     from .buffer import Buffer
@@ -268,45 +332,52 @@ def run_window(cfg, args) -> None:
         obs.attach()                        # before the first bumper plays: it starts the first file
 
     world, buffer, producer, pool, player = build(cfg, audio=True, workers=args.workers)
+    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
+
     stats = Stats(buffer)
+    guard = Guard(player)
     start = time.monotonic()
     last_tick = 0.0
     last_snap = -1
     running = True
-    while running:
-        t0 = time.perf_counter()
-        for ev in pygame.event.get():
-            if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
-                running = False
-            elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_F12:
-                log.warning("F12: %s", control.toggle())     # the kill switch (control.py)
-        now = schedule.now()
-        if now - last_tick > 2.0:
-            producer.tick(now)
-            last_tick = now
-        player.update(now)
+
+    def paint(now: float, t: float):
         view = player.view(now)
-        t = time.monotonic() - start
         dbg = f"{view.status} | buf {view.buffer_depth_s:.0f}s | {clock.get_fps():.0f}fps" if args.debug else None
         scenes.render(canvas, view, t, debug=dbg)
         scenes.present(canvas, screen)
         pygame.display.flip()
-        if args.snap and int(t) % 10 == 0 and int(t) != last_snap:
-            last_snap = int(t)
-            os.makedirs(args.snap, exist_ok=True)
-            pygame.image.save(screen, os.path.join(args.snap, f"frame_{last_snap:04d}_{view.mode}.png"))
-        stats.frame(time.perf_counter() - t0)
-        stats.maybe_log(player)
-        clock.tick(cfg.broadcast.fps)
-        if args.minutes and t > args.minutes * 60:
-            running = False
+        return view
 
-    if args.obs:
-        obs.detach()                        # the programme on air ends its file with the picture
-    pool.shutdown()
-    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
-
-    world_mod.save(world)                   # what the player wrote since the worker's last save
+    try:
+        while running:
+            t0 = time.perf_counter()
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
+                    running = False
+                elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_F12:
+                    log.warning("F12: %s", control.toggle())     # the kill switch (control.py)
+            now = schedule.now()
+            if now - last_tick > 2.0:
+                guard.run("producer", producer.tick, now)
+                last_tick = now
+            guard.run("player", player.update, now)
+            t = time.monotonic() - start
+            view = guard.run("picture", paint, now, t)
+            if view is not None and args.snap and int(t) % 10 == 0 and int(t) != last_snap:
+                last_snap = int(t)
+                os.makedirs(args.snap, exist_ok=True)
+                pygame.image.save(screen, os.path.join(args.snap, f"frame_{last_snap:04d}_{view.mode}.png"))
+            stats.frame(time.perf_counter() - t0)
+            guard.run("stats", stats.maybe_log, player)
+            clock.tick(cfg.broadcast.fps)
+            if args.minutes and t > args.minutes * 60:
+                running = False
+    finally:
+        # Whatever ended the loop: the programme on air ends its file with the picture, the workers stop,
+        # and the world keeps what the player wrote since the worker's last save.
+        shut_down(([("the recorder", obs.detach)] if args.obs else [])
+                  + [("the workers", pool.shutdown), ("the world's save", lambda: world_mod.save(world))])
     pygame.quit()
     stats.last_log = 0
     stats.maybe_log(player)
@@ -319,7 +390,10 @@ def run_headless(cfg, args) -> None:
     from . import schedule
 
     world, buffer, producer, pool, player = build(cfg, audio=False, workers=args.workers)
+    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
+
     stats = Stats(buffer)
+    guard = Guard(player)
     start = time.monotonic()
     last_tick = 0.0
     try:
@@ -327,20 +401,18 @@ def run_headless(cfg, args) -> None:
             t0 = time.perf_counter()
             now = schedule.now()
             if now - last_tick > 2.0:
-                producer.tick(now)
+                guard.run("producer", producer.tick, now)
                 last_tick = now
-            player.update(now)
+            guard.run("player", player.update, now)
             stats.frame(time.perf_counter() - t0)
-            stats.maybe_log(player)
+            guard.run("stats", stats.maybe_log, player)
             time.sleep(1 / 30)
             if args.minutes and time.monotonic() - start > args.minutes * 60:
                 break
     except KeyboardInterrupt:
         pass
-    pool.shutdown()
-    from . import world as world_mod        # imported late, like everything here: CONFIG follows the flags
-
-    world_mod.save(world)                   # what the player wrote since the worker's last save
+    finally:
+        shut_down([("the workers", pool.shutdown), ("the world's save", lambda: world_mod.save(world))])
     stats.last_log = 0
     stats.maybe_log(player)
     log.info("exit: %d segments played, %d adverts, %.0fs filler, transitions=%d, jobs ok=%d failed=%d",
