@@ -27,13 +27,17 @@ SIZES = {"wide": 32.0, "medium": 16.0, "close": 8.0}
 ASPECT = 1152 / 640
 PLATE_W = 40.0
 ENTER_S = 0.75
+TAKE_F = 6                         # frames a taken prop travels into the beak or hand
+PUT_REACH = 4.5                    # units: a prop let go this near a spot is set down on it; else it falls
+FALL_F = 10
 
 
 class Beat(BaseModel):
     who: str
-    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin"]
+    do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin", "drop"]
     value: str = ""                # pose or face name; lean degrees (forward +); exit side "left"/"right";
-                                   # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s)
+                                   # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s);
+                                   # drop: the height it falls to ("0" lands with a bounce; "-25" out of shot)
     at: str = "0"
     until: str | None = None       # pose/face/lean: when it ends (None: the shot's end)
 
@@ -50,11 +54,14 @@ class Actor(BaseModel):
     on: str | None = None          # "gully.hold": carried, its grip on that point of the holder every frame
     on_at: str = "0"               # from when (a snatched bucket sits where it is until it's taken)
     spot: str | None = None        # a named point of the backdrop ("sill"): stands exactly there, not at x, y
+    off_at: str | None = None      # carried until then, and let go: set down on a spot within reach, or dropped
+    off_out: bool = False          # let go for good: it falls out of the bottom of the shot (eaten, lost)
 
 
 class Rope(BaseModel):
     attach: str | None = None      # "who.anchor": a loop round that point, and the rope starts there
     path: list[tuple[float, float]] = []
+    up: bool = False               # hangs straight up out of the top of the shot from its attachment
     color: tuple[float, float, float] = (0.02, 0.07, 0.40)      # linear RGB: the Chip Lift's blue nylon
     width: float = 0.24
 
@@ -102,13 +109,26 @@ class _Puppet:
         self.card_y = a.y - (h_px - (kit.feet_y + PAD)) * self.upp     # the card's bottom, so feet are at a.y
 
     def point(self, name: str) -> tuple[float, float]:
-        ax, ay = self.kit.anchors.get(name, (self.w / 2 - PAD, self.kit.feet_y))
+        ax, ay = self.kit.anchor(name, self.a.pose) or (self.w / 2 - PAD, self.kit.feet_y)
         lx = (ax + PAD - self.w / 2) * self.upp * (-1 if self.flip else 1)
         return self.a.x + lx, self.card_y + (self.h - (ay + PAD)) * self.upp
 
     @property
     def tall(self) -> float:
         return self.kit.height * self.a.scale
+
+    @property
+    def half(self) -> float:
+        return self.kit.half * self.a.scale
+
+    def sides(self, mirrored: bool) -> tuple[float, float]:
+        """How far the drawing reaches left and right of the card's middle, paper edge included."""
+        box = self.kit._box
+        if not box:
+            return self.half + 0.3, self.half + 0.3
+        mid = self.kit._w / 2
+        left, right = (mid - box[0]) * self.upp + 0.3, (box[2] - mid) * self.upp + 0.3
+        return (right, left) if mirrored else (left, right)
 
 
 def _view(fr: Framing, pup: dict[str, _Puppet]) -> tuple[float, float, float]:
@@ -128,7 +148,8 @@ def _world(c: dict, p: "_Puppet", f: int, point: str) -> tuple[float, float]:
     x, y, rot, sx, sy = c["tf"][f]
     upp = p.upp / p.a.scale                               # sx, sy carry the actor's scale and its mirroring
     if point:
-        ax, ay = p.kit.anchors.get(point, p.kit.anchors.get("head", (p.w / 2 - PAD, 0)))
+        pose = c["poses"][f]
+        ax, ay = p.kit.anchor(point, pose) or p.kit.anchor("head", pose) or (p.w / 2 - PAD, 0)
         lx, ly = (ax + PAD - p.w / 2) * upp * sx, (p.h - (ay + PAD)) * upp * sy
     else:
         lx, ly = 0.0, p.h * upp * sy / 2
@@ -148,10 +169,11 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
     backdrop's named points, in stage units from the plate's bottom middle."""
     pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
     cam0 = _view(layout.camera.start, pup)              # first guess: rest spots (entrances start off its edges)
+    spot_at = None
     if spots and any(a.spot in spots for a in layout.actors):
         # On the backdrop's sill, wherever the shot's camera puts the backdrop (it moves at half the camera's
         # speed): the cone sat loose on the quay when the writer could only say "far_right, raised".
-        px, py = 0.5 * cam0[0], -3.0 + 0.5 * (cam0[1] - WIDE[1])
+        px, py = spot_at = 0.5 * cam0[0], -3.0 + 0.5 * (cam0[1] - WIDE[1])
         layout = layout.model_copy(update={"actors": [
             a.model_copy(update={"x": round(px + spots[a.spot][0], 3), "y": round(py + spots[a.spot][1], 3)})
             if a.spot in spots else a for a in layout.actors]})
@@ -162,54 +184,179 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
     for k, a in enumerate(layout.actors):
         c = _card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
                   speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir)
-        holder = (a.on or "").partition(".")[0]
-        if holder in by_who:                              # carried: its grip on the holder's point, once taken
-            hc, hp = by_who[holder]
-            point = a.on.partition(".")[2] or "hold"
-            p = pup[a.who]
-            gx, gy = kits[a.who].anchors.get("grip", (p.w / 2 - PAD, 0))
-            for f in range(when(a.on_at, n, spans) - 1, n):
-                wx, wy = _world(hc, hp, f, point)
-                c["tf"][f] = [round(wx - (gx + PAD - p.w / 2) * p.upp, 4),
-                              round(wy - (p.h - (gy + PAD)) * p.upp, 4), 0.0, round(a.scale, 4), round(a.scale, 4)]
-            c["z"] = round(hc["z"] + 0.02, 3)
         by_who[a.who] = (c, pup[a.who])
         cards.append(c)
+    rest = {who: [list(t) for t in c["tf"]] for who, (c, _) in by_who.items()}
+    guess = (0.5 * cam0[0], -3.0 + 0.5 * (cam0[1] - WIDE[1]))
+    plate_at: list[list[float]] = []
+
+    def plate_xy(f: int) -> tuple[float, float]:
+        """Where the backdrop is at frame index f (before the camera is known: where it starts)."""
+        return tuple(plate_at[min(f, n - 1)]) if plate_at else guess
+
+    def carry(a: Actor):
+        """A carried prop: its grip on the holder's point from when it is taken, travelling there over a few
+        frames (a bucket that jumped from the ground to a hand in one frame read as a mistake)."""
+        holder = (a.on or "").partition(".")[0]
+        if holder not in by_who or holder == a.who:
+            return
+        (c, p), (hc, hp) = by_who[a.who], by_who[holder]
+        point = a.on.partition(".")[2] or "hold"
+        gx, gy = kits[a.who].anchor("grip") or (p.w / 2 - PAD, 0)
+        t0 = when(a.on_at, n, spans) - 1
+        t0 -= t0 % 2
+        was = rest[a.who][t0]
+        t1 = n
+        if a.off_at:
+            t1 = max(t0 + 2, when(a.off_at, n, spans) - 1)
+            t1 -= t1 % 2
+        for f in range(t0, min(n, t1)):
+            g = f - f % 2                                         # on twos, like the holder
+            wx, wy = _world(hc, hp, g, point)
+            held = [wx - (gx + PAD - p.w / 2) * p.upp, wy - (p.h - (gy + PAD)) * p.upp, 0.0, a.scale, a.scale]
+            u = _ease((g - t0 + 2) / TAKE_F) if t0 > 0 else 1.0
+            c["tf"][f] = [round(r + (h - r) * u, 5) for r, h in zip(was, held)]
+        c["z"] = round(hc["z"] + 0.02, 3)
+        if t1 >= n:
+            return
+        # Let go: set down on a spot of the backdrop within reach (the chips on the sill), where it stays as the
+        # backdrop moves; with none, it falls to the ground and bounces once.
+        x0, y0 = c["tf"][t1 - 1][:2]
+        feet = (p.h - (kits[a.who].feet_y + PAD)) * p.upp
+        near = min(((abs(plate_xy(t1)[0] + sx - x0), k) for k, (sx, _) in (spots or {}).items()), default=(99.0, ""))
+        if a.off_out:
+            near, feet = (99.0, ""), feet + 25.0
+        for f in range(t1, n):
+            g = f - f % 2
+            if near[0] <= PUT_REACH:
+                sx, sy = spots[near[1]]
+                u = _ease((g - t1 + 2) / TAKE_F)
+                x, y = x0 + (plate_xy(g)[0] + sx - x0) * u, y0 + (plate_xy(g)[1] + sy - feet - y0) * u
+            else:
+                t = min(1.0, (g - t1 + 2) / FALL_F)
+                x, y = x0, y0 + (-feet - y0) * t * t
+                d = g - t1 + 2 - FALL_F
+                if 0 <= d < 8:
+                    y += 0.6 * math.sin(math.pi * d / 8)
+            c["tf"][f] = [round(x, 5), round(y, 5), 0.0, a.scale, a.scale]
+
+    for a in layout.actors:
+        carry(a)
 
     def view(fr: Framing, f: int) -> tuple[float, float, float]:
-        """The camera on someone where their card is at frame f: upside down, flying, wherever."""
+        """The camera on someone where their card is at frame f: upside down, flying, wherever. A medium or a
+        close shot never cuts through a neighbour: whoever of the cast its edge would slice is taken in whole
+        (Mr Trethewey's head was off the top of two shots he was half the joke of, 2026-11-09)."""
         width = SIZES[fr.size] / fr.zoom
         who, _, point = (fr.on or "").partition(".")
         if fr.size == "wide" or who not in by_who:
             return _view(fr, pup)
         c, p = by_who[who]
         x, y = _world(c, p, f - 1, point or ("" if fr.size == "medium" else "head"))
-        return x + fr.dx, y + fr.dy, width
-    mid = m1 if layout.camera.end else (n + 1) // 2      # a held camera frames the shot's middle, after arrivals
-    cam0 = view(layout.camera.start, m0 if layout.camera.end else mid)
-    cam1 = view(layout.camera.end, m1) if layout.camera.end else cam0
-    camera, plate_at = [], []
+        x, y = x + fr.dx, y + fr.dy
+        lo, hi = x - width / 2, x + width / 2
+        tops, lows = [], []                               # heads to keep in; the whole of anyone hanging
+
+        def upright(oc, op) -> None:
+            ox, oy, rot, _, sy = oc["tf"][f - 1]
+            box = op.kit._box or (0, 0, op.w - 2 * PAD, op.kit.feet_y)
+            top = (op.h - (box[1] + PAD)) * op.upp * sy
+            if abs(rot) < 0.5:
+                tops.append(oy + top)
+            elif abs(abs(rot) - math.pi) < 0.5:           # hung by the feet: the head is the bottom
+                tops.append(oy)
+                lows.append(oy - top)
+        if fr.size == "medium" and not point:
+            upright(c, p)
+        own, tops, own_lows, lows = tops, [], lows, []
+        for other, (oc, op) in by_who.items():
+            if other == who or not op.kit.faces or op.a.on:
+                continue
+            ox, _, _, osx, _ = oc["tf"][f - 1]
+            reach = op.sides(osx < 0)
+            left, right = ox - reach[0], ox + reach[1]
+            if left < hi and right > lo:
+                if not (left >= lo and right <= hi):
+                    lo, hi = min(lo, left - 0.5), max(hi, right + 0.5)
+                upright(oc, op)
+        if hi - lo > width + 1e-6:
+            wider = min(SIZES["wide"], hi - lo)
+            u = (wider - width) / max(1e-6, SIZES["wide"] - width)
+            x, y, width = (lo + hi) / 2, y + (WIDE[1] - y) * u, wider
+        # Nobody in the shot loses their head off the top (centred on her middle, Dot's medium cut her off at
+        # the eyebrows), and whoever hangs upside down is seen whole: his head is at the bottom.
+        # A medium shot of someone taller than the shot loses their legs, not their head; a neighbour's head, or
+        # anyone hanging by the feet, makes the shot as tall as it takes.
+        tall = width / ASPECT
+        if own:
+            y = max(y, max(own) + 0.7 - tall / 2)
+        low = min([y - tall / 2] + [v - 0.5 for v in lows + own_lows])
+        high = max([y + tall / 2] + [v + 0.7 for v in tops])
+        if high - low > tall + 1e-6:
+            width = min(SIZES["wide"] * 1.1, (high - low) * ASPECT)
+            y = low + width / ASPECT / 2
+        return x, y, width
+
+    def held(fr: Framing, first: int, last: int) -> tuple[float, float, float]:
+        """The camera takes in where its subject is all through those frames, not at one of them: Gully walked
+        out of the side of a medium shot framed on where he would be later (shot 3, 2026-11-09)."""
+        views = [view(fr, f) for f in sorted({round(first + (last - first) * k / 4) for k in range(5)})]
+        lo, hi = min(v[0] - v[2] / 2 for v in views), max(v[0] + v[2] / 2 for v in views)
+        low, high = min(v[1] - v[2] / ASPECT / 2 for v in views), max(v[1] + v[2] / ASPECT / 2 for v in views)
+        width = min(SIZES["wide"] * 1.1, max(hi - lo, (high - low) * ASPECT))
+        return (lo + hi) / 2, low + width / ASPECT / 2, width
+    if layout.camera.end:                                 # a move: each end frames its half of the shot
+        half = (m0 + m1) // 2
+        cam0, cam1 = held(layout.camera.start, m0, half), held(layout.camera.end, half, m1)
+    else:                                                 # held: the whole shot, once everyone has arrived
+        cam0 = cam1 = held(layout.camera.start, max(1, n // 4), n)
+    camera = []
     for f in range(1, n + 1):
         u = _ease((f - m0) / max(1, m1 - m0))
         x, y, w = (a + (b - a) * u for a, b in zip(cam0, cam1))
         camera.append([round(x, 4), round(y, 4), round(w, 4)])
-        plate_at.append([round(0.5 * x, 4), round(-3.0 + 0.5 * (y - WIDE[1]), 4)])
+    plate_at.extend([round(0.5 * x, 4), round(-3.0 + 0.5 * (y - WIDE[1]), 4)] for x, y, _ in camera)
+    # Whatever stands on a spot is on the backdrop, so it rides the backdrop: placed from a first guess of the
+    # camera, it goes wherever the camera really put the plate, every frame. What it carries, or whoever takes
+    # it, follows from there.
+    if spot_at:
+        for a in layout.actors:
+            if a.spot:
+                for tfs in (rest[a.who], by_who[a.who][0]["tf"]):
+                    for f in range(n):
+                        tfs[f] = [round(tfs[f][0] + plate_at[f][0] - spot_at[0], 4),
+                                  round(tfs[f][1] + plate_at[f][1] - spot_at[1], 4), *tfs[f][2:]]
+    for a in layout.actors:                               # again, now the backdrop's place is known
+        carry(a)
     ropes = []
     for r in layout.ropes:
         pts = [list(pt) for pt in r.path]
-        loop = None
-        if r.attach:
-            who, _, point = r.attach.partition(".")
-            ax, ay = pup[who].point(point)
-            s = pup[who].a.scale
-            loop = [round(ax, 4), round(ay, 4), round(0.5 * s, 4), round(0.22 * s, 4)]
-            pts = [[ax - 0.4 * s, ay - 0.05], *pts]
-        ropes.append({"points": pts, "loop": loop, "color": list(r.color), "width": r.width})
+        loop = at = None
+        who, _, point = (r.attach or "").partition(".")
+        if who in by_who:
+            # Tied on: the loop and the rope's end follow that point every frame (drawn once from where he
+            # started, the loop was left hanging in the air when Gully flapped off, the Chip Lift's shot 12).
+            c, p = by_who[who]
+            point = next((x for x in (point, "ankle", "feet") if x and p.kit.anchor(x)), "")
+            s = p.a.scale
+            at = [[round(v, 4) for v in _world(c, p, f, point)] for f in range(n)]
+            ax, ay = at[0]
+            loop = [ax, ay, round(0.5 * s, 4), round(0.22 * s, 4)]
+            pts = [[ax, ay], [ax, ay + 40.0]] if r.up else [[round(ax - 0.4 * s, 4), round(ay - 0.05, 4)], *pts]
+        ropes.append({"points": pts, "loop": loop, "at": at, "up": bool(r.up and at), "color": list(r.color),
+                      "width": r.width})
+    for c in cards:
+        del c["poses"]
     return {"fps": FPS, "frames": n, "plate": {"path": str(plate), "width": PLATE_W, "at": plate_at},
             "camera": camera, "aspect": ASPECT, "cards": cards, "ropes": ropes}
 
 
 def _target(b: Beat, x: float, y: float) -> tuple[float, float]:
+    if b.do == "drop":
+        try:
+            return x, float(b.value or 0)
+        except ValueError:
+            return x, 0.0
     parts = [float(v) for v in b.value.replace(" ", "").split(",") if v]
     return (parts[0] if parts else x), (parts[1] if len(parts) > 1 else y)
 
@@ -217,7 +364,11 @@ def _target(b: Beat, x: float, y: float) -> tuple[float, float]:
 def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], n: int, spans, cam0,
           series_dir: Path) -> dict:
     """One actor's card for every frame: its piece and its transform, all on twos."""
-    moves = sorted((b for b in mine if b.do in ("walk", "fly")), key=lambda b: when(b.at, n, spans))
+    moves = sorted((b for b in mine if b.do in ("walk", "fly", "drop")), key=lambda b: when(b.at, n, spans))
+
+    def ends(b):
+        s = when(b.at, n, spans)
+        return when(b.until, n, spans) if b.until else min(n, s + int((0.45 if b.do == "drop" else 1.2) * FPS))
     walker = bool(kit.walk)
     entering = when(f"{ENTER_S}", n, spans) if a.enter != "none" else 0
     exit_beat = next((b for b in mine if b.do == "exit"), None)
@@ -226,42 +377,43 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
            for side in ("left", "right")}
 
     def where(f):
-        """(x, y, how it is moving, which way): the rest spot, an entrance, a walk or flight, an exit."""
+        """(x, y, how it is moving, which way, how far through): the rest spot, an entrance, a walk, a flight
+        or a fall, an exit."""
         if f < entering:
             u = f / entering if walker else 1 - (1 - f / entering) ** 2
             x0 = off[a.enter]
-            return x0 + (a.x - x0) * u, a.y, "enter", 1 if a.x > x0 else -1
+            return x0 + (a.x - x0) * u, a.y, "enter", 1 if a.x > x0 else -1, u
         x, y = a.x, a.y
         for b in moves:
-            s = when(b.at, n, spans)
-            e = when(b.until, n, spans) if b.until else min(n, s + int(1.2 * FPS))
+            s, e = when(b.at, n, spans), ends(b)
             tx, ty = _target(b, x, y)
             if f < s:
                 break
             if f >= e:
                 x, y = tx, ty
                 continue
-            u = (f - s) / max(1, e - s)
-            u = u if b.do == "walk" else _ease(u)
-            return x + (tx - x) * u, y + (ty - y) * u, b.do, (1 if tx > x else -1 if tx < x else 0)
+            t = (f - s) / max(1, e - s)
+            u = t if b.do == "walk" else t * t if b.do == "drop" else _ease(t)    # a fall gathers speed
+            return x + (tx - x) * u, y + (ty - y) * u, b.do, (1 if tx > x else -1 if tx < x else 0), t
         if f >= exit_at:
             u = min(1.0, (f - exit_at) / (ENTER_S * FPS))
             u = u if walker else u * u
             x1 = off[exit_beat.value if exit_beat.value in off else "right"]
-            return x + (x1 - x) * u, y, "exit", 1 if x1 > x else -1
-        return x, y, None, 0
+            return x + (x1 - x) * u, y, "exit", 1 if x1 > x else -1, u
+        return x, y, None, 0, 0.0
 
     facing = a.facing
-    pieces, tf = [], []
+    pieces, tf, poses = [], [], []
     for f in range(1, n + 1):
         if f % 2 == 0:                                    # on twos: the piece and the pose held
             pieces.append(pieces[-1])
             tf.append(tf[-1])
+            poses.append(poses[-1])
             continue
 
         def active(b):
             return when(b.at, n, spans) <= f < (when(b.until, n, spans) if b.until else n + 1)
-        x, y, how, way = where(f)
+        x, y, how, way, through = where(f)
         if way:
             facing = "right" if way > 0 else "left"
         for b in mine:
@@ -281,6 +433,7 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
         if face is None:                                  # a blink about every three seconds, two frames
             face = "blink" if (f + 23 * k) % 74 in (0, 1) and f > entering + 4 else "closed"
         pieces.append(str(kit.piece(series_dir, pose, face)))
+        poses.append(pose)
         natural = kit.natural_of(pose)
         flip = natural != "front" and facing != natural
         fwd = (1 if not flip else -1) * (-1 if natural == "right" else 1)    # the turn that tips the top forward
@@ -310,13 +463,21 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
             else:                                         # no walk drawn: a waddle, rocking and bobbing
                 rot += math.radians(5.0) * (1 if (f // 4) % 2 else -1)
                 cy += 0.18 if (f // 2) % 2 else 0.0
-        elif how == "fly" and kit.fly:                    # wings: a bob and a flap (a flung bucket just flies)
+        elif how == "fly" and kit.fly:                    # wings: a bob and a flap
             cy += 0.25 * math.sin(2 * math.pi * f / 12)
             sy *= 1.0 + 0.05 * math.sin(2 * math.pi * f / 6)
+        elif how == "fly":                                # no wings: thrown, in an arc
+            cy += 2.0 * math.sin(math.pi * through)
         elif entering and 0 <= f - entering < 6:          # arriving: squash, stretch, settle
             s = (0.94, 0.94, 1.03, 1.03, 1.0, 1.0)[f - entering]
             sx, sy = 1 / s ** 0.5, s
+        for b in mine:                                    # a fall that lands: one bounce, squashed as it hits
+            if b.do == "drop" and _target(b, 0, 0)[1] > -3 and 0 <= f - ends(b) < 8:
+                d = f - ends(b)
+                cy += 0.7 * math.sin(math.pi * d / 8)
+                if d < 2:
+                    sx, sy = sx * 1.08, sy * 0.86
         tf.append([round(x, 4), round(cy, 4), round(rot, 5), round(sx * (-1 if flip else 1) * a.scale, 4),
                    round(sy * a.scale, 4)])
-    return {"name": a.who, "pieces": pieces, "w_px": p.w, "h_px": p.h, "upp": kit.upp,
+    return {"name": a.who, "pieces": pieces, "poses": poses, "w_px": p.w, "h_px": p.h, "upp": kit.upp,
             "z": round(0.1 * (3 - a.depth) + 0.01 * k, 3), "tf": tf}

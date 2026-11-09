@@ -120,7 +120,7 @@ def test_a_layout_plans_every_frame_on_twos_with_its_beats_and_its_rope(tmp_path
     assert all(c["tf"][f] == c["tf"][f - 1] for f in range(1, 48, 2))           # on twos
     assert c["tf"][0][0] < -12 and c["tf"][24][0] == 3.0                        # waddled in from off the left
     assert c["tf"][30][3] < 0                                                   # facing right: mirrored
-    assert p["camera"][0] == p["camera"][20] and p["camera"][47][2] == 8.0      # holds, then closes in
+    assert p["camera"][0] == p["camera"][20] and 8.0 <= p["camera"][47][2] < 8.5   # holds, then closes in
     feet = c["tf"][30][1] + (h - (56 + kitmod.PAD)) * k.upp
     assert abs(feet - 0.0) < 0.02                                               # the feet on the ground
     loop = p["ropes"][0]["loop"]
@@ -181,13 +181,65 @@ def test_the_writers_stage_becomes_a_layout_and_its_slips_are_mended(tmp_path, c
         "camera": {"size": "close", "on": "gull", "move": "tilt_up"}})
     with caplog.at_level(logging.WARNING):
         lay_ = writer.stage(st, 3, {"gull": k, "bucket": k}, {"bucket"})
-    assert "kraken" in caplog.text and "somewhere" in caplog.text
+    assert "kraken" in caplog.text
     gull, bucket = lay_.actors[0], lay_.actors[-1]
     assert (gull.x, gull.y, gull.facing, gull.pose) == (-11.0, 12.0, "right", "normal")    # no "asleep"; hung (spin)
     assert bucket.on == "gull.hold" and [a.who for a in lay_.actors] == ["gull", "bucket"]  # once each, held
     assert [(b.do, b.value) for b in lay_.beats] == [("fly", "6.0,12.0"), ("walk", "-24.0"), ("spin", "180")]  # hung: swings at its height
-    assert lay_.ropes[0].attach == "gull.ankle" and lay_.ropes[0].path[-1][0] == 0.0    # unknown mark: centre
-    assert lay_.camera.start.on == "gull.feet" and lay_.camera.end.on == "gull.head" and lay_.place == 3
+    assert [(r.attach, r.up, r.path) for r in lay_.ropes] == [("gull.ankle", True, [])]   # hung: from a rope, upwards
+    cam = lay_.camera                                    # hung: the whole of him and his rope, held
+    assert (cam.start.size, cam.start.on, cam.start.zoom, cam.end) == ("medium", "gull", 0.8, None) and lay_.place == 3
+
+
+def test_raised_is_a_spot_or_the_ground_and_a_row_stands_clear(tmp_path, caplog):
+    from entertainment.cutout import writer
+
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    assert abs(k.half - 14 * 10.0 / 64) < 0.1                                # the drawing's own width, not the card's
+    st = writer.Stage.model_validate({
+        "actors": [{"who": "gull", "mark": "left", "height": "raised"}, {"who": "bucket", "mark": "far_right", "height": "raised"},
+                   {"who": "crate", "mark": "centre"}, {"who": "cat", "mark": "centre"}],
+        "beats": [{"who": "crate", "do": "drop", "value": "off", "at": "1"},
+                  {"who": "gull", "do": "fly", "to": "wall", "at": "2"}],
+        "rope": {"attach": "gull.ankle", "to": "somewhere"},
+        "camera": {"size": "close", "on": "gull.feet"}})
+    kits = {w: k for w in ("gull", "bucket", "crate", "cat")}
+    with caplog.at_level("WARNING"):
+        lay_ = writer.stage(st, 1, kits, {"bucket", "crate"}, {"sill": (-4.0, 7.0), "wall": (1.0, 9.0)})
+    by = {a.who: a for a in lay_.actors}
+    assert by["gull"].spot == "sill" and (by["bucket"].spot, by["bucket"].y) == (None, 0.0)   # no spot in reach: the ground
+    assert by["cat"].x - by["crate"].x >= 2 * k.half + writer.GAP - 0.01      # both were on centre
+    assert [(b.do, b.value) for b in lay_.beats] == [("drop", "-25"), ("fly", "1.0,6.0")]   # to the wall, on the plate
+    assert "somewhere" in caplog.text and lay_.ropes[0].path[-1][0] == 0.0 and not lay_.ropes[0].up
+    assert (lay_.camera.start.size, lay_.camera.start.on) == ("medium", "gull")              # no close-up of feet
+
+
+def test_a_rope_follows_a_drop_bounces_and_no_neighbour_is_sliced(tmp_path):
+    series_dir, d = _series(tmp_path)
+    kj = json.loads((d / "kit.json").read_text(encoding="utf-8"))
+    kj["pose_anchors"] = {"normal": {"hold": [40, 10]}}
+    (d / "kit.json").write_text(json.dumps(kj), encoding="utf-8")
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    assert k.anchor("hold") == (40, 10) and k.anchor("head") == (24, 16) and k.anchor("tail") is None
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    layout = lay.Layout.model_validate({
+        "place": 1, "actors": [{"who": "gull", "x": 0.0}, {"who": "cat", "x": 4.5}, {"who": "crate", "x": -9.0, "y": 6.0}],
+        "beats": [{"who": "gull", "do": "walk", "value": "-3", "at": "1", "until": "2"},
+                  {"who": "crate", "do": "drop", "value": "0", "at": "0.5", "until": "1"}],
+        "ropes": [{"attach": "gull.ankle", "path": [[-9, 0.1]]}, {"attach": "gull.ankle", "up": True}],
+        "camera": {"start": {"size": "medium", "on": "gull"}}})
+    kits = {x: k for x in ("gull", "cat", "crate")}
+    p = lay.plan(layout, kits, series_dir, 72, {}, [], d / "base.png", {x: (w, h) for x in kits})
+    along, up = p["ropes"]
+    assert along["at"][0][0] - along["at"][60][0] == 3.0 and along["points"][-1] == [-9, 0.1] and not along["up"]
+    assert up["up"] and up["points"][1][1] > 30 and "poses" not in p["cards"][0]
+    crate = [t[1] + (h - (56 + kitmod.PAD)) * k.upp for t in p["cards"][2]["tf"]]
+    assert abs(crate[0] - 6.0) < 0.02 and 0 < crate[18] < 6.0 and crate[28] > 0.3 and abs(crate[40]) < 0.02   # falls, bounces, rests
+    x, y, width = p["camera"][0]
+    assert width > 16.0 and x - width / 2 < -k.half and x + width / 2 > 4.5 + k.half     # the cat beside him, whole
 
 
 def test_a_snatched_prop_waits_until_taken_and_the_camera_finds_a_hanging_puppet(tmp_path):
@@ -205,6 +257,18 @@ def test_a_snatched_prop_waits_until_taken_and_the_camera_finds_a_hanging_puppet
     p = lay.plan(lay_, {"gull": k, "bucket": k}, series_dir, 48, {}, [], d / "base.png", {"gull": (w, h), "bucket": (w, h)})
     bucket = p["cards"][1]["tf"]
     assert bucket[0][0] == 6.0 and bucket[30][0] != 6.0                     # on its mark, then in the beak
+    assert bucket[22][0] == 6.0 and bucket[30][0] < bucket[26][0] < 6.0      # carried there over a few frames
+    # Let go: by a spot it is set down there, and stays; with none it falls to the ground.
+    put = lay_.model_copy(deep=True)
+    put.actors[1].off_at = "1.5"
+    for spots, y_end in (({"sill": (-7.0, 9.0)}, -3.0 + 9.0), (None, 0.0)):
+        q = lay.plan(put, {"gull": k, "bucket": k}, series_dir, 72, {}, [], d / "base.png",
+                     {"gull": (w, h), "bucket": (w, h)}, spots=spots)
+        x, y = q["cards"][1]["tf"][70][:2]
+        assert abs(y + (h - (56 + kitmod.PAD)) * k.upp - y_end) < 0.02 and (spots is None or x == -7.0)
+    st.beats.append(writer.StageBeat(who="gull", do="drop", at="1.5"))
+    dropped = writer.stage(st, 1, {"gull": k, "bucket": k}, {"bucket"})
+    assert dropped.actors[1].off_at == "1.5" and [b.do for b in dropped.beats] == []   # he lets go; he doesn't fall
     hung = lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull", "x": 0.0, "y": 12.0}],
                                       "beats": [{"who": "gull", "do": "spin", "value": "180", "at": "0"}],
                                       "camera": {"start": {"size": "medium", "on": "gull"}}})

@@ -1112,6 +1112,8 @@ def _cli() -> int:
     a.add_argument("--remake", action="store_true", help="retell an episode made before (the idea says which)")
     pr = sub.add_parser("props", help="draw the kit of every prop a cut-out episode names (GPU), then restage")
     pr.add_argument("folder", type=Path)
+    rs = sub.add_parser("restage", help="stage a cut-out episode's shots again (the talk and its sound are kept)")
+    rs.add_argument("folder", type=Path)
     fx = sub.add_parser("sfx", help="make the episode's sound effects (Stable Audio, GPU) and record its shots again")
     fx.add_argument("folder", type=Path)
     fx.add_argument("--url", default="http://127.0.0.1:7860")
@@ -1144,6 +1146,10 @@ def _cli() -> int:
         for path in puppets.props(args.folder.resolve()):
             print(path)
         print(writer.relayout(args.folder.resolve()), "shots restaged")
+    elif args.cmd == "restage":
+        from entertainment.cutout import writer
+
+        print(writer.restage(args.folder.resolve()), "shots restaged")
     elif args.cmd == "kit":
         from entertainment.cutout import kit as puppets
 

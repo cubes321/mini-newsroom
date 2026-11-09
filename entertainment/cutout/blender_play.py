@@ -103,18 +103,38 @@ def strip(name, points, z, width, color):
     ob = bpy.data.objects.new(name, cu)
     ob.data.materials.append(material(name, color=color))
     bpy.context.scene.collection.objects.link(ob)
+    return ob
 
 
-def rope(k, r):
-    """A strip of the rope's colour over a wider black one, lifted clear of it (they are round tubes)."""
-    runs = [r["points"]]
+def rope(k, r, frames):
+    """A strip of the rope's colour over a wider black one, lifted clear of it (they are round tubes). Tied to
+    someone (`at`: that point, every frame), its loop goes with them, and so does a rope that hangs from above;
+    one that lies along the ground keeps its far end and only its tied end follows."""
+    at = r.get("at")
+    runs = [(r["points"], False)]
     if r["loop"]:
         x, y, rx, ry = r["loop"]
-        runs.append([(x + rx * math.cos(a), y + ry * math.sin(a)) for a in (i * math.pi / 12 for i in range(25))])
-    for j, pts in enumerate(runs):
-        z = 0.45 if j else -0.6                      # the loop in front of the leg, the run behind everyone
-        strip(f"rope{k}_{j}_edge", pts, z, r["width"] * 1.65, (0.01, 0.01, 0.02))
-        strip(f"rope{k}_{j}", pts, z + 0.2, r["width"], tuple(r["color"]))
+        runs.append(([(x + rx * math.cos(a), y + ry * math.sin(a)) for a in (i * math.pi / 12 for i in range(25))], True))
+    for j, (pts, loop) in enumerate(runs):
+        z = 0.45 if loop else -0.6                    # the loop in front of the leg, the run behind everyone
+        obs = [strip(f"rope{k}_{j}_edge", pts, z, r["width"] * 1.65, (0.01, 0.01, 0.02)),
+               strip(f"rope{k}_{j}", pts, z + 0.2, r["width"], tuple(r["color"]))]
+        if not at:
+            continue
+        last = None
+        for f in frames:
+            dx, dy = at[f - 1][0] - at[0][0], at[f - 1][1] - at[0][1]
+            if (dx, dy) == last:
+                continue
+            last = (dx, dy)
+            for ob in obs:
+                if loop or r.get("up"):
+                    ob.location = (dx, dy, 0.0)
+                    ob.keyframe_insert("location", frame=f)
+                else:
+                    end = ob.data.splines[0].points[0]
+                    end.co = (pts[0][0] + dx, pts[0][1] + dy, end.co[2], 1.0)
+                    end.keyframe_insert("co", frame=f)
 
 
 def sequence(folder, name, pieces):
@@ -148,9 +168,9 @@ def build(plan, out, still):
         first = c["pieces"][0] if still else sequence(work, c["name"], c["pieces"])
         ob = card(c["name"], first, c["w_px"] * c["upp"], c["h_px"] * c["upp"], c["z"], seq=0 if still else n)
         cards.append((ob, c))
-    for k, r in enumerate(plan["ropes"]):
-        rope(k, r)
     frames = [1] if still else range(1, n + 1)
+    for k, r in enumerate(plan["ropes"]):
+        rope(k, r, frames)
     for f in frames:
         x, y, w = plan["camera"][f - 1]
         cam.location = (x, y, 20.0)

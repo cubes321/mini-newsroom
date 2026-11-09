@@ -51,6 +51,7 @@ class Kit(BaseModel):
     height: float = Field(gt=0)                # stage units for base.png's height (Gully: 10)
     feet_y: int                                # base.png row the feet stand on
     anchors: dict[str, tuple[int, int]] = {}   # named points in base.png: head, ankle, ...
+    pose_anchors: dict[str, dict[str, tuple[int, int]]] = {}   # a pose whose point is elsewhere (a raised fist's hold)
     regions: dict[str, list[tuple[int, int, int, int]]] = {}
     variants: dict[str, Variant] = {}
     poses: dict[str, str | None] = {"normal": None}   # pose -> its variant (None: the design)
@@ -86,12 +87,26 @@ class Kit(BaseModel):
         meta = self.folder(series_dir) / "pieces" / "feet.json"
         return json.loads(meta.read_text())[pose] if meta.exists() else self.feet_y
 
+    def anchor(self, name: str, pose: str = "normal") -> tuple[int, int] | None:
+        """A named point as the pose draws it: Dot's shaking fist holds the bucket, not her lowered hand
+        (the Chip Lift's shot 21, 2026-11-09, hung it at her hip)."""
+        return self.pose_anchors.get(pose, {}).get(name) or self.anchors.get(name)
+
     @property
     def upp(self) -> float:
         """Stage units per pixel of base.png."""
         return self.height / self._h
 
+    @property
+    def half(self) -> float:
+        """Half the drawing's width in stage units (pieces/box.json; without one, most of the picture)."""
+        if self._box:
+            return (self._box[2] - self._box[0]) / 2 * self.upp
+        return 0.3 * self._w * self.upp
+
     _h: int = 0                                # base.png's height, set by load()
+    _w: int = 0
+    _box: tuple[int, int, int, int] | None = None     # the design's drawing in base.png: x0, y0, x1, y1
 
 
 def load(series_dir: Path, who: str) -> Kit:
@@ -99,7 +114,10 @@ def load(series_dir: Path, who: str) -> Kit:
     kit = Kit.model_validate_json(path.read_text(encoding="utf-8"))
     import pygame
 
-    kit._h = pygame.image.load(str(path.parent / "base.png")).get_height()
+    kit._w, kit._h = pygame.image.load(str(path.parent / "base.png")).get_size()
+    box = path.parent / "pieces" / "box.json"
+    if box.exists():
+        kit._box = tuple(json.loads(box.read_text(encoding="utf-8")))
     return kit
 
 
@@ -226,6 +244,10 @@ def build(series_dir: Path, who: str) -> list[Path]:
             save_rgba(paper(*cut(img, cream, kit.cut_holes), g), path)
             out.append(path)
     (d / "pieces" / "feet.json").write_text(json.dumps(feet), encoding="utf-8")
+    _, a = cut(base, cream, kit.cut_holes)
+    ys, xs = np.nonzero(a > 0.5)
+    (d / "pieces" / "box.json").write_text(json.dumps([int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]),
+                                           encoding="utf-8")
     sheet(d, out)
     return out
 
@@ -302,26 +324,67 @@ def edit_graph(prompt: str, image: str, seed: int, prefix: str) -> dict:
     }
 
 
-SIZES = (("tiny", 1.2), ("small", 2.0), ("little", 2.0), ("large", 4.0), ("big", 4.0), ("huge", 6.0))
+# A prop's height in stage units from the plain words of its look (Gully's drawing stands about 8). Raised
+# 2026-11-09: at 2 to 3 units a bucket was a thimble beside the cast.
+SIZES = (("tiny", 2.0), ("small", 3.2), ("little", 3.2), ("large", 5.5), ("big", 5.5), ("huge", 7.0))
+PROP_SIZE = 4.0
+PROP_W = 6.0                                   # stage units: the widest a prop is drawn (Gully is about 8 wide)
+LINE = 7                                       # pixels: about the cast's outline in their designs
+MARGIN = 32
 
 
-PROP_W = 3.5                                   # stage units: the widest a prop is drawn (Gully is about 8 wide)
+def _cast_upp(series_dir: Path) -> float:
+    """Stage units per pixel of the lead's design: the scale every paper edge and outline is cut at."""
+    from entertainment import cartoons
+
+    try:
+        return load(series_dir, cartoons.SERIES[series_dir.name].cast[0].key).upp
+    except (KeyError, OSError, IndexError):
+        return 10.0 / 1344
 
 
 def fit_prop(series_dir: Path, key: str, looks: str) -> Kit:
-    """A prop's kit.json from its drawing: tall as the plain words of its look say, but never wider than
-    PROP_W (a "heap of chips" came out wider than Biscuit); its grip the top middle, where it's held."""
+    """A prop's base.png and kit.json from its drawing (drawn.png, as Qwen drew it: far bigger than asked).
+
+    The drawing is shrunk to the cast's own pixel scale BEFORE it is cut out, so the paper edge and shadow come
+    out as wide as the cast's; shrunk as a card instead (to 2026-11-09), a bucket's edge and outline were a
+    quarter of Gully's and it looked pasted in. Its outline, thinned by the shrinking, is drawn back out to
+    LINE. Tall as the plain words of its look say, never wider than PROP_W. Its grip, where a beak or a hand
+    holds it, is the top of its body: the first row at least 40% as wide as its widest (not a curl of steam)."""
     d = series_dir / "puppets" / key
-    img = rgb(d / "base.png")
-    _, a = cut(img, cream_of(img), cut_holes=True)
+    drawn = d / "drawn.png"
+    if not drawn.exists():
+        shutil.copy2(d / "base.png", drawn)
+    img = rgb(drawn)
+    cream = cream_of(img)
+    _, a = cut(img, cream, cut_holes=True)
     ys, xs = np.nonzero(a > 0.5)
     bh, bw = max(1, ys.max() - ys.min()), max(1, xs.max() - xs.min())
-    size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), 2.8)
+    size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), PROP_SIZE)
     size = min(size, PROP_W * bh / bw)
+    upp = _cast_upp(series_dir)
+    s = min(1.0, size / (bh * upp))
+    crop = img[max(0, ys.min() - 8):ys.max() + 9, max(0, xs.min() - 8):xs.max() + 9]
+    if s < 1.0:
+        blur = (1 / s - 1) * 0.5
+        crop = ndimage.zoom(ndimage.gaussian_filter(crop, (blur, blur, 0)), (s, s, 1), order=1)
+    small = np.pad(crop, ((MARGIN, MARGIN), (MARGIN, MARGIN), (0, 0)), mode="edge")
+    small[:MARGIN], small[-MARGIN:], small[:, :MARGIN], small[:, -MARGIN:] = cream, cream, cream, cream
+    grow = round(LINE * (1 - s) / 2)
+    if grow:
+        _, a = cut(small, cream, cut_holes=True)
+        fg = a > 0.5
+        small[ndimage.binary_dilation(fg, iterations=grow) & ~fg] = 0
+    save_rgb(small, d / "base.png")
+    _, a = cut(small, cream, cut_holes=True)
+    fg = a > 0.5
+    ys, xs = np.nonzero(fg)
+    wide = fg.sum(1)
+    top = int(np.nonzero(wide >= 0.4 * wide.max())[0][0])
+    mid = int(np.nonzero(fg[top])[0].mean())
     kit = Kit(who=key, design=f"puppets/{key}/base.png", natural="front", cut_holes=True, looks=looks,
-              height=round(size * img.shape[0] / bh, 3), feet_y=int(ys.max()),
-              anchors={"grip": (int((xs.min() + xs.max()) / 2), int(ys.min())),
-                       "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
+              height=round(small.shape[0] * upp, 3), feet_y=int(ys.max()),
+              anchors={"grip": (mid, top), "head": (int((xs.min() + xs.max()) / 2), int((ys.min() + ys.max()) / 2))})
     (d / "kit.json").write_text(kit.model_dump_json(indent=1), encoding="utf-8")
     return kit
 
@@ -366,7 +429,8 @@ def props(folder: Path) -> list[Path]:
         (d / "variants").mkdir(parents=True, exist_ok=True)
         for o in h["outputs"].values():
             for f in o.get("images", []):
-                shutil.copy2(cartoons.COMFY_DIR / "output" / f["subfolder"] / f["filename"], d / "base.png")
+                shutil.copy2(cartoons.COMFY_DIR / "output" / f["subfolder"] / f["filename"], d / "drawn.png")
+                shutil.copy2(d / "drawn.png", d / "base.png")
         fit_prop(series_dir, key, looks)
         made += build(series_dir, key)
         log.info("cutout: prop %s drawn", key)
