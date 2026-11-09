@@ -163,8 +163,13 @@ def _age(v):
         v = v.strip().lower()
         if n := re.search(r"\d+", v):
             return _age(int(n.group()))
-        for words, band in ((_MIDDLE, "middle"), (_OLD, "old"), (_YOUNG, "young")):
-            if any(w in v for w in words):
+        # Whole words, by how they start: as substrings, "a nineteen-year-old" was old (the "old" in it),
+        # "sixteen" middle-aged ("sixt") and a grandson old ("grand").
+        words = re.findall(r"[a-z]+", re.sub(r"\byears?[\s-]*old\b", " ", v))
+        if any("teen" in w or w.startswith(("grandchild", "grandson", "granddaughter", "grandkid")) for w in words):
+            return "young"
+        for stems, band in ((_MIDDLE, "middle"), (_OLD, "old"), (_YOUNG, "young")):
+            if any(w.startswith(stems) for w in words):
                 return band
         return None
     return v
@@ -399,7 +404,9 @@ class CallScript(BaseModel):
     headline: Headline = Field(min_length=4, max_length=90)
     # "Have Your Say: " and the whole question overran 60 in the first run, and a retry costs a call.
     lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
-    caller_name: str = Field(min_length=3, max_length=40, description="the caller's first name and surname")
+    # Stripped first: a name of three spaces passed min_length and writers._guest_of took its first word.
+    caller_name: Annotated[str, BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v)] = Field(
+        min_length=3, max_length=40, description="the caller's first name and surname")
     caller_from: Annotated[str, _clip_words(40)] = Field(
         max_length=40, description="where they are ringing from, as Jonah would say it: a street, a village, a boat; "
                                    "never the town's own name ('Harbour Row', not 'Harbour Row, Port Wexley')")
@@ -536,7 +543,7 @@ class SectionPlan(BaseModel):
     backdrop: Backdrop
     guest_name: str | None = Field(default=None, max_length=40, description="an invented resident to hear from, or null")
     guest_role: str | None = Field(default=None, max_length=50, description="e.g. 'harbourmaster', 'retired cannery worker'")
-    guest_gender: Literal["f", "m"] | None = Field(default=None, description="for casting the guest's voice")
+    guest_gender: Gender = Field(default=None, description="for casting the guest's voice")   # "female" is f, as elsewhere
     guest_age: Age = None
     guest_accent: Accent = None
     archive_clip: str | None = Field(default=None, max_length=8,

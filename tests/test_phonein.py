@@ -302,3 +302,14 @@ def test_the_telephone_keeps_the_voice_band_and_drops_the_rest():
     spec = np.abs(np.fft.rfft(out))
     assert len(out) == sr and np.abs(out).max() <= 0.9
     assert spec[100] < 0.01 * spec[1000]
+
+
+def test_a_caller_with_no_name_is_asked_for_again_not_taken_on_air():
+    """Three spaces passed "at least three characters", and the writers then took the first word of nothing."""
+    w = _town()
+    schema = script_schema(T.call, schedule.get("phonein").cast_for(T.call))
+    lines = [{"speaker": "host_b", "text": "Line one?"}, {"speaker": "guest", "text": "It should stay."},
+             {"speaker": "host_b", "text": "Thanks."}]
+    with pytest.raises(ValidationError):
+        _call(w, schema, lines, caller_name="   ")
+    assert _call(w, schema, lines, caller_name="  Sandra Polglase ").caller_name == "Sandra Polglase"

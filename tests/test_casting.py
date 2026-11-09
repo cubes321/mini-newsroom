@@ -175,3 +175,26 @@ def test_the_towns_unmatched_roles_have_costumes_and_no_one_else_changes():
     assert look("rope and sail repairer, Harbour Row").top_style in ("jumper", "jacket")   # still a harbour look
     assert look("singer-songwriter, performing tonight").glasses == "shades"
     assert look("cannery historian").top_style == "cardigan"                           # not the dockers'
+
+
+def test_an_age_is_read_by_its_words_not_by_letters_inside_them():
+    """As substrings, "a nineteen-year-old" was old (the "old" in it), "sixteen" middle-aged ("sixt"), a
+    grandson old ("grand") and a householder old too."""
+    from newsroom.models import _age
+
+    for said, band in (("a nineteen-year-old", "young"), ("sixteen", "young"), ("teenager", "young"),
+                       ("her grandson", "young"), ("in her 70s", "old"), ("mid-40s", "middle"), (34, "middle"),
+                       ("elderly", "old"), ("a grandmother", "old"), ("retired", "old"), ("older", "old"),
+                       ("forty-year-old", "middle"), ("sixty-two years old", "middle"), ("seventy", "old"),
+                       ("young adult", "middle"), ("a student", "young"), ("a householder", None), ("bold", None)):
+        assert _age(said) == band, said
+
+
+def test_a_special_takes_female_for_a_guests_gender_like_every_other_script():
+    """SectionPlan alone wanted exactly "f" or "m": "female" failed the whole outline, and its retry."""
+    from newsroom.models import SectionPlan
+
+    plan = SectionPlan(heading="The wall", beats=["what happened"], backdrop="harbour", guest_name="Ivy Trelawney",
+                       guest_gender="Female", guest_age="in her 60s")
+    assert (plan.guest_gender, plan.guest_age) == ("f", "middle")
+    assert SectionPlan(heading="The wall", beats=["b"], backdrop="harbour", guest_gender="unknown").guest_gender is None
