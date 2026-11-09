@@ -36,7 +36,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import calendar, council, quay, schedule, sport
+from . import calendar, council, quay, schedule, sport, talk
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -314,6 +314,7 @@ class World:
             f"{council.calendar_line(date.fromisoformat(self.last_date))}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
+            f"{talk.line(self, date.fromisoformat(self.last_date))}"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"{self._waiting_line()}"
             f"Recent headlines (do NOT repeat these):\n{heads}"
