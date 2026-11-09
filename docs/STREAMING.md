@@ -248,7 +248,7 @@ Voices: Pocket TTS by Kyutai (CC BY 4.0) and Kokoro-82M (Apache 2.0). Full credi
 Support: TODO (Ko-fi)
 ```
 
-**Shorts** (one moment from a saved part or a recording; `tools/shorts.py` is being built to cut them)
+**Shorts** (one moment from a saved part or a recording; `tools/shorts.py` cuts them)
 
 ```text
 Title (max 100 characters; the moment first):

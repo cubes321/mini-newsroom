@@ -59,8 +59,10 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 ## Week 2: Mon 16 to Sun 22 November, the pieces land
 
 - [ ] The kill switch (`python -m newsroom.control testcard|air`, F12) and the content filter are
-      committed (being built by another session). Try both on a `--scratch` run.
-- [ ] Stream restarts at `[stream] restart_at = ["00:00","09:00","19:00"]` are committed (being built).
+      committed (both are, since 8 November; on-screen text is checked too since the 9th). Try both on a
+      `--scratch` run.
+- [x] Stream restarts at `[stream] restart_at = ["00:00","09:00","19:00"]` are committed; a failed one is
+      tried again at the next break ([STREAMING.md](STREAMING.md#stream-restarts-each-saved-part-under-12-hours)).
 - [x] **A new music bed rendered in code** (`jingle.bed("vibes")`, 44.1 kHz stereo, 80 s), picked by ear on
       2026-11-08 over "lounge" and "strings"; it replaced the Stable Audio bed. Listen for it on the next
       night: under speech, on the cards and on the test card.
@@ -92,7 +94,7 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 ## Week 4: Mon 30 November to Sun 6 December, Shorts begin
 
 - [ ] **Tue 1 December: the first Short**, then **one a day** to Christmas Eve (24 in all). Cut with
-      `tools/shorts.py` (being built); **you** choose the moments. Every Short gets the disclosure line,
+      `tools/shorts.py`; **you** choose the moments. Every Short gets the disclosure line,
       the Pocket TTS credit and the altered-content Yes ([templates](STREAMING.md#titles-and-descriptions)).
       Schedule them a few days ahead in YouTube Studio so a missed day doesn't break the run.
 - [ ] Vary them: a breaking-news cut-in, the fish auction on *Quayside*, a phone-in caller, a council vote,
