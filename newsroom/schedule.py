@@ -1011,10 +1011,17 @@ def get(show_id: str | None, ts: float | None = None) -> Show:
     return SHOWS.get(show_id or "", SHOWS["news"])
 
 
-def next_start(show_id: str) -> str:
-    """When `show_id`'s first block ends, as HH:MM: for "programmes resume at" captions."""
-    i = next(i for i, (_, s) in enumerate(SCHEDULE) if s == show_id)
-    return start_label(SCHEDULE[(i + 1) % len(SCHEDULE)][0])
+def next_start(show_id: str, ts: float | None = None) -> str:
+    """When the show hands over, as HH:MM: for "programmes resume at" captions.
+
+    With `ts` it is the show on air then, and the day's own grid answers: on Christmas Day breakfast is at
+    seven, not six, and a Christmas show (the midnight service, the carols) isn't in SCHEDULE at all, where
+    looking for it raised StopIteration and took the station off air. Without `ts`, the ordinary day's
+    entry after `show_id`'s first block, or "" for a show the ordinary day doesn't have."""
+    if ts is not None:
+        return time.strftime("%H:%M", time.localtime(show_end(ts)))
+    i = next((i for i, (_, s) in enumerate(SCHEDULE) if s == show_id), None)
+    return "" if i is None else start_label(SCHEDULE[(i + 1) % len(SCHEDULE)][0])
 
 
 # ------------------------------------------------------------------- clock

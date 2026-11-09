@@ -138,6 +138,7 @@ class Player:
         self.filler_total_s = 0.0
         self._voice = None
         self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
+        self._resume_of: tuple[str, str] = ("", "")    # (test card's id, when programmes resume), likewise
         self.holding = False                 # held on the test card by the kill switch (control.py)
         if audio:
             import pygame
@@ -621,7 +622,9 @@ class Player:
             v.mode, v.speaker = "breaking", None             # the sting, under the BREAKING NEWS card
         elif seg.type is SegmentType.testcard:
             v.mode, v.speaker = "testcard", None
-            v.show, v.resume_at = on_air.id, schedule.next_start(on_air.id)
+            if self._resume_of[0] != seg.id:         # once a card, not thirty times a second
+                self._resume_of = (seg.id, schedule.next_start(on_air.id, now))
+            v.show, v.resume_at = on_air.id, self._resume_of[1]
         elif seg.type is SegmentType.film and seg.work.get("film"):
             v.mode, v.speaker, v.show = "film", None, on_air.id
             v.film = (seg.work["film"], elapsed)

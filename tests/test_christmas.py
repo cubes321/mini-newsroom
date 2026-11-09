@@ -39,6 +39,31 @@ def test_the_three_days_follow_the_calendar(by_calendar):
     assert title(AFTER, 11, 20) == "PORT WEXLEY NEWS" and title(AFTER, 20, 10) == "THE INQUIRY"
 
 
+def test_the_test_card_says_when_that_days_programmes_resume(by_calendar, tmp_path):
+    """next_start looked only in the ordinary day: 06:00 on Christmas morning, when breakfast is at seven, and
+    StopIteration (the station off air) for a show the ordinary day doesn't have."""
+    from newsroom import adverts
+    from newsroom.buffer import Buffer
+    from newsroom.models import Line, SegmentState
+    from newsroom.player import Player
+    from newsroom.producer import Producer
+
+    assert schedule.next_start("overnight", _at(AFTER, 3)) == "06:00"
+    assert schedule.next_start("overnight", _at(DAY, 5, 55)) == "07:00"
+    assert schedule.next_start("midnight", _at(DAY, 0, 10)) == "00:30"
+    assert schedule.next_start("midnight") == "" and schedule.next_start("overnight") == "06:00"
+
+    buf = Buffer()
+    pl = Player(buf, world_mod.seed(), Producer(buf, 600), audio=False, ads=adverts.AdPool(tmp_path / "ads"))
+    card = Segment(slot_id=0, type=T.testcard, lines=[Line(speaker="anchor", text="", duration_s=120.0)])
+    buf.submit(card)
+    buf.mark(card, SegmentState.ready)
+    for when, resume in ((_at(DAY, 5, 55), "07:00"), (_at(DAY, 0, 10), "00:30")):
+        pl.update(when)
+        assert pl.current is card and pl.view(when).resume_at == resume
+        pl._resume_of = ("", "")
+
+
 def test_the_writers_get_the_version_that_airs_then(by_calendar):
     """On Bonfire Night 2026-11-05 the writers got the ordinary Coastwide: not one prompt said where it was."""
     w = world_mod.seed()
