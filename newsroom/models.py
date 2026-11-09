@@ -282,6 +282,13 @@ class ChatterScript(BulletinScript):
     lines: list[LiveLine] = Field(min_length=1, max_length=24)
 
 
+class SofaScript(BulletinScript):
+    """Two presenters on the sofa trade short lines, so the same words come in more of them: on the 2026-11-05
+    and 11-07 mornings Morning Tide's sofa came back with 11 to 14 lines a dozen times, each one a failed
+    script and a second call, and one a stand-in. The word budget in the prompt keeps the length."""
+    lines: list[LiveLine] = Field(min_length=1, max_length=16)
+
+
 class FieldReportScript(BaseModel):
     lines: list[LiveLine] = Field(min_length=2, max_length=12)
     headline: Headline = Field(min_length=4, max_length=90)
@@ -795,7 +802,7 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
     SegmentType.bulletin: TipBulletinScript,
     SegmentType.breaking: BulletinScript,
     SegmentType.field_report: FieldReportScript,
-    SegmentType.sofa: BulletinScript,       # same shape: lines, headline, caption, optional follow-up
+    SegmentType.sofa: SofaScript,           # a bulletin's shape (lines, headline, caption, follow-up), more lines
     SegmentType.links: BulletinScript,
     SegmentType.monologue: BulletinScript,
     SegmentType.sport: BulletinScript,

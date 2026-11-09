@@ -96,3 +96,20 @@ class OvernightRepeats(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_the_sofa_may_take_more_short_lines_than_a_bulletin():
+    """Twelve times over two mornings the sofa came back with 11 to 14 lines and was thrown away for it."""
+    import pytest
+    from pydantic import ValidationError
+
+    from newsroom.models import SegmentType, script_schema
+
+    script = {"headline": "Papers and a pot of tea", "lower_third": "The morning papers",
+              "lines": [{"speaker": "host_a" if i % 2 == 0 else "host_b", "text": "A short line."} for i in range(14)]}
+    sofa = script_schema(SegmentType.sofa, ("host_a", "host_b"))
+    assert len(sofa.model_validate(script).lines) == 14
+    with pytest.raises(ValidationError):
+        script_schema(SegmentType.links, ("host_a", "host_b")).model_validate(script)      # a bulletin's ten still holds
+    with pytest.raises(ValidationError):
+        sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:3]})   # and seventeen is too many
