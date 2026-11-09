@@ -10,3 +10,11 @@ data/llm_calls/
 data/ads/
 data/continuity/
 data/control.txt
+
+# The public repo: everything the station writes or keeps for itself stays out of it, whole. Nothing in
+# data/ is tracked (the town, the cache, night logs, model calls, contact sheets); `git add -f` to add
+# something from it on purpose.
+data/
+*.log
+.claude/
+docs/*.docx
