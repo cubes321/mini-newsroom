@@ -126,3 +126,35 @@ def test_with_nothing_on_air_it_is_the_slot_that_wont_start_that_is_skipped(tmp_
     pl.update(now + 1)                                   # skips the failed slot
     pl.update(now + 2)
     assert pl.current is second
+
+
+# --- a line whose audio has gone ---------------------------------------------------------------------
+
+
+def test_a_line_with_its_audio_gone_still_takes_its_time(tmp_path, monkeypatch):
+    """The channel isn't busy when a sound fails to load, so the line was over in a frame: a segment
+    whose audio had been deleted flashed past, and the rundown ran ahead of the writers."""
+    import pygame
+
+    class Voice:
+        def play(self, sound): pass
+        def stop(self): pass
+        def get_busy(self): return False
+
+    def gone(path):
+        raise FileNotFoundError(path)
+
+    buf, pl = _player(tmp_path)
+    pl.audio, pl._voice = True, Voice()
+    monkeypatch.setattr(pl, "_set_music", lambda vol: None)
+    monkeypatch.setattr(pygame.mixer, "Sound", gone)
+    seg = Segment(slot_id=0, type=SegmentType.bulletin, headline="Story 0",
+                  lines=[Line(speaker="anchor", text="Good evening.", duration_s=4.0, wav_path=tmp_path / "gone.wav")])
+    buf.submit(seg)
+    buf.mark(seg, SegmentState.ready)
+    now = 1_000_000.0
+    pl.update(now)
+    pl.update(now + 1)
+    assert pl.current is seg                             # still on: four seconds of picture, no sound
+    pl.update(now + 4.1)
+    assert pl.current is None and buf.state_of(0) is SegmentState.done

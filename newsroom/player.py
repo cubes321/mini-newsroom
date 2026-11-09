@@ -137,6 +137,7 @@ class Player:
         self.stash: tuple[Segment, int, float] | None = None   # set aside by breaking news: (segment, next line, elapsed)
         self.filler_total_s = 0.0
         self._voice = None
+        self._unheard = False                # the line on air has no audio to wait for: its length times it
         self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
         self._resume_of: tuple[str, str] = ("", "")    # (test card's id, when programmes resume), likewise
         self.holding = False                 # held on the test card by the kill switch (control.py)
@@ -169,13 +170,16 @@ class Player:
 
     def _play_line(self, now: float) -> None:
         line = self.current.lines[self.line_idx]
-        self.line_start = now
+        self.line_start, self._unheard = now, False
         if self.audio and line.wav_path:
             import pygame
 
             try:
                 self._voice.play(pygame.mixer.Sound(str(line.wav_path)))
             except (FileNotFoundError, pygame.error) as e:      # a line's audio gone: silence, not a crash
+                # Timed by the clock instead (_line_done): the channel isn't busy, and until 2026-11-09 that
+                # ended the line in a frame, so a segment with its audio gone flashed past.
+                self._unheard = True
                 log.warning("slot %d line %d: no audio (%s); the picture runs on", self.current.slot_id,
                             self.line_idx + 1, e)
         if self.current.type is SegmentType.bumper or self._kind() == "ident":
@@ -193,7 +197,7 @@ class Player:
 
     def _line_done(self, now: float) -> bool:
         line = self.current.lines[self.line_idx]
-        if self.audio and self._voice is not None:
+        if self.audio and self._voice is not None and not self._unheard:
             return not self._voice.get_busy()
         return now - self.line_start >= (line.duration_s or 0.0)
 
