@@ -293,3 +293,22 @@ def test_a_report_clip_avoids_the_handback(world, tmp_paths):
                                            ("reporter", "The petition box goes up the steps, flour and all.", None)])
     entry = {"date": "2026-10-26", "type": "field_report", "headline": "x", "hash": "cccc3333", "text": "x"}
     assert documentary.find_clips(world, [entry])[0]["text"].startswith("The petition box")
+
+
+def test_a_documentary_gets_another_go_at_each_stage_not_one_for_the_whole_piece():
+    """One model timeout in the outline used the piece's only retry: the next, six stages on, dropped it."""
+    from newsroom import workers, world as world_mod
+    from newsroom.buffer import Buffer
+    from newsroom.models import Segment, SegmentState, SegmentType
+
+    buf = Buffer()
+    pool = workers.WorkerPool(buf, world_mod.seed())
+    doc = Segment(slot_id=900_001, type=SegmentType.documentary, headline="The harbour wall", stage="outline")
+    buf.submit_special(doc)
+    pool._failed(doc, RuntimeError("timed out"))
+    assert buf.state_of(doc.slot_id) is not SegmentState.failed and doc.work["retries"] == 1
+    doc.stage, doc.work["next_section"] = "sections", 2         # it got through, and on to the third section
+    pool._failed(doc, RuntimeError("timed out"))
+    assert buf.state_of(doc.slot_id) is not SegmentState.failed
+    pool._failed(doc, RuntimeError("timed out"))                # the same section again: that is enough
+    assert buf.state_of(doc.slot_id) is SegmentState.failed

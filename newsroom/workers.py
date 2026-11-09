@@ -365,9 +365,13 @@ class WorkerPool:
                 and self.buffer.state_of(first) is SegmentState.planned)
 
     def _failed(self, seg: Segment, e: Exception) -> None:
+        where = f"{seg.stage or 'outline'} {seg.work.get('next_section', '')}".strip()   # "sections 3": each its own
+        if seg.type is SegmentType.documentary and seg.work.get("retry_stage") != where:
+            seg.work["retry_stage"], seg.work["retries"] = where, 0     # a new stage: counted afresh
         if seg.type is SegmentType.documentary and seg.work.get("retries", 0) < SPECIAL_RETRIES:
             # A commission is worth one more go (a model timeout, say): the failed stage runs
-            # again, from where the last one left off, once the live queue is clear.
+            # again, from where the last one left off, once the live queue is clear. A go per stage:
+            # counted over the whole piece, one timeout in the outline left none for the seven stages after.
             seg.work["retries"] = seg.work.get("retries", 0) + 1
             log.warning("special %r: retrying the %s stage", seg.headline, seg.stage or "outline")
             self.buffer.requeue(seg)
