@@ -24,6 +24,7 @@ BACKDROP = "fish_quay"                  # locations.py: Quayside's auction repor
 AUCTION = time(6, 30)
 RESULTS = time(7, 30)                   # the hammer's down and the prices are chalked up
 AUCTION_DAYS = range(5)                 # Monday to Friday
+NO_MARKET = ((12, 25), (12, 26), (1, 1))     # the quay is shut: no "today's auction" in the Christmas Day news
 # The fleet: (boat, skipper, kind). The kind decides what it lands.
 FLEET = [("Morwenna", "Kenny Hocking", "netter"), ("Silver Darling", "Pete Rowse", "netter"),
          ("Girl Jenna", "Lou Trebilcock", "crabber"), ("Boy Josh", "Alan Curnow", "crabber"),
@@ -78,7 +79,7 @@ def _season(month: int, peak: int, amount: float) -> float:
 
 def auction(day: date) -> Auction | None:
     """The day's auction, the same every time it is asked for; None on a non-auction day."""
-    if day.weekday() not in AUCTION_DAYS:
+    if day.weekday() not in AUCTION_DAYS or (day.month, day.day) in NO_MARKET:
         return None
     rng = random.Random(f"quay|{day.isoformat()}")
     winter = (1 - math.cos(2 * math.pi * (day.month - 7) / 12)) / 2      # 0 in July, 1 in January

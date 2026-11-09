@@ -168,3 +168,10 @@ def test_the_news_words_for_the_auction():
         assert quay.about_the_auction(h), h
     for h in ("Lifeboat crew ready the wreath", "Bunting row on the quay", "Ferry boats return to the timetable"):
         assert not quay.about_the_auction(h), h
+
+
+def test_the_quay_is_shut_on_christmas_day_boxing_day_and_new_years_day():
+    """Christmas Day 2026 is a Friday: the news had "today's auction" to report, and teletext its prices."""
+    assert quay.auction(date(2026, 12, 25)) is None and quay.auction(date(2027, 1, 1)) is None
+    assert quay.auction(date(2026, 12, 24)) is not None and quay.auction(date(2026, 12, 28)) is not None
+    assert quay.latest(datetime(2026, 12, 25, 13, 0)).day == date(2026, 12, 24)    # Christmas Eve's, still the latest
