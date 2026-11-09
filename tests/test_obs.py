@@ -103,6 +103,32 @@ def test_obs_being_off_never_stops_the_station(monkeypatch, caplog):
     assert "not recording" in caplog.text
 
 
+def test_obs_opened_after_the_station_is_found_at_a_later_break(monkeypatch, caplog):
+    """The first look failing was final: OBS opened a minute late and nothing was recorded all night."""
+    made, looks = [], []
+
+    def recorder(dry, say):
+        looks.append(1)
+        if len(looks) < 3:
+            raise obs.Off("OBS isn't answering")
+        made.append(Fake())
+        return made[-1]
+
+    monkeypatch.setattr(obs, "Recorder", recorder)
+    monkeypatch.setattr(obs, "RETRY_S", 0.0)
+    monkeypatch.setattr(obs, "obs_client", lambda: (_ for _ in ()).throw(obs.Off("no OBS in a test")))
+    caplog.set_level(logging.INFO)
+    obs.attach()
+    player = logging.getLogger("newsroom.player")
+    player.info("playing slot 1 bulletin (30.0s, 4 lines) [news]")       # not a break: no look
+    player.info("playing slot 2 bumper (30.0s, 4 lines) [quayside]")     # looks, still off
+    player.info("playing slot 3 bulletin (30.0s, 4 lines) [quayside]")
+    player.info("playing slot 4 bumper (30.0s, 4 lines) [outabout]")     # found: recording from this bumper
+    obs.detach(wait_s=5)
+    assert len(looks) == 3 and "not recording yet" in caplog.text
+    assert made[0].calls == [("start", "Out And About"), ("stop", "Out And About")]
+
+
 def test_the_obs_password_never_reaches_the_log(monkeypatch, tmp_path, caplog):
     import obsws_python
 

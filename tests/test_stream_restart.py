@@ -65,3 +65,72 @@ def test_not_streaming_is_left_alone():
     clock[0] = _at(19, 5)
     d.segment(1, "bumper", "coastwide")
     assert fake.calls == []
+
+
+class Flaky(FakeOBS):
+    """OBS that fails where it is told to, once."""
+
+    def __init__(self, fail, live=True):
+        super().__init__(live)
+        self.fail = fail
+
+    def _maybe(self, what):
+        if self.fail == what:
+            self.fail = None
+            raise ConnectionError(f"{what}: no answer")
+
+    def get_stream_status(self):
+        self._maybe("status")
+        return super().get_stream_status()
+
+    def start_stream(self):
+        self._maybe("start")
+        super().start_stream()
+
+
+def test_a_restart_that_fails_is_tried_again_at_the_next_break():
+    """self.last was set before the attempt: one refused connection at 09:00 and the stream ran on to
+    19:00, past the twelve hours YouTube keeps."""
+    import pytest
+
+    fake, clock = Flaky("status"), [_at(8, 30)]
+    d = _director(fake, clock)
+    clock[0] = _at(9, 1)
+    with pytest.raises(ConnectionError):
+        d.segment(1, "bumper", "phonein")
+    assert fake.calls == []
+    clock[0] = _at(9, 6)
+    d.segment(2, "bumper", "news")
+    assert fake.calls == ["stop", "start"]
+    clock[0] = _at(9, 30)
+    d.segment(3, "bumper", "news")
+    assert fake.calls == ["stop", "start"]                # and then once, as before
+
+
+def test_a_stream_it_stopped_and_couldnt_start_is_started_at_the_next_break():
+    import pytest
+
+    fake, clock = Flaky("start"), [_at(8, 30)]
+    d = _director(fake, clock)
+    clock[0] = _at(9, 1)
+    with pytest.raises(ConnectionError):
+        d.segment(1, "bumper", "phonein")
+    assert fake.calls == ["stop"] and not fake.live and d.ours
+    clock[0] = _at(9, 6)
+    d.segment(2, "bumper", "news")
+    assert fake.calls == ["stop", "start"] and fake.live and not d.ours     # not "left alone": it was ours
+    clock[0] = _at(9, 12)
+    d.segment(3, "bumper", "news")
+    assert fake.calls == ["stop", "start"]
+
+
+def test_keep_alive_starts_a_stream_found_stopped_at_any_break():
+    fake, clock = FakeOBS(live=False), [_at(10, 0)]
+    d = obs.StreamDirector(lambda: fake, [], say=lambda s: None, clock=lambda: clock[0], sleep=lambda s: None,
+                           keep_alive=True)
+    d.segment(1, "bulletin", "news")
+    assert fake.calls == []                               # not on a programme: at a break
+    d.segment(2, "bumper", "news")
+    assert fake.calls == ["start"]
+    d.segment(3, "bumper", "news")
+    assert fake.calls == ["start"]                        # streaming: nothing to do

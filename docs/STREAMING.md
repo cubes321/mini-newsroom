@@ -145,15 +145,20 @@ The times sit on programme changes, so a saved part opens on a bumper and the ga
 where nothing is lost. The evening part is the short one on purpose: it is the best of the day and the
 easiest to clip for Shorts.
 
-**Being built** by another session: the schedule goes in `config.toml` as
+The schedule is in `config.toml`:
 
 ```toml
 [stream]
 restart_at = ["00:00", "09:00", "19:00"]
+gap_s = 5
+keep_alive = false
 ```
 
-and the station asks OBS (through the WebSocket server, as `--obs` does) to stop and start its stream at
-those times. Until that lands, there are no automatic restarts.
+With `--obs`, the station asks OBS (through the WebSocket server) to stop and start its stream on the first
+bumper, test card or teletext page at or after each time. A restart that fails (OBS not answering) is tried
+again at the next break, and a stream the station stopped is always started again. A stream that was never
+started, or that stopped by itself, is left alone unless `keep_alive = true`: then the station starts it at
+the next break. Leave it `false` for private test runs, or a run with `--obs` will go live on its own.
 
 **Check before launch** (a private test stream, `docs/LAUNCH.md`): after a restart, YouTube Studio → Content →
 Live should show a **new** saved broadcast, and the old one should be processing. If the restart reconnects

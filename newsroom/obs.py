@@ -179,13 +179,19 @@ class StreamDirector:
 
     `restart_at` is "HH:MM" on the broadcast clock (schedule.now, so --clock tests it). A time
     passed while nothing was a break is caught at the next one; several passed together make one
-    restart. Times before the station started never count."""
+    restart. Times before the station started never count.
 
-    def __init__(self, ws, restart_at: list[str], gap_s: float = 5.0, say=print, clock=None, sleep=time.sleep):
-        self.ws, self.say, self.gap_s, self.sleep = ws, say, gap_s, sleep
+    A restart that fails (OBS not answering, the stream slow to let go) is tried again at the next
+    break, and a stream this stopped and couldn't start again is started then. With `keep_alive`
+    a stream found stopped at any break is started too, whoever stopped it."""
+
+    def __init__(self, ws, restart_at: list[str], gap_s: float = 5.0, say=print, clock=None, sleep=time.sleep,
+                 keep_alive: bool = False):
+        self.ws, self.say, self.gap_s, self.sleep, self.keep_alive = ws, say, gap_s, sleep, keep_alive
         self.clock = clock or schedule.now
         self.marks = sorted((int(h), int(m)) for h, m in (t.split(":") for t in restart_at))
         self.last = self.clock()
+        self.ours = False                   # stopped here for a restart and not yet started again
 
     def _due(self, now: float) -> bool:
         day = datetime.fromtimestamp(now).date()
@@ -197,27 +203,42 @@ class StreamDirector:
         return False
 
     def segment(self, slot: int, seg_type: str, show: str) -> None:
-        if not self.marks or seg_type not in BREAKS:
+        if seg_type not in BREAKS or not (self.marks or self.keep_alive):
             return
         now = self.clock()
         if self._due(now):
-            self.last = now
             self.restart()
+            self.last = now                 # only once it worked: until 2026-11-09 a restart that threw
+                                            # waited for the next time, up to ten hours on
+        elif self.ours or self.keep_alive:
+            ws = self.ws()
+            if not ws.get_stream_status().output_active:
+                self._start(ws, "the stream is stopped: starting it")
+
+    def _start(self, ws, why: str = "") -> None:
+        if why:
+            self.say(f"{datetime.now():%H:%M:%S} {why}")
+        ws.start_stream()
+        self.ours = False
+        self.say(f"{datetime.now():%H:%M:%S} streaming again")
 
     def restart(self) -> None:
         ws = self.ws()
         if not ws.get_stream_status().output_active:
-            self.say(f"{datetime.now():%H:%M:%S} stream restart due, but OBS isn't streaming; left alone")
+            if self.ours or self.keep_alive:
+                self._start(ws, "stream restart due and the stream is stopped: starting it")
+            else:
+                self.say(f"{datetime.now():%H:%M:%S} stream restart due, but OBS isn't streaming; left alone")
             return
         self.say(f"{datetime.now():%H:%M:%S} RESTART the stream (YouTube keeps each part as a video)")
         ws.stop_stream()
+        self.ours = True
         for _ in range(30):                         # OBS takes a moment to let go of the connection
             if not ws.get_stream_status().output_active:
                 break
             self.sleep(1)
         self.sleep(self.gap_s)
-        ws.start_stream()
-        self.say(f"{datetime.now():%H:%M:%S} streaming again")
+        self._start(ws)
 
 
 # --- the station's own recorder (`--obs`) ----------------------------------------------------------
@@ -237,37 +258,53 @@ class _Feed(logging.Handler):
             _queue.put(msg)
 
 
+RETRY_S = 60.0          # OBS wasn't there: look for it again at a break, this long after the last look
+
+
 def _run(q: queue.Queue, teletext: int, dry: bool) -> None:
     from .config import CONFIG
 
     say = lambda s: log.info("obs: %s", s.strip())      # noqa: E731
+    director, looked = None, time.monotonic()
     try:
         director = Director(Recorder(dry, say), teletext)
     except Exception as e:  # noqa: BLE001
-        log.warning("obs: not recording: %s", e)
-        while q.get() is not _STOP:                     # drain until the station stops
-            pass
-        return
-    stream = None
-    if CONFIG.stream.restart_at and not dry:
-        conn = {}                                       # its own connection, made when a restart is due
+        # Until 2026-11-09 this was final: OBS opened a minute after the station recorded nothing all night.
+        log.warning("obs: not recording yet: %s; looking again at the breaks", e)
+    stream, conn = None, {}                             # the stream's own connection, made when it is needed
+    if (CONFIG.stream.restart_at or CONFIG.stream.keep_alive) and not dry:
         stream = StreamDirector(lambda: conn.get("ws") or conn.setdefault("ws", obs_client()),
-                                CONFIG.stream.restart_at, CONFIG.stream.gap_s, say)
-        say(f"the stream restarts at the first break after {', '.join(CONFIG.stream.restart_at)}")
+                                CONFIG.stream.restart_at, CONFIG.stream.gap_s, say, keep_alive=CONFIG.stream.keep_alive)
+        if CONFIG.stream.restart_at:
+            say(f"the stream restarts at the first break after {', '.join(CONFIG.stream.restart_at)}")
     while True:
         item = q.get()
+        if item is _STOP:
+            try:
+                if director:
+                    director.close()
+            except Exception as e:  # noqa: BLE001
+                log.warning("obs: %s (%s) while stopping", e, type(e).__name__)
+            return
+        m = PLAYING.search(item)
+        if director is None and m and m.group(2) in BREAKS and time.monotonic() - looked >= RETRY_S:
+            looked = time.monotonic()
+            try:
+                director = Director(Recorder(dry, say), teletext)
+            except Exception as e:  # noqa: BLE001
+                log.debug("obs: still not recording: %s", e)
         try:
-            if item is _STOP:
-                director.close()
-                return
-            director.line(item)
-            if stream and (m := PLAYING.search(item)):
-                stream.segment(int(m.group(1)), m.group(2), m.group(3))
+            if director:
+                director.line(item)
         except Exception as e:  # noqa: BLE001
             log.warning("obs: %s (%s); carrying on", e, type(e).__name__)
             director.rec.ws = None                      # reconnect on the next start or stop
-            if stream:
-                conn.clear()
+        try:                                            # on its own: a recording that failed doesn't cost a restart
+            if stream and m:
+                stream.segment(int(m.group(1)), m.group(2), m.group(3))
+        except Exception as e:  # noqa: BLE001
+            log.warning("obs: the stream: %s (%s); trying again at the next break", e, type(e).__name__)
+            conn.clear()
 
 
 def attach(teletext: int = 2, dry: bool = False) -> None:

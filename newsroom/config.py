@@ -196,6 +196,7 @@ class StreamCfg:
     """Restarting the OBS stream so YouTube keeps each part (obs.StreamDirector; only with --obs)."""
     restart_at: list[str] = field(default_factory=list)    # "HH:MM": restart on the first bumper at or after each
     gap_s: float = 5.0                   # between stopping and starting again
+    keep_alive: bool = False             # start a stream found stopped at a break, whoever stopped it
 
 
 @dataclass(frozen=True)

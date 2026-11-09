@@ -161,6 +161,7 @@ extra_terms = []         # more words, as in assets/safety/blocklist.txt ("word"
 [stream]                 # with --obs while OBS is streaming: restart it on the first break after each time,
 restart_at = ["00:00", "09:00", "19:00"]   # so YouTube keeps every part as a video (it won't past 12 h)
 gap_s = 5                # off air between stopping and starting again
+keep_alive = false       # true: a stream found stopped at a break is started (it goes live on its own)
 
 # kind = "openai" means any OpenAI-compatible chat endpoint (LM Studio,
 # llama.cpp server, DeepSeek, ...). api_key_env names the env var holding the
