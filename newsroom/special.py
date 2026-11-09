@@ -528,6 +528,19 @@ def mark_aired(seg: Segment, world: World | None = None) -> None:
             log.warning("could not mark special %r aired: %s", seg.headline, e)
 
 
+def mark_dropped(seg: Segment, world: World | None = None) -> None:
+    """Called by the player when a special is taken off air part-way (the kill switch, or a fault):
+    the marker without the history. A restart doesn't air it again, nobody on air refers to it, and it
+    gets no overnight repeat. A documentary has still had tonight's slot: another isn't put in it."""
+    if world is not None and _is_doc(seg):
+        world.last_documentary_aired = datetime.fromtimestamp(schedule.now()).date().isoformat()
+    if seg.content_hash:
+        try:
+            _aired_path(seg.content_hash).touch()
+        except OSError as e:
+            log.warning("could not mark special %r dropped: %s", seg.headline, e)
+
+
 def resume_ready(buffer) -> int:
     """On startup, put finished specials that never aired back in the side pocket. Returns how many.
 

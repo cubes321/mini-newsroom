@@ -310,17 +310,55 @@ class Player:
                                      " ".join(l.text for l in seg.lines if l.text), show=seg.show,
                                      brief=seg.brief, content_hash=seg.content_hash)
 
-    def _hold(self, now: float) -> None:
-        """The kill switch: off air at once. What was playing is dropped, never resumed (it may be
-        why), the ticker is cleared, and view() shows the test card with the bed under it."""
+    def _drop(self) -> Segment | None:
+        """Take what is on air off for good, and with it anything breaking news had set aside. Returns
+        what was on air.
+
+        Each is marked done in the buffer, or it stays "playing" there for ever: a documentary left so
+        blocked every later special (buffer.special_pending), and a programme set aside by breaking news
+        was still the next ready slot, so it started again from the top. A special gets its marker but no
+        place in the town's history (special.mark_dropped). The rundown carries on with the slot after."""
+        from .special import mark_dropped
+
         seg = self.current
         if self.audio and self._voice is not None:
             self._voice.stop()
-        if seg is not None and not self.replaying and seg.slot_id == self.next_slot:
-            self.next_slot += 1              # back on air, the slot after it
+        gone = [] if seg is None or self.replaying or seg.type in GAP else [seg]
+        if self.stash is not None:
+            gone.append(self.stash[0])
+        for s in gone:
+            self.buffer.mark(s, SegmentState.done)
+            if s.type is SegmentType.documentary:
+                if not s.repeat:
+                    mark_dropped(s, self.world)
+                self.buffer.forget(s.slot_id)
+            elif s.type is SegmentType.breaking:
+                self.buffer.forget(s.slot_id)
+            else:
+                self.next_slot = max(self.next_slot, s.slot_id + 1)
+        self.current, self.stash, self.replaying = None, None, False
+        return seg
+
+    def drop(self, now: float, why: str, *, or_skip: bool = False) -> None:
+        """A fault's way out (__main__.Guard): the segment the station is stuck on is dropped. With
+        nothing on air and `or_skip`, it is the next slot that won't start, so that one is failed and
+        update() skips it."""
+        line = self.line_idx + 1
+        seg = self._drop()
+        if seg is not None:
+            log.error("dropped slot %d %s at line %d: %s", seg.slot_id, seg.type.value, line, why)
+        elif or_skip and (nxt := self.buffer.segment(self.next_slot)) is not None:
+            self.buffer.mark(nxt, SegmentState.failed, why)
+        self._set_music(0.25)
+
+    def _hold(self, now: float) -> None:
+        """The kill switch: off air at once. What was playing is dropped, never resumed (it may be
+        why), the ticker is cleared, and view() shows the test card with the bed under it."""
+        line = self.line_idx + 1
+        seg = self._drop()                   # back on air, the slot after it
         log.warning("KILL SWITCH: off air to the test card%s",
-                    f" (dropped slot {seg.slot_id} {seg.type.value} at line {self.line_idx + 1})" if seg else "")
-        self.current, self.stash, self.replaying, self.filler_since = None, None, False, None
+                    f" (dropped slot {seg.slot_id} {seg.type.value} at line {line})" if seg else "")
+        self.filler_since = None
         self.ticker.clear()
         self.holding = True
         self._set_music(0.25)
