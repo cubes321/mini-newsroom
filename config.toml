@@ -158,6 +158,9 @@ notices_per_day = 4
 enabled = true
 extra_terms = []         # more words, as in assets/safety/blocklist.txt ("word", or "stem*")
 
+[backups]                # data/backups: the town (world.json) as it stood at each day's first save, and as each
+keep = 14                # of the last three runs began. Days of daily copies kept; 0 = none. About 2 MB each.
+
 [cache]                  # data/cache keeps every script and its audio (newsroom/prune.py)
 keep_days = 0            # 0 = keep everything. 14: in idle time, clear what is older and out of the town's archive.
                          # `python -m newsroom.prune` says what would go; nothing the repeats or a documentary use

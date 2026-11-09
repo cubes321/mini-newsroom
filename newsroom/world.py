@@ -1219,7 +1219,15 @@ def load(path: Path | None = None) -> World:
         if _WORLD is None:
             path = path or CONFIG.paths.world
             if path.exists():
-                _WORLD = _from_dict(json.loads(path.read_text(encoding="utf-8")))
+                try:
+                    raw = json.loads(path.read_text(encoding="utf-8"))
+                except ValueError as e:        # cut short or corrupted: say where the last good town is
+                    kept = backups(path)
+                    raise RuntimeError(
+                        f"{path} can't be read ({e}). " + (
+                            f"The newest backup is {kept[-1]}: copy it over {path.name} to go back to it."
+                            if kept else "There is no backup of it.")) from e
+                _WORLD = _from_dict(raw)
                 _WORLD.drop_presenter_people()
                 if n := _WORLD.drop_unaired():         # the buffer they waited in went with the last run
                     log.info("dropped %d archive entries written but never aired", n)
@@ -1246,7 +1254,63 @@ def save(w: World | None = None, path: Path | None = None) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
         tmp.write_text(text, encoding="utf-8")
+        backup(path)                          # the day's first save keeps the town as it stood before it
         tmp.replace(path)
+
+
+# ------------------------------------------------------------------- backups
+#
+# The town is one file, rewritten after nearly every script, and everything the station knows is in it:
+# sixteen days of stories, a thousand people, the council's votes. Until 2026-11-09 there was one copy.
+# Now data/backups keeps the file as it stood at the first save of each calendar day (so, the end of the
+# day before) for `[backups] keep` days, and as it stood when each of the last few runs started.
+
+STARTS_KEPT = 3
+_backed_up: dict[str, str] = {}               # world file -> the day its daily copy was last looked at
+
+
+def backup_dir(path: Path | None = None) -> Path:
+    return (path or CONFIG.paths.world).parent / "backups"
+
+
+def backups(path: Path | None = None) -> list[Path]:
+    """Every backup of the world file, the oldest first."""
+    path = path or CONFIG.paths.world
+    return sorted(backup_dir(path).glob(f"{path.stem}-*.json"), key=lambda f: (f.stat().st_mtime, f.name))
+
+
+def backup(path: Path | None = None, *, start: bool = False) -> Path | None:
+    """Copy the world file into data/backups: once a calendar day (the real one: --clock doesn't count),
+    or with `start` as a run begins. Returns the copy if one was made. Never raises: a backup that
+    can't be written is logged, and the save it rides on goes ahead."""
+    path = path or CONFIG.paths.world
+    keep = CONFIG.backups.keep
+    today = date.today().isoformat()
+    if keep <= 0 or (not start and _backed_up.get(str(path)) == today):
+        return None
+    try:
+        if not start:
+            _backed_up[str(path)] = today
+        if not path.exists():
+            return None
+        folder = backup_dir(path)
+        dest = folder / (f"{path.stem}-{datetime.now():%Y-%m-%d-%H%M}-start.json" if start
+                         else f"{path.stem}-{today}.json")
+        if dest.exists():
+            return None
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = dest.with_suffix(".tmp")
+        tmp.write_bytes(path.read_bytes())
+        tmp.replace(dest)
+        starts = sorted(folder.glob(f"{path.stem}-*-start.json"))
+        days = sorted(f for f in folder.glob(f"{path.stem}-*.json") if f not in starts)
+        for old in starts[:-STARTS_KEPT] + days[:-keep]:
+            old.unlink(missing_ok=True)
+        log.info("world backed up to %s", dest.name)
+        return dest
+    except OSError as e:
+        log.warning("world backup failed: %s", e)
+        return None
 
 
 def _fade_backlog(w: World, *, dry: bool) -> int:

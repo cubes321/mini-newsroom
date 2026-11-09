@@ -185,6 +185,12 @@ class PicturesCfg:
 
 
 @dataclass(frozen=True)
+class BackupsCfg:
+    """Copies of the world file in data/backups (world.backup)."""
+    keep: int = 14                       # days of daily copies kept; 0 = no backups at all
+
+
+@dataclass(frozen=True)
 class CacheCfg:
     """Clearing old scripts and audio out of the segment cache (prune.py)."""
     keep_days: float = 0.0               # 0: never. Else entries this old that the archive doesn't hold go, in idle time
@@ -238,6 +244,7 @@ class Config:
     pictures: PicturesCfg
     safety: SafetyCfg = field(default_factory=SafetyCfg)
     cache: CacheCfg = field(default_factory=CacheCfg)
+    backups: BackupsCfg = field(default_factory=BackupsCfg)
     stream: StreamCfg = field(default_factory=StreamCfg)
 
 
@@ -277,6 +284,7 @@ def load(path: Path | None = None) -> Config:
         pictures=PicturesCfg(**raw.get("pictures", {})),
         safety=SafetyCfg(**raw.get("safety", {})),
         cache=CacheCfg(**raw.get("cache", {})),
+        backups=BackupsCfg(**raw.get("backups", {})),
         stream=StreamCfg(**raw.get("stream", {})),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)

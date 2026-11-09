@@ -256,6 +256,7 @@ def build(cfg, *, audio: bool, workers: int):
     from .workers import WorkerPool
 
     assets.ensure_music_bed()
+    world_mod.backup(start=True)        # the town as this run found it (data/backups)
     w = world_mod.load()
     buffer = Buffer()
     producer = Producer(buffer, cfg.broadcast.horizon_s)
