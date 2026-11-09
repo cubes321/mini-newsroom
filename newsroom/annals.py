@@ -26,7 +26,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import quay, talk
+from . import quay, schedule, talk
 from .config import CONFIG
 from .models import Segment
 
@@ -77,10 +77,17 @@ def _root(world, thread_id: str | None):
     return t
 
 
+def _by(day: date) -> datetime:
+    """The moment a day's page is read at: the end of the day, or now if the day isn't over (today's page,
+    read live by the Sunday review at six: a match still to kick off has no result)."""
+    end = datetime(day.year, day.month, day.day, 23, 59)
+    return min(end, datetime.fromtimestamp(schedule.now()))
+
+
 def _sport(day: date) -> list[str]:
     from . import darts, rugby, sport
 
-    end = datetime(day.year, day.month, day.day, 23, 59)
+    end = _by(day)
     out = []
     for mod in (sport, rugby):
         out += [mod._score_line(r) for r in mod.played(end)
@@ -160,7 +167,8 @@ def digest(world, day: date, *, keep: bool = False) -> dict:
         if c := _keepsake(world, f"x{n}", [e], day, keep):
             clips.append(c)
     weather = [e["headline"] for e in entries if e.get("type") == "weather" and e.get("headline")]
-    auction = quay.auction(day)
+    auction = quay.latest(_by(day))
+    auction = auction if auction and auction.day == day else None       # the day's own, once the hammer has gone
     page = {
         "date": iso, "weekday": f"{day:%A}", "pieces": len(entries),
         "stories": stories[:STORIES],
@@ -168,7 +176,7 @@ def digest(world, day: date, *, keep: bool = False) -> dict:
                                         and e.get("type") in ("bulletin", "field_report", "breaking")))[:20],
         "weather": weather[-1] if weather else "",
         "sport": _sport(day),
-        "auction": quay.summary(datetime(day.year, day.month, day.day, 23, 0)) if auction else "",
+        "auction": quay.summary(_by(day)) if auction else "",
         "council": [{"motion": m["motion"], "title": m.get("title", ""), "for": m["for"], "against": m["against"],
                      "carried": m["carried"]} for m in (chamber or {}).get("motions", []) if m.get("applied")],
         "promised": [p["text"] for p in promised],

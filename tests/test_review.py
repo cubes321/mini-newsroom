@@ -253,3 +253,21 @@ def test_new_years_eve_is_the_year_with_hugh(tmp_paths, monkeypatch):
     assert len(clips) == 6 and len({c["date"] for c in clips}) == 6              # a keepsake from each day it has one
     assert "look back at the year" in documentary.outline_system(seg, seg.work["strand"])
     assert "Hugh Tremayne" in documentary.outline_system(seg, seg.work["strand"])
+
+
+def test_todays_page_read_live_has_no_result_of_a_match_still_to_come(tmp_paths, monkeypatch):
+    """The Sunday review is booked at six from today's page as it stands: nothing later than now is on it."""
+    from datetime import datetime
+
+    from newsroom import schedule
+
+    w = world_mod.seed()
+    saturday = date(2026, 11, 7)                                                 # the Tides away, 15:00; no auction
+    friday = date(2026, 11, 6)
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 7, 10, 0).timestamp())
+    assert annals.digest(w, saturday)["sport"] == []
+    assert "Friday 06 November" in annals.digest(w, friday)["auction"]           # yesterday's page is whole
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 6, 6, 0).timestamp())
+    assert annals.digest(w, friday)["auction"] == ""                             # before the hammer
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 7, 18, 0).timestamp())
+    assert any("the Tides lost 4-1" in line for line in annals.digest(w, saturday)["sport"])
