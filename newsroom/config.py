@@ -196,6 +196,7 @@ class BackupsCfg:
 class CacheCfg:
     """Clearing old scripts and audio out of the segment cache (prune.py)."""
     keep_days: float = 0.0               # 0: never. Else entries this old that the archive doesn't hold go, in idle time
+    every_days: float = 1.0              # how often: 1 = once a day (at the first idle moment after a start), 7 = weekly
 
 
 @dataclass(frozen=True)

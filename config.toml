@@ -164,8 +164,10 @@ extra_terms = []         # more words, as in assets/safety/blocklist.txt ("word"
 keep = 14                # of the last three runs began. Days of daily copies kept; 0 = none. About 2 MB each.
 
 [cache]                  # data/cache keeps every script and its audio (newsroom/prune.py)
-keep_days = 0            # 0 = keep everything. 14: in idle time, clear what is older and out of the town's archive.
-                         # `python -m newsroom.prune` says what would go; nothing the repeats or a documentary use
+keep_days = 14           # entries older than this and out of the town's archive are cleared; 0 = keep everything.
+every_days = 1           # how often: 1 = at the first idle moment after a start, once a day; 7 = once a week.
+                         # `python -m newsroom.prune` says what would go. Nothing the repeats, a documentary or the
+                         # annals use is touched; older lines can no longer be matched in recordings for clips.
 
 [stream]                 # with --obs while OBS is streaming: restart it on the first break after each time,
 restart_at = ["00:00", "09:00", "19:00"]   # so YouTube keeps every part as a video (it won't past 12 h)

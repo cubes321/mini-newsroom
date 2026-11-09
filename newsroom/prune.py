@@ -14,8 +14,11 @@ silences) are left alone.
     python -m newsroom.prune --days 7       # the same, for another age
     python -m newsroom.prune --days 7 --delete
 
-On the station it is off unless `[cache] keep_days` is set: then the worker scans once a day in idle
-time and deletes a batch of entries per idle tick, so it never holds a live slot up.
+On the station it runs by itself when `[cache] keep_days` is set (0 switches it off): at the first idle
+moment after a start, if it hasn't run in the last `every_days` (1: once a day; 7: once a week), and at
+that interval after on a station that stays up. When it last ran is kept in the cache folder
+(`_pruned.txt`), so a station restarted five times in a day scans once. It deletes a batch of entries per
+idle tick, never holding a live slot up, and one stopped part-way starts again at the next start.
 """
 from __future__ import annotations
 
@@ -32,11 +35,10 @@ log = logging.getLogger(__name__)
 
 KEY = re.compile(r"[0-9a-f]{16}(?=[_.])")
 MIN_DAYS = 3.0                  # never less: the overnight repeats and a finished special's wait (workers.py)
-SCAN_EVERY_S = 86400.0
 BATCH = 150                     # entries deleted per idle tick: a second or so of disk
+STAMP = "_pruned.txt"           # in the cache folder: when the last clear-out finished (not an entry: no key)
 
 _todo: list[list[Path]] = []
-_scanned = -SCAN_EVERY_S
 
 
 def referred(world) -> set[str]:
@@ -88,28 +90,62 @@ def delete(files: list[Path]) -> int:
 # ------------------------------------------------------------- on the station, in idle time
 
 
+def last_run() -> float:
+    """When the last clear-out finished (the real clock), or 0 if none has."""
+    try:
+        return float((CONFIG.paths.cache / STAMP).read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return 0.0
+
+
+def _done(now: float) -> None:
+    try:
+        (CONFIG.paths.cache / STAMP).write_text(
+            f"{now:.0f} {time.strftime('%Y-%m-%d %H:%M', time.localtime(now))}\n", encoding="utf-8")
+    except OSError as e:
+        log.warning("cache: could not note the clear-out: %s", e)
+
+
 def due(now: float | None = None) -> bool:
-    now = time.monotonic() if now is None else now
-    return CONFIG.cache.keep_days > 0 and (bool(_todo) or now - _scanned >= SCAN_EVERY_S)
+    """Is a clear-out in hand, or is it `every_days` since the last one finished?"""
+    cfg = CONFIG.cache
+    now = time.time() if now is None else now
+    return cfg.keep_days > 0 and (bool(_todo) or now - last_run() >= max(cfg.every_days, 0.0) * 86400)
 
 
 def tick(world, now: float | None = None) -> int:
-    """One idle tick's worth: scan if the day's scan is due, then delete a batch. Returns entries deleted."""
-    global _todo, _scanned
-    now = time.monotonic() if now is None else now
-    if not _todo and now - _scanned >= SCAN_EVERY_S:
-        _scanned = now
-        found = plan(CONFIG.cache.keep_days, world)
+    """One idle tick's worth: scan if a clear-out is due, then delete a batch. Returns entries deleted
+    (0 when there was nothing old: the worker goes on to its other idle work)."""
+    global _todo
+    now = time.time() if now is None else now
+    if not _todo:
+        found = plan(CONFIG.cache.keep_days, world, now)
         _todo = [files for _, files, _ in found]
-        if found:
-            log.info("cache: %d entries older than %g days and out of the archive (%.1f GB) to clear",
-                     len(found), max(CONFIG.cache.keep_days, MIN_DAYS), sum(s for *_, s in found) / 1e9)
+        if not found:
+            _done(now)                      # nothing old: that is the clear-out done
+            return 0
+        log.info("cache: %d entries older than %g days and out of the archive (%.1f GB) to clear",
+                 len(found), max(CONFIG.cache.keep_days, MIN_DAYS), sum(s for *_, s in found) / 1e9)
     batch, _todo = _todo[:BATCH], _todo[BATCH:]
     for files in batch:
         delete(files)
-    if batch and not _todo:
+    if not _todo:
+        _done(now)
         log.info("cache: cleared")
     return len(batch)
+
+
+def report() -> None:
+    """Say at startup what the clear-out will do, so a folder that shrinks is no surprise."""
+    cfg = CONFIG.cache
+    if cfg.keep_days <= 0:
+        log.info("cache: nothing is cleared ([cache] keep_days = 0)")
+        return
+    last = last_run()
+    every = "every day" if cfg.every_days <= 1 else f"every {cfg.every_days:g} days"
+    log.info("cache: entries older than %g days and out of the archive are cleared %s in idle time (last: %s)",
+             max(cfg.keep_days, MIN_DAYS), every,
+             time.strftime("%Y-%m-%d %H:%M", time.localtime(last)) if last else "never")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -133,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
         print("nothing deleted: add --delete to clear them")
         return 0
     gone = sum(delete(f) for _, f, _ in found)
+    if a.days <= (CONFIG.cache.keep_days or a.days):   # as thorough as the station's own: that counts as its run
+        _done(time.time())
     print(f"deleted {gone} files")
     return 0
 

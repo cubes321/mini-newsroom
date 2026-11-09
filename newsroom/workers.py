@@ -404,9 +404,8 @@ class WorkerPool:
             force = special.take_force()
             if not force and not self._buffer_healthy():
                 return
-            if prune.due():
-                prune.tick(self.world)        # [cache] keep_days: a batch of old cache entries, disk only
-                return
+            if prune.due() and prune.tick(self.world):
+                return                        # [cache] keep_days: a batch of old cache entries went, disk only
             breaking_now = breaking.take_force()
             if breaking_now or desk.should_plan(self.world):
                 mode = "now" if breaking_now else "may" if breaking.desk_may_break(self.world) else "no"
