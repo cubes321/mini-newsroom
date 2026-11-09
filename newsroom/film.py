@@ -57,6 +57,9 @@ class Reader:
                 k += 1
         finally:
             self.done = True
+            if self._closed.is_set():       # a put that was waiting when close() emptied the queue got in after it
+                with self.q.mutex:
+                    self.q.queue.clear()
             try:
                 self.proc.stdout.close()
                 self.proc.wait(timeout=5)
