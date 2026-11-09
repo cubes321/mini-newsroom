@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import textwrap
 from datetime import date, datetime, timedelta
 
-from . import calendar, council, quay, schedule, sport, tides
+from . import calendar, council, quay, safety, schedule, sport, tides
+
+log = logging.getLogger(__name__)
 
 NAME = "SEVENTEXT"
 COLS, ROWS = 40, 24
@@ -69,6 +72,12 @@ def _banner(title: str, fg: str, bg: str) -> list[dict]:
 
 
 def _page(num: int, title: str, rows: list[dict], art: dict | None = None) -> dict:
+    # The last look (safety.py): a page is read, never voiced, so tts.synthesize's check never sees it.
+    # A row with a blocked word goes out blank; the page keeps its shape.
+    for i, r in enumerate(rows):
+        if bad := safety.check(r.get("t", "")):
+            log.warning("content check: %r on teletext page %d; that row is left blank", bad, num)
+            rows[i] = row()
     page = {"num": num, "title": title, "rows": rows, "art": art}
     page["key"] = hashlib.sha1(json.dumps(page, sort_keys=True).encode()).hexdigest()[:12]
     return page
@@ -83,8 +92,15 @@ def height(rows: list[dict]) -> int:
 
 
 def _stories(world) -> list:
-    """The stories most recently on air, newest first."""
-    return sorted(world.open_threads(), key=lambda t: (t.moved_ts, t.mentions), reverse=True)[:STORIES]
+    """The stories most recently on air, newest first. One with a blocked word in what the pages would
+    print is left out whole: checked here, before wrapping can split a phrase across two rows."""
+    def clean(t) -> bool:
+        bad = safety.check([t.title, t.status] + [b.get("headline") or "" for b in t.beats])
+        if bad:
+            log.warning("content check: %r in story %s; kept off teletext", bad, t.id)
+        return not bad
+    recent = sorted(world.open_threads(), key=lambda t: (t.moved_ts, t.mentions), reverse=True)
+    return [t for t in recent if clean(t)][:STORIES]
 
 
 def _index(now: datetime) -> dict:

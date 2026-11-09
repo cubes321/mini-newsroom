@@ -430,10 +430,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     redirect_paths(args)
     log_to_file()
-    from . import schedule
+    from . import safety, schedule
     from .config import CONFIG
 
     log.info("world %s | cache %s", CONFIG.paths.world, CONFIG.paths.cache)
+    safety.report()
 
     if args.channel == "entertainment":       # before the clock: show_at reads the channel's own day
         import entertainment

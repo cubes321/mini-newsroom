@@ -14,7 +14,7 @@ import logging
 import time
 from datetime import datetime
 
-from . import desk, llm, schedule
+from . import desk, llm, safety, schedule
 from .config import CONFIG
 from .models import SeniorMemo
 from .world import World
@@ -79,6 +79,10 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
     except llm.LLMError as e:
         log.warning("senior editor unavailable: %s", e)
         return None
+    if m.new_thread and (bad := safety.check(safety.strings(m.new_thread))):
+        # Its title goes to teletext and the notices unvoiced, like the desk's (desk.plan).
+        log.warning("senior editor's new story has %r in it; not opened", bad)
+        m.new_thread = None
     if not dry:
         with world.lock:
             for mg in m.merges:

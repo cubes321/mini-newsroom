@@ -18,7 +18,7 @@ import logging
 import re
 from datetime import date, datetime
 
-from . import council, llm, schedule
+from . import council, llm, safety, schedule
 from .config import CONFIG
 from .models import ChamberAgenda, SegmentType
 from .world import Thread, World
@@ -99,6 +99,9 @@ def commission(world: World) -> dict:
     ids = [m.thread_id for m in agenda.motions]
     if len(set(ids)) < len(ids) or not set(ids) <= {t.id for t in pool}:
         log.warning("chamber: agenda named %s, not four different stories from the list; the stand-in takes tonight", ids)
+        return _record(world, None)
+    if bad := safety.check(safety.strings(agenda)):   # a motion's wording becomes its story's status, read on teletext
+        log.warning("chamber: the agenda has %r in it; the stand-in takes tonight", bad)
         return _record(world, None)
     return _record(world, agenda)
 

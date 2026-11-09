@@ -7,7 +7,9 @@ matches as a whole word, any case; a term ending in "*" also matches the words i
 
 The writers check a script before they keep it (writers.py asks again once, then the template
 stands in), the back office checks adverts, notices and specials, and tts.synthesize checks
-every line it voices, so nothing that slips past a writer is ever spoken.
+every line it voices, so nothing that slips past a writer is ever spoken. Words that are only
+ever read on screen have no voice to stop them: the story desk, the senior editor and the council's
+agenda are checked where their plans are accepted, and teletext looks at every row it sets.
 """
 from __future__ import annotations
 
@@ -35,10 +37,26 @@ def _terms(path: Path) -> list[str]:
             if (t := raw.split("#", 1)[0].strip().lower())]
 
 
+def _all_terms() -> set[str]:
+    return set(_terms(BLOCKLIST)) | {t.strip().lower() for t in CONFIG.safety.extra_terms if t.strip()}
+
+
+def report() -> int:
+    """Say at startup what the check has to go on, and return the number of terms. With no list it
+    passes everything without a word, which on a public stream must not be a surprise."""
+    n = len(_all_terms())
+    if not CONFIG.safety.enabled:
+        log.warning("CONTENT CHECK OFF ([safety] enabled = false): nothing is checked before it goes on air")
+    elif not n:
+        log.warning("CONTENT CHECK HAS NO TERMS: %s is missing or empty, so everything passes", BLOCKLIST)
+    else:
+        log.info("content check: %d terms", n)
+    return n
+
+
 @functools.cache
 def _pattern() -> re.Pattern | None:
-    terms = _terms(BLOCKLIST) + [t.strip().lower() for t in CONFIG.safety.extra_terms if t.strip()]
-    parts = sorted({re.escape(t[:-1]) + r"\w*" if t.endswith("*") else re.escape(t) for t in terms},
+    parts = sorted({re.escape(t[:-1]) + r"\w*" if t.endswith("*") else re.escape(t) for t in _all_terms()},
                    key=len, reverse=True)
     if not parts:
         return None
