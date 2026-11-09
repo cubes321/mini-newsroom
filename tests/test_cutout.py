@@ -211,9 +211,41 @@ def test_raised_is_a_spot_or_the_ground_and_a_row_stands_clear(tmp_path, caplog)
     by = {a.who: a for a in lay_.actors}
     assert by["gull"].spot == "sill" and (by["bucket"].spot, by["bucket"].y) == (None, 0.0)   # no spot in reach: the ground
     assert by["cat"].x - by["crate"].x >= 2 * k.half + writer.GAP - 0.01      # both were on centre
-    assert [(b.do, b.value) for b in lay_.beats] == [("drop", "-25"), ("fly", "1.0,6.0")]   # to the wall, on the plate
+    assert [(b.do, b.value) for b in lay_.beats] == [("fly", "-28.0,0.0,1.0"), ("fly", "1.0,6.0,1.0")]   # flung off the ground; to the wall
     assert "somewhere" in caplog.text and lay_.ropes[0].path[-1][0] == 0.0 and not lay_.ropes[0].up
     assert (lay_.camera.start.size, lay_.camera.start.on) == ("medium", "gull")              # no close-up of feet
+
+
+def test_a_far_spot_draws_small_a_walker_passes_behind_and_a_crash_makes_them_jump(tmp_path):
+    from types import SimpleNamespace as NS
+
+    from entertainment.cutout import writer
+
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    k = kitmod.load(series_dir, "gull")
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    spots = {"sill": (-4.0, 7.0, 0.4)}
+    st = writer.Stage.model_validate({
+        "actors": [{"who": "gull", "mark": "left"}, {"who": "cat", "mark": "right"}, {"who": "dog", "mark": "far_left"}],
+        "beats": [{"who": "gull", "do": "fly", "to": "sill", "at": "1", "until": "2"},
+                  {"who": "dog", "do": "walk", "to": "far_right", "at": "0.2"}]})
+    kits = {x: k for x in ("gull", "cat", "dog")}
+    lay_ = writer.stage(st, 1, kits, set(), spots)
+    assert [(b.do, b.value) for b in lay_.beats] == [("fly", "-4.0,4.0,0.4"), ("walk", "11.0,0.0,1.0")]
+    assert [a.depth for a in lay_.actors] == [0, 0, 1]                        # the dog walks behind the other two
+    p = lay.plan(lay_, kits, series_dir, 72, {}, [], d / "base.png", {x: (w, h) for x in kits}, spots, cues=[2.5])
+    gull, cat, dog = (c["tf"] for c in p["cards"])
+    assert gull[10][4] > 0.98 and abs(gull[60][4] - 0.4) < 0.01               # full size, then small on the sill
+    assert abs(gull[60][1] + (h - (56 + kitmod.PAD)) * k.upp * 0.4 - 4.0) < 0.05   # its feet on it, at that size
+    assert p["cards"][2]["z"] < p["cards"][1]["z"]
+    still, jump = cat[56][1], max(t[1] for t in cat[60:68])
+    assert jump - still > 0.2 and abs(cat[70][1] - still) < 0.02              # starts at the crash, settles
+    shot = NS(action="Gully shoves the crate off the wall.", seen=["gull", "crate"], seconds=6.0)
+    why = writer.problems(shot, st, {"crate", "bucket"}, {"gull", "cat", "dog"})
+    assert len(why) == 1 and "crate" in why[0]
+    st.beats.clear()
+    assert any("nobody does anything" in x for x in writer.problems(shot, st, {"crate"}, {"gull"}))
 
 
 def test_a_rope_follows_a_drop_bounces_and_no_neighbour_is_sliced(tmp_path):

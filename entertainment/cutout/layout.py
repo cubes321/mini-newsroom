@@ -30,13 +30,15 @@ ENTER_S = 0.75
 TAKE_F = 6                         # frames a taken prop travels into the beak or hand
 PUT_REACH = 4.5                    # units: a prop let go this near a spot is set down on it; else it falls
 FALL_F = 10
+PROP_NEAR = 9.0                    # units: a prop this near a medium shot's subject is taken into the shot
 
 
 class Beat(BaseModel):
     who: str
     do: Literal["pose", "face", "lean", "hop", "turn", "exit", "walk", "fly", "spin", "drop"]
     value: str = ""                # pose or face name; lean degrees (forward +); exit side "left"/"right";
-                                   # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s);
+                                   # walk: "x"; fly: "x,y" (where to, by `until`, else in 1.2 s); either
+                                   # may add ",scale": how big it is drawn there (a far spot: smaller);
                                    # drop: the height it falls to ("0" lands with a bounce; "-25" out of shot)
     at: str = "0"
     until: str | None = None       # pose/face/lean: when it ends (None: the shot's end)
@@ -146,7 +148,7 @@ def _view(fr: Framing, pup: dict[str, _Puppet]) -> tuple[float, float, float]:
 def _world(c: dict, p: "_Puppet", f: int, point: str) -> tuple[float, float]:
     """A point of a card at frame index f, in stage units: a named anchor, or (no name) the card's middle."""
     x, y, rot, sx, sy = c["tf"][f]
-    upp = p.upp / p.a.scale                               # sx, sy carry the actor's scale and its mirroring
+    upp = p.kit.upp                                       # sx, sy carry the frame's scale and its mirroring
     if point:
         pose = c["poses"][f]
         ax, ay = p.kit.anchor(point, pose) or p.kit.anchor("head", pose) or (p.w / 2 - PAD, 0)
@@ -163,10 +165,14 @@ def _ease(u: float) -> float:
 
 def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech: dict[str, list[str]],
          spans: list[tuple[str, float, float]], plate: Path, sizes: dict[str, tuple[int, int]],
-         spots: dict[str, tuple[float, float]] | None = None) -> dict:
+         spots: dict[str, tuple] | None = None, cues: list[float] | None = None) -> dict:
     """Every frame of the shot: the plate, the camera, each card's piece and transform, the ropes.
     `speech` is lips.faces' per-frame faces by speaker; `sizes` each kit's piece size in pixels; `spots` the
-    backdrop's named points, in stage units from the plate's bottom middle."""
+    backdrop's named points, in stage units from the plate's bottom middle, each with how big a puppet is
+    drawn there (x, y, scale; the scale may be left out: 1); `cues` the seconds at which something is heard
+    from out of shot (a line, an effect): whoever is on stage and not speaking starts at it."""
+    spots = {k: (v[0], v[1], v[2] if len(v) > 2 else 1.0) for k, v in (spots or {}).items()}
+    jolts = [max(1, min(n, round(t * FPS) + 1)) for t in (cues or [])][:4]
     pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
     cam0 = _view(layout.camera.start, pup)              # first guess: rest spots (entrances start off its edges)
     spot_at = None
@@ -175,7 +181,8 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         # speed): the cone sat loose on the quay when the writer could only say "far_right, raised".
         px, py = spot_at = 0.5 * cam0[0], -3.0 + 0.5 * (cam0[1] - WIDE[1])
         layout = layout.model_copy(update={"actors": [
-            a.model_copy(update={"x": round(px + spots[a.spot][0], 3), "y": round(py + spots[a.spot][1], 3)})
+            a.model_copy(update={"x": round(px + spots[a.spot][0], 3), "y": round(py + spots[a.spot][1], 3),
+                                 "scale": max(0.21, round(a.scale * spots[a.spot][2], 3))})
             if a.spot in spots else a for a in layout.actors]})
         pup = {a.who: _Puppet(a, kits[a.who], *sizes[a.who]) for a in layout.actors}
         cam0 = _view(layout.camera.start, pup)
@@ -183,7 +190,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
     cards, by_who = [], {}
     for k, a in enumerate(layout.actors):
         c = _card(k, a, pup[a.who], kits[a.who], [b for b in layout.beats if b.who == a.who],
-                  speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir)
+                  speech.get(a.who, ["closed"] * n), n, spans, cam0, series_dir, jolts)
         by_who[a.who] = (c, pup[a.who])
         cards.append(c)
     rest = {who: [list(t) for t in c["tf"]] for who, (c, _) in by_who.items()}
@@ -213,7 +220,12 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         for f in range(t0, min(n, t1)):
             g = f - f % 2                                         # on twos, like the holder
             wx, wy = _world(hc, hp, g, point)
-            held = [wx - (gx + PAD - p.w / 2) * p.upp, wy - (p.h - (gy + PAD)) * p.upp, 0.0, a.scale, a.scale]
+            # As big as its holder is drawn, and it tips with him as he leans, its grip staying in his hand.
+            s = a.scale * hc["scales"][g] / hp.a.scale
+            rot = 0.5 * hc["tf"][g][2] if abs(hc["tf"][g][2]) < 0.6 else 0.0
+            lx, ly = (gx + PAD - p.w / 2) * kits[a.who].upp * s, (p.h - (gy + PAD)) * kits[a.who].upp * s
+            held = [wx - (lx * math.cos(rot) - ly * math.sin(rot)), wy - (lx * math.sin(rot) + ly * math.cos(rot)),
+                    rot, s, s]
             u = _ease((g - t0 + 2) / TAKE_F) if t0 > 0 else 1.0
             c["tf"][f] = [round(r + (h - r) * u, 5) for r, h in zip(was, held)]
         c["z"] = round(hc["z"] + 0.02, 3)
@@ -221,24 +233,25 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
             return
         # Let go: set down on a spot of the backdrop within reach (the chips on the sill), where it stays as the
         # backdrop moves; with none, it falls to the ground and bounces once.
-        x0, y0 = c["tf"][t1 - 1][:2]
-        feet = (p.h - (kits[a.who].feet_y + PAD)) * p.upp
-        near = min(((abs(plate_xy(t1)[0] + sx - x0), k) for k, (sx, _) in (spots or {}).items()), default=(99.0, ""))
+        x0, y0, _, s0, _ = c["tf"][t1 - 1]
+        feet_px = (p.h - (kits[a.who].feet_y + PAD)) * kits[a.who].upp      # card bottom to feet, at scale 1
+        near = min(((abs(plate_xy(t1)[0] + v[0] - x0), k) for k, v in spots.items()), default=(99.0, ""))
         if a.off_out:
-            near, feet = (99.0, ""), feet + 25.0
+            near = (99.0, "")
         for f in range(t1, n):
             g = f - f % 2
-            if near[0] <= PUT_REACH:
-                sx, sy = spots[near[1]]
+            if near[0] <= PUT_REACH * max(0.5, hc["scales"][t1 - 1]) + 1.0:
+                sx, sy, ss = spots[near[1]]
                 u = _ease((g - t1 + 2) / TAKE_F)
-                x, y = x0 + (plate_xy(g)[0] + sx - x0) * u, y0 + (plate_xy(g)[1] + sy - feet - y0) * u
+                s = s0 + (a.scale * ss - s0) * u
+                x, y = x0 + (plate_xy(g)[0] + sx - x0) * u, y0 + (plate_xy(g)[1] + sy - feet_px * s - y0) * u
             else:
-                t = min(1.0, (g - t1 + 2) / FALL_F)
-                x, y = x0, y0 + (-feet - y0) * t * t
+                t, s = min(1.0, (g - t1 + 2) / FALL_F), s0
+                x, y = x0, y0 + (-feet_px * s - (25.0 if a.off_out else 0.0) - y0) * t * t
                 d = g - t1 + 2 - FALL_F
-                if 0 <= d < 8:
+                if 0 <= d < 8 and not a.off_out:
                     y += 0.6 * math.sin(math.pi * d / 8)
-            c["tf"][f] = [round(x, 5), round(y, 5), 0.0, a.scale, a.scale]
+            c["tf"][f] = [round(x, 5), round(y, 5), 0.0, round(s, 4), round(s, 4)]
 
     for a in layout.actors:
         carry(a)
@@ -252,6 +265,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         if fr.size == "wide" or who not in by_who:
             return _view(fr, pup)
         c, p = by_who[who]
+        width *= max(0.5, min(1.0, c["scales"][f - 1]))   # someone far off is framed as closely as someone near
         x, y = _world(c, p, f - 1, point or ("" if fr.size == "medium" else "head"))
         x, y = x + fr.dx, y + fr.dy
         lo, hi = x - width / 2, x + width / 2
@@ -260,7 +274,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         def upright(oc, op) -> None:
             ox, oy, rot, _, sy = oc["tf"][f - 1]
             box = op.kit._box or (0, 0, op.w - 2 * PAD, op.kit.feet_y)
-            top = (op.h - (box[1] + PAD)) * op.upp * sy
+            top = (op.h - (box[1] + PAD)) * op.kit.upp * sy
             if abs(rot) < 0.5:
                 tops.append(oy + top)
             elif abs(abs(rot) - math.pi) < 0.5:           # hung by the feet: the head is the bottom
@@ -270,11 +284,15 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
             upright(c, p)
         own, tops, own_lows, lows = tops, [], lows, []
         for other, (oc, op) in by_who.items():
-            if other == who or not op.kit.faces or op.a.on:
+            if other == who or op.a.on:
                 continue
             ox, _, _, osx, _ = oc["tf"][f - 1]
             reach = op.sides(osx < 0)
             left, right = ox - reach[0], ox + reach[1]
+            if not op.kit.faces:                          # a prop beside them is what the shot is about
+                if abs(ox - x) <= PROP_NEAR and fr.size == "medium":
+                    lo, hi = min(lo, left - 0.5), max(hi, right + 0.5)
+                continue
             if left < hi and right > lo:
                 if not (left >= lo and right <= hi):
                     lo, hi = min(lo, left - 0.5), max(hi, right + 0.5)
@@ -305,9 +323,28 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         low, high = min(v[1] - v[2] / ASPECT / 2 for v in views), max(v[1] + v[2] / ASPECT / 2 for v in views)
         width = min(SIZES["wide"] * 1.1, max(hi - lo, (high - low) * ASPECT))
         return (lo + hi) / 2, low + width / ASPECT / 2, width
+    def slices(v: tuple[float, float, float], f: int) -> bool:
+        """Does this view's side cut through one of the cast at frame f?"""
+        lo, hi = v[0] - v[2] / 2, v[0] + v[2] / 2
+        for oc, op in by_who.values():
+            if not op.kit.faces or op.a.on:
+                continue
+            ox, _, _, osx, _ = oc["tf"][f - 1]
+            reach = op.sides(osx < 0)
+            if ox - reach[0] < hi - 0.05 and ox + reach[1] > lo + 0.05 and not (ox - reach[0] >= lo and ox + reach[1] <= hi):
+                return True
+        return False
+
     if layout.camera.end:                                 # a move: each end frames its half of the shot
         half = (m0 + m1) // 2
         cam0, cam1 = held(layout.camera.start, m0, half), held(layout.camera.end, half, m1)
+        # A move that would cut through a neighbour on the way (the push-in past Biscuit, shot 3) is made
+        # inside the looser of its two framings instead: everyone it shows stays whole from end to end.
+        steps = [(m0 + (m1 - m0) * k // 6, _ease(k / 6)) for k in range(7)]
+        if any(slices(tuple(a + (b - a) * u for a, b in zip(cam0, cam1)), f) for f, u in steps):
+            loose, pushing = max(cam0, cam1, key=lambda v: v[2]), cam1[2] < cam0[2]
+            out = (loose[0], loose[1] + loose[2] * 0.06 / ASPECT, min(SIZES["wide"] * 1.1, loose[2] * 1.12))
+            cam0, cam1 = (out, loose) if pushing else (loose, out)
     else:                                                 # held: the whole shot, once everyone has arrived
         cam0 = cam1 = held(layout.camera.start, max(1, n // 4), n)
     camera = []
@@ -338,7 +375,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
             # started, the loop was left hanging in the air when Gully flapped off, the Chip Lift's shot 12).
             c, p = by_who[who]
             point = next((x for x in (point, "ankle", "feet") if x and p.kit.anchor(x)), "")
-            s = p.a.scale
+            s = c["scales"][0]
             at = [[round(v, 4) for v in _world(c, p, f, point)] for f in range(n)]
             ax, ay = at[0]
             loop = [ax, ay, round(0.5 * s, 4), round(0.22 * s, 4)]
@@ -346,7 +383,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
         ropes.append({"points": pts, "loop": loop, "at": at, "up": bool(r.up and at), "color": list(r.color),
                       "width": r.width})
     for c in cards:
-        del c["poses"]
+        del c["poses"], c["scales"]
     return {"fps": FPS, "frames": n, "plate": {"path": str(plate), "width": PLATE_W, "at": plate_at},
             "camera": camera, "aspect": ASPECT, "cards": cards, "ropes": ropes}
 
@@ -361,8 +398,16 @@ def _target(b: Beat, x: float, y: float) -> tuple[float, float]:
     return (parts[0] if parts else x), (parts[1] if len(parts) > 1 else y)
 
 
+def _scale_to(b: Beat, scale: float) -> float:
+    parts = b.value.replace(" ", "").split(",") if b.do in ("walk", "fly") else []
+    try:
+        return float(parts[2]) if len(parts) > 2 and parts[2] else scale
+    except ValueError:
+        return scale
+
+
 def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], n: int, spans, cam0,
-          series_dir: Path) -> dict:
+          series_dir: Path, jolts: list[int] = ()) -> dict:
     """One actor's card for every frame: its piece and its transform, all on twos."""
     moves = sorted((b for b in mine if b.do in ("walk", "fly", "drop")), key=lambda b: when(b.at, n, spans))
 
@@ -382,38 +427,43 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
         if f < entering:
             u = f / entering if walker else 1 - (1 - f / entering) ** 2
             x0 = off[a.enter]
-            return x0 + (a.x - x0) * u, a.y, "enter", 1 if a.x > x0 else -1, u
-        x, y = a.x, a.y
+            return x0 + (a.x - x0) * u, a.y, "enter", 1 if a.x > x0 else -1, u, a.scale
+        x, y, sc = a.x, a.y, a.scale
         for b in moves:
             s, e = when(b.at, n, spans), ends(b)
             tx, ty = _target(b, x, y)
+            ts = _scale_to(b, sc)
             if f < s:
                 break
             if f >= e:
-                x, y = tx, ty
+                x, y, sc = tx, ty, ts
                 continue
             t = (f - s) / max(1, e - s)
             u = t if b.do == "walk" else t * t if b.do == "drop" else _ease(t)    # a fall gathers speed
-            return x + (tx - x) * u, y + (ty - y) * u, b.do, (1 if tx > x else -1 if tx < x else 0), t
+            return (x + (tx - x) * u, y + (ty - y) * u, b.do, (1 if tx > x else -1 if tx < x else 0), t,
+                    sc + (ts - sc) * u)
         if f >= exit_at:
             u = min(1.0, (f - exit_at) / (ENTER_S * FPS))
             u = u if walker else u * u
             x1 = off[exit_beat.value if exit_beat.value in off else "right"]
-            return x + (x1 - x) * u, y, "exit", 1 if x1 > x else -1, u
-        return x, y, None, 0, 0.0
+            return x + (x1 - x) * u, y, "exit", 1 if x1 > x else -1, u, sc
+        return x, y, None, 0, 0.0, sc
 
     facing = a.facing
-    pieces, tf, poses = [], [], []
+    pieces, tf, poses, scales = [], [], [], []
+    busy = [when(b.at, n, spans) for b in mine if b.do in ("hop", "turn", "walk", "fly", "spin", "drop")]
     for f in range(1, n + 1):
         if f % 2 == 0:                                    # on twos: the piece and the pose held
             pieces.append(pieces[-1])
             tf.append(tf[-1])
             poses.append(poses[-1])
+            scales.append(scales[-1])
             continue
 
         def active(b):
             return when(b.at, n, spans) <= f < (when(b.until, n, spans) if b.until else n + 1)
-        x, y, how, way, through = where(f)
+        x, y, how, way, through, sc = where(f)
+        scales.append(sc)
         if way:
             facing = "right" if way > 0 else "left"
         for b in mine:
@@ -438,7 +488,7 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
         flip = natural != "front" and facing != natural
         fwd = (1 if not flip else -1) * (-1 if natural == "right" else 1)    # the turn that tips the top forward
         t = f / FPS
-        cy = y - (p.h - (kit.feet_of(series_dir, pose) + PAD)) * p.upp
+        cy = y - (p.h - (kit.feet_of(series_dir, pose) + PAD)) * kit.upp * sc
         rot, sx = 0.0, 1.0
         sy = 1.0 + 0.01 * math.sin(2 * math.pi * 0.5 * t + k)
         if said != "closed":
@@ -456,7 +506,17 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
                 s = when(b.at, n, spans)
                 e = when(b.until, n, spans) if b.until else min(n, s + 8)
                 done = 1.0 if s <= 1 else min(1.0, (f - s + 1) / max(1, e - s))   # at 0: already so
-                rot += math.radians(float(b.value or 360)) * done * fwd
+                turn = math.radians(float(b.value or 360)) * done * fwd
+                rot += turn
+                if not kit.faces:                         # a prop knocked over lies on its side, on the ground
+                    cy += kit.half * sc * abs(math.sin(turn))
+        # Something heard from out of shot (a shout, a crash): whoever stands there and isn't busy starts at it.
+        if kit.faces and said == "closed" and how is None:
+            for j in jolts:
+                d = f - j - 2 * (k % 3)
+                if 0 <= d < 6 and not any(abs(j - t) < 10 for t in busy):
+                    cy += 0.28 * sc * math.sin(math.pi * d / 6)
+                    sy *= 1.0 + 0.03 * math.sin(math.pi * d / 6)
         if how in ("enter", "exit", "walk"):
             if walker:                                    # a step: up on each stride
                 cy += 0.12 if (f // 4) % 2 else 0.0
@@ -477,7 +537,8 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
                 cy += 0.7 * math.sin(math.pi * d / 8)
                 if d < 2:
                     sx, sy = sx * 1.08, sy * 0.86
-        tf.append([round(x, 4), round(cy, 4), round(rot, 5), round(sx * (-1 if flip else 1) * a.scale, 4),
-                   round(sy * a.scale, 4)])
-    return {"name": a.who, "pieces": pieces, "poses": poses, "w_px": p.w, "h_px": p.h, "upp": kit.upp,
-            "z": round(0.1 * (3 - a.depth) + 0.01 * k, 3), "tf": tf}
+        tf.append([round(x, 4), round(cy, 4), round(rot, 5), round(sx * (-1 if flip else 1) * sc, 4),
+                   round(sy * sc, 4)])
+    # What is drawn smaller is further off, so it is behind whatever is drawn bigger.
+    return {"name": a.who, "pieces": pieces, "poses": poses, "scales": scales, "w_px": p.w, "h_px": p.h,
+            "upp": kit.upp, "z": round(0.1 * (3 - a.depth) + 0.01 * k - 0.25 * max(0.0, 1.0 - a.scale), 3), "tf": tf}

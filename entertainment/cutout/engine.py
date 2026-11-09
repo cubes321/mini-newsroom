@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from entertainment.cutout import BLENDER, FPS, kit as kitmod, lips
+from entertainment.cutout import BLENDER, FPS, at_seconds, kit as kitmod, lips
 from entertainment.cutout.layout import Layout, plan
 
 log = logging.getLogger(__name__)
@@ -47,12 +47,20 @@ def shot_plan(folder: Path, i: int) -> dict:
     for who, k in kits.items():
         sizes[who] = pygame.image.load(str(k.piece(series_dir, "normal", "closed"))).get_size()
     plate = kitmod.plate(series_dir, lay.place)
-    return plan(lay, kits, series_dir, n, speech, spans, plate, sizes, spots_of(series_dir, lay.place, plate))
+    # What is heard from out of shot, for whoever is on stage to start at: a line by somebody not seen, an effect.
+    here = {a.who for a in lay.actors}
+    lines = [(s, e) for _, s, e in spans]
+    cues = [s for who, s, _ in spans if who not in here]
+    cues += [at_seconds(e.at, lines, n / FPS) for e in scene.sfx]
+    return plan(lay, kits, series_dir, n, speech, spans, plate, sizes, spots_of(series_dir, lay.place, plate),
+                sorted(cues))
 
 
-def spots_of(series_dir: Path, place: int, plate: Path | None = None) -> dict[str, tuple[float, float]]:
-    """The place's named points (places/spots.json: {"3": {"sill": [x, y]}} in the plate's pixels), in stage
-    units from the plate's bottom middle (it is PLATE_W wide); {} for a place with none."""
+def spots_of(series_dir: Path, place: int, plate: Path | None = None) -> dict[str, tuple[float, float, float]]:
+    """The place's named points (places/spots.json: {"3": {"sill": [x, y, scale]}} in the plate's pixels), in
+    stage units from the plate's bottom middle (it is PLATE_W wide), each with how big a puppet is drawn there
+    (the sill is across the road: Gully at full size on it was as tall as the shop front); {} for a place
+    with none."""
     from entertainment.cutout.layout import PLATE_W
 
     path = series_dir / "places" / "spots.json"
@@ -60,12 +68,13 @@ def spots_of(series_dir: Path, place: int, plate: Path | None = None) -> dict[st
         return {}
     named = json.loads(path.read_text(encoding="utf-8")).get(str(place), {})
     if not named or plate is None:
-        return {k: (0.0, 0.0) for k in named}
+        return {k: (0.0, 0.0, 1.0) for k in named}
     import pygame
 
     w, h = pygame.image.load(str(plate)).get_size()
     u = PLATE_W / w
-    return {k: (round((x - w / 2) * u, 3), round((h - y) * u, 3)) for k, (x, y) in named.items()}
+    return {k: (round((v[0] - w / 2) * u, 3), round((h - v[1]) * u, 3), float(v[2]) if len(v) > 2 else 1.0)
+            for k, v in named.items()}
 
 
 def play(shots: list[dict], log_to: Path) -> None:

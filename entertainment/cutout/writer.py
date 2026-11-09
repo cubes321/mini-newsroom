@@ -33,6 +33,7 @@ REACH = 9.0                                    # units: how far from its mark a 
 GAP = 0.5                                      # units of air between two who stand side by side
 EDGE_X = 14.0                                  # a wide shot's edge is 16: nobody is spread past this
 TOP = 16.2                                     # a wide shot's top edge, in stage units
+PROP_FAR = 0.4                                 # a spot drawn smaller than this is too far off for a prop to read
 
 
 class Said(BaseModel):
@@ -158,8 +159,9 @@ return its STAGE (as many stages as shots):
   marks next to each other but not the same mark; nobody shares a mark with anybody or anything.
   A MARK can instead be one of the place's SPOTS, where the shot lists them (a sill, a wall top, a rail): it
   stands exactly there on the backdrop. Anything that is ON something (a parcel on a sill, a gull on a wall)
-  goes on a SPOT; there is nothing else to stand on, so with no fitting spot it is on the ground. Spots are
-  perches for props, the gull and the cat; people stand on the ground on a mark, never on a spot.
+  goes on a SPOT; there is nothing else to stand on, so with no fitting spot it is on the ground. A spot is as
+  far away as that part of the backdrop, and whoever is on it is drawn that small: spots are for perching, for
+  things put down, for someone in a doorway. The talk happens up close, on the ground marks.
   HOLDS: a prop they carry all shot (in beak, mouth or hand): whenever someone carries something, say so with
   HOLDS or a TAKE beat, or it stays where it was put. A prop offered or shown is HELD by whoever offers it.
 - BEATS, timed in seconds or against the lines ("line", "line2", "line_end+0.3"): pose X until T, face X
@@ -169,7 +171,9 @@ return its STAGE (as many stages as shots):
   "off", it falls out of the bottom of the shot; WHO is whoever carries a prop: they let go of it, and it is
   set down on the SPOT they stand by, or with none it falls to the ground; with value "off" it is gone for
   good, eaten or lost), spin (degrees: 180 hangs it upside down by its feet from a rope the stage
-  draws, lifted high enough to hang; 360 a full flip), exit left/right.
+  draws, lifted high enough to hang; 360 a full flip; a prop knocked over is a spin of 90), exit left/right.
+  SOUNDS, where a shot lists them, are already timed: a beat that makes or meets a sound (a drop, a landing,
+  a flinch, a turn towards it) is timed AT that sound, with the same words ("line_end+0.2").
   Stage ONLY what these beats can show. Business a puppet has no beat or pose for (sniffing, nibbling,
   pointing, tying) is played as a lean, a hop, a turn or a look, never left as nothing: every shot longer than
   four seconds has at least two beats, so nobody stands frozen through a long line.
@@ -210,11 +214,12 @@ def _mark(m: str | None) -> float:
     return 0.0
 
 
-def _spread(actors: list[Actor], kits: dict[str, Kit]) -> None:
+def _spread(actors: list[Actor], kits: dict[str, Kit], hung: frozenset[str] | set[str] = frozenset()) -> None:
     """Whoever stands in a row on the ground stands clear of their neighbours. The marks are six units apart and
     Gully is eight wide: on left, centre and right three puppets overlapped, and a parcel in Mr Trethewey's
     hand sat on Gully's chest (the Chip Lift's shot 24, 2026-11-09)."""
-    row = sorted((a for a in actors if not a.on and not a.spot and a.y == 0 and abs(a.x) <= EDGE_X),
+    # Whoever hangs upside down hangs among them, and takes up his width of the row too.
+    row = sorted((a for a in actors if not a.on and not a.spot and (a.y == 0 or a.who in hung) and abs(a.x) <= EDGE_X),
                  key=lambda a: a.x)
     half = {a.who: kits[a.who].half * a.scale for a in row}
     for _ in range(12):
@@ -239,12 +244,13 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
     raised with nothing under it stood Gully in mid-air in front of the chip shop, so without a spot in reach
     it is the ground."""
     known = set(kits)
-    where = spots if isinstance(spots, dict) else {}
-    at_wide = {k: (x, y - 3.0) for k, (x, y) in where.items()}       # where a spot is in a wide shot
+    where = {k: (v[0], v[1], v[2] if len(v) > 2 else 1.0) for k, v in spots.items()} if isinstance(spots, dict) else {}
+    at_wide = {k: (v[0], v[1] - 3.0) for k, v in where.items()}      # where a spot is in a wide shot
+    far = {k: v[2] for k, v in where.items()}                        # how big a puppet is drawn there
 
     def nearest(x: float, taken: set[str], who: str = "") -> str | None:
-        near = sorted((abs(sx - x), k) for k, (sx, _) in where.items()
-                      if k not in taken and abs(sx - x) <= REACH and fits(k, who))
+        near = sorted((abs(v[0] - x), k) for k, v in where.items()
+                      if k not in taken and abs(v[0] - x) <= REACH and fits(k, who))
         return near[0][1] if near else None
 
     def fits(spot: str, who: str) -> bool:
@@ -253,7 +259,9 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         if who not in kits or spot not in at_wide:
             return True
         x, y = at_wide[spot]
-        return y + kits[who].height * 0.85 <= TOP and abs(x) + kits[who].half <= EDGE_X + 1.5
+        if who in props and far[spot] < PROP_FAR:         # a crate on the far wall was a speck beside Gully
+            return False
+        return y + kits[who].height * 0.85 * far[spot] <= TOP and abs(x) + kits[who].half * far[spot] <= EDGE_X + 1.5
 
     actors, held, used = [], {}, set()
     for a in st.actors:
@@ -309,7 +317,7 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
                 if x is a or (x.who in props and x.x == a.x and x.y > 0 and not x.on):
                     x.y = hang
     hung = {a.who: a.y for a in actors if spins(a.who)}
-    _spread(actors, kits)
+    _spread(actors, kits, set(hung))
     carried = {a.on.partition(".")[0]: a for a in actors if a.on}
     beats = []
     for b in st.beats:
@@ -328,24 +336,42 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         value = b.value
         if b.do in ("walk", "fly"):
             to = (b.to or "").strip().lower().replace(" ", "_")
+            size = 1.0                                    # on a mark: up close, full size
             if to in at_wide:                             # to a spot: onto the sill, the wall (a walk: up to it)
                 x, y = at_wide[to] if b.do == "fly" else (at_wide[to][0], 0.0)
+                size = far[to] if b.do == "fly" else 1.0
             else:
                 x, y = _mark(b.to), HEIGHTS[b.height]
                 if b.height == "raised":                  # raised is a spot, or it is the ground
                     near = nearest(x, set(), who)
                     x, y = at_wide[near] if near and b.do == "fly" else (x, 0.0)
+                    size = far[near] if near and b.do == "fly" else 1.0
             # A hanging puppet's move is a swing: along at its height (a fly "to the ground" dragged the
             # upside-down Gully's head under it, the talking Chip Lift's shot 19).
             y = hung.get(who, y)
-            value = f"{x}" if b.do == "walk" else f"{x},{y}"
+            value = f"{x}" if b.do == "walk" and not where else f"{x},{y}" + (f",{size}" if where else "")
         elif b.do == "drop":
             value = "-25" if "off" in f"{b.value} {b.to or ''}".lower() else "0"
+            me = next(a for a in actors if a.who == who)
+            if value == "-25" and me.y == 0 and not me.spot:      # on the ground there is no edge to fall off:
+                beats.append(LBeat(who=who, do="fly", at=b.at or "0", until=b.until,    # it is flung out of shot
+                                   value=f"{-28.0 if me.x < 0 else 28.0},0.0" + (",1.0" if where else "")))
+                continue
         elif b.do == "spin":
             value = re.sub(r"[^0-9.\-]", "", value) or "360"
         elif b.do == "lean":
             value = re.sub(r"[^0-9.\-]", "", value) or "4"
         beats.append(LBeat(who=who, do=b.do, value=value, at=b.at or "0", until=b.until))
+    # Whoever walks past somebody passes behind them: one line of puppets has no depth of its own.
+    cast_at = {a.who: a.x for a in actors if not a.on and a.who not in props}
+    for a in actors:
+        if a.who not in cast_at:
+            continue
+        xs = [a.x] + [float(b.value.split(",")[0]) for b in beats if b.who == a.who and b.do == "walk"]
+        xs += [-30.0 if a.enter == "left" else 30.0] if a.enter != "none" else []
+        xs += [-30.0 if b.value == "left" else 30.0 for b in beats if b.who == a.who and b.do == "exit"]
+        if any(min(xs) < x < max(xs) for w, x in cast_at.items() if w != a.who):
+            a.depth = 1
     ropes = []
     if st.rope:
         who, _, part = st.rope.attach.strip().lower().partition(".")
@@ -389,9 +415,25 @@ BATCH = 8                                      # shots staged per call
 ROOM = 32000                                   # output tokens: Sonnet thinks hard about a talking cartoon
 
 
+def problems(shot, st: Stage, props: set[str], cast: set[str]) -> list[str]:
+    """What a staging got wrong that can be told without seeing it: something the action is about left off the
+    stage, somebody seen left out, a long shot in which nobody does anything."""
+    on = {a.who.strip().lower() for a in st.actors} | {(a.holds or "").strip().lower() for a in st.actors}
+    text = shot.action.lower()
+    out = [f"the action is about the {p}, but it is not on the stage: add it as an actor, on a mark or a spot or held"
+           for p in sorted(props) if p not in on and re.search(rf"\b{re.escape(p)}", text)]
+    told = {p for p in props if any(f"the {p}," in x for x in out)}
+    out += [f"{w} is seen, but is not on the stage"
+            for w in sorted({x.strip().lower() for x in shot.seen} & (cast | props) - on - told)]
+    if shot.seconds > 4 and len(st.beats) < 2:
+        out.append("nobody does anything for over four seconds: at least two beats")
+    return out
+
+
 def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
     """Every shot's stage, eight shots a call. A batch that comes back short is filled with the plain stage:
-    who is seen, standing in a row, a wide shot."""
+    who is seen, standing in a row, a wide shot. A staging with something plainly wrong (`problems`) is sent
+    back once, with what is wrong."""
     from newsroom import llm
     from entertainment import cartoons
 
@@ -403,20 +445,37 @@ def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
     out: list[Stage] = []
     for b0 in range(0, len(script.shots), BATCH):
         batch = script.shots[b0:b0 + BATCH]
-        rows = []
-        for k, s in enumerate(batch, start=1):
+        def row(k: int, s) -> str:
             said = " / ".join(f"{l.who}{' (off screen)' if l.offscreen else ''}: \"{l.words}\"" for l in s.lines)
+            heard = "; ".join(f"{e.what} at {e.at}" for e in (s.sfx or []))
             here = places_spots.get(s.place, [])
-            rows.append(f"{k}. at {s.place}" + (f" (its SPOTS: {', '.join(here)})" if here else "")
-                        + f"; {s.seconds:.0f} seconds; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
-                        + (f" Lines: {said}" if said else ""))
-        user = (brief(series, kits, list(series.places)) + f"\n\nTHE PROPS:\n{props}\n\nTHE SHOTS:\n"
-                + "\n".join(rows))
+            return (f"{k}. at {s.place}" + (f" (its SPOTS: {', '.join(here)})" if here else "")
+                    + f"; {s.seconds:.0f} seconds; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
+                    + (f" Lines: {said}" if said else "") + (f" SOUNDS: {heard}" if heard else ""))
+
+        head = brief(series, kits, list(series.places)) + f"\n\nTHE PROPS:\n{props}\n\nTHE SHOTS:\n"
         try:
-            got = llm.complete_json(cartoons.TASK, PStages, STAGER, user, max_tokens=ROOM, timeout_s=600).stages
+            got = llm.complete_json(cartoons.TASK, PStages, STAGER,
+                                    head + "\n".join(row(k, s) for k, s in enumerate(batch, start=1)),
+                                    max_tokens=ROOM, timeout_s=600).stages
         except llm.LLMError as e:
             log.warning("cutout writer: staging shots %d-%d failed (%s); plain stages", b0 + 1, b0 + len(batch), e)
             got = []
+        prop_keys = {p.key.strip().lower() for p in script.props}
+        wrong = [(k, problems(s, got[k], prop_keys, cast)) for k, s in enumerate(batch) if k < len(got)]
+        wrong = [(k, why) for k, why in wrong if why]
+        if wrong:
+            log.info("cutout writer: shots %s sent back: %s", [b0 + k + 1 for k, _ in wrong],
+                     "; ".join(why[0] for _, why in wrong))
+            again = head + "\n".join(row(j, batch[k]) + "\n   YOUR LAST STAGING OF THIS SHOT WAS WRONG: "
+                                     + "; ".join(why) + "." for j, (k, why) in enumerate(wrong, start=1))
+            try:
+                fixed = llm.complete_json(cartoons.TASK, PStages, STAGER, again, max_tokens=ROOM, timeout_s=600).stages
+            except llm.LLMError:
+                fixed = []
+            if len(fixed) == len(wrong):
+                for (k, _), st in zip(wrong, fixed):
+                    got[k] = st
         for k, s in enumerate(batch):
             if k < len(got):
                 out.append(got[k])
@@ -501,7 +560,7 @@ def restage(folder: Path) -> int:
         seen = [a.who for a in Stage.model_validate_json(old.read_text(encoding="utf-8")).actors] if old.exists() \
             else list(sc.on_screen)
         shots.append(PShot.model_construct(
-            place=sc.place, seen=seen, action=sc.summary, seconds=sc.seconds, sounds=sc.sounds, sfx=[],
+            place=sc.place, seen=seen, action=sc.summary, seconds=sc.seconds, sounds=sc.sounds, sfx=list(sc.sfx),
             lines=[Said.model_construct(who=l.who, words=l.words, offscreen=l.offscreen) for l in sc.lines]))
     script = PScript.model_construct(title=ep.title, logline=ep.logline, shots=shots,
                                      props=[PProp.model_construct(key=k, looks=v) for k, v in props.items()])
@@ -538,6 +597,8 @@ def relayout(folder: Path) -> int:
         n = place_number(series, scene.place)
         lay = stage(Stage.model_validate_json(src.read_text(encoding="utf-8")), n, kits, props,
                     engine.spots_of(folder.parent, n, kitmod.plate(folder.parent, n)))
-        (folder / f"scene{i:02d}.layout.json").write_text(lay.model_dump_json(indent=1), encoding="utf-8")
+        out, text = folder / f"scene{i:02d}.layout.json", lay.model_dump_json(indent=1)
+        if not out.exists() or out.read_text(encoding="utf-8") != text:    # untouched: its video stays fresh
+            out.write_text(text, encoding="utf-8")
         done += 1
     return done
