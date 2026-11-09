@@ -435,6 +435,9 @@ def main(argv: list[str] | None = None) -> int:
 
     log.info("world %s | cache %s", CONFIG.paths.world, CONFIG.paths.cache)
     safety.report()
+    from . import llm
+
+    llm.check_config()
 
     if args.channel == "entertainment":       # before the clock: show_at reads the channel's own day
         import entertainment

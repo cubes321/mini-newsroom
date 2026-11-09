@@ -37,6 +37,7 @@ appended to data/llm_calls/<date>.jsonl.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
@@ -397,10 +398,8 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
     name = provider_for(task)
     if name == "off":
         raise LLMUnavailable("NEWSROOM_LLM=off")
-    prov = CONFIG.llm.provider(name)
+    prov = _provider(name)
     if max_tokens or timeout_s:
-        import dataclasses
-
         prov = dataclasses.replace(prov, **{k: v for k, v in (("max_tokens", max_tokens), ("timeout_s", timeout_s)) if v})
     try:
         return _complete_with(name, prov, task, schema, system, user, retries)
@@ -408,8 +407,38 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
         if not prov.fallback or prov.fallback == name or os.environ.get("NEWSROOM_LLM"):
             raise
         log.warning("llm %s: %s failed (%s); falling back to %s", task, name, str(e)[:200], prov.fallback)
-        return _complete_with(prov.fallback, CONFIG.llm.provider(prov.fallback), task, schema, system, user,
+        other = _provider(prov.fallback)
+        # The call's own room goes with it: the fallback had its provider's, and a call that asked for
+        # 32,000 tokens was cut short at the fallback's 16,000. Never less than the fallback's own.
+        room = {k: max(v, getattr(other, k) or 0) for k, v in (("max_tokens", max_tokens), ("timeout_s", timeout_s)) if v}
+        return _complete_with(prov.fallback, dataclasses.replace(other, **room), task, schema, system, user,
                               retries, fallback_from=name)
+
+
+def _provider(name: str) -> ProviderCfg:
+    """A provider by name; a name config.toml doesn't have (a typo in [llm.routes], a `fallback`, --route or
+    NEWSROOM_LLM) is an LLMError like any other failed call, so the caller's stand-in script takes the slot.
+    As a KeyError it went past every `except LLMError` and failed the slot with nothing to air."""
+    try:
+        return CONFIG.llm.provider(name)
+    except KeyError as e:
+        raise LLMError(e.args[0]) from None
+
+
+def check_config() -> list[str]:
+    """What is wrong with the providers the tasks are routed to, said once at startup rather than slot by
+    slot: a name that isn't a provider, in the default, the routes, a fallback, --route or NEWSROOM_LLM."""
+    known = CONFIG.llm.providers
+    named = [("[llm] default_provider", CONFIG.llm.default_provider)]
+    named += [(f"[llm.routes] {task}", name) for task, name in CONFIG.llm.routes.items()]
+    named += [(f"[llm.providers.{p.name}] fallback", p.fallback) for p in known.values() if p.fallback]
+    named += [(f"--route {k}", v) for k, v in _swaps().items()]
+    if (pin := os.environ.get("NEWSROOM_LLM")) and pin != "off":
+        named.append(("NEWSROOM_LLM", pin))
+    bad = [f"{where} = {name!r}: no [llm.providers.{name}] in config.toml" for where, name in named if name not in known]
+    for line in bad:
+        log.error("llm config: %s; those calls will fail to their stand-ins", line)
+    return bad
 
 
 def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], system: str, user: str,

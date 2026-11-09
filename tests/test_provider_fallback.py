@@ -69,3 +69,32 @@ def test_a_failed_fallback_still_raises(monkeypatch, flash_desk):
     monkeypatch.setattr(llm, "_anthropic_raw", down)
     with pytest.raises(llm.LLMError):
         llm.complete_json("story_desk", _Out, "system", USER)
+
+
+def test_the_fallback_gets_the_room_the_call_asked_for(monkeypatch, flash_desk):
+    """The cartoon writer asks for more tokens than its provider's; the fallback call had only its own."""
+    def down(*a, **kw):
+        raise llm.LLMUnavailable("down")
+    monkeypatch.setattr(llm, "_openai_raw", down)
+    own = CONFIG.llm.provider("claude_sonnet").max_tokens or CONFIG.llm.max_tokens
+    llm.complete_json("story_desk", _Out, "system", USER, max_tokens=own + 5000)
+    assert flash_desk.sent["max_tokens"] == own + 5000
+    llm.complete_json("story_desk", _Out, "system", USER, max_tokens=10)
+    assert flash_desk.sent["max_tokens"] == own                 # never less than the fallback's own
+
+
+def test_a_provider_name_config_doesnt_have_fails_like_any_other_call(monkeypatch, flash_desk, caplog):
+    """As a KeyError it went past the writers' `except LLMError`: the slot failed with no stand-in script."""
+    from newsroom import schedule, world as world_mod, writers
+    from newsroom.models import Segment, SegmentType
+
+    monkeypatch.setenv("NEWSROOM_ROUTES", "story_desk=deepseek_flsh,bulletin=claude_hiaku")
+    with pytest.raises(llm.LLMError, match="deepseek_flsh"):
+        llm.complete_json("story_desk", _Out, "system", USER)
+    seg = Segment(slot_id=3, type=SegmentType.bulletin, show="news", target_s=40.0, nominal_start_ts=schedule.now())
+    writers.script_segment(seg, world_mod.seed())
+    assert seg.lines and seg.fallback                           # the stand-in script took the slot
+    bad = llm.check_config()
+    assert len(bad) == 2 and "--route story_desk = 'deepseek_flsh'" in bad[0] and "llm config:" in caplog.text
+    monkeypatch.delenv("NEWSROOM_ROUTES")
+    assert llm.check_config() == []                             # config.toml as it stands is sound
