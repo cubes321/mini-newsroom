@@ -198,6 +198,7 @@ class World:
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
     chambers: list[dict] = field(default_factory=list)    # The Chamber's agendas: {date, motions (votes, result, applied)}
+    promises: list[dict] = field(default_factory=list)    # what full council voted would happen (promises.py): {id, made, thread_id, text, due, state}
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}
     bank_aired: dict[str, list[str]] = field(default_factory=dict)   # content bank item -> the days it aired (bank.py)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it

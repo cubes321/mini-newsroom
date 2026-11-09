@@ -18,7 +18,7 @@ import logging
 import re
 from datetime import date, datetime
 
-from . import council, llm, safety, schedule
+from . import council, llm, promises, safety, schedule
 from .config import CONFIG
 from .models import ChamberAgenda, SegmentType
 from .world import Thread, World
@@ -90,7 +90,8 @@ def commission(world: World) -> dict:
     if not pool:
         return _record(world, None)
     user = (f"BRIEFING\n{world.summary_for_editor()}\n\nTHE COUNCIL:\n{_council_rows(world)}\n\nSTORIES:\n"
-            + "\n".join(_row(world, t) for t in pool))
+            + "\n".join(_row(world, t) for t in pool)
+            + ("\n" + said if (said := promises.for_chamber(world, date.fromisoformat(world.last_date))) else ""))
     try:
         agenda = llm.complete_json("chamber", ChamberAgenda, _SYSTEM, user)
     except llm.LLMError as e:
@@ -212,7 +213,8 @@ def for_prompt(world: World) -> str:
             + "\n".join(
         f"  - {e['type'].replace('_', ' ')}: {e['headline']}: {e['text'][:SO_FAR_CHARS]}" for e in aired)) if aired else ""
     return (f"FULL COUNCIL IN SESSION, live from the council chamber.\nTHE COUNCIL (speak as speaker \"guest\" with "
-            f"guest_name their exact name):\n{_council_rows(world)}\nTONIGHT'S AGENDA, in this order:\n{agenda}{done}")
+            f"guest_name their exact name):\n{_council_rows(world)}\nTONIGHT'S AGENDA, in this order:\n{agenda}"
+            f"{promises.for_chamber(world, date.fromisoformat(world.last_date))}{done}")
 
 
 def settle(world: World, i: int) -> str | None:
@@ -231,6 +233,8 @@ def settle(world: World, i: int) -> str | None:
         if m["carried"] and t.phase in ("emerging", "developing", "peak"):
             t.phase = "resolving"
         m["applied"] = True
+    if m["carried"]:                           # what the council voted would follow is now a promise to keep
+        promises.record(world, date.fromisoformat(c["date"]), t, m["if_carried"])
     log.info("chamber: motion %d on %s %s %d-%d; next: %s", i + 1, t.id, "carried" if m["carried"] else "lost",
              m["for"], m["against"], t.next_development[:80])
     return t.id

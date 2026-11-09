@@ -644,11 +644,20 @@ class DeskBreaking(BaseModel):
                      description="what has just happened and where, as it would first be phoned in: one or two sentences")
 
 
+class PromiseVerdict(BaseModel):
+    """The desk's verdict on a council promise (promises.py), when a story's next step settles it."""
+    id: str = Field(description="the promise's id from COUNCIL PROMISES, e.g. 'p004'")
+    state: Literal["kept", "broken"]
+    note: Annotated[str, _clip(160)] = Field(default="", max_length=160, description="one line: how it was kept, or why it won't be")
+
+
 class StoryPlan(BaseModel):
     updates: list[ThreadUpdate] = Field(default_factory=list, max_length=30)    # a batch per call (desk.batch), with room for out-of-turn extras it skips
     new_threads: list[NewThread] = Field(default_factory=list, max_length=3)
     merges: list[ThreadMerge] = Field(default_factory=list, max_length=12)
     breaking: DeskBreaking | None = Field(default=None, description="rare: null on most rounds")
+    promises: list[PromiseVerdict] = Field(default_factory=list, max_length=6,
+                                           description="only when COUNCIL PROMISES are listed and a NEXT development settles one")
     note: Annotated[str, _clip(200)] = Field(default="", max_length=200, description="one line on the editorial thinking")
 
 

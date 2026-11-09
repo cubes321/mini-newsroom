@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import date, datetime
 
-from . import chamber, llm, safety, schedule
+from . import chamber, llm, promises, safety, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan
 from .world import THREAD_PEOPLE, Thread, World
@@ -123,6 +123,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     the plan's `breaking` is left for the worker, which commissions it (`breaking.from_desk`)."""
     world.last_story_plan_ts = time.time()
     world.fade_threads()
+    promises.lapse(world, date.fromisoformat(world.last_date))   # after the fade: a faded story's promise goes with it
     open_n = len(world.board_threads())           # the pool's waiting stories leave room for new ones
     room = seed_room(world, open_n)
     todo = batch(world)
@@ -141,7 +142,8 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         "unless it is covered again: give it a NEXT step worth covering, or close it."
         + (f" You may also revive one recently faded thread ({', '.join(t.id for t in faded)}) by giving it "
            "a phase and a NEXT development, but only if something new would really happen." if faded else "")
-    ) + _MERGES + _loose_ends(world) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
+    ) + _MERGES + _loose_ends(world) + promises.for_desk(world, date.fromisoformat(world.last_date), {
+        t.id for t in todo}) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
     try:
         p = llm.complete_json("story_desk", StoryPlan, _SYSTEM, user)
         if todo and not _in_turn(p, todo):
@@ -231,6 +233,12 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         if named:
             t.people = named[:THREAD_PEOPLE]
         log.info("thread %s -> %s; next: %s", t.id, t.phase, t.next_development[:80])
+    for v in p.promises:                           # a verdict needs its story planned this round to match
+        mine = next((pr for pr in promises.open_(world) if pr["id"] == v.id), None)
+        if mine is None or (only is not None and mine["thread_id"] not in only):
+            log.info("story desk settled promise %r, not an open one on this round's threads; skipping", v.id)
+        else:
+            promises.settle(world, v.id, v.state, v.note)
     for nt in p.new_threads[: seed_room(world, len(world.board_threads()))]:
         seed(world, nt)
 

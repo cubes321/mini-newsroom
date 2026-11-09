@@ -22,7 +22,7 @@ import logging
 import textwrap
 from datetime import date, datetime, timedelta
 
-from . import calendar, council, quay, safety, schedule, sport, tides
+from . import calendar, council, promises, quay, safety, schedule, sport, tides
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ def _index(now: datetime) -> dict:
         row(f"{now:%A %d %B %Y}", "white"), row(),
         _leader("News headlines", 101, "yellow"), _leader("Weather", 120), _leader("Tides and ferry", 130),
         _leader("Sport", 140), _leader("The fish quay", 150), _leader("On Channel 7 today", 160),
-        _leader("Notices", 170), _leader("What's on", 180), row(),
+        _leader("Notices", 170), _leader("Council watch", 175), _leader("What's on", 180), row(),
         row("Programmes return at six with", "green"), row("Morning Tide.", "green")]
     return _page(100, "INDEX", rows)
 
@@ -254,6 +254,26 @@ def _notices(day: date) -> dict:
     return _page(170, "NOTICES", rows[:ROWS - 2])
 
 
+def _council_watch(world, day: date) -> dict:
+    """What full council voted would happen, and whether it has (promises.py): the open ones first, the
+    overdue at the top, then the latest verdicts."""
+    rows = _banner("COUNCIL WATCH", "black", "yellow")
+    n = promises.tally(world)
+    rows.append(row(f"Promised at full council: {n['kept']} kept,", "cyan"))
+    rows.append(row(f"{n['broken']} broken, {n['open']} still to come.", "cyan"))
+    rows.append(row())
+    board = promises.board(world, day)
+    if not board:
+        rows.append(row("Nothing promised yet. Full council", "white"))
+        rows.append(row("meets every other Thursday at eight.", "white"))
+    for label, colour, p in board:
+        block = [row(label, colour)] + [row(line, "white") for line in _wrap(p["text"])[:2]]
+        if height(rows + block) > len(BODY) - 1:
+            break
+        rows += block
+    return _page(175, "COUNCIL", rows)
+
+
 def _whats_on(day: date) -> dict:
     """The coming week from the calendar (calendar.coming_up): the town's events, full council and the matches,
     a day at a time, as many whole days as fit."""
@@ -278,7 +298,8 @@ def pages(world, now: datetime | None = None) -> list[dict]:
     state = world.last_weather.get("map_state")
     out = [_index(now), _headlines(stories)] + [_story(t, 102 + i) for i, t in enumerate(stories)]
     return out + [_weather(world, now), _tides(now.date(), state), _sport(now), _quay(now),
-                  _schedule(now.date()), _notices(now.date()), _whats_on(now.date())]
+                  _schedule(now.date()), _notices(now.date()), _council_watch(world, now.date()),
+                  _whats_on(now.date())]
 
 
 def segment(seg, world):
