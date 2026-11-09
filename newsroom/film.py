@@ -27,26 +27,41 @@ class Reader:
         self.frame: pygame.Surface | None = None
         self.frame_t = start_s - 1.0
         self.done = False
+        self._closed = threading.Event()
         w, h = size
         self.proc = subprocess.Popen(
             ["ffmpeg", "-loglevel", "error", "-ss", f"{start_s:.3f}", "-i", path, "-an",
              "-vf", f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,fps={FPS}",
              "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        threading.Thread(target=self._read, daemon=True, name="film").start()
+        self.thread = threading.Thread(target=self._read, daemon=True, name="film")
+        self.thread.start()
 
     def _read(self) -> None:
         w, h = self.size
         n, k = w * h * 3, 0
         try:
-            while True:
+            while not self._closed.is_set():
                 buf = self.proc.stdout.read(n)
                 if len(buf) < n:
                     break
-                self.q.put((self.start_s + k / FPS, buf))
+                # Never a put that waits for ever: once the film is closed nobody takes a frame, and until
+                # 2026-11-09 each closed reader's thread sat here for the rest of the run with a full queue
+                # (twelve frames at the window's size, some 75 MB at 1080p) and its ffmpeg unreaped.
+                while not self._closed.is_set():
+                    try:
+                        self.q.put((self.start_s + k / FPS, buf), timeout=0.25)
+                        break
+                    except queue.Full:
+                        pass
                 k += 1
         finally:
             self.done = True
+            try:
+                self.proc.stdout.close()
+                self.proc.wait(timeout=5)
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                pass
 
     def at(self, t: float) -> pygame.Surface | None:
         """The frame for `t` seconds into the film (the last one decoded, if the decoder is behind)."""
@@ -62,10 +77,13 @@ class Reader:
         return self.frame
 
     def close(self) -> None:
+        self._closed.set()
         try:
             self.proc.kill()
         except OSError:
             pass
+        with self.q.mutex:                  # the frames waiting go now, not when the thread notices
+            self.q.queue.clear()
 
 
 _reader: Reader | None = None

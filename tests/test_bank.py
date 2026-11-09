@@ -497,3 +497,36 @@ def test_cartoon_time_airs_films_at_seven_on_the_entertainment_channel():
         assert schedule.show_at(at(20, 5)).id == "wits"
     finally:
         undo()
+
+
+def test_a_closed_film_reader_lets_go_of_its_thread_and_frames(monkeypatch):
+    """close() killed ffmpeg, but the reader's thread was waiting to queue a frame nobody would take: it
+    stayed for the rest of the run, with a queue of frames, once for every film and every replay."""
+    import io
+    import time
+
+    from newsroom import film
+
+    class Proc:
+        def __init__(self, *a, **k):
+            self.stdout, self.killed = self, False
+
+        def read(self, n):                    # frames for ever, until it is killed
+            return b"" if self.killed else b"\0" * n
+
+        def kill(self):
+            self.killed = True
+
+        def close(self): pass
+        def wait(self, timeout=None): return 0
+
+    monkeypatch.setattr(film.subprocess, "Popen", Proc)
+    r = film.Reader("a.mp4", (8, 4))
+    for _ in range(100):
+        if r.q.full():
+            break
+        time.sleep(0.01)
+    assert r.q.full() and r.thread.is_alive()             # decoded ahead, waiting for the picture to catch up
+    r.close()
+    r.thread.join(2.0)
+    assert not r.thread.is_alive() and r.q.empty() and r.done
