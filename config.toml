@@ -5,7 +5,9 @@ width = 960
 height = 540
 fps = 60
 parallax = false         # location backdrops in layers that drift (docs/PARALLAX.md); --parallax for one run
-audio_device = ""        # play into this output (part of its name, e.g. "CABLE Input"); "" = Windows' default.
+audio_device = "CABLE Input"   # play into this output (its name, or part of it); VB-Cable's name since its
+                         # reinstall (2026-11-10), when "Speakers (2- VB-Audio Virtual Cable)" stopped matching;
+                         # "" = Windows' default. OBS records the other end, an Audio Input Capture of "CABLE Output".
                          # --audio-device for one run, --devices lists them (docs/STREAMING.md, silent recording)
 horizon_s = 600          # seconds of unplayed content the producer keeps queued
 words_per_minute = 150   # used to turn target seconds into a word budget
