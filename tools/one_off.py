@@ -4,6 +4,7 @@
     uv run python tools/one_off.py preview data/one_off/budget-2026      # silent, fast, frames to preview/
     uv run python tools/one_off.py air     data/one_off/budget-2026 --obs
     uv run python tools/one_off.py cards   data/one_off/budget-2026 --video "E:/recordings/<the recording>.mp4"
+    uv run python tools/one_off.py short   data/one_off/disco-steve --section "Steve's back" --from 2 --to 5
 
 The folder holds `script.md` (the words, checked by a person: nothing here goes through a model) and
 `special.toml` (the programme's name, the show whose bumper and set it borrows, and the cast; optionally
@@ -13,14 +14,20 @@ the same from one run to the next, and the real town never hears of the programm
 its own `cache/`, keyed by speaker and text: change a line and only that line is voiced again.
 
 script.md: `## Intro`, `## 1. Heading` ..., `## Outro`, each with lines `NAME: text` (NAME from the
-cast). Anything after a line of `---` (the figures check) is not read out.
+cast), or `NAME (mood): text` to put one of models.MOOD_NAMES in their face. Anything after a line of
+`---` (the figures check) is not read out. A guest may be dressed by hand with `[cast.X.look]`
+(sprites.Look fields), for this programme only.
 
 `air` opens the station's window, gives OBS a moment, then plays the bumper and the sections one after
 another and stops. With `--obs` it records one file named after the programme, like `--obs` on a night.
 Esc ends it early (and stops the recording).
 
 `cards` puts a title card before that recording and an end card after it, for an upload: words from
-`[cards]` in special.toml (title, subtitle, details, with, and `end`, a list of lines).
+`[cards]` in special.toml (title, subtitle, details, with, `end`, a list of lines, and `strips`, the
+bands top and bottom: chequers, lights or none).
+
+`short` makes a YouTube Short of some lines of one section with tools/shorts.py (vertical, big
+captions), from the voiced lines, so it needs `voice` first and no recording.
 """
 from __future__ import annotations
 
@@ -40,7 +47,7 @@ sys.path.insert(0, str(ROOT))
 say = lambda s: print(s, flush=True)                    # noqa: E731
 
 HEADING = re.compile(r"^##\s+(?:\d+\.\s*)?(.+?)\s*$")
-SPOKEN = re.compile(r"^([A-Z][A-Z ]*[A-Z]):\s+(.+)$")
+SPOKEN = re.compile(r"^([A-Z][A-Z ]*[A-Z])(?:\s*\((\w+)\))?:\s+(.+)$")   # NAME: text, or NAME (mood): text
 
 
 def redirect(folder: Path) -> None:
@@ -75,10 +82,36 @@ def register_set(spec: dict) -> None:
     say(f"set: {s['id']}")
 
 
-def parse(folder: Path) -> tuple[dict, list[tuple[str, list[tuple[str, str]]]]]:
-    """special.toml, and script.md as [(heading, [(cast key, text)])] in running order."""
+def look_for(who: dict):
+    """A guest's own look from `[cast.X.look]` in special.toml (sprites.Look fields, colours as [r, g, b]), or None."""
+    from newsroom.sprites import Look
+
+    spec = who.get("look")
+    if not spec:
+        return None
+    tup = lambda v: tuple(tup(x) for x in v) if isinstance(v, list) else v     # noqa: E731  Looks are hashed
+    return Look(**{k: tup(v) for k, v in spec.items()})
+
+
+def register_looks(spec: dict) -> None:
+    """Guests dressed by hand for this programme: scenes asks guest_look for a guest's look by name, so that is
+    wrapped for this run only, and the generated look still answers for everyone else."""
+    from newsroom import scenes
+
+    looks = {who["name"]: lk for who in spec["cast"].values() if who.get("name") and (lk := look_for(who))}
+    if not looks:
+        return
+    base = scenes.guest_look
+    scenes.guest_look = lambda name, *a, **k: looks.get((name or "").strip()) or base(name, *a, **k)
+    say(f"looks: {', '.join(looks)}")
+
+
+def parse(folder: Path) -> tuple[dict, list[tuple[str, list[tuple[str, str, str | None]]]]]:
+    """special.toml, and script.md as [(heading, [(cast key, text, mood or None)])] in running order."""
+    from newsroom.models import MOOD_NAMES             # models reads no config, so this is before redirect()
+
     spec = tomllib.loads((folder / "special.toml").read_text(encoding="utf-8"))
-    sections: list[tuple[str, list[tuple[str, str]]]] = []
+    sections: list[tuple[str, list[tuple[str, str, str | None]]]] = []
     for raw in (folder / "script.md").read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if line == "---":
@@ -88,7 +121,9 @@ def parse(folder: Path) -> tuple[dict, list[tuple[str, list[tuple[str, str]]]]]:
         elif (m := SPOKEN.match(line)) and sections:
             if m.group(1) not in spec["cast"]:
                 sys.exit(f"script.md: {m.group(1)!r} isn't in special.toml's cast")
-            sections[-1][1].append((m.group(1), m.group(2).strip()))
+            if m.group(2) and m.group(2) not in MOOD_NAMES:
+                sys.exit(f"script.md: {m.group(2)!r} isn't a mood ({', '.join(MOOD_NAMES)})")
+            sections[-1][1].append((m.group(1), m.group(3).strip(), m.group(2)))
     sections = [s for s in sections if s[1]]
     if not sections:
         sys.exit("script.md: no spoken lines (NAME: text under ## headings)")
@@ -122,13 +157,14 @@ def voice(folder: Path) -> None:
     have = _voiced_lines(folder) if (folder / "segments.json").exists() else {}
     for heading, lines in sections:
         voiced = []
-        for key, text in lines:
+        for key, text, mood in lines:
             who = spec["cast"][key]
             line = Line(speaker=who["speaker"], text=text, guest_name=who.get("name"),
-                        guest_role=who.get("role"))
+                        guest_role=who.get("role"), mood=mood)
             h = line_hash(who, text)
             done += 1
             if h in have:                         # voiced before, word for word, in this voice
+                have[h].mood = mood                # a mood is drawn, not voiced
                 voiced.append((h, have[h]))
                 continue
             t0 = time.perf_counter()
@@ -215,6 +251,7 @@ def air(folder: Path, args) -> None:
 
     world = world_mod.load()                    # the programme's copy, never saved from here
     register_set(spec)
+    register_looks(spec)
     buffer = Buffer()
     segs = segments(folder, spec)
     for s in segs:
@@ -316,9 +353,16 @@ def _card(spec: dict, kind: str):
     shade = pygame.Surface(scenes.CANVAS, pygame.SRCALPHA)
     shade.fill((8, 10, 20, 170 if kind == "title" else 200))
     canvas.blit(shade, (0, 0))
-    for y in (0, 174):                                           # chequered flag strips
+    strips = c.get("strips", "chequers")                         # chequers (the F1 shows), lights, none
+    lights = [(150, 60, 200), (230, 60, 150), (240, 190, 50), (60, 180, 100), (60, 170, 230)]
+    for y in (0, 174) if strips != "none" else ():
         for i in range(0, 320, 6):
-            pygame.draw.rect(canvas, (235, 235, 235) if (i // 6) % 2 else (20, 20, 24), (i, y, 6, 6))
+            k = i // 6
+            if strips == "lights":                               # a light-up dance floor's tiles
+                col = lights[(k + (y > 0) * 2) % len(lights)]
+                pygame.draw.rect(canvas, col if k % 2 else tuple(v // 2 for v in col), (i, y, 6, 6))
+            else:                                                # a chequered flag
+                pygame.draw.rect(canvas, (235, 235, 235) if k % 2 else (20, 20, 24), (i, y, 6, 6))
     band = pygame.Surface((320, 22), pygame.SRCALPHA)
     band.fill((8, 10, 20, 210))
     canvas.blit(band, (0, 150))                                  # the wordmark's strip, off the desk's chequers
@@ -404,18 +448,62 @@ def cards(folder: Path, args) -> None:
     say(f"saved {target}")
 
 
+def short(folder: Path, args) -> None:
+    """Some lines of one section as a Short: the section goes into `shorts/` in the folder as a cached segment,
+    and tools/shorts.py draws it. Only models are imported here: shorts sets up its sandbox (a copy of this
+    folder's world) before newsroom.config is first read, and asserts that it was."""
+    import shorts
+
+    from newsroom.models import Line, Segment, SegmentState, SegmentType
+
+    spec, _ = parse(folder)
+    data = json.loads((folder / "segments.json").read_text(encoding="utf-8"))
+    if data["script"] != _script_hash(folder):
+        sys.exit("script.md or special.toml changed since it was voiced: run `voice` again first")
+    sec = next((s for s in data["sections"] if s["heading"] == args.section), None)
+    if sec is None:
+        sys.exit(f"no section {args.section!r}: {[s['heading'] for s in data['sections']]}")
+    seg = Segment(slot_id=1, type=SegmentType.interview, show=spec["show"], state=SegmentState.ready,
+                  headline=f"{spec['headline']}: {args.section}", part=args.section,
+                  lines=[Line.model_validate(d) for d in sec["lines"]])
+    cache = folder / "shorts"
+    cache.mkdir(exist_ok=True)
+    key = f"{folder.name}-" + "".join(c if c.isalnum() else "-" for c in args.section.lower()).strip("-")
+    (cache / f"{key}.json").write_text(seg.model_dump_json(), encoding="utf-8")
+    render = shorts._render
+
+    def _render(path, a, tmp):                  # inside the sandbox: a hand-dressed guest's look, then draw
+        register_looks(spec)
+        return render(path, a, tmp)
+
+    shorts._render = _render
+    argv = ["render", key, "--from", str(args.first), "--cache", str(cache),
+            "--title", args.title or spec["programme"]]
+    if args.to is not None:
+        argv += ["--to", str(args.to)]
+    shorts.main(argv)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("what", choices=("voice", "preview", "air", "cards"))
+    ap.add_argument("what", choices=("voice", "preview", "air", "cards", "short"))
     ap.add_argument("folder", type=Path)
     ap.add_argument("--obs", action="store_true", help="record it in OBS, one file named after the programme")
     ap.add_argument("--audio-device", default="", help="play into this output (e.g. 'CABLE Input')")
     ap.add_argument("--video", type=Path, help="cards: the air --obs recording to put the cards round")
     ap.add_argument("--cards-only", action="store_true", help="cards: draw the two PNGs, don't encode")
+    ap.add_argument("--section", help="short: the section, by its heading in script.md")
+    ap.add_argument("--from", dest="first", type=int, default=0, help="short: its first line, from 0")
+    ap.add_argument("--to", type=int, help="short: its last line, included (default: the section's last)")
+    ap.add_argument("--title", help="short: the title over the picture (default: the programme)")
     a = ap.parse_args()
     folder = a.folder.resolve()
     if a.what == "voice":
         voice(folder)
+    elif a.what == "short":
+        if not a.section:
+            sys.exit("short needs --section <a heading from script.md>")
+        short(folder, a)
     elif a.what == "cards":
         if not a.video and not a.cards_only:
             sys.exit("cards needs --video <the recording> (or --cards-only)")

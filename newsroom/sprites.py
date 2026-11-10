@@ -57,6 +57,12 @@ class Look:
     temples: RGB | None = None     # greying at the sides
     freckles: bool = False
     tweed: bool = False
+    # A showman's suit (added for a one-off guest, 2026-11-10); off by default, so every look above is unchanged.
+    tie_stripes: tuple[RGB, ...] = ()  # diagonal stripes across the tie, between bands of its own colour
+    collar: str = ""               # wings: a 1970s shirt collar, its points spread out over the lapels
+    under_dots: RGB | None = None  # a busy shirt (paisley at this size): flecks over the shirt and collar
+    waistcoat: RGB | None = None   # a three-piece: the jacket hangs open over a buttoned waistcoat
+    lapels: str = ""               # wide: lapels a few units across, not a line either side of the V
 
 
 def _dark(c: RGB, k: float) -> RGB:
@@ -371,11 +377,50 @@ def _body(p: _Pen, L: Look) -> None:
     if st in ("blazer", "suit", "cardigan", "uniform"):
         deep = 26 if st == "cardigan" else 25
         spans = [(r, -max(0, 4 - (r - 17) // 2), max(0, 4 - (r - 17) // 2) - 1) for r in range(17, deep)]
+        front = spans                                         # where the jacket's front edges run
+        if L.waistcoat:                                       # open to the hem over a waistcoat, buttoned
+            front = [(r, -max(3, 6 - (r - 17) // 2), max(3, 6 - (r - 17) // 2) - 1) for r in range(17, 37)]
+            p.rows(L.waistcoat, front)
+            for r in (30, 33):
+                p(_mix(L.waistcoat, GOLD, 0.55), -1, r, 2, 1)
         p.rows(under, [s for s in spans if s[2] >= s[1]])
+        if L.under_dots:
+            for r, a, b in spans:
+                for d in range(a, b + 1):
+                    if (d * 3 + r * 5) % 7 == 0:
+                        p(L.under_dots, d, r)
         lapel = _dark(top, 0.7)
-        for r, a, b in spans:                                 # lapel edges either side of the V
+        if L.waistcoat:                                       # the waistcoat's own V round the shirt
+            for r, a, b in spans:
+                p(_dark(L.waistcoat, 0.7), a - 1, r); p(_dark(L.waistcoat, 0.7), b + 1, r)
+        for r, a, b in front:                                 # lapel edges either side of the V
             p(lapel, a - 1, r); p(lapel, b + 1, r)
-        if L.tie:
+        if L.lapels == "wide":                                # a wedge each side, down to the notch
+            face, rim = _mix(top, (255, 255, 255), 0.1), _dark(top, 0.6)
+            for r, a, b in front:
+                if 18 <= r <= 27:
+                    w = 4 if r < 24 else 3 if r < 26 else 2
+                    p(face, a - 1 - w, r, w, 1); p(face, b + 2, r, w, 1)
+                    p(rim, a - 2 - w, r); p(rim, b + 2 + w, r)
+        if L.collar == "wings":                               # the shirt's collar points out over the lapels
+            wing = [(17, -5, -2), (18, -6, -3), (19, -7, -4), (20, -8, -5), (21, -9, -6), (22, -10, -8)]
+            for w in (wing, [(r, -b - 1, -a - 1) for r, a, b in wing]):
+                _outline(p, w, _dark(under, 0.55))
+                p.rows(under, w)
+                if L.under_dots:
+                    for r, a, b in w:
+                        for d in range(a, b + 1):
+                            if (d * 3 + r * 5) % 7 == 0:
+                                p(L.under_dots, d, r)
+        if L.tie and L.tie_stripes:                           # a kipper tie: wide, striped on the diagonal
+            p(L.tie, -1, 17, 2, 1)
+            body = [(r, -1, 0) for r in (18, 19)] + [(r, -2, 1) for r in range(20, 30)] + [(30, -1, 0)]
+            cols = [c for s in L.tie_stripes for c in (L.tie, s)]
+            for r, a, b in body:
+                for d in range(a, b + 1):
+                    c = cols[(r - d) // 2 % len(cols)]
+                    p(_dark(c, 0.8) if d == b else c, d, r)
+        elif L.tie:
             p(L.tie, -1, 17, 2, 1)                            # knot
             p.rows(L.tie, [(r, -1, 0) for r in range(18, 29)])
             p(_dark(L.tie, 0.7), 0, 18, 1, 11)
@@ -550,6 +595,11 @@ def _head(p: _Pen, L: Look, mouth: float, blink: bool, mood: str = "") -> None:
         for ex in (-3, 3):
             p((40, 40, 48), ex - 2, 5, 4, 1); p((120, 120, 130), ex - 2, 8, 4, 1)
         p((40, 40, 48), 0, 6, 1, 1)
+    elif L.glasses == "frames":                               # thick black rectangles, both rims dark
+        fr = (22, 22, 26)
+        for ex in (-3, 3):
+            p(fr, ex - 2, 5, 4, 1); p(fr, ex - 2, 8, 4, 1); p(fr, ex - 2, 6, 1, 2); p(fr, ex + 1, 6, 1, 2)
+        p(fr, -1, 6, 2, 1); p(fr, 5, 6, 2, 1); p(fr, -7, 6, 2, 1)   # the bridge, the arms to the ears
     elif L.glasses == "shades":
         p((24, 24, 30), -5, 5, 11, 1)
         p((24, 24, 30), -5, 6, 4, 2); p((24, 24, 30), 1, 6, 4, 2)
