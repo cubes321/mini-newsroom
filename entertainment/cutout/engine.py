@@ -68,7 +68,7 @@ def spots_of(series_dir: Path, place: int, plate: Path | None = None) -> dict[st
         return {}
     named = json.loads(path.read_text(encoding="utf-8")).get(str(place), {})
     if not named or plate is None:
-        return {k: (0.0, 0.0, 1.0) for k in named}
+        return {k: (0.0, 0.0, float(v[2]) if len(v) > 2 else 1.0) for k, v in named.items()}
     import pygame
 
     w, h = pygame.image.load(str(plate)).get_size()
@@ -106,6 +106,66 @@ def stills(folder: Path) -> list[Path]:
     if shots:
         play(shots, folder / "cutout_stills.log")
     return [Path(s["out"]) for s in shots]
+
+
+LOOKS = 5                                      # frames of a shot the picture check is shown, at most
+
+
+def moments(lay: Layout, n: int, spans: list[tuple[str, float, float]]) -> list[tuple[int, str]]:
+    """The frames of a shot worth looking at, each with what has just happened: its first, its last, and one
+    just after each thing that happens in it has landed (an entrance, a beat, a prop taken or let go). Frame 1
+    alone showed nobody who walks in, and no pose a beat puts on."""
+    from entertainment.cutout.layout import ENTER_S, FALL_F, TAKE_F, when
+
+    seen = []
+    for a in lay.actors:
+        if a.enter != "none":
+            seen.append((round(ENTER_S * FPS) + 3, f"{a.who} has come in"))
+        if a.on and a.on_at not in ("", "0"):
+            seen.append((when(a.on_at, n, spans) + TAKE_F + 2, f"{a.on.partition('.')[0]} has taken the {a.who}"))
+        if a.off_at:
+            seen.append((when(a.off_at, n, spans) + FALL_F + 8, f"the {a.who} has been let go"))
+    for b in lay.beats:
+        if b.do == "exit":
+            continue
+        if b.do in ("walk", "fly"):                    # where it has got to
+            after = when(b.until, n, spans) + 2 if b.until else when(b.at, n, spans) + round(1.3 * FPS)
+        else:
+            after = when(b.at, n, spans) + (FALL_F + 8 if b.do == "drop" else 10)
+        seen.append((after, f"after {b.who}'s {b.do}" + (f" ({b.value})" if b.do in ("pose", "face") else "")))
+    mid, last = [], 1
+    for f, what in sorted((max(1, min(n, f)), w) for f, w in seen):
+        if f - last >= 8 and n - f >= 8:               # not the same moment as the one before, or as the end
+            mid.append((f, what))
+            last = f
+    if len(mid) > LOOKS - 2:                           # spread through the shot
+        mid = [mid[round(k * (len(mid) - 1) / (LOOKS - 3))] for k in range(LOOKS - 2)]
+    return [(1, "the shot's first frame")] + mid + ([(n, "the shot's last frame")] if n > 1 else [])
+
+
+def looks(folder: Path, only: tuple[int, ...] = ()) -> dict[int, list[tuple[str, Path]]]:
+    """A few frames of every laid-out shot (`moments`), for the picture check: look/sceneNN.fFFFF.jpg, each
+    with its caption. They are the check's own: the start stills the user approves are left alone."""
+    folder = folder.resolve()
+    out_dir = folder / "look"
+    out_dir.mkdir(exist_ok=True)
+    shots, out = [], {}
+    for i in laid_out(folder):
+        if only and i not in only:
+            continue
+        for old in out_dir.glob(f"scene{i:02d}.f*.jpg"):
+            old.unlink()
+        p = shot_plan(folder, i)
+        n = p["frames"]
+        spans = lips.faces(folder, i)[2] if (folder / f"scene{i:02d}.dialogue.wav").exists() else []
+        out[i] = []
+        for f, what in moments(layout_of(folder, i), n, spans):
+            path = out_dir / f"scene{i:02d}.f{f:04d}.jpg"
+            shots.append({"plan": p, "out": str(path), "still": True, "frame": f})
+            out[i].append((f"Shot {i}, at {(f - 1) / FPS:.1f} of {n / FPS:.1f} seconds ({what}):", path))
+    if shots:
+        play(shots, out_dir / "blender.log")
+    return out
 
 
 def _stale(folder: Path, i: int, video: Path) -> bool:

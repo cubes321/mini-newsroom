@@ -37,6 +37,7 @@ appended to data/llm_calls/<date>.jsonl.
 """
 from __future__ import annotations
 
+import base64
 import dataclasses
 import json
 import logging
@@ -45,6 +46,7 @@ import re
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -86,7 +88,7 @@ CHARS_PER_TOKEN = 3.5                # English prose and JSON, near enough for a
 def _estimate(prov, system: str, messages: list, schema, max_tokens: int) -> dict:
     """What an unanswered call may have been billed: the prompt's tokens (the schema goes in it too),
     the output's ceiling, and how many times the SDK sent it."""
-    chars = len(system) + len(json.dumps(messages)) + len(json.dumps(schema.model_json_schema()))
+    chars = len(system) + len(json.dumps(_no_pictures(messages))) + len(json.dumps(schema.model_json_schema()))
     return {"in": round(chars / CHARS_PER_TOKEN), "out_max": max_tokens, "sent": (prov.max_retries or 0) + 1}
 
 
@@ -382,11 +384,36 @@ def _user_content(prov: ProviderCfg, user: str) -> str | list[dict]:
         [{"type": "text", "text": rest}] if rest.strip() else [])
 
 
+def _picture_blocks(prov: ProviderCfg, images: list[tuple[str, Path]]) -> list[dict]:
+    """Pictures for the model to look at, each under its caption, as content blocks after the prompt's text.
+    Only an anthropic provider is sent them: the cut-out cartoons' picture check is the one caller, and a
+    route or a fallback that lands it on another kind fails the call rather than judge pictures unseen."""
+    if prov.kind != "anthropic":
+        raise LLMError(f"{prov.name}: pictures can only go to an anthropic provider")
+    out: list[dict] = []
+    for caption, path in images:
+        kind = "image/png" if Path(path).suffix.lower() == ".png" else "image/jpeg"
+        out += [{"type": "text", "text": caption},
+                {"type": "image", "source": {"type": "base64", "media_type": kind,
+                                             "data": base64.b64encode(Path(path).read_bytes()).decode("ascii")}}]
+    return out
+
+
+def _no_pictures(messages: list[dict]) -> list[dict]:
+    """The messages for the call log and the cost estimate: a picture is megabytes of base64, so its place is
+    kept and its data is not."""
+    def block(b):
+        return {"type": "image", "source": "(picture left out)"} if isinstance(b, dict) and b.get("type") == "image" else b
+    return [{**m, "content": [block(b) for b in m["content"]]} if isinstance(m.get("content"), list) else m
+            for m in messages]
+
+
 # -------------------------------------------------------------------- public
 
 
 def complete_json(task: str, schema: type[T], system: str, user: str, *, retries: int = 1,
-                  max_tokens: int | None = None, timeout_s: float | None = None) -> T:
+                  max_tokens: int | None = None, timeout_s: float | None = None,
+                  images: list[tuple[str, Path]] | None = None) -> T:
     """Ask the model for an instance of `schema`. Raises LLMError on failure.
 
     A provider with a `fallback` hands a call it failed (unreachable, an API error, or no valid
@@ -394,7 +421,8 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
     in the back office costs a Sonnet call rather than a lost desk plan. Not when NEWSROOM_LLM
     pins one provider (or switches the models off): that run asked for exactly that provider.
     `max_tokens` / `timeout_s` give one call more room than its provider's (the cartoon writer: Sonnet's
-    thinking on a talking cartoon used all 16,000 tokens and left a few hundred characters of reply)."""
+    thinking on a talking cartoon used all 16,000 tokens and left a few hundred characters of reply).
+    `images` are pictures to look at, each (caption, file), sent after the prompt (anthropic providers only)."""
     name = provider_for(task)
     if name == "off":
         raise LLMUnavailable("NEWSROOM_LLM=off")
@@ -402,7 +430,7 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
     if max_tokens or timeout_s:
         prov = dataclasses.replace(prov, **{k: v for k, v in (("max_tokens", max_tokens), ("timeout_s", timeout_s)) if v})
     try:
-        return _complete_with(name, prov, task, schema, system, user, retries)
+        return _complete_with(name, prov, task, schema, system, user, retries, images=images)
     except LLMError as e:
         if not prov.fallback or prov.fallback == name or os.environ.get("NEWSROOM_LLM"):
             raise
@@ -412,7 +440,7 @@ def complete_json(task: str, schema: type[T], system: str, user: str, *, retries
         # 32,000 tokens was cut short at the fallback's 16,000. Never less than the fallback's own.
         room = {k: max(v, getattr(other, k) or 0) for k, v in (("max_tokens", max_tokens), ("timeout_s", timeout_s)) if v}
         return _complete_with(prov.fallback, dataclasses.replace(other, **room), task, schema, system, user,
-                              retries, fallback_from=name)
+                              retries, fallback_from=name, images=images)
 
 
 def _provider(name: str) -> ProviderCfg:
@@ -442,11 +470,15 @@ def check_config() -> list[str]:
 
 
 def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], system: str, user: str,
-                   retries: int, fallback_from: str = "") -> T:
+                   retries: int, fallback_from: str = "", images: list[tuple[str, Path]] | None = None) -> T:
     """One provider's attempts: a call, and up to `retries` more carrying the validation error."""
     if prov.kind not in ("openai", "anthropic"):
         raise LLMError(f"unknown provider kind {prov.kind!r} for {name!r}")
-    messages: list[dict] = [{"role": "user", "content": _user_content(prov, user)}]
+    content = _user_content(prov, user)
+    if images:
+        text = [{"type": "text", "text": content}] if isinstance(content, str) else content
+        content = text + _picture_blocks(prov, images)
+    messages: list[dict] = [{"role": "user", "content": content}]
 
     def record(attempt: int, t0: float, *, text: str = "", usage: dict | None = None, error: str = "",
                estimate: dict | None = None) -> None:
@@ -454,7 +486,7 @@ def _complete_with(name: str, prov: ProviderCfg, task: str, schema: type[T], sys
         _log_call({"ts": datetime.now().isoformat(timespec="seconds"), "task": task, "provider": name,
                    "model": prov.model, "attempt": attempt + 1, "elapsed_s": round(time.perf_counter() - t0, 1),
                    "usage": usage, **({"estimate": estimate} if estimate else {}),
-                   "error": error or None, "system": system, "messages": messages,
+                   "error": error or None, "system": system, "messages": _no_pictures(messages),
                    "reply": text, **({"fallback_from": fallback_from} if fallback_from else {})})
 
     raw = _anthropic_raw if prov.kind == "anthropic" else _openai_raw

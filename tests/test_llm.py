@@ -138,3 +138,33 @@ def test_the_sport_the_auction_and_the_council_calendar_are_in_the_cached_head()
     w.ensure_person("Nora Ellison", "runs the pool petition")
     assert w.summary_for_prompt().partition(llm.CACHE_BREAK)[0] == head
     assert world_mod.QUAY_LABEL not in w.summary_for_prompt(auction=False).partition(llm.CACHE_BREAK)[0]
+
+
+def test_pictures_go_after_the_prompt_and_stay_out_of_the_call_log(monkeypatch, tmp_path):
+    """The cut-out cartoons' picture check: each frame under its caption, and only to an anthropic provider."""
+    import dataclasses
+    import json
+
+    import pytest
+
+    from newsroom.config import CONFIG
+    pic = tmp_path / "frame.jpg"
+    pic.write_bytes(b"not really a jpeg")
+    fake = _FakeClient()
+    monkeypatch.setattr(llm, "_ANTHROPIC", fake)
+    monkeypatch.setenv("NEWSROOM_LLM", "claude_haiku")
+    monkeypatch.setenv("NEWSROOM_LLM_LOG", "1")
+    monkeypatch.setattr(llm, "_USAGE", {})
+    old = CONFIG.paths
+    object.__setattr__(CONFIG, "paths", dataclasses.replace(old, llm_calls=tmp_path))
+    try:
+        assert llm.complete_json("weather", _Out, "system", "Look at this.", images=[("Shot 1:", pic)]).text == "hello"
+    finally:
+        object.__setattr__(CONFIG, "paths", old)
+    content = fake.sent["messages"][0]["content"]
+    assert [b["type"] for b in content] == ["text", "text", "image"] and content[1]["text"] == "Shot 1:"
+    assert content[2]["source"] == {"type": "base64", "media_type": "image/jpeg", "data": "bm90IHJlYWxseSBhIGpwZWc="}
+    [row] = [json.loads(l) for f in tmp_path.glob("*.jsonl") for l in f.read_text(encoding="utf-8").splitlines()]
+    assert row["messages"][0]["content"][2] == {"type": "image", "source": "(picture left out)"}
+    with pytest.raises(llm.LLMError):
+        llm._picture_blocks(ProviderCfg(name="d", kind="openai", model="m"), [("Shot 1:", pic)])

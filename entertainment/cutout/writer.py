@@ -430,6 +430,18 @@ def problems(shot, st: Stage, props: set[str], cast: set[str]) -> list[str]:
     return out
 
 
+def _row(k: int, s, spots: dict[str, tuple] | None = None) -> str:
+    """A shot as the stager and the picture check are told it. A spot too far off for a prop says so: the
+    crate "on the edge of the wall" was staged there and landed on the sand (the Chip Lift's shot 13)."""
+    said = " / ".join(f"{l.who}{' (off screen)' if l.offscreen else ''}: \"{l.words}\"" for l in s.lines)
+    heard = "; ".join(f"{e.what} at {e.at}" for e in (s.sfx or []))
+    here = [f"{name} (far off: a perch, too small for a prop)" if v[2] < PROP_FAR else name
+            for name, v in (spots or {}).items()]
+    return (f"{k}. at {s.place}" + (f" (its SPOTS: {', '.join(here)})" if here else "")
+            + f"; {s.seconds:.0f} seconds; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
+            + (f" Lines: {said}" if said else "") + (f" SOUNDS: {heard}" if heard else ""))
+
+
 def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
     """Every shot's stage, eight shots a call. A batch that comes back short is filled with the plain stage:
     who is seen, standing in a row, a wide shot. A staging with something plainly wrong (`problems`) is sent
@@ -440,18 +452,13 @@ def staged(series, kits: dict[str, Kit], script: PScript) -> list[Stage]:
     from entertainment.cutout import engine
 
     props = "\n".join(f"  - {p.key}: {p.looks}" for p in script.props) or "  (none)"
-    places_spots = {pl: list(engine.spots_of(cartoons.ROOT / series.id, k + 1)) for k, pl in enumerate(series.places)}
+    places_spots = {pl: engine.spots_of(cartoons.ROOT / series.id, k + 1) for k, pl in enumerate(series.places)}
     cast = {c.key for c in series.cast}
     out: list[Stage] = []
     for b0 in range(0, len(script.shots), BATCH):
         batch = script.shots[b0:b0 + BATCH]
         def row(k: int, s) -> str:
-            said = " / ".join(f"{l.who}{' (off screen)' if l.offscreen else ''}: \"{l.words}\"" for l in s.lines)
-            heard = "; ".join(f"{e.what} at {e.at}" for e in (s.sfx or []))
-            here = places_spots.get(s.place, [])
-            return (f"{k}. at {s.place}" + (f" (its SPOTS: {', '.join(here)})" if here else "")
-                    + f"; {s.seconds:.0f} seconds; seen: {', '.join(s.seen) or 'nobody'}; {s.action}"
-                    + (f" Lines: {said}" if said else "") + (f" SOUNDS: {heard}" if heard else ""))
+            return _row(k, s, places_spots.get(s.place))
 
         head = brief(series, kits, list(series.places)) + f"\n\nTHE PROPS:\n{props}\n\nTHE SHOTS:\n"
         try:
@@ -542,11 +549,9 @@ def save(folder: Path, stages: list[Stage], props: dict[str, str]):
     (folder / "props.json").write_text(json.dumps(props, indent=1), encoding="utf-8")
 
 
-def restage(folder: Path) -> int:
-    """Stage an episode's shots again from its script as it stands: the talk, its recorded sound and the props
-    are kept; only where everyone stands, what they do and the camera are written afresh (after the stager's
-    brief or the stage itself has learned something). The old stages are kept in stages.K/. Returns how many
-    shots were laid out."""
+def _on_disk(folder: Path):
+    """An episode as it stands in its folder: the series, the episode, the kits, the props and the script
+    its shots were staged from (who is seen: whoever its stage has now)."""
     from entertainment import cartoons
     from entertainment.cutout import kit as kitmod
 
@@ -564,6 +569,15 @@ def restage(folder: Path) -> int:
             lines=[Said.model_construct(who=l.who, words=l.words, offscreen=l.offscreen) for l in sc.lines]))
     script = PScript.model_construct(title=ep.title, logline=ep.logline, shots=shots,
                                      props=[PProp.model_construct(key=k, looks=v) for k, v in props.items()])
+    return series, ep, kits, props, script
+
+
+def restage(folder: Path) -> int:
+    """Stage an episode's shots again from its script as it stands: the talk, its recorded sound and the props
+    are kept; only where everyone stands, what they do and the camera are written afresh (after the stager's
+    brief or the stage itself has learned something). The old stages are kept in stages.K/. Returns how many
+    shots were laid out."""
+    series, ep, kits, props, script = _on_disk(folder)
     stages = staged(series, kits, script)
     for sc, st in zip(ep.scenes, stages):                 # a speaker seen is on stage
         on_stage = {a.who.strip().lower() for a in st.actors}
@@ -602,3 +616,201 @@ def relayout(folder: Path) -> int:
             out.write_text(text, encoding="utf-8")
         done += 1
     return done
+
+
+# ------------------------------------------------------------------ the picture check
+#
+# `problems` reads a staging's words. This looks at what the stage made of it: a few frames of each shot as
+# Blender plays them, beside the shot's script. The Chip Lift's faults were all of this kind: a crate staged
+# "on the wall" that the stage put on the sand, a cat nibbling a crumb with the chips beside her.
+
+
+class Seen(BaseModel):
+    shot: int = Field(description="the shot's number, as it was given")
+    faults: list[str] = Field(default_factory=list, max_length=3,
+                              description="each one sentence: what the pictures show against what the shot says; "
+                                          "empty when the shot plays as written")
+
+
+class Looked(BaseModel):
+    shots: list[Seen]
+
+
+LOOKER = """\
+You check the staging of a PAPER CUT-OUT cartoon against its script. For each numbered shot you are given what
+the script says happens and a few frames of it as it was played, each with its time in the shot. Say what is
+plainly WRONG in the pictures: a viewer would see it and be puzzled, or would miss what the shot is about.
+A FAULT is one of these:
+- Something the action is about is not where the action says it is (a crate "on the wall" lying on the sand),
+  is not in the frame, is cut off by its edge, or is too small or too far from the camera's subject to notice.
+- Somebody or something floats with nothing under it, is sunk into the ground, or lies over somebody else so
+  that either cannot be read.
+- The frames show something that contradicts the action (she eats something other than what the shot says is
+  being eaten; a prop the action says is carried stays behind on the ground).
+- The framing loses the shot: a head cut off, a close-up of nothing, one small figure lost in an empty wide
+  shot when the action is about that figure and something they have or do.
+- A shot of five seconds or more in which no frame differs from the others except for mouths.
+These are NOT faults; never report them:
+- The medium: flat paper puppets with a white cut edge and a shadow, a few fixed poses, stiff limbs, mouths
+  that are open in one frame and shut in the next, a painted backdrop that does not move.
+- Business the puppets have no drawing for (sniffing, rubbing wings, tying a knot, pointing) played as a lean,
+  a hop, a turn or a change of pose: that is how it is meant to be done.
+- Anything said to be OFF SCREEN, or only heard: it is not meant to be seen. A character who has not come in
+  yet in the first frame, or has left by the last.
+- The cast being large against the buildings behind them, and anyone on a far part of the backdrop (a sill, a
+  wall top) being drawn small: that is the stage's depth.
+- The backdrop's own painting, the drawing of a character or a prop, colours, style, and anything about the
+  script's writing.
+Be sure before you report: when a shot plays as written, its faults are empty, and most shots do. Each fault
+is ONE plain sentence naming who or what, what the frames show and what the shot says ("The crate lies on the
+sand beside Gully, but the action has it on the edge of the wall").
+Return ONLY JSON: {"shots": [{"shot": N, "faults": [...]}, ...]}, one entry for every shot given.
+"""
+
+LOOK_BATCH = 5                                 # shots a call: about twenty pictures
+
+
+def came_out(st: Stage, lay: Layout, props: set[str]) -> list[str]:
+    """What the stage could not do as a staging asked, for the stager to know before it tries again: sent back
+    with "the crate should be on the wall" alone, it would put the crate on the wall again, and the stage
+    would put it on the sand again."""
+    placed = {a.who: a for a in lay.actors}
+    out = []
+    for a in st.actors:
+        who, mark = a.who.strip().lower(), a.mark.strip().lower().replace(" ", "_")
+        p = placed.get(who)
+        if p is None:
+            out.append(f"{who} has no puppet and is not drawn")
+        elif not p.on and not p.spot and p.y == 0 and (mark not in MARKS or a.height == "raised"):
+            where = "raised" if mark in MARKS else f"on {mark}"
+            why = "a prop that far off is a speck, or there is no such spot" if who in props \
+                else "it does not fit in the shot there, or there is no spot in reach"
+            out.append(f"{who} was staged {where} and stands on the ground instead ({why})")
+    return out
+
+
+def _looked_at(folder: Path, series, script: PScript, props: dict[str, str],
+               frames: dict[int, list[tuple[str, Path]]]) -> dict[int, dict]:
+    """Each shot's faults as seen in its frames: {shot: {"looked": bool, "faults": [...]}}. A shot the model
+    did not answer for, or a call that failed, is NOT looked at: never a clean pass."""
+    from newsroom import llm
+    from entertainment import cartoons
+    from entertainment.cutout import engine
+
+    cast = "\n".join(f"  - {c.key}: {c.name}, {c.looks}" for c in series.cast)
+    things = "\n".join(f"  - {k}: {v}" for k, v in props.items()) or "  (none)"
+    head = f"THE CAST:\n{cast}\n\nTHE PROPS:\n{things}\n\nTHE SHOTS (their frames follow, in order):\n"
+    out = {i: {"looked": False, "faults": []} for i in frames}
+    todo = sorted(frames)
+    for b0 in range(0, len(todo), LOOK_BATCH):
+        batch = todo[b0:b0 + LOOK_BATCH]
+        rows = [_row(i, script.shots[i - 1],
+                     engine.spots_of(folder.parent, place_number(series, script.shots[i - 1].place))) for i in batch]
+        try:
+            got = llm.complete_json(cartoons.TASK, Looked, LOOKER, head + "\n".join(rows), max_tokens=ROOM,
+                                    timeout_s=600, images=[f for i in batch for f in frames[i]]).shots
+        except llm.LLMError as e:
+            log.warning("cutout look: shots %s not looked at (%s)", batch, e)
+            for i in batch:
+                out[i]["why"] = str(e)[:200]
+            continue
+        for s in got:
+            if s.shot in batch:
+                out[s.shot] = {"looked": True, "faults": [f.strip() for f in s.faults if f.strip()]}
+    return out
+
+
+def _mend(folder: Path, series, ep, kits: dict[str, Kit], props: dict[str, str], script: PScript,
+          wrong: dict[int, list[str]]) -> dict[int, str]:
+    """The stager's second go at the shots that looked wrong, each with its stage, what the stage could not do
+    with it and what was seen. Only a stage that changed is written; the one it replaces is kept in stages.K/.
+    Returns the old stage's text for each shot changed."""
+    from newsroom import llm
+    from entertainment import cartoons
+    from entertainment.cutout import engine
+
+    cast, keys = {c.key for c in series.cast}, {k.strip().lower() for k in props}
+    head = brief(series, kits, list(series.places)) + "\n\nTHE PROPS:\n" \
+        + ("\n".join(f"  - {k}: {v}" for k, v in props.items()) or "  (none)") + "\n\nTHE SHOTS:\n"
+    new: dict[int, tuple[str, Stage]] = {}
+    todo = sorted(wrong)
+    for b0 in range(0, len(todo), BATCH):
+        batch, rows, olds = todo[b0:b0 + BATCH], [], []
+        for j, i in enumerate(batch, start=1):
+            shot = script.shots[i - 1]
+            text = (folder / f"scene{i:02d}.stage.json").read_text(encoding="utf-8")
+            old = Stage.model_validate_json(text)
+            olds.append((text, old))
+            lay = engine.layout_of(folder, i)
+            could_not = came_out(old, lay, keys) if lay else []
+            rows.append(_row(j, shot, engine.spots_of(folder.parent, place_number(series, shot.place)))
+                        + "\n   YOUR STAGE OF THIS SHOT: " + old.model_dump_json(exclude_defaults=True)
+                        + ("\n   WHAT THE STAGE COULD NOT DO WITH IT: " + "; ".join(could_not) + "." if could_not else "")
+                        + "\n   PLAYED, IT LOOKED WRONG: " + " ".join(wrong[i])
+                        + "\n   Mend exactly that and keep the rest of the stage as it is. What the stage could not do"
+                          " it cannot do the second time either: find another way (held by somebody, on the ground"
+                          " beside them, a nearer spot, a wider shot). A fault that no mark, spot, hold, pose, beat"
+                          " or camera can mend: return the stage as it was.")
+        try:
+            got = llm.complete_json(cartoons.TASK, PStages, STAGER, head + "\n".join(rows), max_tokens=ROOM,
+                                    timeout_s=600).stages
+        except llm.LLMError as e:
+            log.warning("cutout look: shots %s not mended (%s)", batch, e)
+            continue
+        if len(got) != len(batch):
+            log.warning("cutout look: %d stages came back for shots %s; none taken", len(got), batch)
+            continue
+        for i, (text, old), st in zip(batch, olds, got):
+            shot, scene = script.shots[i - 1], ep.scenes[i - 1]
+            on_stage = {a.who.strip().lower() for a in st.actors}
+            for l in scene.lines:                             # a speaker seen is on stage
+                if not l.offscreen and l.who not in on_stage:
+                    st.actors.append(StageActor(who=l.who))
+                    on_stage.add(l.who)
+            worse = set(problems(shot, st, keys, cast)) - set(problems(shot, old, keys, cast))
+            if st.model_dump() == old.model_dump() or worse:
+                log.info("cutout look: shot %d left as it was (%s)", i, "; ".join(sorted(worse)) or "nothing changed")
+                continue
+            new[i] = (text, st)
+    if new:
+        keep = folder / f"stages.{len(list(folder.glob('stages.*'))) + 1}"
+        keep.mkdir()
+        for i, (text, st) in new.items():
+            (keep / f"scene{i:02d}.stage.json").write_text(text, encoding="utf-8")
+            (folder / f"scene{i:02d}.stage.json").write_text(st.model_dump_json(indent=1), encoding="utf-8")
+    return {i: text for i, (text, _) in new.items()}
+
+
+def look(folder: Path, fix: bool = False, only: tuple[int, ...] = ()) -> dict[int, dict]:
+    """Look at every laid-out shot as it plays and say what is wrong with it (look/report.json, the frames
+    beside it). With `fix`, each shot with a fault goes back to the stager once and is looked at again: the
+    new staging is kept only if it shows fewer faults, else the old one is put back. Without it nothing of
+    the episode changes."""
+    from entertainment.cutout import engine
+
+    folder = folder.resolve()
+    series, ep, kits, props, script = _on_disk(folder)
+    report = _looked_at(folder, series, script, props, engine.looks(folder, only))
+    wrong = {i: r["faults"] for i, r in report.items() if r["faults"]}
+    if fix and wrong:
+        changed = _mend(folder, series, ep, kits, props, script, wrong)
+        for i in wrong:
+            report[i]["mended"] = "the stager changed nothing" if i not in changed else None
+        if changed:
+            relayout(folder)
+            again = _looked_at(folder, series, script, props, engine.looks(folder, tuple(changed)))
+            back = []
+            for i, old in changed.items():
+                r = again[i]
+                if r["looked"] and len(r["faults"]) < len(wrong[i]):
+                    report[i].update(mended="restaged", left=r["faults"])
+                else:
+                    (folder / f"scene{i:02d}.stage.json").write_text(old, encoding="utf-8")
+                    back.append(i)
+                    report[i].update(mended="restaged, looked no better, put back", tried=r["faults"],
+                                     **({} if r["looked"] else {"tried_unseen": r.get("why", "no answer")}))
+            if back:
+                relayout(folder)
+                engine.looks(folder, tuple(back))             # look/ shows the stages as they now stand
+    (folder / "look" / "report.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    return report

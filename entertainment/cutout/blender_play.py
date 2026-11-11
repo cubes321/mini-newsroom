@@ -2,7 +2,8 @@
 
 Runs inside Blender's own Python, so it imports nothing of the project (no pydantic, no numpy needed): the plan
 (layout.plan, as JSON) already holds every frame. A batch is {"shots": [{"plan": {...}, "out": path,
-"still": bool}]}: a still renders frame 1 to `out` (a .png); otherwise every frame goes to `out`/f_####.png.
+"still": bool}]}: a still renders frame 1 (or the shot's "frame") to `out` (a .png or .jpg); otherwise every
+frame goes to `out`/f_####.png.
 
 Everything is an unlit card or strip (an emission shader, the Standard view transform: the colours are the
 pictures' own). Cards blend (alpha: the paper's edge and shadow) and sort by their depth; the rope is solid,
@@ -151,9 +152,10 @@ def sequence(folder, name, pieces):
     return d / f"{name}_0001.png"
 
 
-def build(plan, out, still):
+def build(plan, out, still, frame=1):
     sc = scene_for(plan)
     n = plan["frames"]
+    frame = max(1, min(n, frame))
     work = Path(out).parent if still else Path(out)
     pl = plan["plate"]
     img = bpy.data.images.load(pl["path"])
@@ -165,10 +167,10 @@ def build(plan, out, still):
     sc.camera = cam
     cards = []
     for c in plan["cards"]:
-        first = c["pieces"][0] if still else sequence(work, c["name"], c["pieces"])
+        first = c["pieces"][frame - 1] if still else sequence(work, c["name"], c["pieces"])
         ob = card(c["name"], first, c["w_px"] * c["upp"], c["h_px"] * c["upp"], c["z"], seq=0 if still else n)
         cards.append((ob, c))
-    frames = [1] if still else range(1, n + 1)
+    frames = [frame] if still else range(1, n + 1)
     for k, r in enumerate(plan["ropes"]):
         rope(k, r, frames)
     for f in frames:
@@ -188,7 +190,10 @@ def build(plan, out, still):
             for attr in ("location", "rotation_euler", "scale"):
                 ob.keyframe_insert(attr, frame=f)
     if still:
-        sc.frame_set(1)
+        sc.frame_set(frame)
+        if str(out).lower().endswith(".jpg"):
+            sc.render.image_settings.file_format = "JPEG"
+            sc.render.image_settings.quality = 88
         sc.render.filepath = str(out)
         bpy.ops.render.render(write_still=True)
     else:
@@ -197,5 +202,5 @@ def build(plan, out, still):
 
 
 for shot in batch["shots"]:
-    build(shot["plan"], shot["out"], shot.get("still", False))
+    build(shot["plan"], shot["out"], shot.get("still", False), shot.get("frame", 1))
     print("cutout: played", shot["out"], flush=True)

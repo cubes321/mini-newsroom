@@ -1114,6 +1114,12 @@ def _cli() -> int:
     pr.add_argument("folder", type=Path)
     rs = sub.add_parser("restage", help="stage a cut-out episode's shots again (the talk and its sound are kept)")
     rs.add_argument("folder", type=Path)
+    lk = sub.add_parser("look", help="play a few frames of each cut-out shot and say what looks wrong against "
+                                     "its script (Blender, and the model); changes nothing without --fix")
+    lk.add_argument("folder", type=Path)
+    lk.add_argument("--fix", action="store_true", help="send each faulty shot back to the stager once; a new "
+                                                       "staging is kept only if it then shows fewer faults")
+    lk.add_argument("--shots", type=int, nargs="*", default=[], help="only these shots")
     fx = sub.add_parser("sfx", help="make the episode's sound effects (Stable Audio, GPU) and record its shots again")
     fx.add_argument("folder", type=Path)
     fx.add_argument("--url", default="http://127.0.0.1:7860")
@@ -1150,6 +1156,22 @@ def _cli() -> int:
         from entertainment.cutout import writer
 
         print(writer.restage(args.folder.resolve()), "shots restaged")
+    elif args.cmd == "look":
+        from entertainment.cutout import writer
+
+        report = writer.look(args.folder.resolve(), args.fix, tuple(args.shots))
+        for i, r in sorted(report.items()):
+            if not r["looked"]:
+                print(f"shot {i}: NOT LOOKED AT ({r.get('why', 'no answer')})")
+            for f in r["faults"]:
+                print(f"shot {i}: {f}")
+            if r.get("mended"):
+                print(f"shot {i}: -> {r['mended']}")
+                for f in r.get("left", []):
+                    print(f"shot {i}:    still: {f}")
+        seen = [r for r in report.values() if r["looked"]]
+        print(f"{len(seen)} of {len(report)} shots looked at, {sum(1 for r in seen if r['faults'])} with faults; "
+              f"report: {args.folder.resolve() / 'look' / 'report.json'}")
     elif args.cmd == "kit":
         from entertainment.cutout import kit as puppets
 

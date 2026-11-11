@@ -393,3 +393,111 @@ def test_blender_plays_a_plan_as_a_still(tmp_path):
     assert s.shape == (640, 1152, 3)
     assert tuple(s[5, 5]) == (40, 90, 200) or abs(int(s[5, 5][2]) - 200) < 30      # the plate behind
     assert (s[300:340, 560:600].mean(axis=(0, 1)) > 200).all()                     # the gull's white body
+
+
+def test_the_check_looks_at_a_shot_after_each_thing_in_it_has_landed():
+    from entertainment.cutout import engine
+
+    layout = lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull", "enter": "left"}], "beats": [
+        {"who": "gull", "do": "pose", "value": "wave", "at": "1", "until": "2"},
+        {"who": "gull", "do": "hop", "at": "3"}, {"who": "gull", "do": "exit", "value": "left", "at": "4.5"}]})
+    got = engine.moments(layout, 120, [])
+    assert [f for f, _ in got] == [1, 21, 35, 83, 120]               # in, posed, hopped; the exit is the last frame
+    assert "come in" in got[1][1] and "pose (wave)" in got[2][1]
+    busy = lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull"}], "beats": [
+        {"who": "gull", "do": "hop", "at": str(k)} for k in range(1, 9)]})
+    frames = [f for f, _ in engine.moments(busy, 240, [])]
+    assert len(frames) == engine.LOOKS and frames[0] == 1 and frames[-1] == 240 and frames == sorted(set(frames))
+    assert engine.moments(lay.Layout.model_validate({"place": 1, "actors": [{"who": "gull"}]}), 48, []) \
+        == [(1, "the shot's first frame"), (48, "the shot's last frame")]
+
+
+def _episode(tmp_path, monkeypatch):
+    """Three shots of the gull at the first place, on disk as an episode the stager has staged."""
+    from entertainment import cartoons
+    from entertainment.cutout import engine, writer
+
+    series_dir, _ = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    kitmod.save_rgb(np.full((90, 160, 3), (40, 90, 200), np.float32), series_dir / "places" / "place1.png")
+    folder = series_dir / "ep"
+    folder.mkdir()
+    place = cartoons.SERIES["gully"].places[0]
+    scene = {"place": place, "summary": "The gull waits on the wall.", "shots": [{"at": 0, "action": "a"}],
+             "lines": [], "sounds": "waves", "seconds": 4.0}
+    (folder / "episode.json").write_text(json.dumps({"title": "T", "logline": "L", "scenes": [scene] * 3}), encoding="utf-8")
+    st = writer.Stage.model_validate({"actors": [{"who": "gull", "mark": "left", "height": "raised"}]})
+    writer.save(folder, [st] * 3, {})
+    writer.relayout(folder)
+    asked = []
+
+    def looks(f, only=()):
+        asked.append(tuple(only))
+        return {i: [(f"Shot {i}:", f / "look" / f"scene{i:02d}.f0001.jpg")] for i in (only or (1, 2, 3))}
+    (folder / "look").mkdir()
+    monkeypatch.setattr(engine, "looks", looks)
+    return folder, st, asked
+
+
+def test_a_shot_nobody_looked_at_is_not_a_pass_and_a_look_changes_nothing(tmp_path, monkeypatch):
+    from newsroom import llm
+    from entertainment.cutout import writer
+
+    folder, st, _ = _episode(tmp_path, monkeypatch)
+    before = {p.name: p.read_text(encoding="utf-8") for p in folder.glob("scene*.json")}
+    sent = {}
+
+    def answer(task, schema, system, user, **kw):
+        sent.update(user=user, images=kw["images"])
+        return writer.Looked.model_validate({"shots": [{"shot": 1, "faults": ["The gull stands on the sand."]},
+                                                       {"shot": 2, "faults": []}, {"shot": 9, "faults": ["x"]}]})
+    monkeypatch.setattr(llm, "complete_json", answer)
+    report = writer.look(folder)
+    assert report[1] == {"looked": True, "faults": ["The gull stands on the sand."]}
+    assert report[2] == {"looked": True, "faults": []} and report[3]["looked"] is False      # no answer for shot 3
+    assert len(sent["images"]) == 3 and "1. at " in sent["user"] and "3. at " in sent["user"]
+    assert before == {p.name: p.read_text(encoding="utf-8") for p in folder.glob("scene*.json")}
+    assert not list(folder.glob("stages.*"))
+    assert json.loads((folder / "look" / "report.json").read_text(encoding="utf-8"))["3"]["looked"] is False
+
+    def down(*a, **kw):
+        raise llm.LLMUnavailable("no key")
+    monkeypatch.setattr(llm, "complete_json", down)
+    report = writer.look(folder, fix=True)
+    assert all(not r["looked"] and r["why"] == "no key" and not r["faults"] for r in report.values())
+    assert before == {p.name: p.read_text(encoding="utf-8") for p in folder.glob("scene*.json")}
+
+
+def test_a_mended_staging_is_kept_only_if_it_looks_better(tmp_path, monkeypatch):
+    from newsroom import llm
+    from entertainment.cutout import engine, writer
+
+    folder, st, asked = _episode(tmp_path, monkeypatch)
+    assert writer.came_out(st, engine.layout_of(folder, 1), set()) \
+        == ["gull was staged raised and stands on the ground instead (it does not fit in the shot there, or there "
+            "is no spot in reach)"]
+    old = (folder / "scene02.stage.json").read_text(encoding="utf-8")
+    looks = [{"shots": [{"shot": 1, "faults": ["The gull hangs in the air."]},
+                        {"shot": 2, "faults": ["The gull is cut off."]}, {"shot": 3, "faults": []}]},
+             {"shots": [{"shot": 1, "faults": []}, {"shot": 2, "faults": ["The gull is still cut off."]}]}]
+    prompts = []
+
+    def answer(task, schema, system, user, **kw):
+        if schema is writer.Looked:
+            return writer.Looked.model_validate(looks.pop(0))
+        prompts.append(user)
+        return writer.PStages.model_validate({"stages": [{"actors": [{"who": "gull", "mark": "right"}]},
+                                                         {"actors": [{"who": "gull", "mark": "centre"}]}]})
+    monkeypatch.setattr(llm, "complete_json", answer)
+    report = writer.look(folder, fix=True)
+    assert "WHAT THE STAGE COULD NOT DO WITH IT: gull was staged raised" in prompts[0]
+    assert "PLAYED, IT LOOKED WRONG: The gull hangs in the air." in prompts[0] and "3. at" not in prompts[0]
+    assert report[1]["mended"] == "restaged" and report[1]["left"] == []
+    assert report[2]["mended"].endswith("put back") and report[2]["tried"] == ["The gull is still cut off."]
+    assert "mended" not in report[3]
+    assert writer.Stage.model_validate_json((folder / "scene01.stage.json").read_text(encoding="utf-8")).actors[0].mark == "right"
+    assert engine.layout_of(folder, 1).actors[0].x == 6.0
+    assert (folder / "scene02.stage.json").read_text(encoding="utf-8") == old            # shot 2 as it was
+    assert engine.layout_of(folder, 2).actors[0].x == -6.0
+    assert sorted(p.name for p in (folder / "stages.1").iterdir()) == ["scene01.stage.json", "scene02.stage.json"]
+    assert asked == [(), (1, 2), (2,)]                         # all, the two restaged, the one put back

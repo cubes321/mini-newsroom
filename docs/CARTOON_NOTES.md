@@ -29,7 +29,7 @@ before it is kept beside it as `episode.attempt2.mp4`. The script and the record
 | **Props tipping.** A held prop hung dead upright. | A held prop tips with its holder's lean and scales with them; a prop spun 90 lies on its side on the ground. | Still one drawing per prop (no empty chip paper, no broken crate). Props never go behind part of the backdrop. A prop is kept off any spot smaller than 0.4, where it was a speck. |
 | **A camera move cutting through a neighbour.** | A move that would slice somebody on the way is made inside the looser of its two framings. | |
 | **No depth.** | Whoever walks past somebody passes behind them (`Actor.depth`, set by `writer.stage`). | Only walkers. Nobody stands behind anybody. |
-| **A staging nobody checks.** | `writer.problems`: a prop the action is about left off the stage, somebody seen left out, a long shot with fewer than two beats. A shot with a problem goes back to the stager once, with what was wrong. | It reads the words, not the picture. |
+| **A staging nobody checks.** | `writer.problems`: a prop the action is about left off the stage, somebody seen left out, a long shot with fewer than two beats. A shot with a problem goes back to the stager once, with what was wrong. | It reads the words. The picture is read by `look` (below), which is run by hand. |
 | **Sound and picture timed apart.** | The stager is given each shot's effects with their times and told to time the beat that makes a sound at that sound. | Nothing checks that it did. |
 | **Nobody reacts to an off-screen line.** | At every off-screen line and effect, whoever is on stage, silent and not already moving gives a small start (`layout.plan`, `cues`). | The start is the same every time. A flinch pose would be better. |
 
@@ -41,6 +41,44 @@ before it is kept beside it as `episode.attempt2.mp4`. The script and the record
 - **Shot 20:** Biscuit nibbles at a crumb drawn into her pose while the chips sit beside her.
 - **Shot 10:** Dot stands alone in a wide street with the bucket small on the stall behind her.
 - **Not checked:** the film played with its sound. Both reviews were of frames.
+
+## The picture check (`look`, 2026-11-11)
+
+```bash
+uv run python -m entertainment.cartoons look data/cartoons/gully/<episode>
+```
+
+`look` plays up to five frames of each shot in Blender (the first, the last, and one just after each
+entrance, beat, take and drop has landed), shows them to the model beside the shot's script, and writes what
+looks wrong to `look/report.json`, with the frames beside it. It changes nothing in the episode. It needs
+the Anthropic key (the pictures only go to an anthropic provider) and a few minutes for 26 shots: 120
+frames, six calls, about 130,000 tokens in. A shot the model did not answer for, or a failed call, is
+reported as NOT LOOKED AT, never as a pass.
+
+`--fix` sends each faulty shot back to the stager once, with its stage, what the stage could not do with it
+(`writer.came_out`: "the crate was staged on wall and stands on the ground instead") and what was seen. The
+new staging is looked at again and kept only if it shows fewer faults; otherwise the old one is put back.
+Stages it replaces are kept in `stages.K/`. `--shots 13 14` looks at those only.
+
+The stager is also told, from the first staging on, which spots are too far off for a prop. That line has
+not been through a real `plan` or `restage` yet.
+
+The idea is Video-Coder's (write, run, look, revise); nothing else of it is used.
+
+Tried on a scratch copy of Chip Lift take 3 (the episode itself is as it was):
+
+- **It finds real faults.** The first look flagged 9 of 26 shots: the four known ones (10, 13, 14, 20) and
+  1 (the chips never reach the sill), 18 and 19 (Gully hangs by Mr Trethewey's waist, not face to face), 25
+  (Gully ends in mid-air, never yanked down) and 26 (the pair on the sand, not on the wall).
+- **Two looks do not agree.** A second look at the same stages flagged 7: it missed 10, 25 and 26 and added
+  24 (the chips held low, not offered). Run it twice before calling an episode clean.
+- **The fix mends little, and a kept staging needs a human eye.** Of 7 shots sent back, 2 were kept. 20 is
+  mended: Biscuit takes the chips to her mouth. 14 is not: it was kept because the second look listed one
+  fault fewer, but in its last frame Gully still does not look down, and the crate still slides off
+  sideways. "Fewer faults the second time" can be the second look missing one. The other 5 were restaged,
+  looked no better and were put back. Most of what it finds is the stage's limit, not the stager's choice: the wall is too far
+  for anything but a perch, nothing is ever set down on the sill, a hanging puppet's head is at waist height.
+  Those want engine work, and the report is the list.
 
 ## How to look at a change quickly
 
