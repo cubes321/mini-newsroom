@@ -63,7 +63,9 @@ uv run python -m entertainment.cartoons assemble data/cartoons/gully/<episode>
 - `restage` keeps the script and the sound and writes every shot's stage afresh (it needs the Anthropic key;
   about two minutes). The stages it replaces are kept in `stages.K/`.
 - Stills are frame 1 only, and a held camera frames the whole shot, so a still can look loose.
-- All 26 shots render in about 8 minutes of Blender with no GPU. `render` only replays a shot whose layout,
+- All 26 shots of Chip Lift take 3 render in about 11 minutes on Blender 5.3 (13½ on 5.2, same frames). EEVEE
+  draws on the GPU through Vulkan and takes about 3 GB at its peak, so check `nvidia-smi` first when a model or
+  ComfyUI is loaded. `render` only replays a shot whose layout,
   sound or pieces are newer than its video, and `relayout` leaves a layout that hasn't changed alone: touch
   `sceneNN.layout.json` after an engine change that the layout doesn't show.
 - A new pose is one entry in the puppet's `kit.json` (`variants`, `poses`, and `pose_anchors` for where it

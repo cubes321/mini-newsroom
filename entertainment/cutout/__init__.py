@@ -21,7 +21,7 @@ import os
 import re
 from pathlib import Path
 
-BLENDER = Path(os.environ.get("BLENDER", "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe"))
+BLENDER = Path(os.environ.get("BLENDER", "C:/Program Files/Blender Foundation/Blender 5.3/blender.exe"))
 FPS = 24
 
 
