@@ -155,7 +155,10 @@ UNDERS = [(240, 240, 236), (235, 225, 210), (200, 210, 230), (250, 240, 200), (2
 # jumper were one fixed colour, so on The Chamber (2026-11-05) the Harbour and Quay ward councillors and
 # the harbourmaster sat side by side as three copies of the same red hat.
 LEATHER, CANVAS, DENIM = (120, 78, 46), (150, 136, 104), (60, 86, 130)
+TIDES_SCARF = dict(top_style="jacket", top=(30, 50, 100), extra="scarf", extra_col=(60, 150, 210))
 COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
+    # 2026-11-13: ahead of the docker's "porter", which took the Supporters' Club chairs ("supPORTERs")
+    (("supporter", "supporters"), TIDES_SCARF),
     # trades and shops, from the town's own roles (2026-10-27): ahead of the broader words below
     (("cobbler", "shoemender", "shoe", "saddler", "saddle", "harness", "leather", "bookbinder", "blacksmith",
       "smith", "farrier", "cooper", "bell founder", "rivet", "metalworker", "foundry"),
@@ -191,7 +194,7 @@ COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
      dict(top_style="cardigan", extra="tape", extra_col=(236, 200, 40))),
     (("fc", "football", "footballer", "striker", "goalkeeper", "supporter", "rugby", "cricket", "rfc", "scrum",
       "fly-half", "wreckers"),
-     dict(top_style="jacket", top=(30, 50, 100), extra="scarf", extra_col=(60, 150, 210))),
+     TIDES_SCARF),
     (("taxi", "cab", "driver", "chauffeur", "ticket", "conductor", "postmistress", "postmaster", "postman",
       "postwoman", "post office"),
      dict(top_style="uniform", top=(30, 40, 70), under=(220, 220, 225), hat="peaked", hat_col=(30, 40, 70))),
@@ -199,13 +202,16 @@ COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
                       hat_col=(30, 30, 34), extra="soot", extra_col=(70, 70, 74))),
     (("clockmaker", "watchmaker", "jeweller", "horologist", "antique", "clock winder", "radio"),
      dict(top_style="suit", top=(110, 90, 66), tweed=True, glasses="up")),
-    (("fire",), dict(top_style="uniform", top=(30, 34, 50), under=(30, 34, 50), extra="stripe",
+    # Not "fire" alone (2026-11-13): it put the bonfire's stewards and a firewood seller in the brigade's uniform.
+    (("firefighter", "fire station", "fire brigade", "fire service", "fire crew", "fireman", "firewoman"),
+     dict(top_style="uniform", top=(30, 34, 50), under=(30, 34, 50), extra="stripe",
                      extra_col=(230, 200, 40))),
     (("police", "constable", "inspector", "sergeant", "detective"),
      dict(top_style="uniform", top=(24, 28, 44), under=(236, 236, 236), tie=(20, 20, 24))),
     (("lifeboat", "coastguard", "rnli"), dict(top_style="jacket", top=(236, 190, 40), under=(30, 40, 70),
                                               hat="beanie", hat_col=(30, 40, 70))),
-    (("harbour", "fisher", "skipper", "trawler", "boat", "ferry", "sailor", "sailing", "crab", "oyster", "quay"),
+    (("harbour", "fisher", "skipper", "trawler", "boat", "ferry", "sailor", "sailing", "crab", "oyster", "quay",
+      "regatta"),
      [dict(top_style="jumper", top=(36, 44, 76), under=(36, 44, 76), hat="beanie", hat_col=(150, 40, 40)),
       dict(top_style="jumper", top=(214, 204, 180), under=(214, 204, 180), hat="beanie", hat_col=(36, 50, 90)),
       dict(top_style="jumper", top=(52, 78, 62), under=(52, 78, 62), hat="beanie", hat_col=(206, 150, 40)),
@@ -230,7 +236,8 @@ COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
      dict(top_style="cardigan", glasses="on")),
     (("singer", "musician", "band", "actor", "actress", "star", "celebrity", "presenter", "comedian", "performer",
       "magician", "entertainer",
-      "influencer", "dj", "artist", "painter", "designer", "clown", "juggler"),
+      "influencer", "dj", "artist", "painter", "designer", "clown", "juggler", "ukulele", "banjo", "accordion",
+      "fiddler"),
      dict(top_style="jacket", glasses="shades")),
     (("sea glass", "collector", "beachcomber", "birdwatcher", "bird", "wader", "naturalist", "rambler", "walker"),
      dict(top_style="jacket", top=(58, 128, 126), hat="beanie", hat_col=(196, 90, 76))),
@@ -244,7 +251,7 @@ COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
     (("referee", "linesman", "umpire"), dict(top_style="tshirt", top=(24, 24, 28), under=(24, 24, 28))),
     (("midfielder", "defender", "winger", "groundsman", "physio", "coach"),
      dict(top_style="jacket", top=(40, 110, 190), under=(240, 240, 236), extra="stripe", extra_col=(240, 240, 236))),
-    (("student", "pupil", "teen", "skater", "apprentice"), dict(top_style="tshirt")),
+    (("student", "pupil", "teen", "skater", "apprentice", "child"), dict(top_style="tshirt")),
     # 2026-11-07, from the roles that matched none: the town's volunteers in a tabard, its makers and menders
     # in a canvas apron, its darts players (and Wexley Wits' teams) in a darts shirt, its choirs and bell ringers.
     (("darts", "quiz"), dict(top_style="tshirt", top=(30, 30, 36), extra="stripe", extra_col=(200, 40, 50))),
@@ -254,6 +261,9 @@ COSTUMES: list[tuple[tuple[str, ...], dict | list[dict]]] = [
      dict(top_style="tshirt", top=(120, 110, 96), extra="apron", extra_col=CANVAS)),
     (("volunteer", "lunch club", "meals-on-wheels", "tea urn", "organiser", "keyholder", "steward"),
      dict(top_style="jumper", top=(70, 90, 120), extra="hivis", extra_col=(90, 170, 110))),
+    # 2026-11-13: last, so a chart, tackle or lamp-oil seller keeps the look they had; a lantern-oil or
+    # firewood seller on the market gets the stallholder's
+    (("seller",), dict(top_style="jacket", top=(150, 52, 44), extra="apron", extra_col=(60, 120, 70))),
 ]
 # The council sits together on The Chamber every other Thursday, so its six are dressed by name, like the
 # presenters: a suit each in its own colour, where a hash of the name would put two of six in the same one.
@@ -267,7 +277,7 @@ COUNCIL_SUITS: dict[str, dict] = {
 }
 WARD = re.compile(r"[\w' -]*\bward\b")           # "Councillor, Harbour ward": a place, not a trade
 OLD_WORDS = ("retired", "pensioner", "grand", "veteran", "elder", "widow", "former", "oldest", "lifelong")
-YOUNG_WORDS = ("student", "pupil", "teen", "young", "apprentice", "skater", "school")
+YOUNG_WORDS = ("student", "pupil", "teen", "young", "apprentice", "skater", "school", "child")
 
 
 @lru_cache(maxsize=512)
