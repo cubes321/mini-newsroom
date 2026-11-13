@@ -197,6 +197,7 @@ class World:
     seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
+    rundowns: list[dict] = field(default_factory=list)    # planned running orders (rundown.py): {date, show, title, theme, slots}
     chambers: list[dict] = field(default_factory=list)    # The Chamber's agendas: {date, motions (votes, result, applied)}
     promises: list[dict] = field(default_factory=list)    # what full council voted would happen (promises.py): {id, made, thread_id, text, due, state}
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}

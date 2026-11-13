@@ -391,7 +391,7 @@ class WorkerPool:
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
         from . import (adverts, annals, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein,
-                       prune, review, senior, special)
+                       prune, review, rundown, senior, special)
 
         try:
             if annals.tick(self.world):
@@ -432,6 +432,10 @@ class WorkerPool:
                 return
             if chamber.should_commission(self.world):
                 chamber.commission(self.world)    # a council night: The Chamber's four motions and every vote
+                world_mod.save(self.world)
+                return
+            if sid := rundown.due(self.world):
+                rundown.commission(self.world, sid)   # tonight's running order: a theme, a subject per item
                 world_mod.save(self.world)
                 return
             for due, book in IDLE_JOBS:           # another channel's bookings (entertainment/)

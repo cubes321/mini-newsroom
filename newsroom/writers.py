@@ -20,8 +20,8 @@ from collections import deque
 from datetime import date, datetime
 from typing import Callable
 
-from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, safety, schedule,
-               sport, tides, tipline)
+from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown, safety,
+               schedule, sport, tides, tipline)
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -963,6 +963,11 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         elif show.id in BRIEF_HOOKS:
             brief = BRIEF_HOOKS[show.id](world, brief)
         user += f"\n\nTHIS ITEM: {brief}."
+    if show is not None and (plan := rundown.for_prompt(world, show, seg_type, work.get("planned"))):
+        user += "\n\n" + plan
+        planned = world.person_by_name(work["planned"].get("guest")) if work.get("planned") else None
+        if planned is not None and planned.memories:
+            user += "\n\n" + _remembered_note(planned)[0]
     # Miles's reports on the news: not Meg's pieces to camera on Out and About.
     miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW
     done = scene_done(world, at_ts or schedule.now()) if miles else []
@@ -1456,6 +1461,11 @@ def script_segment(seg: Segment, world: World) -> Segment:
                                    | ({couch["name"]} if couch else set()))
         if back:
             seg.work["return_guest"] = back[0].name
+    # Tonight's running order (rundown.py): this slot's subject and guest, taken once and kept with the item.
+    if "planned" not in seg.work and seg.type in rundown.PLANNED and not cont and not couch:
+        seg.work["planned"] = rundown.take(world, show, seg.work.get("order_pos"))
+    if (seg.work.get("planned") or {}).get("guest"):
+        seg.work.pop("return_guest", None)        # the plan has booked this one's guest
     if seg.type is SegmentType.field_report:
         seg.work.pop("scene", None)
         # Breaking news sends Miles, never Meg from her walk on Out and About.
@@ -1524,7 +1534,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
         known = None if cont or booked else _remembered(script, world, {seg.work.get("return_guest"),
-                                                                        couch and couch["name"]})
+                                                                        couch and couch["name"],
+                                                                        (seg.work.get("planned") or {}).get("guest")})
         if known:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
                      seg.slot_id, known.name)

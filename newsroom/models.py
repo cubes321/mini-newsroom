@@ -692,6 +692,23 @@ class PanelLineup(BaseModel):
     panellists: list[Panellist] = Field(min_length=3, max_length=3)
 
 
+class PlannedSlot(BaseModel):
+    """One item of tonight's running order (rundown.py)."""
+    slot: int = Field(description="the slot's number from SLOTS")
+    subject: Annotated[str, _clip_words(240)] = Field(
+        max_length=240, description="what this item is about, concretely: the person, place, club or event, and the "
+                                    "angle; for a vox pop, the one question")
+    guest: str = Field(default="", description="for an interview, an exact name from PEOPLE; empty for someone new "
+                                               "the writer casts, and always empty for a feature, consumer or vox pop")
+
+
+class RunningOrder(BaseModel):
+    """Tonight's plan for a show (rundown.py): a theme for its links and a subject for each planned slot."""
+    theme: Annotated[str, _clip_words(160)] = Field(
+        max_length=160, description="what ties the evening together, for the presenters' links: one phrase")
+    slots: list[PlannedSlot] = Field(min_length=1, max_length=40)
+
+
 class CouncilVote(BaseModel):
     councillor: str = Field(description="an exact name from the COUNCIL")
     vote: Literal["for", "against", "abstain"]

@@ -230,6 +230,13 @@ class PathsCfg:
 
 
 @dataclass(frozen=True)
+class RundownCfg:
+    """The model-planned running orders (rundown.py): a theme and a subject per item, booked in idle time."""
+    shows: tuple[str, ...] = ("magazine", "late")   # show ids planned each night; () turns it off
+    lead_min: int = 90                   # booked from this many minutes before the show starts
+
+
+@dataclass(frozen=True)
 class Config:
     broadcast: BroadcastCfg
     llm: LLMCfg
@@ -250,6 +257,7 @@ class Config:
     cache: CacheCfg = field(default_factory=CacheCfg)
     backups: BackupsCfg = field(default_factory=BackupsCfg)
     stream: StreamCfg = field(default_factory=StreamCfg)
+    rundown: RundownCfg = field(default_factory=RundownCfg)
 
 
 def load(path: Path | None = None) -> Config:
@@ -290,6 +298,7 @@ def load(path: Path | None = None) -> Config:
         cache=CacheCfg(**raw.get("cache", {})),
         backups=BackupsCfg(**raw.get("backups", {})),
         stream=StreamCfg(**raw.get("stream", {})),
+        rundown=RundownCfg(**{k: tuple(v) if isinstance(v, list) else v for k, v in raw.get("rundown", {}).items()}),
     )
     cfg.paths.cache.mkdir(parents=True, exist_ok=True)
     return cfg

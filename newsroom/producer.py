@@ -44,6 +44,7 @@ class Producer:
         self._show: str | None = None
         self._on: schedule.Show | None = None    # that show itself: a special night's variant has its id
         self._pos = 0                      # position within the current show's pattern
+        self._item_pos: int | None = None   # the last item's place in it (None: a closing item)
         self._ends = 0.0                   # when the current show's time in the schedule is up
         self._closing: list[schedule.Item] = []    # closing items still to plan
         self._closed = False               # the current show has planned its closing
@@ -83,6 +84,7 @@ class Producer:
         return run
 
     def _next_item(self, show: schedule.Show) -> schedule.Item:
+        self._item_pos = None                     # the item's place in the show's order: None for the closing
         if self._closing:
             return self._closing.pop(0)
         if show.closing and not self._closed and self._pos >= 2 and (self.cursor_ts >= self._ends or (
@@ -93,6 +95,7 @@ class Producer:
             self._closed = True
             return self._closing.pop(0)
         item = show.item(self._pos)
+        self._item_pos = self._pos
         self._pos += 1
         angles = show.briefs.get(item.type)
         if angles and not item.brief:
@@ -120,6 +123,8 @@ class Producer:
             part=item.part,
             brief=item.brief,
         )
+        if self._item_pos is not None:                    # tonight's running order is keyed by it (rundown.py)
+            seg.work["order_pos"] = self._item_pos
         if show.location:                                 # a special night: the whole show out there
             seg.work["location"] = show.location
             if show.fireworks:
