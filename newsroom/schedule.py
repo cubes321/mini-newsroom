@@ -123,13 +123,18 @@ _VISITOR = ("an ANIMAL VISITOR: someone brings an animal into the studio (the li
             "amazing fact; Gully is jealous")
 _LETTERS = ("LETTERS AND DRAWINGS: Gully reads out two or three letters from viewers and Poppy describes the "
             "drawings they sent (a first name and an age only, never a surname or an address)")
-_STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town or the coast for children (a "
-          "mermaid, a smuggler's dog, a giant who built the harbour wall), gentle and a little funny, nothing "
+# No examples of what the legend is about: the giant who built the harbour wall, given as one, came back on 11-06
+# and 11-13, and "a smuggler's dog" became "Biscuit the dog outwits the harbour smugglers" twice in an afternoon
+# (Biscuit is the lifeboat station's cat).
+_STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town or the coast for children, one of "
+          "its own (the sea, the weather, a creature, a ship, a lost thing found), gentle and a little funny, nothing "
           "frightening; Poppy introduces it in a line, and she and Gully ask one question at the end")
 _POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to eight rhyming lines) about "
          "something on the beach; Poppy is kind about it")
 # Briefs whose item has the same title every time by design: no repeat check (writers._repeated).
 SAME_TITLE_BRIEFS = (_LETTERS,)
+# Briefs whose item is a story: a retelling shares fewer words than a repeated headline, so the check is stricter.
+RETOLD_BRIEFS = (_STORY,)
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
@@ -378,10 +383,22 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             T.ad_break,
             I(T.feature, brief="a local firm at work: what it makes or does, who it employs, how trade is"),
             I(T.vox_pop, brief="Miles asks shoppers or traders one question about money"),
-            # the order wraps back to here
-            I(T.interview, brief="the harbour trade: the harbourmaster, the merchant on the quay, or someone "
-                                 "who buys at the auction", target_s=150.0),
-            I(T.feature, brief="a shop or business that is new, closing or changing hands"),
+            # the order wraps back to here, four or five times in the half hour, so each brief has an angle for each
+            # lap (Show.item): with one, a scratch run (2026-11-13) had a quay buyer on sole and mackerel three
+            # times and Brenda Fisk taking the hat shop next door twice, as Coastwide had on 2026-11-03.
+            I(T.interview, brief=("the harbour trade: the harbourmaster, the merchant on the quay, or someone who "
+                                  "buys at the auction",
+                                  "a trade that isn't fish: the boatyard, the chandlery, the ice house or the ferry, "
+                                  "on how business is",
+                                  "someone starting out: a young skipper, an apprentice, a first shop or stall",
+                                  "money at home: an adviser, a credit union or the bank on what people in town ask",
+                                  "the coast's other money: a holiday let, a campsite or a café on the front out of "
+                                  "season"), target_s=150.0),
+            I(T.feature, brief=("a shop or business that is new, closing or changing hands",
+                                "a family firm and how it has lasted: the generations, the old ledger, what changed",
+                                "the market: one stall, its takings and its regulars",
+                                "a business the town never sees: a delivery round, a supplier, a cleaner, a night shift",
+                                "an idea that might make money: a plan, a pop-up, a bid for a grant")),
         ),
         loop_from=9,
         closing=(I(T.links, "close", brief="Howard's closing figures, and what to watch this week"),),
@@ -474,6 +491,12 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "a music night, a choir or a band rehearsing, or a talk at the library",
                 "somewhere to take the family: the estuary birds, the lighthouse, a farm open day",
                 "a maker: a potter, a weaver, a boatbuilder or a baker, and what they make",
+                # Six came round again within the forty-five minutes, and the second "day out" was the rock pools at
+                # low tide on the Point again (a scratch run, 2026-11-13; three times in all): ten go further.
+                "inland: a village, a church, a woodland walk or a garden away from the sea",
+                "a little-known corner of town: a lane, a yard, a museum room, a view few people stop for",
+                "something to try: a class, a club night, a taster session anyone can turn up to",
+                "a bit of history you can visit: a monument, an old quay, a marker with a story",
             ),
             T.review: (
                 "a cafe or a tea room at the end of a walk",
@@ -484,6 +507,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             T.field_report: (
                 "Meg's walk for the weekend: the route, the tide times, where to park and where to eat",
                 "what's on this week: three or four things to do in town and along the coast",
+                # two alternating made the weekend walk four times in an afternoon (2026-11-13)
+                "where Meg is standing now: what's special about this spot, and how to get here",
+                "a rainy-day idea: somewhere indoors along the coast worth the trip",
             ),
             T.vox_pop: (
                 "people out walking: the best walk, cafe or view on the coast",

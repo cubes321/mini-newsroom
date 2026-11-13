@@ -244,6 +244,12 @@ bottom with the date.
 
 ## Engineering
 
+- [ ] **The voices say "live" (as in "live from the harbour", "going out live") like "give", not to rhyme with "drive"**
+  (heard 2026-11-13). A heteronym the TTS can't tell from context: respell the adjective/adverb before voicing
+  ("lyve", or whatever the engine takes) where it follows "go/going/come/coming out", "we're", "broadcasting",
+  "be", or comes before "from/on/at", and leave the verb ("people who live on Mill Lane") alone. Check the other
+  heteronyms while there: "read" (past), "lead" (the metal), "wind" (as in wind up), "tear".
+
 - [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
   back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
   scratch town with the clock at Sunday 8 Nov: pages written, the week chosen unforced, the card, aired at 21:01
@@ -436,11 +442,18 @@ bottom with the date.
   Tides' training and the Lantern's darts, and three Wreckers vox pops at the Quarry Field; its table
   item came round three times. Coastwide repeated only its weather and a bond-letter scam warning (three
   times). The "£" mojibake wasn't in the logs (the console's encoding).
-- [ ] The night run ends at 10:00, so the daytime shows need runs of their own: Have Your Say (`--clock
-  09:45`: the booking, the callers' variety across the hour, ring-backs), Quayside, and Out and About
-  (`--clock 14:50`: whether places rest a fortnight, revisits, an owner answering back on Coastwide),
-  and Rock Pool (`--clock 15:52`: story time's legends across the hour, the makes, the visitors: the
-  lifeboat station brought its cat twice in each first run, Biscuit being town canon).
+- [x] **Daytime runs, 2026-11-13** (scratch, Fri 13 Nov). Have Your Say from 09:45 ran on the code stand-in
+  (the producer had planned before the idle booking): a question cut mid-word, callers off the story and
+  repeating each other. The stand-in's question is now cut at a word (`inquiry.cut_title`) and every call
+  prompt carries THE STORY and where it stands. Rerun from 08:25: the model booked at 08:30 and the first
+  six calls kept to the story, each with its own angle (four "wait", two "now"; three of them leaned on the
+  "costed proof"). Quayside looped one brief five times: its interview and feature briefs are now per lap.
+  Out and About cycled its feature angles inside 45 minutes (six more) and every review gave three stars
+  (the rule now says three is for a mixed visit). Rock Pool: returning-guest notes brought adult news into
+  the kids' show (11 extra calls), so it no longer re-asks; a story retold under a new title got past the
+  repeat check, so story time is checked at 0.4, not 0.5; the giant and the smuggler's dog examples came
+  out of the brief. Not yet seen: ring-backs (the run ended 20 minutes into the phone-in), and whether
+  Out and About's places rest a fortnight (needs two weeks of airings).
 
 - [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
   title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose

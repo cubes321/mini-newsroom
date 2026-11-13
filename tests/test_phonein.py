@@ -89,6 +89,9 @@ def test_a_failed_or_wrong_booking_gets_a_stand_in(monkeypatch):
     entry = phonein.commission(w)
     assert entry["stand_in"] and entry["thread_id"] == w.threads[0].id and entry["guest"]
     assert w.person_by_name(entry["guest"]).kind == "official" and len(entry["callers"]) >= 4
+    # The headline first, then the question: "What do you make of Second-engine costing ... Friday thirt" (2026-11-13)
+    assert entry["question"] == "Coast road closed to lorries: what do you think?"
+    assert "THE STORY: Coast road closed to lorries. Where it stands: so far" in phonein.for_prompt(w, T.call)
     for bad in (_booking(w, guest="Nobody Known"), _booking(w, thread_id="t999")):
         w.phone_ins = []
         _stub(monkeypatch, bad)

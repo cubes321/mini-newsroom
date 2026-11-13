@@ -113,20 +113,26 @@ def _what_next(title: str, limit: int = 70) -> str:
     """The stand-in's title within `limit`: the story's own title, cut at a word, then "What Next?". A thread's title
     is a headline, a sentence, so "What Next for" in front of it read "What Next for Salting Harmony Choir's
     Thirty-One Voices Warm Up for?" (2026-11-13), cut off on a word that needed the rest."""
-    tail = ": What Next?"
+    return cut_title(title, limit - len(": What Next?")) + ": What Next?"
+
+
+def cut_title(title: str, room: int, empty: str = "Port Wexley") -> str:
+    """A story's title within `room` characters, cut at a whole phrase: never inside a word, never on "for" or
+    "the", and when it has to be cut, back to before the phrase the cut fell in ("Warm Up for St" -> "Warm Up").
+    The Inquiry's and Have Your Say's stand-ins put it in front of their own words."""
     all_words = title.rstrip(".?!").split()
     words: list[str] = []
     for word in all_words:
-        if len(" ".join(words + [word])) + len(tail) > limit:
+        if len(" ".join(words + [word])) > room:
             break
         words.append(word)
-    if len(words) < len(all_words):           # cut short: drop the phrase the cut fell in ("for St"), not half of it
+    if len(words) < len(all_words):
         last = max((i for i, w in enumerate(words) if w.lower().strip(",;:") in _DANGLING), default=-1)
         if last >= len(words) // 2:
             words = words[:last]
-    while words and words[-1].lower().strip(",;:") in _DANGLING:      # never end on "for", "the", "and"
+    while words and words[-1].lower().strip(",;:") in _DANGLING:
         words.pop()
-    return (" ".join(words).rstrip(",;:") or "Port Wexley") + tail
+    return " ".join(words).rstrip(",;:") or empty
 
 
 def for_prompt(world: World) -> str:

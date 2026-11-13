@@ -326,7 +326,8 @@ eat or drink, or a show: a play, a concert, an exhibition) and gives it stars ou
 Name it in place, with kind and where. She says what she had or saw and what it cost; the owner, the
 cook or one of the players ("guest", named in guest_name with guest_role, guest_gender, guest_age and
 guest_accent) may speak for it once or twice, or set guest_name to null. Fair and specific: the good
-and the not so good, never cruel; most places get three or four stars, a five is rare, a one rarer.
+and the not so good, never cruel; most places get three or four stars, a five is rare, a one rarer. Three is
+for a mixed visit, not the safe middle: a good place is four (every review on one afternoon came out at three).
 Her LAST line gives the stars and the verdict, as on the card ("Four stars: worth the walk for the
 crab alone"). Not a place reviewed in the last fortnight (PLACES MEG HAS REVIEWED); an older one may be
 revisited to see if it has changed. Choose a backdrop id from the LOCATIONS list near it; location is
@@ -1539,7 +1540,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user)
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
-        known = None if cont or booked else _remembered(script, world, {seg.work.get("return_guest"),
+        # Not on Rock Pool: told what a returning grown-up said on the other shows, the children's visitors brought it
+        # in (Bea Kowalczyk wanting a second engine, 2026-11-13), and it cost a second call for eleven of twelve.
+        known = None if cont or booked or show.id == "rockpool" else _remembered(script, world, {seg.work.get("return_guest"),
                                                                         couch and couch["name"],
                                                                         (seg.work.get("planned") or {}).get("guest")})
         if known:
@@ -1678,14 +1681,18 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
         earlier = [e["headline"] for e in world.archive if e["date"] == world.last_date
                    and e.get("show") == show.id and e["type"] in kinds and e.get("headline")
                    and (not links or e.get("brief") == brief)]
+    likeness = RETOLD_LIKENESS if links and brief in schedule.RETOLD_BRIEFS else REPEAT_LIKENESS
     for head in reversed(earlier):
         old = _words(head)
-        if old and len(new & old) / len(new | old) >= REPEAT_LIKENESS:
+        if old and len(new & old) / len(new | old) >= likeness:
             return head
     return None
 
 
 REPEAT_LIKENESS = 0.5           # headline words in common (of both together) that make an item a repeat
+# A story told again: "Biscuit the dog outwits the harbour smugglers" and "... outwits smugglers with the Town Hall
+# clock" share 3 of 7 words (2026-11-13). Not for every item: Gully's poems all share "Gully reads ... poem".
+RETOLD_LIKENESS = 0.4
 
 # The rolling news stayed on one story: on the morning of 2026-11-06, 27 news items in a row on the Salting
 # choir's programmes, and that afternoon four of the first five on a coffee stall, though the prompt listed

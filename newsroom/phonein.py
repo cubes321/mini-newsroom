@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import llm, schedule
+from . import inquiry, llm, schedule
 from .config import CONFIG
 from .models import PhoneInBooking, SegmentType
 from .world import Person, Thread, World
@@ -105,8 +105,10 @@ def _record(world: World, b: PhoneInBooking | None) -> dict:
         guest = next((p for p in people if p.kind == "official"), None) or next(
             (p for p in world.people if p.kind == "official"), None)
         entry = {"date": world.last_date, "stand_in": True, "thread_id": t.id if t else None,
-                 "question": (f"What do you make of {t.title.rstrip('.')}?" if t else
-                              "What would you change about Port Wexley?")[:120],
+                 # "What do you make of" in front of a headline, cut at 120: "What do you make of Second-engine
+                 # costing due in print by Friday thirt" (2026-11-13). The headline first, cut at a phrase.
+                 "question": (f"{inquiry.cut_title(t.title, 120 - len(': what do you think?'))}: what do you think?"
+                              if t else "What would you change about Port Wexley?"),
                  "guest": guest.name if guest else "", "guest_stance": f"speaks as {guest.role}" if guest else "",
                  "callers": list(STAND_IN_CALLERS)}
     else:
@@ -138,7 +140,11 @@ def for_prompt(world: World, seg_type: SegmentType | None = None) -> str:
                  and e["type"] != SegmentType.ad_break.value]
     called = [e for e in aired if e["type"] == SegmentType.call.value]
     calls = len(called)
+    # The story itself, not only its id: told the question alone ("second-engine costing"), callers took the fire
+    # station's second engine for the Saltby ferry's (2026-11-13).
+    t = world.thread(s["thread_id"]) if s.get("thread_id") else None
     out = (f"TODAY'S QUESTION: \"{s['question']}\"" + (f" (thread [{s['thread_id']}])" if s["thread_id"] else "")
+           + (f"\nTHE STORY: {t.title}. Where it stands: {t.status}" if t else "")
            + (f"\nTHE STUDIO GUEST, at the desk with Jonah all hour: {s['guest']}" + (f", {guest.role}" if guest else "")
               + f": {s['guest_stance']}" if s["guest"] else "\nNo studio guest today: Jonah answers callers himself.")
            + f"\nThe number to ring: {NUMBER}.")

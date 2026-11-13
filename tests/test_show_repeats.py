@@ -80,6 +80,11 @@ def test_a_story_time_already_told_is_asked_for_again_and_the_letters_keep_their
     assert not writers._repeated("Letters and drawings from Rock Pool viewers", w, show, T.links, letters)
     assert not writers._repeated("Story Time: Mabel the Seal and the Quay Bell", w, show, T.links, poem)  # another brief
     assert not writers._repeated("Story Time: Mabel the Seal and the Quay Bell", w, show, T.links)       # no brief
+    # 2026-11-13: the same story retold shares fewer words than a repeated headline (3 of 7), so stories are stricter
+    w.record_aired("links", "Biscuit the dog outwits the harbour smugglers", None, "...", show="rockpool", brief=story)
+    assert writers._repeated("Biscuit the dog outwits smugglers with the Town Hall clock", w, show, T.links, story)
+    w.record_aired("links", "Gully reads a silly beach poem", None, "...", show="rockpool", brief=poem)
+    assert not writers._repeated("Gully reads a snail poem from the rocks", w, show, T.links, poem)   # poems as before
 
 
 def _bulletin(head, tid):
