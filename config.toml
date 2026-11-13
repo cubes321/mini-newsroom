@@ -294,6 +294,9 @@ travel = "bf_trethewey"      # Meg Trethewey, Out and About: a DramaBox design, 
 kids = "af_bella"            # Poppy Tregenza, Rock Pool: chosen by ear (2026-10-30)
 gully = "bm_fable@puppet"    # Gully the puppet: Fable raised a third (tts.PUPPET), chosen by ear (2026-10-30)
 historian = "am_santa"   # Hugh Tremayne, the history documentaries (and the entertainment channel's)
+# Channel 8's The Kettle's On: DramaBox designs chosen by ear 2026-11-13 (voices.toml names their Kokoro stand-ins)
+kettle_a = "bf_truscott"     # Maggie Truscott
+kettle_b = "bm_spargo"       # Nigel Spargo
 
 [paths]
 data = "data"

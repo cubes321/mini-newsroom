@@ -49,15 +49,12 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from newsroom import sprites
-
     from . import kettle, oche, quiz, wits
     from .cartoons import CARTOON_TIME
 
     saved = (schedule.SCHEDULE, dict(schedule.SHOWS), dict(locations.MARKS), dict(assets.IDENTS),
              list(workers.IDLE_JOBS), dict(writers._PLACE), dict(assets.IDENT_MUSIC), dict(assets.IDENT_VOICES),
-             channel.use(CHANNEL_8), (continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER),
-             dict(sprites.LOOKS))
+             channel.use(CHANNEL_8), (continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER))
     # Channel 8's continuity has a folder of its own: Channel 7's pool says "This is Channel 7" over its idents.
     continuity.SHOWS, continuity.IDENT_LINES = tuple(IDENT_LINES), IDENT_LINES
     continuity.FOLDER = assets.CONFIG.paths.continuity / "channel8"
@@ -109,7 +106,6 @@ def use():
         assets.IDENT_MUSIC.clear(), assets.IDENT_MUSIC.update(saved[6])
         assets.IDENT_VOICES.clear(), assets.IDENT_VOICES.update(saved[7])
         channel.use(saved[8])
-        sprites.LOOKS.clear(), sprites.LOOKS.update(saved[10])
         continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER = saved[9]
         continuity._pool = None
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
@@ -126,13 +122,12 @@ def use():
 
 def _kettle(kettle) -> None:
     """The Kettle's On's registrations (undone with Wits' by use()'s undo)."""
-    from newsroom import assets, locations, player, scenes, sprites, workers, writers
+    from newsroom import assets, locations, player, scenes, workers, writers
     from newsroom.config import CONFIG
 
-    sprites.LOOKS.update(kettle.looks())
     assets.IDENTS[kettle.SHOW] = (assets.CONFIG.paths.assets / "bumper_kettle.wav", kettle.IDENT)
     assets.IDENT_MUSIC[kettle.SHOW] = "outabout"               # folk, until it has music of its own (by ear)
-    assets.IDENT_VOICES[kettle.SHOW] = CONFIG.tts.voices.get("kettle_a", "af_sarah")
+    assets.IDENT_VOICES[kettle.SHOW] = CONFIG.tts.voices.get("kettle_a", "bf_truscott")
     # Its own set waits for approved art; the breakfast sofa stands in, with the show's three marks added.
     locations.MARKS[kettle.STAND_IN_SET] = {**locations.MARKS[kettle.STAND_IN_SET], **kettle.MARKS}
     scenes.SHOW_SETS[kettle.SHOW] = kettle.STAND_IN_SET

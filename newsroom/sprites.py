@@ -133,6 +133,17 @@ LOOKS["kids"] = Look(skin=(236, 196, 168), hair=(176, 74, 40), top=(250, 210, 70
 LOOKS["historian"] = Look(skin=(226, 180, 152), hair=(225, 225, 228), top=(120, 84, 52), under=(236, 226, 196),
                           hair_style="receding", top_style="blazer", tie=(200, 150, 40), glasses="on",
                           mouth="smile", brows="raised", tweed=True)
+# Channel 8's The Kettle's On (entertainment/kettle.py), chosen on a contact sheet 2026-11-13 (A of three each):
+# Maggie Truscott, early 60s, thirty years in the Cannery café's kitchen: silver curls, a raspberry cardigan, a
+# blue gingham apron
+LOOKS["kettle_a"] = Look(skin=(234, 192, 166), hair=(196, 196, 204), top=(176, 52, 88), under=(244, 236, 220),
+                         hair_style="curly", top_style="cardigan", extra="apron", extra_col=(110, 150, 200),
+                         mouth="smile")
+# Nigel Spargo, late 50s, a retired chemistry teacher: neat brown hair greying at the sides, glasses, a navy jumper
+# over a shirt and a maroon tie
+LOOKS["kettle_b"] = Look(skin=(226, 184, 158), hair=(92, 70, 52), top=(44, 58, 96), under=(226, 230, 236),
+                         hair_style="swept", top_style="jumper", tie=(120, 36, 50), glasses="on",
+                         temples=(170, 168, 164), mouth="line", brows="raised")
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 

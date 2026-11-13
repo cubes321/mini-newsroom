@@ -1093,14 +1093,14 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("historian", "am_santa"),
                   ["a former history teacher at Greymouth Academy", "knows a story about every street",
                    "tells it with a twinkle"], speed=0.92, lang="b"),
-        # Channel 8's teatime double act (entertainment/kettle.py), 19:00. Voices provisional (Kokoro, British
-        # pronunciation, no clip) until they are designed and chosen by ear; their looks wait for a contact sheet.
+        # Channel 8's teatime double act (entertainment/kettle.py), 19:00: DramaBox voices and looks chosen
+        # 2026-11-13.
         Character("kettle_a", "Maggie Truscott", "presenter, The Kettle's On (Channel 8's teatime magazine)",
-                  CONFIG.tts.voices.get("kettle_a", "af_sarah"),
+                  CONFIG.tts.voices.get("kettle_a", "bf_truscott"),
                   ["ran the Cannery café's kitchen for thirty years", "measures nothing, feeds everyone",
                    "generous and chaotic", "laughs at her own disasters"], lang="b"),
         Character("kettle_b", "Nigel Spargo", "presenter, The Kettle's On (Channel 8's teatime magazine)",
-                  CONFIG.tts.voices.get("kettle_b", "am_echo"),
+                  CONFIG.tts.voices.get("kettle_b", "bm_spargo"),
                   ["a retired chemistry teacher from Greymouth Academy", "weighs everything to the gram",
                    "frets about oven temperatures", "secretly can't cook"], lang="b"),
     ]

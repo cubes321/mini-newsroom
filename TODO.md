@@ -113,8 +113,10 @@ bottom with the date.
   in this order:
   - **Marina Row**, the soap, 20:20 to 20:40 (after Wits, so The Kettle's On keeps its hour): a television street,
     not the real Harbour Row; head-and-shoulders figures first. The bible is agreed (docs/MARINA_ROW.md: the
-    Kernicks, the Lockwoods and Sal at The Mermaid, six resident actors, three opening storylines). Next: looks on a
-    contact sheet, voices by ear, four sets (Queenie's kitchen, The Mermaid, The Loft, the Row), then the engine.
+    Kernicks, the Lockwoods and Sal at The Mermaid, six resident actors, three opening storylines). Looks and voices
+    chosen 2026-11-13 (`entertainment/marina_row.py`: data/contact-sheets/2026-11-13-marina-row-cast.png, the
+    DramaBox voices on data/voice-samples/marina-row). Next: four sets (Queenie's kitchen, The Mermaid, The Loft,
+    the Row), then the engine.
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
@@ -137,9 +139,8 @@ bottom with the date.
   sees every call tonight (not on air yet). Its close aired at 19:59 and Wits followed cleanly. It keeps the hour (the
   user, 2026-11-13: the soap goes after Wits instead); watch the next run for the loop repeating.
   Left, for the user:
-  - **Looks** on a contact sheet (data/contact-sheets/2026-11-13-kettle-presenters.png, three each; the first is on
-    air): then into `sprites.LOOKS`.
-  - **Voices** by ear: provisional Kokoro `af_sarah` and `am_echo` with British pronunciation, no clip.
+  - Done 2026-11-13: the **looks** (A of three each, now in `sprites.LOOKS`) and the **voices** (DramaBox designs
+    `bf_truscott` and `bm_spargo`, C and B of three, on data/voice-samples/marina-row).
   - **Its set**, a studio kitchen with a sofa corner (`studio_kettle`, ComfyUI art): the breakfast sofa stands in.
   - **Its ident**: the folk arrangement stands in (`bumper_kettle.wav`, untracked until it is chosen by ear).
   - An expert's unnamed line can still go to the caller (`writers._guest_of`'s guess, Have Your Say's too): one in

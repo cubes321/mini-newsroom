@@ -386,3 +386,54 @@ age = "middle"
 kokoro = "am_adam"
 source = "kokoro am_adam, speed 1.0, lang a"
 line = "We drove down from Bristol yesterday, and honestly, the harbour is even prettier than the pictures. We're staying at the little guest house up the hill, and the owner has already told us three ghost stories."
+
+# Channel 8 (entertainment/): The Kettle's On's presenters and Marina Row's actors, DramaBox designs chosen by
+# ear 2026-11-13 (data/voice-samples/marina-row). No gender or age: none of them is in the guest pools.
+
+[bf_trethowan]
+person = 'Margery Trethowan'
+kokoro = 'bf_alice'
+description = "A British woman in her seventies with a broad West Country accent, a fisherman's widow from a Cornish harbour town: sharp, dry and unshakeable, a voice that has told off three generations (DramaBox seed 42, C of three)"
+line = "You can tell her from me, that loft's been in this family since before her grandmother was born, and it'll be in it after I'm gone. She can keep her money."
+
+[bm_carthew]
+person = 'Dominic Carthew'
+kokoro = 'bm_george'
+description = "A British man in his mid-forties with a West Country accent, a Cornish crab fisherman: gruff, tired and decent, a bit worn down, a warm voice under it (DramaBox seed 21, B of three)"
+line = "I've been up since four, the pots were half empty and the engine's making that noise again. So no, I'm not in the mood for a petition about yachts."
+
+[bf_glasson]
+person = 'Isla Glasson'
+kokoro = 'bf_emma'
+description = "A British woman of nineteen with a light Cornish accent, a fisherman's daughter who wants to leave her small town: quick, defiant and a little wobbly underneath (DramaBox seed 7, A of three)"
+line = "Everyone here thinks they know what I'm going to do with my life. Gran, Dad, Sal. Nobody's actually asked me, have they? Not once."
+
+[bf_moyse]
+person = 'Philippa Moyse'
+kokoro = 'bf_lily'
+description = "A British woman in her mid-forties with a polished southern English accent, a London restaurateur who has moved to the coast: charming, confident and quietly steely (DramaBox seed 42, C of three)"
+line = "I think people here are wonderful, I really do. I just think the Row deserves to be somewhere people want to come, rather than somewhere they drive past."
+
+[bm_kinsman]
+person = 'Rupert Kinsman'
+kokoro = 'bm_lewis'
+description = "A British man in his late forties with a soft, well-spoken southern English accent, a hapless incomer who wants to be liked: eager, apologetic, a little flustered (DramaBox seed 7, A of three)"
+line = "I just thought, if we all got together, had a coffee, talked it through, everyone would see the pontoon's actually good for the whole Row. That's all I thought."
+
+[bf_pawley]
+person = 'Gaynor Pawley'
+kokoro = 'bf_emma'
+description = "A British woman in her early fifties with a warm Cornish accent, the landlady of a harbourside pub: knowing, teasing and big-hearted, a smoker's laugh in her voice (DramaBox seed 21, B of three)"
+line = "Nothing happens on this Row without me hearing about it by closing time, my love. Nothing. So you might as well tell me now and save us both the bother."
+
+[bf_truscott]
+person = 'Maggie Truscott'
+kokoro = 'bf_alice'
+description = "A British woman in her early sixties with a warm Cornish accent, a cafe cook turned television presenter: generous, chatty and full of laughter, a bit chaotic (DramaBox seed 42, C of three)"
+line = "Oh, I never weigh anything, love. You just tip it in until it looks right, give it a stir, and if it goes wrong you put custard on it."
+
+[bm_spargo]
+person = 'Nigel Spargo'
+kokoro = 'bm_daniel'
+description = "A British man in his late fifties with a precise, well-spoken English accent and a faint West Country burr, a retired chemistry teacher turned presenter: fussy, exact and dryly funny (DramaBox seed 21, B of three)"
+line = "Two tablespoons is not a measurement, it's a mood. I would like the figure in grams, please, and the oven temperature, and the time, to the minute."

@@ -62,13 +62,13 @@ def test_channel_eight_opens_at_seven_with_the_kettles_on_and_undo_takes_it_off(
         assert "The Kettle's On" in entertainment.CLOSEDOWN_TEXT and "Cartoon" not in entertainment.CLOSEDOWN_TEXT
         assert scenes.SHOW_SETS["kettle"] == kettle.STAND_IN_SET and player.SEATS["kettle"] == 1
         assert {"host", "panel_1", "panel_2", "host_a"} <= set(locations.MARKS["studio_sofa"])
-        assert sprites.LOOKS["kettle_a"] == kettle.looks()["kettle_a"]
+        assert sprites.LOOKS["kettle_a"].hair_style == "curly"                    # chosen 2026-11-13: A
         assert "kettle" in writers.BOOKED_SHOWS and "kettle" in writers.UNFILED_SHOWS
     finally:
         undo()
     assert schedule.show_at(seven).id == before and "kettle" not in schedule.SHOWS
     assert locations.MARKS["studio_sofa"] is sofa and "panel_1" not in sofa          # the breakfast sofa as it was
-    assert "kettle_a" not in sprites.LOOKS and "kettle" not in writers.BOOKED_SHOWS
+    assert "kettle_a" in sprites.LOOKS and "kettle" not in writers.BOOKED_SHOWS        # a presenter on both channels
 
 
 def test_the_presenters_are_a_double_act_the_town_knows():

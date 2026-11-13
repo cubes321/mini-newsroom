@@ -182,44 +182,6 @@ PLACE = {
 IDENT = "It's teatime, and The Kettle's On! On Channel 8."
 
 
-def _looks():
-    """Three candidates each for Maggie and Nigel, for the contact sheet; the first of each is on air until the
-    user chooses (registered by entertainment.use(), so newsroom/sprites.py has none of them yet)."""
-    from newsroom.sprites import Look
-
-    maggie = (
-        # A: silver curls, a raspberry cardigan, a blue gingham apron
-        Look(skin=(234, 192, 166), hair=(196, 196, 204), top=(176, 52, 88), under=(244, 236, 220),
-             hair_style="curly", top_style="cardigan", extra="apron", extra_col=(110, 150, 200), mouth="smile"),
-        # B: auburn hair up in a bun, a teal cardigan, a red apron, earrings
-        Look(skin=(228, 184, 156), hair=(150, 64, 40), top=(48, 120, 120), under=(240, 232, 214),
-             hair_style="bun", top_style="cardigan", extra="apron", extra_col=(190, 50, 46), mouth="smile",
-             temples=(170, 150, 140)),
-        # C: a short grey crop, glasses on, a mustard jumper, a green apron
-        Look(skin=(222, 176, 148), hair=(170, 166, 160), top=(206, 160, 52), under=(240, 236, 226),
-             hair_style="crop", top_style="jumper", extra="apron", extra_col=(70, 120, 80), glasses="on",
-             mouth="smile"),
-    )
-    nigel = (
-        # A: neat brown hair greying at the sides, glasses, a navy jumper over a shirt and a maroon tie, a pen
-        Look(skin=(226, 184, 158), hair=(92, 70, 52), top=(44, 58, 96), under=(226, 230, 236),
-             hair_style="swept", top_style="jumper", tie=(120, 36, 50), glasses="on", temples=(170, 168, 164),
-             mouth="line", brows="raised"),
-        # B: bald with a grey moustache, a grey cardigan over a checked-blue shirt
-        Look(skin=(220, 170, 140), hair=(150, 146, 140), top=(120, 120, 126), under=(176, 196, 226),
-             hair_style="bald", top_style="cardigan", facial="moustache", mouth="line", brows="raised"),
-        # C: a gingery-grey crop and beard, chef's whites he hasn't earned
-        Look(skin=(232, 188, 162), hair=(176, 120, 82), top=(240, 240, 236), under=(240, 240, 236),
-             hair_style="crop", top_style="chef", facial="beard", glasses="on", mouth="smirk",
-             temples=(190, 180, 170)),
-    )
-    return {"kettle_a": maggie, "kettle_b": nigel}
-
-
-def looks() -> dict:
-    """The looks on air: the first candidate of each, until the user chooses on a contact sheet."""
-    return {who: options[0] for who, options in _looks().items()}
-
 
 # ------------------------------------------------------------------ the booking
 
