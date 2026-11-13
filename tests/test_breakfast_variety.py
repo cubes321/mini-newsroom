@@ -80,6 +80,12 @@ class SofaContext(unittest.TestCase):
 
 
 class OvernightRepeats(unittest.TestCase):
+    def test_another_channels_scenes_never_go_out_in_channel_sevens_overnight_repeats(self) -> None:
+        # Both channels share the cache, and a show Channel 7 doesn't know fell back to the news, which repeats: a
+        # Wits round, a Kettle's On call or a Marina Row scene could have aired at three in the morning (2026-11-13).
+        for show in ("wits", "kettle", "marina"):
+            self.assertFalse(workers.repeatable(Segment(slot_id=0, type=T.interview, show=show)), show)
+
     def test_breakfast_never_repeats_overnight(self) -> None:
         for t in (T.sofa, T.bulletin, T.weather, T.field_report):
             self.assertFalse(workers.repeatable(Segment(slot_id=0, type=t, show="breakfast")), t)

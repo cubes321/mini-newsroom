@@ -279,3 +279,22 @@ def test_audio_nothing_owns_is_cleared_when_the_pool_opens(cont):
     left = sorted(f.name for f in cont.dir.glob("*.wav"))
     assert left == ["community_20261109_3_00.wav", "ident_news_10.wav", "ident_news_10_vo.wav", "trail_new_00.wav"]
     assert keep.exists()
+
+
+def test_channel_eights_card_after_its_closedown_names_no_documentary_and_is_baked_once(cont):
+    """The first soap scratch run (2026-11-13): after Channel 8's closedown the card listed Channel 7's nine o'clock
+    documentary, began before the next show, never counted as current, and was baked every idle tick until nine."""
+    import entertainment
+
+    undo = entertainment.use()
+    continuity._pool = cont                                     # use() opens Channel 8's folder: keep the test's
+    try:
+        now = _ts("20:45")
+        it = continuity.bake_programmes(now, world_mod.seed())
+        assert not any("STORIES" in l or "WEEK" in l for l in it.segment.work["continuity"]["lines"])
+        assert it.valid_until == continuity.upcoming(now)[0][0] == _ts("19:00", date(2026, 10, 28))
+        while continuity.bake_one(world_mod.seed(), now):
+            pass
+        assert sum(i.kind == "programmes" for i in cont.items()) == 1          # once, not every tick
+    finally:
+        undo()

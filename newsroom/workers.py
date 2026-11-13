@@ -120,8 +120,11 @@ IDLE_JOBS: list[tuple] = []
 def repeatable(c: Segment) -> bool:
     """A cached segment that suits the overnight repeats: a repeatable type, from a show whose
     scripts aren't tied to its own hours (no breakfast sofa during the test-card block). Not a
-    canned fallback: on 2026-10-28 one written in a six-minute outage aired seven times."""
-    return c.type in REPEATABLE and schedule.get(c.show).repeats_overnight and not c.fallback
+    canned fallback: on 2026-10-28 one written in a six-minute outage aired seven times. Not another channel's:
+    both channels share the cache, and a show this one doesn't know (Channel 8's quiz, magazine or soap on a
+    Channel 7 night) would otherwise pass as the news, which repeats. An old entry with no show is the news."""
+    return (c.type in REPEATABLE and (not c.show or c.show in schedule.SHOWS) and schedule.get(c.show).repeats_overnight
+            and not c.fallback)
 
 
 def repeat_since(now: float) -> float:

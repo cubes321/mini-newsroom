@@ -292,7 +292,9 @@ def bake_programmes(now: float, world=None) -> Item:
     ups = upcoming(now, 4)
     entries = [(ts, schedule.get(sid).title) for ts, sid in ups[:3]]
     airs = documentary._today_at(CONFIG.documentary.airs_at, now)
-    if world is not None and now < airs and documentary.due(world, airs):
+    # Only where documentaries air: on Channel 8 (no specials) the card named Channel 7's, and since it then began
+    # earlier than the next show it was never current, so it was baked again every idle tick until nine (2026-11-13).
+    if world is not None and now < airs and schedule.specials_air() and documentary.due(world, airs):
         # The documentary opens the news hour it airs in: it takes that line (21:00 has been a news
         # start since The Panel took 20:30), or goes between the shows if it falls inside one.
         from . import review
