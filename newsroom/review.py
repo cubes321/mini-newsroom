@@ -206,9 +206,8 @@ def _details(ps: list[dict], kind: str) -> list[str]:
     docs = [t for p in ps for t in p.get("documentaries", [])]
     if docs:
         out.append("Documentaries shown: " + "; ".join(docs[-4:])[:200])
-    opened, closed = sum(len(p.get("opened", [])) for p in ps), sum(len(p.get("closed", [])) for p in ps)
-    if opened or closed:               # in the town's words: read out, "25 stories opened on Channel 7" was the station
-        out.append(f"Over the {kind}: {opened} new stories began in the town and {closed} came to an end")
+    # No count of stories opened and closed: the pages keep them, but read out, in the town's words or the
+    # station's ("the town began twenty-six new stories and closed four", 2026-11-13), it is the desk's tally.
     weather = [(p["date"], p["weather"]) for p in ps if p.get("weather")]
     if weather:
         out.append(f"The weather, {_day(weather[-1][0])}: {weather[-1][1]}"[:200])

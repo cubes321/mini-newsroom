@@ -155,7 +155,7 @@ def test_the_notes_are_the_weeks_record_and_nothing_else(tmp_paths):
     assert notes.people[0].name == "Bea Kowalczyk"
     assert notes.questions == ["Second fire engine petition: expected next, Full council debates the petition on "
                                "Thursday 19 November."]
-    assert any(d == "Over the week: 3 new stories began in the town and 0 came to an end" for d in notes.details)
+    assert not any("stories" in d.lower() for d in notes.details)                 # no tally of the desk's threads
     assert any("The weather, Sunday 15 November: Frost on day 6" in d for d in notes.details)
     assert [c["id"] for c in clips] == ["C1"] and clips[0]["date"] == SUNDAY.isoformat()   # the story's latest keepsake
 
@@ -258,7 +258,7 @@ def test_new_years_eve_is_the_year_with_hugh(tmp_paths, monkeypatch):
     assert seg.headline == "Port Wexley in 2026" and documentary.presenter(seg) == "historian"
     notes, clips = review.notes(w, review.YEAR)
     assert notes.timeline[0].date == "Monday 9 November" and "Second fire engine petition" in notes.timeline[0].event
-    assert any(d.startswith("Over the year: ") for d in notes.details)
+    assert not any(d.startswith("Over the year: ") for d in notes.details)        # no tally of the desk's threads
     assert len(clips) == 6 and len({c["date"] for c in clips}) == 6              # a keepsake from each day it has one
     assert "look back at the year" in documentary.outline_system(seg, seg.work["strand"])
     assert "Hugh Tremayne" in documentary.outline_system(seg, seg.work["strand"])
