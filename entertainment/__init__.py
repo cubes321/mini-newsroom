@@ -8,7 +8,7 @@ scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is T
 (kettle.py) and Wexley Wits at 20:00 (wits.py, quiz.py); then the closedown: the announcer's goodnight once and
 the test card until seven the next evening, as small channels did, with no repeats and no SEVENTEXT
 (those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
-the soap (Stage A) takes 19:40 when it is built, and Cartoon Time comes back at 18:30 once the bank has
+the soap takes 20:20 after Wits when it is built, and Cartoon Time comes back at 18:30 once the bank has
 films (its shelf is empty, so its hour was the test card).
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're ba
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "closedown"),
-    (19, "kettle"),             # The Kettle's On (kettle.py): the hour until the soap takes 19:40
+    (19, "kettle"),             # The Kettle's On (kettle.py): the hour
     (20, "wits"),
     ("20:20", "closedown"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
 )

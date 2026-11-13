@@ -109,11 +109,21 @@ bottom with the date.
 - [x] **The rest of the evening** (the user, 2026-11-13: its own closedown): after Wits the announcer's goodnight
   once ("From all of us at WTV, goodnight") and the test card until seven ("PROGRAMMES RESUME AT 19:00 · A WTV
   SERVICE"), with no repeats and no SEVENTEXT (Channel 7's). New shows take hours from it as they come.
-- [ ] **Channel 8's next programmes** (planned with the user 2026-11-13; docs/ENGINE.md "Channel 8's evening"): The
-  Kettle's On at 19:00, the soap at 19:40 on a made-up street with a new title (not the real Harbour Row; head-and-
-  shoulders figures first, walking later), Wits at 20:00; Cartoon Time back at 18:30 once the bank has films.
-- [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00 until
-  the soap takes 19:40. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
+- [ ] **Channel 8's evening, 18:00 to 23:00** (planned with the user 2026-11-13; docs/ENGINE.md "Channel 8's evening"),
+  in this order:
+  - **The soap**, 20:20 to 20:40 (after Wits, so The Kettle's On keeps its hour): a made-up street and a title of its
+    own (not the real Harbour Row), head-and-shoulders figures first. Its "scene" item is the drama engine for the
+    TV movie, the sitcom and the anthology.
+  - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
+  - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
+  - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
+    next; the sitcom after the soap and the TV movie.
+  - **Late-night drama**, 22:30 to 23:00: an anthology of self-contained tales first; series later.
+  - **The TV movie**, 21:00 to 22:00: a bank of movies planned ahead and played out live by the engine in full-
+    figure format (the soap's stage B, walking figures). Later, blockbusters rendered offline for special nights.
+  - Cartoon Time back at 18:30 once the bank has films; the closedown at 23:00, midnight once the last hour has
+    something good. Rotations go by Channel 8 night, not weekday, while the channels alternate.
+- [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,
   pets, what's it worth, mending). The calls are Have Your Say's `call` item; `writers.STUDIO_HOOKS` and `CALLED` let
@@ -122,8 +132,8 @@ bottom with the date.
   (now a host and a way in each, in turn), and the recipe's part two repeated part one (now told it can't see it).
   The second run's hour went round its loop seven times: the expert on "frosted dahlias, rhubarb and seaweed" five
   times and callers on the same five problems, so the loop's expert item now has six angles, one a lap, and a call
-  sees every call tonight (not on air yet). Its close aired at 19:59 and Wits followed cleanly. It keeps the hour
-  until the soap takes 19:40 (the user, 2026-11-13); watch the next run for the loop repeating.
+  sees every call tonight (not on air yet). Its close aired at 19:59 and Wits followed cleanly. It keeps the hour (the
+  user, 2026-11-13: the soap goes after Wits instead); watch the next run for the loop repeating.
   Left, for the user:
   - **Looks** on a contact sheet (data/contact-sheets/2026-11-13-kettle-presenters.png, three each; the first is on
     air): then into `sprites.LOOKS`.

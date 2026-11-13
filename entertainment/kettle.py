@@ -1,4 +1,4 @@
-"""The Kettle's On: Channel 8's teatime magazine, 19:00 to 19:40 (docs/ENGINE.md; agreed with the user 2026-11-13).
+"""The Kettle's On: Channel 8's teatime magazine, 19:00 to 20:00 (docs/ENGINE.md; agreed with the user 2026-11-13).
 
 A homely forty minutes from a studio kitchen with a sofa corner, presented by a double act whose ways clash in the
 kitchen (Coastwide's Pat and Clive showed that clashing pairs are the most watchable thing on air):

@@ -143,18 +143,38 @@ when a change touches them anyway, as stage 1 says.
 
 ## Channel 8's evening (2026-11-13)
 
-Planned with the user once Cartoon Time's shelf turned out empty (its hour aired the test card):
+Planned with the user on 2026-11-13, in two sittings. The first, once Cartoon Time's shelf turned out empty (its
+hour aired the test card), put The Kettle's On at 19:00. The second filled the rest of the evening:
 
-| Time | Show |
-|---|---|
-| 18:30 | Cartoon Time, back once the bank has films |
-| 19:00 | **The Kettle's On**, the teatime magazine (built 2026-11-13, `entertainment/kettle.py`) |
-| 19:40 | **The soap**, when it is built (until then The Kettle's On has the hour) |
-| 20:00 | Wexley Wits |
-| 20:20 | the closedown |
+| Time | Show | Built on |
+|---|---|---|
+| 18:00 | **A gameshow with prizes** (until Cartoon Time is back, the hour) | Wits' pattern: rules and scores in code |
+| 18:30 | Cartoon Time, back once the bank has films | the content bank |
+| 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
+| 20:00 | Wexley Wits | |
+| 20:20 | **The soap**, 20 minutes: titles, five or six scenes, the cliffhanger and credits, no break | the scene engine |
+| 20:40 | **Factual or lifestyle**: wildlife on the coast, or a town celebrity's travelogue | the documentary, Out and About |
+| 21:00 | **The TV movie**, an hour | the scene engine |
+| 22:00 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |
+| 22:30 | **Late-night drama**: an anthology first | the scene engine |
+| 23:00 | the closedown (midnight once there is something good for the last hour) | |
 
 - **The Kettle's On first**: the cheap one. It reuses Channel 7's interview and phone-in items through the
-  registries; the phone-in needed two more (`writers.STUDIO_HOOKS`, `writers.CALLED`).
+  registries; the phone-in needed two more (`writers.STUDIO_HOOKS`, `writers.CALLED`). It keeps the whole hour (the
+  user): the soap goes after Wits, not at 19:40, so nothing overlaps.
+- **The soap first of what's left**: its "scene" item (characters on a set, cuts between scenes, no presenter) is
+  the drama engine the TV movie, the sitcom, the anthology and later drama series all use.
+- **The gameshow**: simple at first, to iron out the bugs; one or two original formats before any more. Local
+  prizes (a hamper, a weekend away) give Channel 7's town talk something to say.
+- **The TV movie**: a bank of TV movies planned ahead (outline, cast, sets) and played out live by the engine, in the
+  soap's full-figure format (stage B below). Later, "blockbusters" rendered offline into the content bank for
+  special nights.
+- **Comedy**, in this order: a stand-up night (the monologue item), a comedy panel game (the panel item), then a
+  sketch show with recurring sketches, and the sitcom once the soap and the TV movie are done.
+- **Late-night drama**: an anthology first, a self-contained strange tale of the coast each night, cast from the
+  guest pools on the town's own backdrops; recurring series later, on what the soap and the movie have built.
+- **Rotations go by Channel 8 night, not by weekday**, while the channels alternate: otherwise a weekday's show airs
+  once a fortnight. They can move to weekdays when both channels run every night.
 - **The soap is set on a made-up street with a title of its own**, not on Harbour Row: that is a real street in the
   town (its net menders, sailmaker and clockmaker, and news of its slates), and the soap's fiction is kept apart
   from it. The name is still to be chosen.
