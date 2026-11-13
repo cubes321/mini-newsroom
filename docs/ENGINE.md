@@ -141,6 +141,26 @@ engine never imports it. Instead a show from outside plugs into registries the e
 Channel 7's own shows still use their branches in those modules. They can move onto the registries
 when a change touches them anyway, as stage 1 says.
 
+## Channel 8's evening (2026-11-13)
+
+Planned with the user once Cartoon Time's shelf turned out empty (its hour aired the test card):
+
+| Time | Show |
+|---|---|
+| 18:30 | Cartoon Time, back once the bank has films |
+| 19:00 | **The Kettle's On**, the teatime magazine (built 2026-11-13, `entertainment/kettle.py`) |
+| 19:40 | **The soap**, when it is built (until then The Kettle's On has the hour) |
+| 20:00 | Wexley Wits |
+| 20:20 | the closedown |
+
+- **The Kettle's On first**: the cheap one. It reuses Channel 7's interview and phone-in items through the
+  registries; the phone-in needed two more (`writers.STUDIO_HOOKS`, `writers.CALLED`).
+- **The soap is set on a made-up street with a title of its own**, not on Harbour Row: that is a real street in the
+  town (its net menders, sailmaker and clockmaker, and news of its slates), and the soap's fiction is kept apart
+  from it. The name is still to be chosen.
+- **Head-and-shoulders figures first** (stage A): soap scenes are mostly two or three people across a bar or a
+  kitchen table. Walking full figures (stage B) come once the story engine has worked on air.
+
 ## The content bank, built (2026-11-07)
 
 `newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them

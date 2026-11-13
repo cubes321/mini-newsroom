@@ -15,6 +15,7 @@ import functools
 import logging
 import random
 import re
+import string
 import time
 from collections import deque
 from datetime import date, datetime
@@ -764,6 +765,10 @@ CAPTION_HOOKS: dict[str, Callable] = {}   # (world, guest name) -> their caption
 CHECK_HOOKS: dict[str, Callable] = {}     # (seg, script, world): raise llm.LLMError if the script won't do
 LINE_CAPS: dict[str, int] = {}          # a script's most lines, where the type's own cap is too few for the show
 AFTER_HOOKS: dict[str, Callable] = {}     # (seg, world): once seg.lines are set, e.g. which line shows what
+# A phone-in on a show from outside: (world) -> the guest in the studio who answers callers (Have Your Say's is
+# phonein's), so their lines aren't the caller's; and how a caller's memory names the show.
+STUDIO_HOOKS: dict[str, Callable[[World], str | None]] = {}
+CALLED: dict[str, str] = {}
 
 
 def big_story(world: World):
@@ -1480,7 +1485,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     if debate and show.id == chamber.SHOW and (n := chamber.motion_in(seg.brief)) is not None:
         seg.work["motion"] = n                # its vote goes to the story when it is filed (_apply_to_world)
     # The phone-in's studio guest is booked for the morning (phonein.py) and stays at the desk all hour.
-    studio = (phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else None
+    studio = ((phonein.today(world) or {}).get("guest") or None if show.id == phonein.SHOW else
+              STUDIO_HOOKS[show.id](world) if show.id in STUDIO_HOOKS and seg.type is SegmentType.call else None)
     booked = debate or (seg.type is SegmentType.interview and show.id == phonein.SHOW) or show.id in BOOKED_SHOWS
     if show.id in SEAT_HOOKS:
         seg.work["seats"] = SEAT_HOOKS[show.id](world)     # on the set all show, speaking or not (player.py)
@@ -1934,7 +1940,8 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                          seg.slot_id, back)
             elif (seg.work.get("loose_end_of") or "").lower() == script.guest_name.strip().lower():
                 world.loose_ends_taken(script.guest_name)   # booked again of the writer's accord, and asked
-            world.remember_guest(script.guest_name, schedule.get(seg.show).title.title(),
+            # capwords, not title(): "The Kettle'S On" and "Hugh'S Christmas Tales" went into the town's memory
+            world.remember_guest(script.guest_name, string.capwords(schedule.get(seg.show).title),
                                  getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
     if isinstance(script, ReviewScript):          # the verdict card; the town remembers the stars, not a canned one's
         seg.work["review"] = (outabout.record(world, script) if not template else
@@ -1943,7 +1950,7 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         world.ensure_person(script.caller_name, "resident", gender=script.caller_gender, age=script.caller_age,
                             accent=script.caller_accent)
         if not template:
-            world.remember_guest(script.caller_name, phonein.CALLED, script.caller_memory, None)
+            world.remember_guest(script.caller_name, CALLED.get(seg.show, phonein.CALLED), script.caller_memory, None)
     for l in getattr(script, "lines", []):
         if isinstance(l, VoxLine) and l.speaker == "guest" and l.guest_name:
             world.ensure_person(l.guest_name, "resident", gender=l.guest_gender, age=l.guest_age, accent=l.guest_accent)

@@ -201,6 +201,7 @@ class World:
     chambers: list[dict] = field(default_factory=list)    # The Chamber's agendas: {date, motions (votes, result, applied)}
     promises: list[dict] = field(default_factory=list)    # what full council voted would happen (promises.py): {id, made, thread_id, text, due, state}
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}
+    kettles: list[dict] = field(default_factory=list)     # The Kettle's On (entertainment/kettle.py): {date, dish, sofa, expert, ...}
     bank_aired: dict[str, list[str]] = field(default_factory=dict)   # content bank item -> the days it aired (bank.py)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
@@ -1092,6 +1093,16 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("historian", "am_santa"),
                   ["a former history teacher at Greymouth Academy", "knows a story about every street",
                    "tells it with a twinkle"], speed=0.92, lang="b"),
+        # Channel 8's teatime double act (entertainment/kettle.py), 19:00. Voices provisional (Kokoro, British
+        # pronunciation, no clip) until they are designed and chosen by ear; their looks wait for a contact sheet.
+        Character("kettle_a", "Maggie Truscott", "presenter, The Kettle's On (Channel 8's teatime magazine)",
+                  CONFIG.tts.voices.get("kettle_a", "af_sarah"),
+                  ["ran the Cannery café's kitchen for thirty years", "measures nothing, feeds everyone",
+                   "generous and chaotic", "laughs at her own disasters"], lang="b"),
+        Character("kettle_b", "Nigel Spargo", "presenter, The Kettle's On (Channel 8's teatime magazine)",
+                  CONFIG.tts.voices.get("kettle_b", "am_echo"),
+                  ["a retired chemistry teacher from Greymouth Academy", "weighs everything to the gram",
+                   "frets about oven temperatures", "secretly can't cook"], lang="b"),
     ]
 
 

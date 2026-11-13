@@ -484,7 +484,9 @@ def test_a_series_never_speaks_for_its_silent_partner():
     assert "Ballast" in text and "never speaks" in text and len(pics) == 4
 
 
-def test_cartoon_time_airs_films_at_seven_on_the_entertainment_channel():
+def test_cartoon_time_is_kept_for_films_while_the_kettles_on_has_seven():
+    """Cartoon Time airs films from the bank; while the shelf is empty it is off Channel 8's schedule (the user,
+    2026-11-13: it comes back at 18:30 once there are films), still registered, and The Kettle's On has 19:00."""
     import entertainment
     from newsroom import schedule
 
@@ -492,8 +494,9 @@ def test_cartoon_time_airs_films_at_seven_on_the_entertainment_channel():
     try:
         lt = time.localtime()
         at = lambda h, m=0: time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, h, m, 0, 0, 0, -1))
-        show = schedule.show_at(at(19, 15))
-        assert show.id == "cartoons" and {schedule.as_item(e).type for e in show.pattern} == {T.bumper, T.film}
+        show = schedule.get("cartoons")
+        assert {schedule.as_item(e).type for e in show.pattern} == {T.bumper, T.film}
+        assert schedule.show_at(at(19, 15)).id == "kettle"
         assert schedule.show_at(at(20, 5)).id == "wits"
     finally:
         undo()

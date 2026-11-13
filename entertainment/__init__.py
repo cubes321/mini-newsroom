@@ -4,10 +4,12 @@ Channel 7 (docs/ENGINE.md); both are WTV's, Wexley Television's (the user named 
 
 The engine is newsroom/'s; this package brings the channel's own day and shows and plugs them in
 through the engine's registries (writers.SHOW_SYSTEMS and the hooks beside it, workers.IDLE_JOBS,
-scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is Cartoon Time at 19:00
-and Wexley Wits at 20:00 (wits.py, quiz.py); then the closedown: the announcer's goodnight once and
+scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is The Kettle's On at 19:00
+(kettle.py) and Wexley Wits at 20:00 (wits.py, quiz.py); then the closedown: the announcer's goodnight once and
 the test card until seven the next evening, as small channels did, with no repeats and no SEVENTEXT
-(those are Channel 7's). New shows take hours from it as they are built.
+(those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
+the soap (Stage A) takes 19:40 when it is built, and Cartoon Time comes back at 18:30 once the bank has
+films (its shelf is empty, so its hour was the test card).
 """
 from __future__ import annotations
 
@@ -26,14 +28,14 @@ CLOSEDOWN = Show(
     pattern=(T.bumper, T.testcard), loop_from=1,
     target_s={T.bumper: 14.0, T.testcard: 300.0},
 )
-CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at seven, with Cartoon "
-                  "Time. From all of us at WTV, goodnight.")
+CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at seven, with The "
+                  "Kettle's On. From all of us at WTV, goodnight.")
 
 # The channel's day: (start, show id), as schedule.SCHEDULE. One episode a night: two Wits slots back
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "closedown"),
-    (19, "cartoons"),           # Cartoon Time: films from the bank (cartoons.py makes them, offline)
+    (19, "kettle"),             # The Kettle's On (kettle.py): the hour until the soap takes 19:40
     (20, "wits"),
     ("20:20", "closedown"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
 )
@@ -47,25 +49,30 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import oche, quiz, wits
+    from newsroom import sprites
+
+    from . import kettle, oche, quiz, wits
     from .cartoons import CARTOON_TIME
 
     saved = (schedule.SCHEDULE, dict(schedule.SHOWS), dict(locations.MARKS), dict(assets.IDENTS),
              list(workers.IDLE_JOBS), dict(writers._PLACE), dict(assets.IDENT_MUSIC), dict(assets.IDENT_VOICES),
-             channel.use(CHANNEL_8), (continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER))
+             channel.use(CHANNEL_8), (continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER),
+             dict(sprites.LOOKS))
     # Channel 8's continuity has a folder of its own: Channel 7's pool says "This is Channel 7" over its idents.
     continuity.SHOWS, continuity.IDENT_LINES = tuple(IDENT_LINES), IDENT_LINES
     continuity.FOLDER = assets.CONFIG.paths.continuity / "channel8"
     continuity._pool = None                                    # opened afresh on the new folder
     schedule.SCHEDULE = SCHEDULE
     schedule.SHOWS[quiz.SHOW] = wits.SHOW
-    schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME
+    schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME             # off the schedule until the bank has films
+    schedule.SHOWS[kettle.SHOW] = kettle.SHOW_DEF
     schedule.SHOWS[CLOSEDOWN.id] = CLOSEDOWN
     # A new file: bumper_cartoons.wav says "channel seven", and a bumper is only rebaked for new music.
     assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons_8.wav",
                                       "It's Cartoon Time, on channel eight!")
     assets.IDENT_MUSIC[CARTOON_TIME.id] = "rockpool"          # until Cartoon Time has music of its own
-    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown.wav", CLOSEDOWN_TEXT)
+    # A new file for new words (bumper_closedown.wav says "with Cartoon Time"; a bumper is only rebaked for new music).
+    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown_kettle.wav", CLOSEDOWN_TEXT)
     assets.IDENT_MUSIC[CLOSEDOWN.id] = quiz.SHOW
     assets.IDENT_VOICES[CLOSEDOWN.id] = continuity.VOICE      # the continuity announcer says goodnight
     locations.MARKS[wits.SET] = wits.MARKS
@@ -73,6 +80,7 @@ def use():
     player.SEATS[quiz.SHOW] = 4
     assets.IDENTS[quiz.SHOW] = (assets.CONFIG.paths.assets / "bumper_wits.wav", wits.IDENT)
     workers.IDLE_JOBS.append((quiz.should_commission, quiz.commission))
+    _kettle(kettle)
     writers.SHOW_SYSTEMS[quiz.SHOW] = wits.SYSTEMS
     writers._PLACE.update(wits.PLACE)
     writers.BRIEF_HOOKS[quiz.SHOW] = quiz.brief_for
@@ -101,15 +109,45 @@ def use():
         assets.IDENT_MUSIC.clear(), assets.IDENT_MUSIC.update(saved[6])
         assets.IDENT_VOICES.clear(), assets.IDENT_VOICES.update(saved[7])
         channel.use(saved[8])
+        sprites.LOOKS.clear(), sprites.LOOKS.update(saved[10])
         continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER = saved[9]
         continuity._pool = None
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
-                    writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS):
+                    writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS,
+                    writers.STUDIO_HOOKS, writers.CALLED):
             reg.pop(quiz.SHOW, None)
+            reg.pop(kettle.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
             reg.discard(quiz.SHOW)
+            reg.discard(kettle.SHOW)
     return undo
+
+
+def _kettle(kettle) -> None:
+    """The Kettle's On's registrations (undone with Wits' by use()'s undo)."""
+    from newsroom import assets, locations, player, scenes, sprites, workers, writers
+    from newsroom.config import CONFIG
+
+    sprites.LOOKS.update(kettle.looks())
+    assets.IDENTS[kettle.SHOW] = (assets.CONFIG.paths.assets / "bumper_kettle.wav", kettle.IDENT)
+    assets.IDENT_MUSIC[kettle.SHOW] = "outabout"               # folk, until it has music of its own (by ear)
+    assets.IDENT_VOICES[kettle.SHOW] = CONFIG.tts.voices.get("kettle_a", "af_sarah")
+    # Its own set waits for approved art; the breakfast sofa stands in, with the show's three marks added.
+    locations.MARKS[kettle.STAND_IN_SET] = {**locations.MARKS[kettle.STAND_IN_SET], **kettle.MARKS}
+    scenes.SHOW_SETS[kettle.SHOW] = kettle.STAND_IN_SET
+    player.SEATS[kettle.SHOW] = 1                              # one guest at a time: the cook, the sofa, the expert
+    workers.IDLE_JOBS.append((kettle.should_commission, kettle.commission))
+    writers.SHOW_SYSTEMS[kettle.SHOW] = kettle.SYSTEMS
+    writers._PLACE.update(kettle.PLACE)
+    writers.BRIEF_HOOKS[kettle.SHOW] = kettle.brief_for
+    writers.PROMPT_HOOKS[kettle.SHOW] = kettle.for_prompt
+    writers.CAPTION_HOOKS[kettle.SHOW] = kettle.caption
+    writers.STUDIO_HOOKS[kettle.SHOW] = kettle.studio            # the expert answers the calls
+    writers.CALLED[kettle.SHOW] = kettle.CALLED
+    writers.TEMPLATE_HOOKS[kettle.SHOW] = kettle.template
+    writers.BOOKED_SHOWS.add(kettle.SHOW)                      # its guests are booked: no loose ends on the sofa
+    writers.UNFILED_SHOWS.add(kettle.SHOW)                     # never news
 
 
 _RIGHT = ("That's right!", "Correct!", "Yes! Two points.", "Spot on.")
