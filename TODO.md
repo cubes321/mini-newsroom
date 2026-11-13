@@ -61,7 +61,11 @@ bottom with the date.
   volunteers, makers and menders, darts players, choirs and bell ringers, a cyclist, and new words for the rest
   left 12, all plain residents (approved on a sheet). Check a new word against every cast role first: an early
   group's word takes a role from a later one ("clock" took a novelist, "writer" a singer-songwriter). (the first match on a role word
-  wins). On 2026-10-28 every role the town had cast matched one.
+  wins). On 2026-10-28 every role the town had cast matched one. 2026-11-13 (0c34833, approved on a before/after
+  sheet): a word inside another word dressed people wrongly ("porter" in supPORTERs made the Supporters' Club
+  chairs dockers, "fire" put the bonfire's stewards and a firewood seller in the brigade's uniform); fixed, with
+  sellers, a regatta winner, the ukulele and banjo, and a child (cast young, but still drawn grown-up size: a
+  smaller figure would need a new `Look` field). Ten guests changed, nobody else. Left: plain residents.
 - [ ] **Graphics made live by ComfyUI** (the user's idea, 2026-11-03; brainstormed 2026-11-04, build after the
   11-05 log is checked). Decided: **shadow mode first**: the back office makes the pictures for a few nights
   but nothing shows them, and each night's go on a contact sheet to judge how they would fit. Then decide
@@ -93,14 +97,28 @@ bottom with the date.
   Scratch run the same day: every score Clive read matched the booking; four-question rounds came in at
   70-85 s and chats filled the rest of the half hour, so there are now four rounds of six, a word between
   questions, and six chat angles for whatever time is left.
+- [x] **Channel 8** (the user named it 2026-11-13; both channels are WTV's, Wexley Television's). `newsroom/channel.py`
+  holds the channel on air (its number, its name written and said, its wordmark), read by the logo, the test card,
+  the announcer and the programme card; `entertainment.use()` puts Channel 8 on. The same roundel and harbour with
+  an 8 of two rings, eight stripes, an 8 bug; Channel 7's idents are the same frame for frame. Channel 8's
+  continuity has its own folder (data/continuity/channel8), so it never says "This is Channel 7".
+- [x] **Wexley Wits' set** (`studio_quiz`, seed 202, approved 2026-11-13 in a side session): Clive's lectern, the
+  home pair's blue table and the away pair's gold one, a scoreboard ringed with bulbs, a dartboard; marks 3 px
+  below each top. **Its ident**: the gameshow arrangement of Beacon (Rhodes, clavinet, funk bass, claps, a quiz
+  bell), picked over honkytonk on data/voice-samples/wits-ident; it is Channel 8's ident and closedown music too.
+- [x] **The rest of the evening** (the user, 2026-11-13: its own closedown): after Wits the announcer's goodnight
+  once ("From all of us at WTV, goodnight") and the test card until seven ("PROGRAMMES RESUME AT 19:00 · A WTV
+  SERVICE"), with no repeats and no SEVENTEXT (Channel 7's). New shows take hours from it as they come.
 - [ ] Wexley Wits, next:
-  - **A quiz set** (art, the user's approval): the darts pub backdrop stands in, Clive at the bar end and
-    both pairs across the floor (`wits.MARKS`). A set of its own: a quizmaster's lectern, two team tables,
-    the scoreboard.
-  - **Its own ident**: the bumper is a placeholder sting with Clive's voice (`bumper_wits.wav`), listen-then-commit.
-  - **The rest of the channel's evening**: outside 20:00-20:20 it is the overnight test card, which still
-    carries Channel 7's ident and would repeat Channel 7's cache. The content bank (ENGINE.md) is the answer.
-  - The channel still wears Channel 7's logo and name in places.
+  - First Channel 8 scratch run (2026-11-13, 19:50-20:30 on the new set): the quiz booked at once, all seven rounds
+    and the chats written by the model with no template, every score matching the booking (Who Said That 22-16,
+    the doubles to the Lugger by one double, 25-22 at the end); the closedown's goodnight at 20:20, then the test
+    card; Channel 8's continuity in its own folder. The doubles had the throwers calling their own darts and Clive
+    counting points: the brief now says Clive calls them and only doubles count (check next run). Who Said That
+    named Instagram once. Channel 7's documentary and two specials were made on Channel 8's night; now none are
+    (`schedule.specials_air`), while the story desk keeps going.
+  - Cartoon Time's films still end on "on channel seven" (`entertainment/cartoons.py`, left alone while another
+    project works on the cartoons).
   - The darts round (built 2026-11-07, `entertainment/oche.py`): round three, three darts each at treble twenty, every
     dart drawn on a real board's geometry; the window at the top left shows the thrower's darts as Clive calls
     them (a script missing a call in order gives way to the code's own round). Second scratch run (2026-11-07, 13:40):
@@ -110,8 +128,9 @@ bottom with the date.
     filled the other 22. The user chose two more rounds (2026-11-07): Who Said That? (six lines the week's guests
     said on channel 7, from Person.memories, none naming its speaker) and darts doubles at double twenty (most
     doubles wins; a miss mostly lands in the number ring, "No score."). Seven rounds now; not on air yet.
-  - The result as town talk: the news or Coastwide mentioning who won.
-- [ ] **Cartoons** (the user, 2026-11-07): animated films made offline with H3 and aired from the content bank.
+  - Done 2026-11-09: the result as town talk (`newsroom/talk.py`: in the writers' briefing for two days).
+- [ ] **Cartoons** (the user, 2026-11-07), **on the back burner** (the user, 2026-11-13: another project is
+  working out the best way to make them): animated films made offline with H3 and aired from the content bank.
   Part A built: the bank (`newsroom/bank.py`, the shelf in data/bank, airings in the world), films on air
   (`SegmentType.film`, `film.py`: ffmpeg frames drawn at the window's size, the soundtrack through the mixer),
   Cartoon Time 19:00-20:00 on the entertainment channel, and the production tool (`entertainment/cartoons.py`:
@@ -175,11 +194,26 @@ bottom with the date.
   code on the 320 × 180 canvas like the rest; the text could come straight from the archive and
   `world`, or from one cheap call per night to rewrite the stories as teletext pages. A silent item
   (no TTS), so it costs nothing to voice and fills time the repeats leave over.
-- [ ] A model-planned running order for the magazine and the talk show (a
-  theme and a topic per item) on top of the fixed hour orders.
+- [x] **A model-planned running order** for Coastwide and The Last Ferry (`newsroom/rundown.py`, 2026-11-13): from
+  90 minutes before each, one call (non-thinking Flash: thinking spent its 16000 tokens on 35 slots) gives the
+  evening a theme for the links and each planned slot (interview, couch guest, feature, consumer, vox pop; 28 at
+  most) a subject from the town and, for an interview, a guest we know, often for their loose end. Keyed by the
+  slot's place in the order (`seg.work["order_pos"]`), taken once; nothing for a special night's or day's version;
+  a failed call leaves the fixed order. Trials on the 11-08 town were good after two prompt rules (one lighthouse
+  per evening, no new history for someone we know); it still invents small events for new people. Watch the first
+  night: "rundown: ... planned", whether items keep to their subject, and whether the theme is overdone.
 - [x] Not doing (the user, 2026-11-07): Port Wexley keeps its own weather. Was: an optional real-weather hook.
 
 ## Engineering
+
+- [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
+  back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
+  scratch town with the clock at Sunday 8 Nov: pages written, the week chosen unforced, the card, aired at 21:01
+  and archived; the story count was taken out of the notes (4ec1f94). Still in the script: a desk NEXT that has
+  already happened told as to come (the desk's, not the review's), and a look-ahead from minutes-old threads.
+- [ ] **Found in the same run, in The Inquiry:** scripts one line over the cap (15 of 14, 17 of 16) fail both tries
+  and air the template; and the stand-in's title from a thread title came out garbled ("What Next for Salting
+  Harmony Choir's Thirty-One Voices Warm Up for?"), a stand-in only because the run began after 18:30.
 
 - [x] **The findings in PROJECT_REVIEW.md** (2026-11-02), fixed 2026-11-03 (1442823, 5337392, 4400242, e55bb8c).
   The archive had recorded every segment when it was scripted, so the ten minutes of buffer at each shutdown
