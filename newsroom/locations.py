@@ -122,6 +122,9 @@ LOCATIONS: tuple[Location, ...] = (
              "studio", (86, 186, 186), (238, 210, 150)),
     Location("studio_phonein", "the phone-in desk", "Have Your Say's desk: the call board, the telephone, a headset",
              "studio", (30, 36, 60), (58, 50, 50)),
+    # Channel 8's (entertainment/wits.py): approved 2026-11-13, seed 202. A studio, so no writer is offered it.
+    Location("studio_quiz", "the Wexley Wits set", "the pub quiz's stage in a pub function room: Clive's lectern, the "
+             "two team tables, a scoreboard ringed with bulbs, a dartboard", "studio", (112, 36, 44), (104, 70, 42)),
     Location("chamber_press", "the press seats", "the press bench at the side of the council chamber, the horseshoe "
              "and the mayor's chair behind", "studio", (120, 85, 60), (90, 60, 45)),
 )

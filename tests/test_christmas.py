@@ -107,7 +107,7 @@ def test_another_channel_has_no_christmas(by_calendar):
 
     undo = entertainment.use()
     try:
-        assert schedule.show_at(_at(DAY, 11, 20)).id == "overnight"
+        assert schedule.show_at(_at(DAY, 11, 20)).id == "closedown"             # Channel 8 is off air by day
     finally:
         undo()
 

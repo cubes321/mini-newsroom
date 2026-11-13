@@ -109,8 +109,10 @@ def brief(q: dict, r: dict, n: int, score: str) -> str:
         return (f"ROUND {n + 1}: DARTS DOUBLES, back at the oche. Each contestant throws three darts at DOUBLE TWENTY, "
                 f"the thin outer ring at the top; the pair with more doubles takes it. The throwers in this order or "
                 f"team by team. Clive names each thrower as they step up and calls EVERY dart in a line of his own "
-                f"that BEGINS with the call exactly as given (a word after it is fine); a dart off the board is part "
-                f"of the fun. At most 36 lines.\n" + "\n".join(rows)
+                f"that BEGINS with the call exactly as given (a word after it is fine): the throwers never call their "
+                f"own darts. Only doubles count here: Clive keeps the tally in doubles (\"that's one double for the "
+                f"Lugger\"), never a thrower's points or total. A dart off the board is part of the fun. At most 36 "
+                f"lines.\n" + "\n".join(rows)
                 + f"\n{won}.\nTHE SCORE AFTER ROUND {n + 1}, for Clive to read out: {score}.")
     won = (f"so {q['teams'][0 if a > b else 1]['name']} take the darts round and {POINTS} points" if a != b
            else "level, so one point each")

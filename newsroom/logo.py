@@ -1,9 +1,11 @@
-"""Channel 7's on-screen logo, drawn in code on the 320x180 canvas.
+"""The channel's on-screen logo, drawn in code on the 320x180 canvas.
 
 The mark is a roundel in the show's colour with a bold 7 standing in the harbour and a
 lighthouse at its foot whose beam sweeps the frame; under it, the wordmark
 CHANNEL 7 · PORT WEXLEY in a blocky 5x7 face of its own. The painted ident on the
-interview set (backdrops.py) is the same red roundel with the same 7.
+interview set (backdrops.py) is the same red roundel with the same 7. Channel 8 (channel.py,
+the entertainment channel) has the same roundel and harbour with an 8 of two rings, eight stripes
+and its own wordmark: sister channels of one group, WTV.
 
 - `draw_ident(surf, t, show, onsets)`: the full-frame ident in the 70s manner. Stripes sweep
   in, the mark assembles one piece per note of the tune (`jingle.onsets()`), the beam swings
@@ -22,7 +24,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import schedule
+from . import channel, schedule
 
 RGB = tuple[int, int, int]
 
@@ -86,7 +88,8 @@ GLYPHS = {
     "U": "#...# #...# #...# #...# #...# #...# .###.", "V": "#...# #...# #...# #...# #...# .#.#. ..#..",
     "W": "#...# #...# #...# #.#.# #.#.# ##.## #...#", "X": "#...# #...# .#.#. ..#.. .#.#. #...# #...#",
     "Y": "#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..", "Z": "##### ....# ...#. ..#.. .#... #.... #####",
-    "7": "##### ....# ...#. ..#.. .#... .#... .#...", "·": ". . . # . . .", "'": "# # . . . . .",
+    "7": "##### ....# ...#. ..#.. .#... .#... .#...", "8": ".###. #...# #...# .###. #...# #...# .###.",
+    "·": ". . . # . . .", "'": "# # . . . . .",
     " ": "... ... ... ... ... ... ...",
 }
 
@@ -123,12 +126,14 @@ def draw_text(surf: pygame.Surface, s: str, x: int, y: int, scale: int = 1, col:
     surf.blit(img, (x, y), (0, 0, round(img.get_width() * _clamp(reveal)), img.get_height()))
 
 
-WORDMARK = "CHANNEL 7 · PORT WEXLEY"
+def wordmark() -> str:
+    """The wordmark of the channel on air: "CHANNEL 7 · PORT WEXLEY" (channel.py)."""
+    return channel.CURRENT.wordmark
 
 
 def draw_wordmark(surf: pygame.Surface, cx: int, y: int, show: str | None, *, scale: int = 2,
                   reveal: float = 1.0) -> None:
-    draw_text(surf, WORDMARK, cx, y, scale, CREAM, center=True, shadow=_dark(colour(show), 0.3), reveal=reveal)
+    draw_text(surf, wordmark(), cx, y, scale, CREAM, center=True, shadow=_dark(colour(show), 0.3), reveal=reveal)
 
 
 # ------------------------------------------------------------------ the mark
@@ -151,13 +156,27 @@ def _poly(pts, ox: float, oy: float, u: float) -> list[tuple[int, int]]:
     return [(round(ox + x * u), round(oy + y * u)) for x, y in pts]
 
 
+# The 8, two rings stacked (centre y, outer radius, ring width) in the same units: as tall as the 7, and
+# narrower, so the lighthouse keeps its place at its right.
+RINGS = ((-11.5, 11.0, 5.5), (12.0, 13.0, 6.0))
+
+
+def _ring(surf: pygame.Surface, ox: float, oy: float, u: float, ring: tuple[float, float, float]) -> None:
+    cy, r, width = ring
+    pygame.draw.circle(surf, CREAM, (round(ox), round(oy + cy * u)), round(r * u), max(1, round(width * u)))
+
+
 def _seven(layer: pygame.Surface, ox: float, oy: float, u: float, col: RGB, bar: float, stem: float) -> None:
-    """The 7 with a dark outline and a drop shadow, its bar sliding in and its stroke dropping."""
+    """The channel's numeral with a dark outline and a drop shadow: the 7's bar sliding in and its stroke
+    dropping; the 8's top ring sliding in and its bottom ring dropping, on the same beats."""
     tmp = pygame.Surface(layer.get_size(), pygame.SRCALPHA)
+    eight = channel.CURRENT.number == "8"
     if bar > 0:
-        pygame.draw.polygon(tmp, CREAM, _poly(BAR, ox - (1 - _back(bar)) * 44 * u, oy, u))
+        x = ox - (1 - _back(bar)) * 44 * u
+        _ring(tmp, x, oy, u, RINGS[0]) if eight else pygame.draw.polygon(tmp, CREAM, _poly(BAR, x, oy, u))
     if stem > 0:
-        pygame.draw.polygon(tmp, CREAM, _poly(STEM, ox, oy - (1 - _back(stem)) * 50 * u, u))
+        y = oy - (1 - _back(stem)) * 50 * u
+        _ring(tmp, ox, y, u, RINGS[1]) if eight else pygame.draw.polygon(tmp, CREAM, _poly(STEM, ox, y, u))
     m = pygame.mask.from_surface(tmp)
     if not m.count():
         return
@@ -270,14 +289,19 @@ def _stars(surf: pygame.Surface, t: float) -> None:
             surf.fill((200, 200, 230) if k % 3 else (255, 240, 200), (x, y, 1, 1))
 
 
-STRIPES = 7                      # seven of them, naturally
+STRIPES = 7                      # seven of them, naturally (and eight on Channel 8)
+
+
+def stripes() -> int:
+    n = channel.CURRENT.number
+    return int(n) if n.isdigit() and 0 < int(n) <= 9 else STRIPES
 
 
 def _stripes(surf: pygame.Surface, col: RGB, bg: RGB, t: float, flash: float, cy: int) -> None:
-    """Seven bands behind the roundel, running in alternately from left and right."""
+    """A band for each of the channel's number behind the roundel, running in alternately from left and right."""
     w = surf.get_width()
     top = cy - 33
-    for i in range(STRIPES):
+    for i in range(stripes()):
         k = _ease((t - i * 0.035) / SWEEP_S)
         if k <= 0:
             continue
@@ -329,16 +353,23 @@ def draw_ident(surf: pygame.Surface, t: float, show: str | None, onsets: list[fl
 BUG_SIZE = 13
 
 
-@lru_cache(maxsize=1)
-def _bug() -> pygame.Surface:
-    """A cream disc with the 7 knocked out of it, see-through, a few pixels high."""
+_BUG_SEVEN = ({(x, y) for y in (3, 4) for x in range(3, 10)}
+              | {(x, y) for y, x0 in ((5, 7), (6, 7), (7, 6), (8, 6), (9, 5), (10, 5)) for x in (x0, x0 + 1)})
+# Two rings, two pixels thick at the sides like the 7's stroke: rows 2-6 the top ring, 6-10 the wider bottom.
+_BUG_EIGHT = {(x, y) for y, xs in ((2, range(4, 9)), (3, (3, 4, 8, 9)), (4, (3, 4, 8, 9)), (5, (3, 4, 8, 9)),
+                                   (6, range(4, 9)), (7, (2, 3, 9, 10)), (8, (2, 3, 9, 10)), (9, (2, 3, 9, 10)),
+                                   (10, range(3, 10))) for x in xs}
+
+
+@lru_cache(maxsize=4)
+def _bug(number: str = "7") -> pygame.Surface:
+    """A cream disc with the channel's numeral knocked out of it, see-through, a few pixels high."""
     s = pygame.Surface((BUG_SIZE, BUG_SIZE), pygame.SRCALPHA)
     c = (BUG_SIZE - 1) / 2
-    seven = {(x, y) for y in (3, 4) for x in range(3, 10)}
-    seven |= {(x, y) for y, x0 in ((5, 7), (6, 7), (7, 6), (8, 6), (9, 5), (10, 5)) for x in (x0, x0 + 1)}
+    hole = _BUG_EIGHT if number == "8" else _BUG_SEVEN
     for y in range(BUG_SIZE):
         for x in range(BUG_SIZE):
-            if (x - c) ** 2 + (y - c) ** 2 <= (c + 0.4) ** 2 and (x, y) not in seven:
+            if (x - c) ** 2 + (y - c) ** 2 <= (c + 0.4) ** 2 and (x, y) not in hole:
                 s.set_at((x, y), (*CREAM, BUG_ALPHA))
     return s
 
@@ -350,7 +381,7 @@ def bug_rect(size: tuple[int, int]) -> pygame.Rect:
 
 
 def draw_bug(surf: pygame.Surface) -> None:
-    surf.blit(_bug(), bug_rect(surf.get_size()))
+    surf.blit(_bug(channel.CURRENT.number), bug_rect(surf.get_size()))
 
 
 # ------------------------------------------------------------------ contact sheet and video

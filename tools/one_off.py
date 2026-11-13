@@ -380,7 +380,7 @@ def _card(spec: dict, kind: str):
         if c.get("details"):
             scenes.text(canvas, c["details"], 162, 106, 7, grey, center=True)
         scenes.text(canvas, f"with {c.get('with', spec['presenter'])}", 160, 134, 8, cream, center=True)
-        scenes.text(canvas, logo.WORDMARK, 160, 157, 7, grey, center=True)
+        scenes.text(canvas, logo.wordmark(), 160, 157, 7, grey, center=True)
     else:                                                        # the right half is left for YouTube's boxes
         logo.draw_mark(canvas, 44, 46, show, r=22)
         pygame.draw.rect(canvas, accent, (16, 80, 4, 52))
@@ -388,7 +388,7 @@ def _card(spec: dict, kind: str):
         scenes.text(canvas, lines[0].upper(), 26, 80, 12, cream)
         for i, s in enumerate(lines[1:]):
             scenes.text(canvas, s, 26, 100 + 12 * i, 8, grey)
-        scenes.text(canvas, logo.WORDMARK, 16, 157, 7, grey)
+        scenes.text(canvas, logo.wordmark(), 16, 157, 7, grey)
     screen = pygame.Surface((1920, 1080))
     scenes.present(canvas, screen)
     return screen

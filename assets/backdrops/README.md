@@ -29,7 +29,7 @@ Lookup order is the time-of-day file, then `<id>.png`, then the placeholder.
 - **No people, no text.** Captions are drawn live, and signs would need to change
   with the story.
 - **Studio backdrops** (`studio_wide`, `weather_wall`, `studio_interview`, `studio_sofa`,
-  `studio_late`, `studio_sports`, `studio_panel`, `studio_kids`, `studio_phonein`, `chamber_press`) are never tinted. The weather scene draws its map at (40, 20, 180, 120) and its side
+  `studio_late`, `studio_sports`, `studio_panel`, `studio_kids`, `studio_phonein`, `chamber_press`, `studio_quiz`) are never tinted. The weather scene draws its map at (40, 20, 180, 120) and its side
   panel at (234, 20, 76, 124); the same screen shows a location for the big-picture
   wall shot.
 
@@ -57,6 +57,7 @@ reaches about 74 px above their baseline.
 | `studio_panel` | host (58, 135), panel_1 and guest (152, 135), panel_2 (212, 135), panel_3 (272, 135) | The Panel: one long desk across the front whose top's back edge is at y 132, 3 px above all four baselines (the chair at the left end, three panellists); a name card on its front at each place; the red channel 7 ident above the chair; a wide screen with the town's skyline behind the panellists |
 | `studio_kids` | host (78, 150), gully (134, 158), guest (250, 152) | Rock Pool: a sea-green wall with painted waves and bunting; a painted rock pool with a crab and a starfish, up to the right; a sandy floor from y 140; a craft table with paint pots and an egg box between Gully and the visitor. Nobody sits: Poppy and the visitor stand, Gully comes up from below frame |
 | `studio_phonein` | host (92, 144), guest (228, 144) | Have Your Say: one long desk across the frame whose top's back edge is at y 141, 3 px above both baselines; the call board (six lines, a lamp and a blank strip each) on the wall between their heads; a headset on its stand on the desk between them; the red telephone and the line console at the desk's right end, past the lower third; the wall at the top right left plain for the caller's box (`scenes.CALLER_BOX`), which sits above the guest's head |
+| `studio_quiz` | host (52, 156), panel_1 and guest (128, 154), panel_2 (178, 154), panel_3 (238, 158), panel_4 (288, 158) | Wexley Wits, Channel 8's pub quiz: a stage in a pub function room; Clive's lectern at the left (top at y 153), the home pair's blue table (151) and the away pair's gold one (155), each 3 px above its marks; a scoreboard ringed with bulbs, its two panels blank, above the teams; a dartboard at the right; plain wall at the top left for the darts window (`oche.BOX`); no channel 7 ident |
 | `studio_wide` | anchor (110, 134) | the desk top at about y 130, across the frame |
 | `weather_wall` | presenter (270, 152) | the two screens at the rectangles above |
 | `council_chamber` | host (160, 104, scale 1), guest and panel_1 (60, 140), panel_2 (276, 140), panel_3 (204, 154) | the other way round: the art came first and the marks were placed on it (approved 2026-11-01). The chair sits small in the high seat under the crest; the councillors stand in front of the horseshoe desks |

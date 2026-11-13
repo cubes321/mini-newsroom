@@ -1056,7 +1056,10 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + _CLOSE.format(title=_title(show), goodbye="goodbye" if _part(show) == "morning" else "goodnight",
                                         next_title=_title(after),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
-        if after.id == "overnight":         # the test card, not a programme: Wexley Wits said "Port Wexley News follows"
+        # The test card, not a programme (Channel 7's overnight, Channel 8's closedown): Wexley Wits said "Port
+        # Wexley News follows". Off air is a show with nothing live in its order.
+        if all(schedule.as_item(e).type in (SegmentType.bumper, SegmentType.testcard, SegmentType.repeat,
+                                            SegmentType.teletext) for e in after.pattern):
             user = user.replace(f"{_title(after)} follows at {time.strftime('%H:%M', time.localtime(end))}",
                                 "that's all for tonight (no programme follows: name none)")
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):

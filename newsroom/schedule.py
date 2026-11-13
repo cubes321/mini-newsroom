@@ -950,6 +950,13 @@ def show_end(ts: float) -> float:
     return next((t for t, _ in starts(ts) if t > ts and show_at(t).id != now_id), ts + 24 * 3600)
 
 
+def specials_air() -> bool:
+    """Does the channel's day have a show that airs specials (Channel 7's news and overnight)? Channel 8's doesn't,
+    so on its nights the back office makes none: on the first run (2026-11-13) a documentary and two specials
+    were made for a channel that wasn't on. The story desk keeps going either way."""
+    return any(s in SHOWS and SHOWS[s].airs_specials for _, s in SCHEDULE)
+
+
 def special_slot(ts: float) -> float:
     """When a special finished at `ts` airs: after the first news bumper from the next top of the
     hour, so a trail can give the time. Overnight at once, after the test card: nobody to trail to."""

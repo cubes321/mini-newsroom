@@ -6,8 +6,9 @@ the final score. Each round is one interview item whose brief carries the round 
 writer sets the banter around results already decided. If items come in short, the order wraps to a chat
 with one team or the other (no questions, no score) until the result is read at the close.
 
-The set stands in: the darts pub backdrop (assets/backdrops/pub.png) with Clive at the left and the two
-teams across the floor, until a quiz set of its own is drawn and approved.
+The set is its own (assets/backdrops/studio_quiz.png, approved 2026-11-13): Clive at his lectern on the left,
+the home pair at the blue table and the away pair at the gold one, a bulb-ringed scoreboard and a dartboard
+behind them; the darts pub stood in before it.
 """
 from __future__ import annotations
 
@@ -17,13 +18,14 @@ from newsroom.writers import _COMMON_RULES, _MIDDLE
 
 from . import quiz
 
-SET = "pub"
+SET = "studio_quiz"             # its own set since 2026-11-13 (seed 202); the darts pub stood in before
 DONE = ("all seven rounds are over and only the result is to come (no round is next), so no quiz questions "
         "and no score: ")
 # Clive standing at the left; the home pair, then the away pair, facing him across the floor.
-MARKS = {"host": (52, 152, 2, 1), "guest": (128, 150, 2, -1),
-         "panel_1": (128, 150, 2, -1), "panel_2": (178, 150, 2, -1),
-         "panel_3": (238, 154, 2, -1), "panel_4": (288, 154, 2, -1)}
+# Each 3 px below its furniture's top edge: the lectern's at y 153, the home table's at 151, the away table's at 155.
+MARKS = {"host": (52, 156, 2, 1), "guest": (128, 154, 2, -1),
+         "panel_1": (128, 154, 2, -1), "panel_2": (178, 154, 2, -1),
+         "panel_3": (238, 158, 2, -1), "panel_4": (288, 158, 2, -1)}
 
 SHOW = Show(
     quiz.SHOW, "WEXLEY WITS", "QUIZ", (196, 140, 40),
@@ -57,7 +59,7 @@ SHOW = Show(
     target_s={T.bumper: 8.0, T.links: 50.0, T.interview: 240.0, T.ad_break: 60.0},
     cast=("mag_b",), lead="mag_b",
     cast_by_type={T.links: ("mag_b",), T.interview: ("mag_b", "guest")},
-    station="Wexley Wits, the pub quiz on Port Wexley's second channel, with Clive Ashdown asking",
+    station="Wexley Wits, the pub quiz on Channel 8, Port Wexley's second channel, with Clive Ashdown asking",
     tone="warm, quick and a bit cheeky: pub banter, regulars ribbing each other, Clive's gentle jokes",
     light=True,
     repeats_overnight=False,     # tonight's quiz, tonight

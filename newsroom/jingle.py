@@ -67,6 +67,7 @@ VOICINGS: dict[str, tuple[int, float]] = {
     "panel": (-2, 0.95),
     "chamber": (-4, 0.85),
     "inquiry": (-7, 0.82),       # in the minor: the one serious show of the evening
+    "wits": (3, 1.12),           # Wexley Wits, and Channel 8's idents and closedown (entertainment/)
 }
 MINOR_VOICINGS = ("breaking", "inquiry")
 
@@ -324,10 +325,12 @@ SHOW_STYLES: dict[str, tuple[str, str]] = {
     "panel": ("piano", "synth"),
     "chamber": ("organ", "strings"),
     "inquiry": ("piano", "cello"),
+    "wits": ("gameshow", "honkytonk"),
 }
 SHOW_STYLE = {                  # chosen by ear 2026-11-04
     "quayside": "ticker", "phonein": "bright", "outabout": "folk", "rockpool": "toy", "panel": "synth",
     "chamber": "organ", "inquiry": "cello",
+    "wits": "gameshow",         # chosen by ear 2026-11-13 over honkytonk: also Channel 8's ident and closedown
 }
 STYLES.update(SHOW_STYLE)
 
@@ -898,8 +901,56 @@ def _inquiry(c: _Ctx, style: str) -> np.ndarray:
     return _reverb(m.buf, 2.0, 0.28)
 
 
+def bell(f: float = 1568.0, vel: float = 1.0) -> np.ndarray:
+    """A quiz bell's ding: a struck bell's inharmonic partials, ringing on."""
+    t = _t(1.8)
+    parts = [(1, 1, 2.5), (2.0, .5, 4), (2.76, .35, 6), (5.4, .2, 9)]
+    return sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-d * t) for r, a, d in parts) * np.minimum(1, t / 0.002) \
+        * vel * 0.4
+
+
+def _wits(c: _Ctx, style: str) -> np.ndarray:
+    """Wexley Wits, the pub quiz, and Channel 8's tune: cheerful, a bit cheeky, a bell at the end."""
+    m = c.mix
+    if style == "gameshow":                     # 70s game show: Rhodes and clavinet, funk bass, claps, the bell
+        for at, dur, n in c.ev:
+            m.add(at, rhodes(_hz(n), dur), 0.5, pan=0.15)
+            m.add(at, clav(_hz(n), dur * 0.5), 0.3, pan=-0.3)
+            m.add(at + 0.01, analog(_hz(n + 12), dur * 0.8, 0.5), 0.12, pan=0.35)
+        for k, at in c.eighths():
+            m.add(at, bass(_hz(c.root - 12 + (12 if k % 4 == 3 else 0) + (7 if k % 8 == 5 else 0)),
+                           c.beat / 2 * 0.7), 0.45)
+            if k % 4 == 2:
+                m.add(at, clap(), 0.8, pan=0.2)
+        _kit(m, c.beat, c.last_at, four=True)
+        for j, n in enumerate(c.chord):
+            m.add(c.last_at + 0.02 * j, rhodes(_hz(n), c.hold(), 0.7), 0.25, pan=-0.3 + 0.15 * j)
+        m.add(c.last_at, kick(), 0.8)
+        m.add(c.last_at, bass(_hz(c.root - 12), c.hold(0.3)), 0.5)
+        m.add(c.last_at + 0.05, bell(_hz(c.chord[-1] + 12)), 0.45, pan=0.3)
+        return _reverb(m.buf, 1.3, 0.2)
+    # honkytonk: the pub's upright, two strings a note a little apart, an oompah bass, a tambourine, and
+    # the landlord's bell twice at the end, like last orders
+    for at, dur, n in c.ev:
+        m.add(at, piano(_hz(n), dur), 0.45, pan=0.1)
+        m.add(at + 0.006, piano(_hz(n) * 1.007, dur, 0.8), 0.3, pan=-0.1)
+    for k, at in c.eighths():
+        if k % 2 == 0:
+            m.add(at, piano(_hz(c.root - 24 + (7 if k % 4 == 2 else 0)), c.beat * 0.4, 0.9), 0.35)
+        else:
+            for j, n in enumerate(c.chord[1:4]):
+                m.add(at + 0.004 * j, piano(_hz(n - 12), c.beat * 0.3, 0.6), 0.12)
+        m.add(at, shaker(1.0 if k % 2 else 0.5), 0.9, pan=0.4)
+    for j, n in enumerate(c.chord):
+        m.add(c.last_at + 0.03 * j, piano(_hz(n), c.hold(), 0.65), 0.22, pan=-0.3 + 0.15 * j)
+    m.add(c.last_at, piano(_hz(c.root - 24), c.hold(), 0.9), 0.4)
+    for d in (0.1, 0.45):
+        m.add(c.last_at + d, bell(_hz(c.chord[-1] + 12)), 0.4, pan=0.3)
+    return _reverb(m.buf, 1.4, 0.22)
+
+
 SHOW_ARRANGEMENTS = {"quayside": _quayside, "phonein": _phonein, "outabout": _outabout, "rockpool": _rockpool,
-                     "panel": _panel, "chamber": _chamber, "inquiry": _inquiry}
+                     "panel": _panel, "chamber": _chamber, "inquiry": _inquiry, "wits": _wits}
 
 
 # --- the music bed: a seamless loop under the cards, the test card and SEVENTEXT, and quietly under speech ---

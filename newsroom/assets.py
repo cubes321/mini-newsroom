@@ -141,6 +141,8 @@ def ensure_bumper(show: str = "news") -> Path:
     key = show if show in IDENTS else "news"
     path, text = IDENTS[key]
     music = IDENT_MUSIC.get(key, key)          # a programme with no music of its own borrows a show's
+    lead = schedule.get(show).lead
+    voice_id = IDENT_VOICES.get(key) or CONFIG.tts.voices.get(lead, "af_heart")
     stem = _stem(f"ident_{music}")
     if not _stale(path, stem):
         return path
@@ -150,9 +152,8 @@ def ensure_bumper(show: str = "news") -> Path:
         from . import jingle
 
         log.info("baking bumper from %s -> %s", stem.name, path.name)
-        lead = schedule.get(show).lead
-        ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{key}.wav",
-                               lang=_lang(lead))
+        ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{key}.wav",
+                               lang=None if key in IDENT_VOICES else _lang(lead))
         voice, _ = sf.read(str(ident.wav_path), dtype="float32")
         voicing = music if music in jingle.VOICINGS else "news"
         _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
@@ -167,9 +168,8 @@ def ensure_bumper(show: str = "news") -> Path:
     elif show == "late":
         notes = [220.0, 261.63, 329.63, 311.13]    # A C E E-flat: low, with a bluesy turn
     sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
-    lead = schedule.get(show).lead
-    ident = tts.synthesize(text, CONFIG.tts.voices.get(lead, "af_heart"), CONFIG.paths.cache / f"_ident_{show}.wav",
-                           lang=_lang(lead))
+    ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{show}.wav",
+                           lang=None if key in IDENT_VOICES else _lang(lead))
     voice, _ = sf.read(str(ident.wav_path), dtype="float32")
     gap = np.zeros(int(SR * 0.25), dtype=np.float32)
     _write(path, np.concatenate([sting, gap, voice, gap]))
@@ -289,6 +289,8 @@ def testcard_segment(seg: Segment) -> Segment:
 from . import christmas as _christmas  # noqa: E402
 
 IDENT_MUSIC: dict[str, str] = {}
+# A bumper read by someone other than its show's lead: Channel 8's closedown is the continuity announcer's.
+IDENT_VOICES: dict[str, str] = {}
 for _show, (_text, _music) in _christmas.IDENTS.items():
     IDENTS[_show] = (CONFIG.paths.assets / f"bumper_{_show}.wav", _text)
     IDENT_MUSIC[_show] = _music

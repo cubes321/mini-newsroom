@@ -1,9 +1,9 @@
-"""Continuity: what Channel 7 puts out between programmes when the next one isn't ready.
+"""Continuity: what the channel puts out between programmes when the next one isn't ready.
 
 Four kinds, all voiced by the continuity announcer:
 - ident: the logo builds to the station tune (the show's arrangement), then a line from the
   announcer ("This is Channel 7."). Rebuilt when the show's tune stem changes.
-- programmes: "Later on Channel 7": the next shows and their times, valid until the next one starts.
+- programmes: "Later on Channel 7" (the channel on air, channel.py): the next shows and their times, valid until the next one starts.
   It also airs ahead of a news bumper once an hour (`PROGRAMMES_EVERY_S`), gap or not.
 - notice: a 70s information slide read out. The daily tides and the Saltby ferry from
   tides.py (rebuilt each day), a few hand-written ones from the town, and community notices the
@@ -37,14 +37,16 @@ import numpy as np
 import soundfile as sf
 from pydantic import BaseModel
 
-from . import assets, safety, schedule, tides, tts
+from . import assets, channel, safety, schedule, tides, tts
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
 
 log = logging.getLogger(__name__)
 
 VOICE = "bf_isabella"           # the continuity announcer: nobody else on the station uses her
-SHOWS = ("news", "breakfast", "magazine", "late", "sport")
+SHOWS = ("news", "breakfast", "magazine", "late", "sport")    # whose idents are baked; the first stands in for the rest
+# Another channel brings its own idents and folder (entertainment.use()), so Channel 8 never says "This is Channel 7".
+FOLDER: Path | None = None      # the pool's folder; None: [paths] continuity
 
 # In a gap: ident, advert, a card (programmes, a trail or a notice), advert, advert, ident... then the filler card.
 GAP_PATTERN = ("ident", "advert", "card", "advert", "advert", "ident", "card")
@@ -74,7 +76,7 @@ NOTICES: dict[str, tuple[str, list[str]]] = {          # each line a whole sente
     "lifeboat": ("RNLI PORT WEXLEY", [
         "The lifeboat crew thank everyone who gave to Saturday's collection on the quay.",
         "The boathouse is open to visitors on Sunday afternoons."]),
-    "reception": ("CHANNEL 7", [
+    "reception": ("{channel}", [
         "Viewers in Saltby and the upper valley may see a weaker picture during high winds.",
         "Engineers are aware. Please don't adjust your sets."]),
 }
@@ -183,7 +185,7 @@ class Pool:
         with self._lock:
             ok = [it for it in self._items.values() if it.kind in kinds
                   and (not it.valid_from or it.valid_from <= now) and (not it.valid_until or now < it.valid_until)
-                  and (it.kind != "ident" or it.show == (show if show in SHOWS else "news"))]
+                  and (it.kind != "ident" or it.show == (show if show in SHOWS else SHOWS[0]))]
             if not ok:
                 return None
             it = min(ok, key=lambda i: (self._aired.get(i.id, 0.0), CARDS.index(i.kind) if i.kind in CARDS else 0,
@@ -202,7 +204,7 @@ def pool() -> Pool:
     global _pool
     with _pool_lock:
         if _pool is None:
-            _pool = Pool(CONFIG.paths.continuity)
+            _pool = Pool(FOLDER or CONFIG.paths.continuity)
         return _pool
 
 
@@ -283,7 +285,7 @@ def _spoken_time(ts: float) -> str:
 
 
 def bake_programmes(now: float, world=None) -> Item:
-    """'Later on Channel 7': the next shows with their times, and tonight's documentary if it is
+    """'Later on Channel 7' (or the channel on air): the next shows with their times, and tonight's documentary if it is
     still to come. Valid until the first of them starts, so it never says something stale."""
     from . import documentary
 
@@ -307,8 +309,9 @@ def bake_programmes(now: float, world=None) -> Item:
     item_id = f"programmes_{datetime.fromtimestamp(now):%Y%m%d}_{time.strftime('%H%M', time.localtime(entries[0][0]))}"
     shown = [f"{time.strftime('%H:%M', time.localtime(ts))}  {title}" for ts, title in entries]
     said = [f"at {_spoken_time(ts)}, {title.title()}" for ts, title in entries]
-    spoken = ["Later on Channel 7: " + ", ".join(said[:-1]) + (", and " if len(said) > 1 else "") + said[-1] + "."]
-    seg = _read_card(item_id, "programmes", "LATER ON CHANNEL 7", shown, spoken, schedule.show_at(now).id)
+    name = channel.CURRENT.name
+    spoken = [f"Later on {name}: " + ", ".join(said[:-1]) + (", and " if len(said) > 1 else "") + said[-1] + "."]
+    seg = _read_card(item_id, "programmes", f"LATER ON {name.upper()}", shown, spoken, schedule.show_at(now).id)
     return Item(id=item_id, kind="programmes", valid_from=now, valid_until=entries[0][0], segment=seg)
 
 
@@ -334,6 +337,7 @@ def bake_tides(day: date) -> Item:
 
 def bake_notice(key: str) -> Item:
     title, lines = NOTICES[key]
+    title = title.format(channel=channel.CURRENT.name.upper())
     return Item(id=f"notice_{key}", kind="notice", segment=_read_card(f"notice_{key}", "notice", title, lines))
 
 
@@ -373,7 +377,7 @@ TRAIL_LEAD_S = 600.0            # not worth a trail for something on in less tha
 _tried_notice = 0.0             # the last community notice attempt, so a dead model isn't asked every tick
 
 _TRAIL_SYSTEM = """\
-You write continuity trails for channel seven in the FICTIONAL town in the briefing: what the
+You write continuity trails for {said} in the FICTIONAL town in the briefing: what the
 announcer says over a slide so viewers stay for a programme later today. The time and title are
 read out just before your words, so don't repeat them. Say what the piece is about and why it
 matters to the town, from the facts given only: 20 to 40 words, warm and plain, no hype, no
@@ -382,7 +386,7 @@ already on the slide: don't repeat it). Return ONLY JSON.
 """
 
 _NOTICE_SYSTEM = """\
-You write public-information slides for channel seven in the FICTIONAL town in the briefing, shown
+You write public-information slides for {said} in the FICTIONAL town in the briefing, shown
 between programmes like an old regional TV notice board. Take ONE open story from the briefing and
 write the practical notice a local body would put out about it, addressed to the public: what people
 can go to, do, avoid or bring (a road or path closed, a meeting and where, a collection point, changed
@@ -468,7 +472,7 @@ def bake_trail(world, seg: Segment, airs: float, now: float) -> Item:
     strand = (documentary.strand_name(seg.work.get("strand") or CONFIG.documentary.title)
               if documentary.is_documentary(seg) else "a special report")
     said_when, header = _when(airs)
-    lead = f"{said_when} on Channel 7: {strand}, {title}" + ("" if title[-1:] in ".?!" else ".")
+    lead = f"{said_when} on {channel.CURRENT.name}: {strand}, {title}" + ("" if title[-1:] in ".?!" else ".")
     thread = world.thread(seg.thread_id) if seg.thread_id else None
     facts = [f"Programme: {strand}, \"{title}\"", f"Standfirst: {standfirst}",
              f"Introduction: {outline.get('intro', '')}",
@@ -478,7 +482,7 @@ def bake_trail(world, seg: Segment, airs: float, now: float) -> Item:
     user = (f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\nTHE PROGRAMME\n" + "\n".join(facts)
             + f"\n\nRead out just before your words: \"{lead}\"" + _keys_hint(TrailScript))
     try:
-        script = llm.complete_json("promo", TrailScript, _TRAIL_SYSTEM, user)
+        script = llm.complete_json("promo", TrailScript, _TRAIL_SYSTEM.format(said=channel.CURRENT.said), user)
         if bad := safety.check(safety.strings(script)):
             raise llm.LLMError(f"the trail failed the content check ({bad!r})")
         shown = [s for s in script.shown if s.strip().lower() != title.lower()]   # the title is on the slide
@@ -506,7 +510,7 @@ def bake_community(world, now: float) -> Item | None:
     user = (f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\nToday is {day:%A %d %B}.\n\n"
             f"NOTICES ALREADY UP TODAY (take another story):\n{up or '  none yet'}" + _keys_hint(CommunityNotice))
     try:
-        n = llm.complete_json("promo", CommunityNotice, _NOTICE_SYSTEM, user)
+        n = llm.complete_json("promo", CommunityNotice, _NOTICE_SYSTEM.format(said=channel.CURRENT.said), user)
     except llm.LLMError as e:
         log.info("no community notice: %s", e)
         return None

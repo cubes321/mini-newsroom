@@ -441,7 +441,8 @@ class WorkerPool:
                     return
             # After the evening's bookings, which are one call each and due by 20:00: started at 19:40, the
             # documentary's eight stages kept the workers busy until The Chamber opened on its stand-in (2026-11-01).
-            if documentary.take_force() or documentary.should_commission(self.world, self.buffer):
+            specials = schedule.specials_air()          # Channel 8 airs none: no documentary or specials
+            if specials and (documentary.take_force() or documentary.should_commission(self.world, self.buffer)):
                 if kind := review.tonight(self.world):       # a Sunday, or New Year's Eve: no editor is asked
                     self.buffer.submit_special(review.commission(self.world, kind))
                     world_mod.save(self.world)
@@ -460,7 +461,7 @@ class WorkerPool:
                 return
             if self.buffer.special_pending("special"):   # a documentary waits for 21:00 all day; not this
                 return
-            if not force and not special.should_check(self.world):
+            if not specials or (not force and not special.should_check(self.world)):
                 return
             decision = special.decide(self.world, force=force)
             world_mod.save(self.world)

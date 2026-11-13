@@ -10,7 +10,7 @@ import pytest
 
 import entertainment
 from entertainment import oche, quiz
-from newsroom import darts, llm, player, scenes, schedule, world as world_mod, writers
+from newsroom import assets, channel as channel_mod, continuity, darts, llm, logo, player, scenes, schedule, world as world_mod, writers
 from newsroom.models import Segment, SegmentType as T
 
 
@@ -152,12 +152,21 @@ def test_the_channel_puts_wits_on_at_eight_and_undo_gives_back_channel_seven():
     before = schedule.show_at(eight).id
     undo = entertainment.use()
     try:
-        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 25)).id == "overnight"
+        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 25)).id == "closedown"
         assert schedule.show_end(eight) == _at(20, 20)                       # twenty minutes since 2026-11-07
-        assert scenes.SHOW_SETS["wits"] == "pub" and player.SEATS["wits"] == 4
+        assert scenes.SHOW_SETS["wits"] == "studio_quiz" and player.SEATS["wits"] == 4
+        # Channel 8 (2026-11-13): its own name and folder for continuity, and off air until seven the next evening
+        assert channel_mod.CURRENT.number == "8" and logo.wordmark() == "CHANNEL 8 · PORT WEXLEY"
+        assert continuity.FOLDER.name == "channel8" and continuity.SHOWS == ("wits",)
+        assert schedule.next_start("closedown", _at(20, 25)) == "19:00"
+        assert schedule.next_start("closedown", _at(3, 0)) == "19:00"               # one show over midnight
+        assert assets.IDENT_VOICES["closedown"] == continuity.VOICE
+        assert not schedule.specials_air()            # no documentary or specials made on its nights
     finally:
         undo()
     assert schedule.show_at(eight).id == before and "wits" not in schedule.SHOWS and "wits" not in writers.BOOKED_SHOWS
+    assert channel_mod.CURRENT is channel_mod.SEVEN and continuity.FOLDER is None and "closedown" not in assets.IDENT_VOICES
+    assert schedule.specials_air()
 
 
 def test_a_round_is_written_to_the_booking_on_the_pub_set_and_moves_no_story(channel, monkeypatch):

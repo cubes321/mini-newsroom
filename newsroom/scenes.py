@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import backdrops, film, locations, logo, parallax, schedule
+from . import backdrops, channel, film, locations, logo, parallax, schedule
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -260,8 +260,9 @@ def draw_test_card(canvas: pygame.Surface, t: float, v: View | None = None) -> N
         logo.draw_wordmark(canvas, w // 2, int(h * 0.76), show)
         text(canvas, "WE'LL BE BACK SHORTLY", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
     elif overnight:
-        logo.draw_wordmark(canvas, w // 2, int(h * 0.76), show)
-        text(canvas, f"PROGRAMMES RESUME AT {v.resume_at}", w // 2, int(h * 0.91), 8, (200, 200, 60), center=True)
+        logo.draw_wordmark(canvas, w // 2, int(h * 0.74), show)
+        text(canvas, f"PROGRAMMES RESUME AT {v.resume_at}", w // 2, int(h * 0.87), 8, (200, 200, 60), center=True)
+        text(canvas, channel.CURRENT.group, w // 2, int(h * 0.95), 6, (150, 150, 160), center=True)
     else:
         text(canvas, "MINI NEWSROOM", w // 2, int(h * 0.8), 14, center=True)
         if int(t * 2) % 2 == 0:
@@ -277,7 +278,7 @@ def draw_filler(canvas: pygame.Surface, v: View, t: float) -> None:
         y = int(h * 0.62 + math.sin(t * 0.8 + i * 0.05) * 6)
         pygame.draw.rect(canvas, (24, 36, 70), (i, y, 8, h - y))
     logo.draw_mark(canvas, w // 2, 42, v.show, r=24, t=t)
-    logo.draw_text(canvas, logo.WORDMARK, w // 2, 76, 1, gap=2, center=True)
+    logo.draw_text(canvas, logo.wordmark(), w // 2, 76, 1, gap=2, center=True)
     text(canvas, schedule.get(v.show).title, w // 2, 98, 14, center=True)
     text(canvas, "we'll be right back", w // 2, 116, 8, (180, 190, 220), center=True)
     if v.map_state:
@@ -785,7 +786,7 @@ def draw_notice(canvas: pygame.Surface, v: View, t: float) -> None:
         pygame.draw.rect(canvas, (22, 30, 52), (i, y, 8, h - y))
     pygame.draw.rect(canvas, col, (0, 0, w, 24))
     logo.draw_mark(canvas, 16, 12, v.show, r=9, t=t)
-    logo.draw_text(canvas, logo.WORDMARK, 32, 8, 1, gap=1)
+    logo.draw_text(canvas, logo.wordmark(), 32, 8, 1, gap=1)
     text(canvas, c.get("title", ""), w // 2, 40, 14, center=True, maxw=w - 20)
     pygame.draw.rect(canvas, col, (w // 2 - 40, 52, 80, 2))
     y = 62
@@ -825,7 +826,7 @@ def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:
     label = "BREAKING" if v.breaking else show.ticker
     size = next((n for n in (8, 7) if font(n).size(label)[0] <= 42), 6)      # COASTWIDE is a long word
     text(canvas, label, 22, h - 7, size, center=True, maxw=42)
-    items = v.ticker or [f"{show.title.title()}, channel seven"]
+    items = v.ticker or [f"{show.title.title()}, {channel.CURRENT.said}"]
     s = "   •   ".join(items) + "   •   "
     f = font(8)
     tw = f.size(s)[0] or 1

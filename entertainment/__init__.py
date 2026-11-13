@@ -1,41 +1,73 @@
-"""Port Wexley's second channel: entertainment, sharing the town, its world.json and its people with
-Channel 7 (docs/ENGINE.md). `python -m newsroom --channel entertainment` puts it out instead.
+"""Channel 8, Port Wexley's second channel: entertainment, sharing the town, its world.json and its people with
+Channel 7 (docs/ENGINE.md); both are WTV's, Wexley Television's (the user named them, 2026-11-13).
+`python -m newsroom --channel entertainment` puts it out instead.
 
 The engine is newsroom/'s; this package brings the channel's own day and shows and plugs them in
 through the engine's registries (writers.SHOW_SYSTEMS and the hooks beside it, workers.IDLE_JOBS,
-scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. For now the day has one show built,
-Wexley Wits at 20:00 (wits.py, quiz.py); the other hours are the overnight test card, which still
-shows Channel 7's ident and repeats until the channel has a bank of its own to fill them.
+scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is Cartoon Time at 19:00
+and Wexley Wits at 20:00 (wits.py, quiz.py); then the closedown: the announcer's goodnight once and
+the test card until seven the next evening, as small channels did, with no repeats and no SEVENTEXT
+(those are Channel 7's). New shows take hours from it as they are built.
 """
 from __future__ import annotations
 
 import random
 
+from newsroom.channel import Channel
+from newsroom.models import SegmentType as T
+from newsroom.schedule import Show
+
+CHANNEL_8 = Channel(number="8", name="Channel 8", said="channel eight", wordmark="CHANNEL 8 · PORT WEXLEY")
+
+# The closedown, one show from 20:20 to seven the next evening (one id, so the test card's "programmes
+# resume at" is 19:00, not midnight): the goodnight once, then the card on a loop.
+CLOSEDOWN = Show(
+    "closedown", "GOODNIGHT", "CHANNEL 8", (52, 56, 118),
+    pattern=(T.bumper, T.testcard), loop_from=1,
+    target_s={T.bumper: 14.0, T.testcard: 300.0},
+)
+CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at seven, with Cartoon "
+                  "Time. From all of us at WTV, goodnight.")
+
 # The channel's day: (start, show id), as schedule.SCHEDULE. One episode a night: two Wits slots back
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
-    (0, "overnight"),
+    (0, "closedown"),
     (19, "cartoons"),           # Cartoon Time: films from the bank (cartoons.py makes them, offline)
     (20, "wits"),
-    ("20:20", "overnight"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
+    ("20:20", "closedown"),     # twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
 )
+
+# The continuity announcer's lines over Channel 8's ident (continuity.IDENT_LINES): Cartoon Time and the
+# closedown take Wexley Wits' (the first), until they have tunes of their own.
+IDENT_LINES = {"wits": ["This is Channel 8.", "Channel 8, for Port Wexley and the Greymouth coast."]}
 
 
 def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
-    from newsroom import assets, locations, player, scenes, schedule, workers, writers
+    from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
     from . import oche, quiz, wits
     from .cartoons import CARTOON_TIME
 
     saved = (schedule.SCHEDULE, dict(schedule.SHOWS), dict(locations.MARKS), dict(assets.IDENTS),
-             list(workers.IDLE_JOBS), dict(writers._PLACE), dict(assets.IDENT_MUSIC))
+             list(workers.IDLE_JOBS), dict(writers._PLACE), dict(assets.IDENT_MUSIC), dict(assets.IDENT_VOICES),
+             channel.use(CHANNEL_8), (continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER))
+    # Channel 8's continuity has a folder of its own: Channel 7's pool says "This is Channel 7" over its idents.
+    continuity.SHOWS, continuity.IDENT_LINES = tuple(IDENT_LINES), IDENT_LINES
+    continuity.FOLDER = assets.CONFIG.paths.continuity / "channel8"
+    continuity._pool = None                                    # opened afresh on the new folder
     schedule.SCHEDULE = SCHEDULE
     schedule.SHOWS[quiz.SHOW] = wits.SHOW
     schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME
-    assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons.wav",
-                                      "It's Cartoon Time, on channel seven!")
+    schedule.SHOWS[CLOSEDOWN.id] = CLOSEDOWN
+    # A new file: bumper_cartoons.wav says "channel seven", and a bumper is only rebaked for new music.
+    assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons_8.wav",
+                                      "It's Cartoon Time, on channel eight!")
     assets.IDENT_MUSIC[CARTOON_TIME.id] = "rockpool"          # until Cartoon Time has music of its own
+    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown.wav", CLOSEDOWN_TEXT)
+    assets.IDENT_MUSIC[CLOSEDOWN.id] = quiz.SHOW
+    assets.IDENT_VOICES[CLOSEDOWN.id] = continuity.VOICE      # the continuity announcer says goodnight
     locations.MARKS[wits.SET] = wits.MARKS
     scenes.SHOW_SETS[quiz.SHOW] = wits.SET
     player.SEATS[quiz.SHOW] = 4
@@ -67,6 +99,10 @@ def use():
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
         assets.IDENT_MUSIC.clear(), assets.IDENT_MUSIC.update(saved[6])
+        assets.IDENT_VOICES.clear(), assets.IDENT_VOICES.update(saved[7])
+        channel.use(saved[8])
+        continuity.SHOWS, continuity.IDENT_LINES, continuity.FOLDER = saved[9]
+        continuity._pool = None
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
                     writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS):
