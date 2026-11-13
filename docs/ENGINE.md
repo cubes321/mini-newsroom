@@ -107,6 +107,9 @@ that day passes unreported. Channel 7's next night can then catch up on what hap
 
 ## Harbour Row and the town (2026-11-06)
 
+*The soap became **Marina Row** on 2026-11-13 (docs/MARINA_ROW.md): Harbour Row is a real street in the town. What
+follows holds for it under its new name.*
+
 **Actors and characters, as in real soaps.** Harbour Row is a drama with its own fictional
 characters, played by actors who live in Port Wexley. Its storylines are fiction inside the
 town, so a soap theft is never a crime the news has to report, and the news can still interview
@@ -175,9 +178,9 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
   guest pools on the town's own backdrops; recurring series later, on what the soap and the movie have built.
 - **Rotations go by Channel 8 night, not by weekday**, while the channels alternate: otherwise a weekday's show airs
   once a fortnight. They can move to weekdays when both channels run every night.
-- **The soap is set on a made-up street with a title of its own**, not on Harbour Row: that is a real street in the
-  town (its net menders, sailmaker and clockmaker, and news of its slates), and the soap's fiction is kept apart
-  from it. The name is still to be chosen.
+- **The soap is Marina Row** (the user, 2026-11-13), a television street and not Harbour Row: that is a real street
+  in the town (its net menders, sailmaker and clockmaker, and news of its slates), and the soap's fiction is kept
+  apart from it. Its cast, actors, places and opening storylines are in docs/MARINA_ROW.md, the series bible.
 - **Head-and-shoulders figures first** (stage A): soap scenes are mostly two or three people across a bar or a
   kitchen table. Walking full figures (stage B) come once the story engine has worked on air.
 

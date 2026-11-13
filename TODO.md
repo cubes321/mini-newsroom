@@ -111,9 +111,11 @@ bottom with the date.
   SERVICE"), with no repeats and no SEVENTEXT (Channel 7's). New shows take hours from it as they come.
 - [ ] **Channel 8's evening, 18:00 to 23:00** (planned with the user 2026-11-13; docs/ENGINE.md "Channel 8's evening"),
   in this order:
-  - **The soap**, 20:20 to 20:40 (after Wits, so The Kettle's On keeps its hour): a made-up street and a title of its
-    own (not the real Harbour Row), head-and-shoulders figures first. Its "scene" item is the drama engine for the
-    TV movie, the sitcom and the anthology.
+  - **Marina Row**, the soap, 20:20 to 20:40 (after Wits, so The Kettle's On keeps its hour): a television street,
+    not the real Harbour Row; head-and-shoulders figures first. The bible is agreed (docs/MARINA_ROW.md: the
+    Kernicks, the Lockwoods and Sal at The Mermaid, six resident actors, three opening storylines). Next: looks on a
+    contact sheet, voices by ear, four sets (Queenie's kitchen, The Mermaid, The Loft, the Row), then the engine.
+    Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
