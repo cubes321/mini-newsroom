@@ -373,8 +373,15 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
 LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a little dimmer and cooler
 
 
+# A name pinned to a look from outside (entertainment/): a soap character is their actor in costume, whatever the
+# name would hash to.
+PINNED_LOOKS: dict = {}
+
+
 def _guest(v: View, name: str | None):
     """A guest's look from their voice and role, as the player found them; by name alone otherwise."""
+    if PINNED_LOOKS and (look := PINNED_LOOKS.get((name or "").strip())):
+        return look
     return guest_look(name, *v.guests.get(name or "", ("", "", "")))
 
 
@@ -390,6 +397,8 @@ def _interview_set(v: View) -> str:
     of its own, which beats all of these."""
     if SET_OVERRIDE:
         return SET_OVERRIDE
+    if getattr(v, "set_id", ""):                                # the item's own: a drama's scene
+        return v.set_id
     if v.set == "sports":
         return "studio_sports"
     if v.show == "chamber" and len(v.people) == 1 and v.people[0][0] != "guest":
@@ -404,6 +413,8 @@ def _interview_marks(v: View) -> list[tuple[str, str | None, tuple[int, int, int
     if "gully" in marks:                                        # Rock Pool: Poppy, Gully on her arm, a visitor
         seat = {"kids": "host", "gully": "gully"}
         return [(who, name, marks[seat.get(who, "guest")]) for who, name in v.people[:3]]
+    if "a" in marks:                                            # a drama's set: a, b, c in the order they're seated
+        return [(who, name, marks[k]) for (who, name), k in zip(v.people, ("a", "b", "c")) if k in marks]
     if len(v.people) == 1:
         who, name = v.people[0]
         if v.show == "late" or v.set == "sports" or _interview_set(v) in ("chamber_press", "studio_phonein"):
@@ -894,12 +905,12 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
         canvas.fill((0, 0, 0))                       # the film is drawn at the window's size (present)
     else:
         SCENES.get(v.mode, draw_studio)(canvas, v, t)
-        if overlays and v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
+        if overlays and not getattr(v, "bare", False) and v.mode not in ("bumper", "breaking", "advert", "ident", "notice"):
             draw_lower_third(canvas, v)
             draw_ticker(canvas, v, t)
         if shows_bug(v):
             logo.draw_bug(canvas)
-        if overlays:
+        if overlays and not (getattr(v, "bare", False) and v.mode == "studio"):
             draw_clock(canvas, v)
     if debug:
         # Bottom-left, between the lower third and the ticker, clear of scene tags.

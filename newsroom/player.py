@@ -46,6 +46,9 @@ LET_FINISH_S = 12.0        # breaking news waits for a segment with less than th
 
 # How many guests a show from outside this package seats on its set (entertainment/ fills it).
 SEATS: dict[str, int] = {}
+# Shows played bare, as a drama is: no lower thirds, no ticker, no clock, and their headlines never join the ticker
+# of the shows after them (entertainment/: Channel 8's soap).
+BARE_SHOWS: set[str] = set()
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
 
@@ -67,6 +70,8 @@ class View:
     mode: str = "testcard"               # testcard | filler | bumper | studio | weather | field | special
     show: str = "news"                   # schedule.SHOWS id: picks the set and the branding
     set: str = ""                        # "interview" on the interview set, "sports" at the sports corner
+    set_id: str = ""                     # an item's own set (seg.work["set"]): a drama's scene, wherever it is
+    bare: bool = False                   # a BARE_SHOWS show: no lower third, ticker or clock
     people: list = field(default_factory=list)   # who is on that set: [(speaker id, guest name or None)]
     presenter: str = "anchor"            # who stands at the big-picture wall
     reporter: str = "reporter"           # who is out on location: Miles, or Tamsin on Full Time
@@ -211,7 +216,7 @@ class Player:
             self.programmes_at = now
         if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
-            if seg.headline:
+            if seg.headline and seg.show not in BARE_SHOWS:
                 self.ticker.append((seg.show, seg.headline))
             if seg.type is SegmentType.weather:
                 self.last_weather = seg
@@ -585,6 +590,7 @@ class Player:
                  tod=time_of_day(local.tm_hour), weather=self.world.last_weather.get("map_state"))
         on_air = schedule.show_at(now)
         v.show = on_air.id
+        v.bare = v.show in BARE_SHOWS
         seg = self.current
         v.held = self.holding
         if seg is None:
@@ -610,6 +616,7 @@ class Player:
         v.replay = self.replaying
         v.repeat = seg.repeat
         v.show = seg.show
+        v.bare = v.show in BARE_SHOWS           # what is playing, if it started before its slot
         v.breaking = seg.type is SegmentType.breaking
         if seg.show == "rockpool":           # no news on the children's ticker: their own items, or the title
             v.ticker = [h for s, h in self.ticker if s == "rockpool"]
@@ -661,6 +668,7 @@ class Player:
                                                                              "chamber")):
             sports = seg.type is SegmentType.sport or seg.show == "sport"
             v.set, v.people = "sports" if sports else "interview", self._people(seg)
+            v.set_id = seg.work.get("set", "")
             if seg.type not in INTERVIEW_SET:            # back from a film: the presenters, not its resident
                 v.people = [p for p in v.people if p[0] != "guest"]
             v.presenter = next((p for p, _ in v.people if p != "guest"), v.presenter)

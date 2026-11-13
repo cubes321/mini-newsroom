@@ -6,8 +6,11 @@ two days after one has aired, the writers' briefing has a line with who won, the
 drop into the sofa's chat, a caller's aside or a vox pop. It is talk, not news: the line says so,
 and the story desk never sees it, so no thread grows from it.
 
-Read from the world alone (`world.quizzes`, the archive): this module knows nothing of the other
-channel's code, and a station that never runs it has no talk.
+Its soap, Marina Row, is talked about too: an aired episode's cliffhanger, the question and never the
+answer (soap below).
+
+Read from the world alone (`world.quizzes`, `world.soaps`, the archive): this module knows nothing of
+the other channel's code, and a station that never runs it has no talk.
 """
 from __future__ import annotations
 
@@ -56,7 +59,33 @@ def quiz(world, today: date) -> str | None:
     return None
 
 
+def soap(world, today: date) -> list[str]:
+    """Each Channel 8 drama's latest cliffhanger that aired in the last TALK_DAYS, as a sentence: the question the
+    episode left, never what happens next (the arc stays in entertainment/soap.py). An episode counts as aired once
+    its last scene went out (`last_brief`, its closing item's brief); one planned but never shown is nobody's talk.
+    Read from the world alone (world.soaps): this module knows nothing of the other channel's code."""
+    out = []
+    for series in world.soaps.values():
+        for ep in reversed(series.get("episodes", [])):
+            try:
+                day = date.fromisoformat(ep["date"])
+                gap = (today - day).days
+                if gap < 1:                    # tonight's: not shown yet, as far as the town knows
+                    continue
+                if gap > TALK_DAYS:
+                    break
+                if not any(e.get("show") == series["show"] and e.get("date") == ep["date"]
+                           and e.get("brief") == ep["last_brief"] for e in world.aired_archive()):
+                    continue
+                out.append(f"{series['title']}, the soap on Channel 8, {day:%A} night: everyone is asking "
+                           f"\"{ep['cliffhanger']}\" (nobody knows the answer yet).")
+                break
+            except (KeyError, TypeError, ValueError):
+                continue                       # an entry saved in an older shape: no talk from it
+    return out
+
+
 def line(world, today: date) -> str:
     """The briefing's town-talk line, with its newline, or nothing."""
-    said = quiz(world, today)
-    return f"{LABEL}{said}\n" if said else ""
+    said = [s for s in (quiz(world, today), *soap(world, today)) if s]
+    return f"{LABEL}{' '.join(said)}\n" if said else ""

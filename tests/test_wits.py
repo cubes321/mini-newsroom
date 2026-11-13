@@ -152,13 +152,14 @@ def test_the_channel_puts_wits_on_at_eight_and_undo_gives_back_channel_seven():
     before = schedule.show_at(eight).id
     undo = entertainment.use()
     try:
-        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 25)).id == "closedown"
+        assert schedule.show_at(eight).id == "wits" and schedule.show_at(_at(20, 25)).id == "marina"   # the soap
+        assert schedule.show_at(_at(20, 45)).id == "closedown"
         assert schedule.show_end(eight) == _at(20, 20)                       # twenty minutes since 2026-11-07
         assert scenes.SHOW_SETS["wits"] == "studio_quiz" and player.SEATS["wits"] == 4
         # Channel 8 (2026-11-13): its own name and folder for continuity, and off air until seven the next evening
         assert channel_mod.CURRENT.number == "8" and logo.wordmark() == "CHANNEL 8 · PORT WEXLEY"
         assert continuity.FOLDER.name == "channel8" and continuity.SHOWS == ("wits",)
-        assert schedule.next_start("closedown", _at(20, 25)) == "19:00"
+        assert schedule.next_start("closedown", _at(20, 45)) == "19:00"
         assert schedule.next_start("closedown", _at(3, 0)) == "19:00"               # one show over midnight
         assert assets.IDENT_VOICES["closedown"] == continuity.VOICE
         assert not schedule.specials_air()            # no documentary or specials made on its nights
@@ -196,7 +197,7 @@ def test_a_round_is_written_to_the_booking_on_the_pub_set_and_moves_no_story(cha
     assert "WEXLEY WITS, a pub quiz" in system and "THE SCORE AFTER ROUND 2" in user and "THE TEAMS" in user
     _, close = writers.build_prompt(T.interview, w, target_s=110, show=schedule.get("wits"), part="close",
                                     brief="the RESULT, {close}", at_ts=_at(20, 18))
-    assert "that's all for tonight" in close and "Port Wexley News" not in close   # the test card follows
+    assert "Marina Row follows at 20:20" in close and "Port Wexley News" not in close   # the soap follows
 
 
 def test_with_the_model_down_a_round_is_still_tonights_questions_and_score(channel, monkeypatch):

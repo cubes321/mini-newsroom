@@ -1,5 +1,5 @@
-"""Marina Row, Channel 8's soap (docs/MARINA_ROW.md, the series bible): its cast so far. The engine (the scene
-item, episodes, cliffhangers as town talk) is still to build; nothing reads this module yet.
+"""Marina Row, Channel 8's soap (docs/MARINA_ROW.md, the series bible): the series the soap engine plays
+(entertainment/soap.py), at 20:20 each Channel 8 night: its cast, sets, bible and opening storylines.
 
 The characters are fiction and never join the town's people; their actors are Port Wexley residents and will.
 Each character's look is the actor in costume, drawn in code like every character (chosen by the user on a
@@ -63,9 +63,10 @@ SETS: dict[str, tuple[str, str, dict[str, tuple[int, int, int, int]]]] = {
                        "a dresser of blue-and-white plates, the oilcloth table",
                        {"a": (96, 151, 2, 1), "b": (224, 151, 2, -1), "c": (160, 151, 2, -1)}),
     "marina_mermaid": ("The Mermaid", "the Row's pub: the bar with its pumps, bottles and optics, a pub table, a "
-                       "mermaid painting", {"a": (70, 151, 2, 1), "b": (196, 153, 2, -1), "c": (266, 153, 2, -1)}),
+                       "mermaid painting; mark a is behind the bar (Sal's place), b and c at the table", {"a": (70, 151, 2, 1), "b": (196, 153, 2, -1), "c": (266, 153, 2, -1)}),
     "marina_loft": ("The Loft", "the Lockwoods' small-plates restaurant: bare brick, Edison bulbs, the pass, a table "
-                    "for two, the yachts through the window",
+                    "for two, the yachts through the window; mark a is behind the pass (Harriet's, or Kerra "
+                    "working), b and c at the table",
                     {"a": (66, 151, 2, 1), "b": (200, 153, 2, -1), "c": (268, 153, 2, -1)}),
     "marina_row": ("the Row", "the quay at dusk: Queenie's net loft, the converted flats, The Loft's lit window, the "
                    "pontoon and yachts", {"a": (90, 153, 2, 1), "b": (204, 153, 2, -1), "c": (262, 153, 2, -1)}),
@@ -80,3 +81,64 @@ def register_sets() -> None:
     for sid, (name, blurb, marks) in SETS.items():
         locations.BY_ID[sid] = locations.Location(sid, name, blurb, "studio", (40, 50, 80), (80, 60, 50))
         locations.MARKS[sid] = dict(marks)
+
+
+BIBLE = (
+    "Marina Row is a short street on the far side of a Cornish harbour: a television street, a set at WTV's "
+    "studios, not a real street in Port Wexley (not Harbour Row). Its old net lofts have just been turned into flats "
+    "and a restaurant, The Loft, beside a new pontoon for yachts, and the last crabbing family on the Row now lives "
+    "next door to money from away. The Kernicks: Queenie, seventies, a skipper's widow, sharp-tongued and "
+    "immovable, who owns the last unconverted net loft and won't sell it; her son Davey, forties, skipper of the "
+    "last crabber on the Row, stubborn, decent and behind on the boat's loan; and his daughter Kerra, nineteen, "
+    "who wants out of Port Wexley and is secretly working at The Loft. The Lockwoods, incomers from London: "
+    "Harriet, forties, charming and ambitious, who runs The Loft and wants Queenie's loft next door; and Tristan, "
+    "forties, who works from home, is desperate to be liked by the locals and keeps making it worse. Sal Annear, "
+    "fifties, landlady of The Mermaid, the Row's pub, knows everything about everyone and has history with Davey. "
+    "Old town against new money, fought over moorings, lofts and a granddaughter."
+)
+
+OPENING = (
+    "The pontoon: Tristan's petition to extend the yacht pontoon would take the crabbers' moorings, and with them "
+    "Davey's living.",
+    "The loft: Harriet offers for Queenie's net loft; Queenie says no; Harriet raises the offer.",
+    "Kerra's secret: she is working at The Loft, saving to leave; Queenie must not find out.",
+)
+
+# With no model: the bible's first night, its cliffhanger as planned (docs/MARINA_ROW.md).
+STAND_IN = (
+    "The Petition",
+    "What will Queenie do now she knows about Kerra?",
+    "Kerra Kernick. In her apron.",
+    (("marina_mermaid", ("Sal Annear", "Davey Kernick"), "Davey hears in the pub about Tristan's petition to "
+      "extend the pontoon over the crabbers' moorings."),
+     ("marina_loft", ("Harriet Lockwood", "Tristan Lockwood"), "Harriet tells Tristan she has made Queenie an offer "
+      "for her loft, and that the petition must wait."),
+     ("marina_kitchen", ("Queenie Kernick", "Davey Kernick", "Kerra Kernick"), "Queenie tears up Harriet's letter "
+      "over tea; Kerra says she is going out with friends."),
+     ("marina_row", ("Davey Kernick", "Tristan Lockwood"), "Tristan tries to win Davey over on the quay, and makes it "
+      "worse."),
+     ("marina_mermaid", ("Sal Annear", "Queenie Kernick"), "Queenie tells Sal she will never sell; Sal says nothing "
+      "about what she has seen."),
+     ("marina_row", ("Queenie Kernick", "Harriet Lockwood"), "Queenie, out with the bins, sees her granddaughter "
+      "through The Loft's window in one of Harriet's aprons.")),
+    # Spares: side scenes for spare minutes, changing nothing.
+    (("marina_mermaid", ("Sal Annear", "Tristan Lockwood"), "Tristan tries to order something Sal doesn't stock."),
+     ("marina_kitchen", ("Queenie Kernick", "Kerra Kernick"), "Queenie teaches Kerra her mother's way with a pasty "
+      "crimp; Kerra is hopeless at it."),
+     ("marina_row", ("Davey Kernick", "Sal Annear"), "Davey and Sal remember a storm on the quay twenty years ago.")),
+)
+
+
+def _series():
+    from .soap import Series
+
+    return Series(id="marina", title="Marina Row", bible=BIBLE, cast=CAST, sets=SETS, airs_at="20:20",
+                  opening=OPENING, stand_in=STAND_IN, colour=(46, 96, 128),
+                  quiet=(("marina_mermaid", ("Sal Annear", "Davey Kernick"), "the weather and the boats"),
+                         ("marina_loft", ("Harriet Lockwood", "Tristan Lockwood"), "a new dish Tristan doesn't like"),
+                         ("marina_kitchen", ("Queenie Kernick", "Kerra Kernick"), "a box of old photographs"),
+                         ("marina_row", ("Tristan Lockwood", "Davey Kernick"), "the gulls, awkwardly")),
+                  ident="Now on Channel 8: Marina Row.")
+
+
+MARINA_ROW = _series()

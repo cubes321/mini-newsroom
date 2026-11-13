@@ -129,7 +129,7 @@ def digest(world, day: date, *, keep: bool = False) -> dict:
     without it they point at the cache (today's page, read live by the Sunday review)."""
     iso = day.isoformat()
     with world.lock:
-        entries = [e for e in world.aired_archive() if e.get("date") == iso]
+        entries = [e for e in world.aired_archive() if e.get("date") == iso and not e.get("fiction")]   # no soap
         threads = list(world.threads)
         chamber = next((c for c in world.chambers if c.get("date") == iso), None)
         promised = [p for p in world.promises if p.get("made") == iso]

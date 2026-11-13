@@ -184,6 +184,17 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 - **Head-and-shoulders figures first** (stage A): soap scenes are mostly two or three people across a bar or a
   kitchen table. Walking full figures (stage B) come once the story engine has worked on air.
 
+## The soap engine, built (2026-11-13)
+
+`entertainment/soap.py` plays a series (Marina Row first: `entertainment/marina_row.py`, docs/MARINA_ROW.md) one
+episode a Channel 8 night, on the interview item with every line a character, like Wits' rounds. The engine gained
+small generic hooks for it, all filled by `soap.register` and undone with `entertainment.use()`'s undo:
+`writers.FICTION_SHOWS` (nothing of the show reaches the town; `world.record_aired(fiction=True)` keeps only that it
+aired, and the archive search and the annals skip it), `world.PINNED_VOICES` and `scenes.PINNED_LOOKS` (a character
+speaks and looks like their actor), `player.BARE_SHOWS` (no lower third, ticker or clock, and no ticker entries),
+an item's own set (`seg.work["set"]`, `View.set_id`), and marks named a, b, c. `talk.soap` gives Channel 7 an aired
+episode's cliffhanger, the question only. The TV movie, the sitcom and the anthology are meant to reuse it.
+
 ## The content bank, built (2026-11-07)
 
 `newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them

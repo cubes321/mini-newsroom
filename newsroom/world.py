@@ -94,6 +94,14 @@ VISITOR_VOICES_F = ["af_us_nicole", "af_us_kore", "af_us_aoede", "af_us_nova", "
 VISITOR_VOICES_M = ["am_us_puck", "am_us_echo", "am_us_fenrir", "am_us_adam"]
 VISITOR_VOICES = VISITOR_VOICES_F + VISITOR_VOICES_M
 GUEST_CAST = "2026-11-01"       # the town's guests spread over the voices by gender, age and name (_recast_guests)
+# A name pinned to a voice from outside (entertainment/): a soap character speaks with their actor's voice, never one
+# hashed from the name: name -> (voice, speed, Kokoro's pronunciation). Checked before anyone in the town, so a
+# resident who happens to share a surname can't take the line.
+PINNED_VOICES: dict[str, tuple[str, float, str]] = {}
+
+
+def _pinned(name: str | None) -> tuple[str, float, str] | None:
+    return PINNED_VOICES.get((name or "").strip()) if PINNED_VOICES else None
 # A guest's speaking speed: the old a little slower, the young a little quicker.
 SPEEDS = {"young": [1.0, 1.04, 1.08], "middle": [0.95, 0.98, 1.0, 1.03], "old": [0.88, 0.92, 0.95],
           "": [0.92, 0.97, 1.0, 1.04, 1.08]}
@@ -202,6 +210,9 @@ class World:
     promises: list[dict] = field(default_factory=list)    # what full council voted would happen (promises.py): {id, made, thread_id, text, due, state}
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}
     kettles: list[dict] = field(default_factory=list)     # The Kettle's On (entertainment/kettle.py): {date, dish, sofa, expert, ...}
+    # Channel 8's dramas (entertainment/soap.py), by series id: {arc, episodes}. Fiction: no reader of the town's
+    # news looks here; talk.py takes a cliffhanger from an episode once it has aired.
+    soaps: dict[str, dict] = field(default_factory=dict)
     bank_aired: dict[str, list[str]] = field(default_factory=dict)   # content bank item -> the days it aired (bank.py)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
@@ -466,6 +477,8 @@ class World:
     @_locked
     def voice_for(self, speaker: str, guest_name: str | None = None) -> str:
         if speaker == "guest":
+            if pin := _pinned(guest_name):
+                return pin[0]
             c = self.presenter_named(guest_name)
             if c:
                 return c.voice
@@ -481,6 +494,8 @@ class World:
     @_locked
     def speed_for(self, speaker: str, guest_name: str | None = None) -> float:
         if speaker == "guest":
+            if pin := _pinned(guest_name):
+                return pin[1]
             if self.presenter_named(guest_name):
                 return 1.0
             p = self.person_by_name(guest_name)
@@ -494,7 +509,7 @@ class World:
     def age_for(self, speaker: str, guest_name: str | None = None) -> str | None:
         """A guest's age as cast ("young", "middle", "old"), for a voice that has an age of its own (Pocket's
         clips, `tts.clip_for`); None for a presenter or someone not yet cast."""
-        if speaker != "guest" or self.presenter_named(guest_name):
+        if speaker != "guest" or _pinned(guest_name) or self.presenter_named(guest_name):
             return None
         p = self.person_by_name(guest_name)
         return (p.age or None) if p else None
@@ -506,6 +521,8 @@ class World:
         if speaker != "guest":
             c = self.character(speaker)
             return (c.lang or None) if c else None
+        if pin := _pinned(guest_name):
+            return pin[2]
         if CONFIG.tts.british_guests and not self.presenter_named(guest_name):
             p = self.person_by_name(guest_name)
             if p and p.accent == "british":
@@ -528,12 +545,16 @@ class World:
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
                      show: str = "", brief: str = "", content_hash: str = "", aired: bool = True,
-                     guest: str = "") -> None:
+                     guest: str = "", fiction: bool = False) -> None:
         """Archive entry for a scripted segment, with its named guest if it had one (`guests_today`);
         also counts appearances of named people. The
         writers make it when the script is written (`aired=False`), as the next writers have to
         see what is about to air; it becomes history when the player says it went out
-        (confirm_aired), and one that never does is dropped (drop_unaired)."""
+        (confirm_aired), and one that never does is dropped (drop_unaired). A `fiction` entry (a drama on the
+        other channel: writers.FICTION_SHOWS) keeps only that it aired, never its words or anyone in them, so no
+        reader that doesn't filter by show (the documentary's search, the annals) takes a soap scene for news."""
+        if fiction:
+            text, guest = "", ""
         named = [p.id for p in self.people if p.name.split()[-1] in text and p.name.split()[0] in text]
         if aired:
             self._count_appearances(named)
@@ -551,6 +572,8 @@ class World:
             entry.update(aired=False, ts=schedule.now())
         if guest:
             entry["guest"] = guest
+        if fiction:
+            entry["fiction"] = True
         self.archive.append(entry)
         self.archive = self.archive[-MAX_ARCHIVE:]
 
@@ -883,6 +906,8 @@ class World:
         words = [w for w in query.lower().split() if len(w) > 3]
         scored = []
         for e in self.aired_archive():
+            if e.get("fiction"):                  # a soap scene is no record of the town
+                continue
             blob = f"{e['headline']} {e['text']}".lower()
             score = sum(blob.count(w) for w in words)
             if score:

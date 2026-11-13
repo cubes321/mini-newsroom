@@ -770,6 +770,9 @@ AFTER_HOOKS: dict[str, Callable] = {}     # (seg, world): once seg.lines are set
 # phonein's), so their lines aren't the caller's; and how a caller's memory names the show.
 STUDIO_HOOKS: dict[str, Callable[[World], str | None]] = {}
 CALLED: dict[str, str] = {}
+# A drama (Channel 8's soap): its speakers are characters played by actors, fiction inside the town. Nothing it says
+# reaches the town: no headline, no person, memory or loose end, no story; its archive entry says only that it aired.
+FICTION_SHOWS: set[str] = set()
 
 
 def big_story(world: World):
@@ -1882,6 +1885,11 @@ _recent_guests: deque[str] = deque(maxlen=8)
 
 
 def _apply_to_world(seg: Segment, script, world: World, *, template: bool = False) -> None:
+    if seg.show in FICTION_SHOWS:             # the model's script or the stand-in alike
+        seg.thread_id = None
+        world.record_aired(seg.type.value, script.headline, None, "", content_hash=seg.content_hash, show=seg.show,
+                           brief=seg.brief, aired=False, fiction=True)
+        return
     world.record_headline(script.headline)
     if isinstance(script, WeatherScript):
         world.record_weather(script.map_state, script.temp_c, script.headline)

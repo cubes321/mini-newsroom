@@ -117,7 +117,18 @@ bottom with the date.
     chosen 2026-11-13 (`entertainment/marina_row.py`: data/contact-sheets/2026-11-13-marina-row-cast.png, the
     DramaBox voices on data/voice-samples/marina-row), and its four sets (`marina_kitchen`, `marina_mermaid`,
     `marina_loft`, `marina_row`: data/contact-sheets/2026-11-13-marina-row-sets.png, registered at run time by
-    `marina_row.register_sets`, never offered to Channel 7's writers). Next: the engine.
+    `marina_row.register_sets`, never offered to Channel 7's writers). **The engine, built 2026-11-13**
+    (`entertainment/soap.py`, docs/MARINA_ROW.md "How it airs"): Sonnet plans each episode (six scenes, five or six
+    spare side scenes, the cliffhanger's question and closing line) and every six aired episodes an arc; Haiku writes
+    the scenes, each character speaking as themselves. Two scratch runs: model off (the stand-in) and model on
+    ("The Small Print": every scene by the model, the cliffhanger word for word at 20:38, no character in the town,
+    no headline leaked; 3 Sonnet and 18 Haiku calls). Fixed on the way: the soap started early when Wits ran short
+    and wore Wits' captions (the view now takes "bare" from what's playing); spare minutes were all adverts (now
+    side scenes, three to a break, then quiet moments in turn); three side scenes made the same topical joke and one
+    named a real pub (prompt rules). Also fixed: Channel 8's scenes could air in Channel 7's overnight repeats (an
+    unknown show passed as the news). Left: the ident (the cello stands in, `bumper_marina.wav` untracked, by ear);
+    end credits; Sonnet for the scenes too (compare with `--route interview=claude_sonnet`); the actors' looks on
+    Channel 7 nights; Wits' and The Kettle's On's headlines still reach Channel 7's "Recent headlines".
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
