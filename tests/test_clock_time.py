@@ -84,6 +84,7 @@ def test_a_clock_put_forward_and_back_is_one_new_day_not_two(monkeypatch, caplog
     """A --clock run on the station's own world rolled the day on the way out and again on the way back:
     "broadcast day" counted two for every test, and it is in every prompt and the cache key."""
     w = world_mod.seed()
+    w.last_date = "2026-11-08"          # seed() dates the town today: from 10 Nov the first roll went back too
     monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 9, 12).timestamp())
     w.roll_day_if_needed()
     day = w.broadcast_day
