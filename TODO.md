@@ -115,8 +115,9 @@ bottom with the date.
     not the real Harbour Row; head-and-shoulders figures first. The bible is agreed (docs/MARINA_ROW.md: the
     Kernicks, the Lockwoods and Sal at The Mermaid, six resident actors, three opening storylines). Looks and voices
     chosen 2026-11-13 (`entertainment/marina_row.py`: data/contact-sheets/2026-11-13-marina-row-cast.png, the
-    DramaBox voices on data/voice-samples/marina-row). Next: four sets (Queenie's kitchen, The Mermaid, The Loft,
-    the Row), then the engine.
+    DramaBox voices on data/voice-samples/marina-row), and its four sets (`marina_kitchen`, `marina_mermaid`,
+    `marina_loft`, `marina_row`: data/contact-sheets/2026-11-13-marina-row-sets.png, registered at run time by
+    `marina_row.register_sets`, never offered to Channel 7's writers). Next: the engine.
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.

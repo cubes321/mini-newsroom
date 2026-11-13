@@ -48,12 +48,17 @@ Port Wexley residents, cast with British voices. They become residents of the to
 
 Every name was checked against the town on 2026-11-13: none is a resident's, a darts pub's or a business's.
 
-## The places (sets to draw)
+## The places (the sets, chosen 2026-11-13)
+
+Drawn by ComfyUI over layouts painted in code, picked on a contact sheet
+(data/contact-sheets/2026-11-13-marina-row-sets.png), and registered at run time by `marina_row.register_sets` as
+`marina_kitchen`, `marina_mermaid`, `marina_loft` and `marina_row`. They are studio sets, lit as painted; each has a
+table, counter or wall across the front, with up to three marks (a, b, c) behind it.
 
 - **Queenie's kitchen**, behind the net loft: a range, a dresser of plates, nets on the wall.
 - **The Mermaid**: the bar, its regulars' corner and a window onto the Row.
 - **The Loft**: bare brick, Edison bulbs, small plates, a view of the yachts.
-- **The Row**: the quayside, the crabber, the new pontoon. The harbour backdrop may do at first.
+- **The Row**: the quay at dusk, lamps lit: Queenie's net loft, the converted flats, The Loft's window, the pontoon.
 
 ## Opening storylines
 

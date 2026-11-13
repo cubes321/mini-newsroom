@@ -53,3 +53,30 @@ CAST: tuple[Part, ...] = (
 )
 
 BY_CHARACTER = {p.character: p for p in CAST}
+
+# The four sets (assets/backdrops/<id>.png, ComfyUI art chosen on a contact sheet 2026-11-13: the kitchen seed 404,
+# the rest 303; data/contact-sheets/2026-11-13-marina-row-sets.png). Studio sets, so never graded for the time of
+# day: the Row is painted at dusk with its lamps lit. Each has furniture across the front with its marks 3 px below
+# the top (x, baseline y, scale, facing), because a drama has no lower third to hide where a figure ends.
+SETS: dict[str, tuple[str, str, dict[str, tuple[int, int, int, int]]]] = {
+    "marina_kitchen": ("Queenie's kitchen", "the Kernicks' kitchen behind the net loft: the range, nets and floats, "
+                       "a dresser of blue-and-white plates, the oilcloth table",
+                       {"a": (96, 151, 2, 1), "b": (224, 151, 2, -1), "c": (160, 151, 2, -1)}),
+    "marina_mermaid": ("The Mermaid", "the Row's pub: the bar with its pumps, bottles and optics, a pub table, a "
+                       "mermaid painting", {"a": (70, 151, 2, 1), "b": (196, 153, 2, -1), "c": (266, 153, 2, -1)}),
+    "marina_loft": ("The Loft", "the Lockwoods' small-plates restaurant: bare brick, Edison bulbs, the pass, a table "
+                    "for two, the yachts through the window",
+                    {"a": (66, 151, 2, 1), "b": (200, 153, 2, -1), "c": (268, 153, 2, -1)}),
+    "marina_row": ("the Row", "the quay at dusk: Queenie's net loft, the converted flats, The Loft's lit window, the "
+                   "pontoon and yachts", {"a": (90, 153, 2, 1), "b": (204, 153, 2, -1), "c": (262, 153, 2, -1)}),
+}
+
+
+def register_sets() -> None:
+    """Put the sets where the painter and the scenes find them, for this run only: in locations.BY_ID and MARKS,
+    never in locations.LOCATIONS, so no Channel 7 writer is offered a television street as a place in town."""
+    from newsroom import locations
+
+    for sid, (name, blurb, marks) in SETS.items():
+        locations.BY_ID[sid] = locations.Location(sid, name, blurb, "studio", (40, 50, 80), (80, 60, 50))
+        locations.MARKS[sid] = dict(marks)
