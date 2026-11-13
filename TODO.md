@@ -128,6 +128,11 @@ bottom with the date.
     figure format (the soap's stage B, walking figures). Later, blockbusters rendered offline for special nights.
   - Cartoon Time back at 18:30 once the bank has films; the closedown at 23:00, midnight once the last hour has
     something good. Rotations go by Channel 8 night, not weekday, while the channels alternate.
+  - **A creative editor** (the user, 2026-11-13) for the made-up shows: the soap, the factual/wildlife slot, the
+    comedy and the drama. Channel 7's senior editor guards the news (facts, the town's canon, repeats). This one
+    would keep the fiction good: storylines that build and pay off across episodes, characters who stay
+    themselves, jokes that land and aren't told twice, a wildlife film that doesn't reuse last week's animal.
+    It would plan ahead (the series arcs, the week's episodes) and send back weak scripts, on a stronger model.
 - [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,
