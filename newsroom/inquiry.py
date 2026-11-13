@@ -106,14 +106,27 @@ def _record(world: World, c: InquiryCommission | None) -> dict:
     return entry
 
 
+_DANGLING = frozenset("a an and as at but by for from in into of on or the to with".split())
+
+
 def _what_next(title: str, limit: int = 70) -> str:
-    """The stand-in's title within `limit`, cut at a word rather than mid-word."""
-    out = "What Next for"
-    for word in title.rstrip(".?!").split():
-        if len(out) + len(word) + 2 > limit:
+    """The stand-in's title within `limit`: the story's own title, cut at a word, then "What Next?". A thread's title
+    is a headline, a sentence, so "What Next for" in front of it read "What Next for Salting Harmony Choir's
+    Thirty-One Voices Warm Up for?" (2026-11-13), cut off on a word that needed the rest."""
+    tail = ": What Next?"
+    all_words = title.rstrip(".?!").split()
+    words: list[str] = []
+    for word in all_words:
+        if len(" ".join(words + [word])) + len(tail) > limit:
             break
-        out += " " + word
-    return out.rstrip(",;:") + "?"
+        words.append(word)
+    if len(words) < len(all_words):           # cut short: drop the phrase the cut fell in ("for St"), not half of it
+        last = max((i for i, w in enumerate(words) if w.lower().strip(",;:") in _DANGLING), default=-1)
+        if last >= len(words) // 2:
+            words = words[:last]
+    while words and words[-1].lower().strip(",;:") in _DANGLING:      # never end on "for", "the", "and"
+        words.pop()
+    return (" ".join(words).rstrip(",;:") or "Port Wexley") + tail
 
 
 def for_prompt(world: World) -> str:

@@ -850,6 +850,13 @@ SCRIPT_SCHEMAS: dict[SegmentType, type[BaseModel]] = {
 _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 
 
+# A script one to three lines over its cap failed validation and was asked again, and twice on 2026-11-13 the
+# second answer was over too and the slot aired a template (The Inquiry's feature at 15 of 14, its interview
+# at 17 of 16; the 11-06 and 11-07 nights had 14 more, the sofa's mostly). An item's length is its target in
+# seconds, not its count of lines, so the cap the model sees stays as it was and a line or two over it passes.
+LINE_SLACK = 2
+
+
 def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False,
                   panel: bool = False, chatter: bool = False, max_lines: int | None = None) -> type[BaseModel]:
     """The script schema with `lines[].speaker` narrowed to one show's cast.
@@ -871,6 +878,9 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = Fa
         bounds = {k: getattr(m, k) for m in lf.metadata for k in ("min_length", "max_length") if hasattr(m, k)}
         if max_lines:                                  # a show that needs more lines: a quiz round, the darts
             bounds["max_length"] = max_lines
+        if "max_length" in bounds:                     # the model is told the cap; a line or two over passes
+            bounds["json_schema_extra"] = {"maxItems": bounds["max_length"]}
+            bounds["max_length"] += LINE_SLACK
         # The class name becomes the json_schema name, which servers cap at 64 characters.
         _NARROWED[key] = create_model(f"{base.__name__}_{'_'.join(cast)}"[:64], __base__=base,
                                       lines=(list[line], Field(**bounds)))

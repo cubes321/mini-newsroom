@@ -111,5 +111,8 @@ def test_the_sofa_may_take_more_short_lines_than_a_bulletin():
     assert len(sofa.model_validate(script).lines) == 14
     with pytest.raises(ValidationError):
         script_schema(SegmentType.links, ("host_a", "host_b")).model_validate(script)      # a bulletin's ten still holds
+    # The model is told sixteen (2026-11-13: a line or two over passes, models.LINE_SLACK), and nineteen is too many.
+    assert sofa.model_json_schema()["properties"]["lines"]["maxItems"] == 16
+    assert len(sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:4]}).lines) == 18
     with pytest.raises(ValidationError):
-        sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:3]})   # and seventeen is too many
+        sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:5]})

@@ -211,9 +211,13 @@ bottom with the date.
   scratch town with the clock at Sunday 8 Nov: pages written, the week chosen unforced, the card, aired at 21:01
   and archived; the story count was taken out of the notes (4ec1f94). Still in the script: a desk NEXT that has
   already happened told as to come (the desk's, not the review's), and a look-ahead from minutes-old threads.
-- [ ] **Found in the same run, in The Inquiry:** scripts one line over the cap (15 of 14, 17 of 16) fail both tries
+- [x] **Found in the same run, in The Inquiry:** scripts one line over the cap (15 of 14, 17 of 16) fail both tries
   and air the template; and the stand-in's title from a thread title came out garbled ("What Next for Salting
-  Harmony Choir's Thirty-One Voices Warm Up for?"), a stand-in only because the run began after 18:30.
+  Harmony Choir's Thirty-One Voices Warm Up for?"), a stand-in only because the run began after 18:30. Fixed
+  2026-11-13: every script schema still shows the model its cap but passes up to two lines over
+  (`models.LINE_SLACK`; on the 11-06 and 11-07 nights 16 scripts went back for 1 to 3 lines, mostly the sofa's);
+  the stand-in is the story's title cut at a whole phrase, then "What Next?" ("Salting Harmony Choir's Thirty-One
+  Voices Warm Up: What Next?").
 
 - [x] **The findings in PROJECT_REVIEW.md** (2026-11-02), fixed 2026-11-03 (1442823, 5337392, 4400242, e55bb8c).
   The archive had recorded every segment when it was scripted, so the ten minutes of buffer at each shutdown

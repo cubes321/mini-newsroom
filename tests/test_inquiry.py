@@ -108,5 +108,8 @@ def test_the_evening_schedule():
 
 def test_a_stand_in_title_is_cut_at_a_word():
     title = inquiry._what_next("Harbour wall report due Friday, tenders could follow next spring")
-    assert title == "What Next for Harbour wall report due Friday, tenders could follow?" and len(title) <= 70
-    assert inquiry._what_next("A gull steals a pasty.") == "What Next for A gull steals a pasty?"
+    assert title == "Harbour wall report due Friday, tenders could follow next: What Next?" and len(title) <= 70
+    assert inquiry._what_next("A gull steals a pasty.") == "A gull steals a pasty: What Next?"
+    # 2026-11-13: "What Next for Salting Harmony Choir's Thirty-One Voices Warm Up for?"
+    title = inquiry._what_next("Salting Harmony Choir's Thirty-One Voices Warm Up for St Aldric's Carol Service")
+    assert title == "Salting Harmony Choir's Thirty-One Voices Warm Up: What Next?" and len(title) <= 70
