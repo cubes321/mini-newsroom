@@ -131,7 +131,15 @@ bottom with the date.
     Channel 7 nights. Done 2026-11-14: Wits' and The Kettle's On's headlines no longer reach Channel 7's "Recent
     headlines" (`writers._apply_to_world` records a headline only while Channel 7 is on air).
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
-  - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
+  - **Factual**, 20:40 to 21:00 (planned with the user 2026-11-14, docs/FACTUAL.md):
+    - Two series alternate by Channel 8 night: *Tideline* (working title), coastal wildlife presented by a new
+      naturalist, the reserve's retired warden; and a town celebrity's travelogue, six legs round the coast.
+    - Both are canon, not fiction.
+    - The animals are drawn in code. The bestiary was built and approved the same day (`entertainment/creatures.py`,
+      data/contact-sheets/2026-11-14-tideline-bestiary.png): ten creatures, close-ups in the hide at 4× with the
+      place soft, wides at 2×.
+    - Next: the naturalist's name, look and voice; November's hand-written seasonal list; then the wildlife series on
+      a booking like The Kettle's On's, in the soap's episode shape.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
