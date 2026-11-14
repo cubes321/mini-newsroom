@@ -347,6 +347,12 @@ def test_a_spider_always_hangs_on_a_thread_and_only_moves_along_it(tmp_path):
     assert [(b.do, b.value, b.at) for b in lay_.beats] == [("fly", f"0.0,{writer.HANG['ground']}", "0")]
     assert "ALWAYS HANGS" in writer.brief(type("S", (), {"cast": [type("C", (), {
         "key": "spider", "name": "Mr L", "looks": "a spider", "voice": "deep"})()]})(), kits, [])
+    # Walking past him at face height she goes behind him; under him high on his thread, she stays in front.
+    for height, depth in (("ground", 1), ("air", 0)):
+        st = writer.Stage.model_validate({
+            "actors": [{"who": "mouse", "mark": "right"}, {"who": "spider", "mark": "centre", "height": height}],
+            "beats": [{"who": "mouse", "do": "walk", "to": "left", "at": "0"}]})
+        assert writer.stage(st, 1, kits, set()).actors[0].depth == depth
 
 
 def test_times_are_read_against_the_lines_and_effects_land_on_the_track(monkeypatch, tmp_path):
@@ -574,3 +580,10 @@ def test_a_prop_sized_against_the_cast_is_drawn_that_big_and_the_word_sizes_keep
     cup = spoon.model_copy(update={"looks": "a small cup"})
     lay_ = writer.stage(st, 1, {"spoon": spoon, "cup": cup}, {"spoon", "cup"})
     assert [(b.who, b.do) for b in lay_.beats] == [("cup", "spin")]
+
+
+def test_a_hand_set_stage_can_put_someone_on_a_number_of_stage_units():
+    from entertainment.cutout import writer
+
+    assert writer._mark("-4") == -4.0 and writer._mark("28.5") == 28.5 and writer._mark("far_left") == -11.0
+    assert writer._mark("by the bins") == 0.0                                  # a slip is still centre

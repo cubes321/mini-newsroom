@@ -224,6 +224,12 @@ def _mark(m: str | None) -> float:
     m = (m or "centre").strip().lower().replace(" ", "_").replace("center", "centre")
     if m in MARKS:
         return MARKS[m]
+    # A number is stage units, for a stage set by hand: Skirting Board's shot 10 needs the spoon trailing just
+    # behind Tuppence, 7.6 units, which no two named marks are apart (2026-11-14). The stager is given names only.
+    try:
+        return float(m)
+    except ValueError:
+        pass
     log.warning("cutout writer: unknown mark %r, taken as centre", m)
     return 0.0
 
@@ -410,8 +416,11 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         elif b.do == "lean":
             value = re.sub(r"[^0-9.\-]", "", value) or "4"
         beats.append(LBeat(who=who, do=b.do, value=value, at=b.at or "0", until=b.until))
-    # Whoever walks past somebody passes behind them: one line of puppets has no depth of its own.
-    cast_at = {a.who: a.x for a in actors if not a.on and a.who not in props}
+    # Whoever walks past somebody passes behind them: one line of puppets has no depth of its own. Only past
+    # somebody on that line: on the floor, hung upside down, or a spider hanging at face height. Tuppence walking
+    # under Mr Lofthouse high on his thread went behind him, and so behind the spoon she was dragging (2026-11-14).
+    cast_at = {a.who: a.x for a in actors if not a.on and a.who not in props and not a.spot
+               and (a.y == 0 or a.who in hung or (a.who in threads and drops_in.get(a.who, a.y) <= HANG["ground"]))}
     for a in actors:
         if a.who not in cast_at:
             continue
