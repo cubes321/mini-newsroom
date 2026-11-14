@@ -346,6 +346,57 @@ def _cast_upp(series_dir: Path) -> float:
         return 10.0 / 1344
 
 
+# A prop sized against one of the cast ("longer than Tuppence is tall", "as tall as Gully", "half Mr Lofthouse's
+# height"): its longest side is that many of their drawn heights, enlarged if need be. The word sizes, capped at
+# PROP_W, drew the Skirting Board pilot's spoon "longer than Tuppence is tall" as a toy beside her (2026-11-14):
+# in a mouse's world the props are big.
+_AS = r"as\s+(?:long|tall|big|large|wide|high)\s+as"
+_OF = r"(?:the\s+)?(?:height|length|size)\s+of"
+AGAINST = ((rf"\btwice(?:\s+(?:{_AS}|{_OF}))?(?:\s+the)?\s*$", 2.0),     # before "as tall as": it is in them
+           (rf"\bhalf(?:\s+(?:{_AS}|{_OF}))?(?:\s+the)?\s*$", 0.5),      # "half the gull's height", not "half-eaten"
+           (r"\b(?:longer|taller|bigger|larger|wider|higher)\s+than(?:\s+the)?\s*$", 1.25),
+           (rf"\b{_AS}(?:\s+the)?\s*$", 1.0))
+PROP_MOST = 1.5                                # a prop's longest side: at most this many of a character's heights
+LYING = re.compile(r"\b(?:lying|on its side|laid flat|lies)\b", re.I)
+
+
+def _cast_heights(series_dir: Path) -> dict[str, float]:
+    """Each character's names (key, name, last word of the name), lower case, to their drawn height in stage
+    units: the series' cast where it has a puppet, and any other puppet with faces."""
+    from entertainment import cartoons
+
+    names = {}
+    series = cartoons.SERIES.get(series_dir.name)
+    for c in series.cast if series else ():
+        names[c.key] = {c.key, c.name.lower(), c.name.lower().split()[-1]}
+    out = {}
+    for path in (series_dir / "puppets").glob("*/kit.json"):
+        who = path.parent.name
+        try:
+            k = load(series_dir, who)
+        except (OSError, ValueError):
+            continue
+        if not k.faces:                            # a prop: nobody is sized against a bucket
+            continue
+        box = k._box or (0, 0, 0, k.feet_y)
+        tall = (box[3] - box[1]) * k.upp
+        for n in names.get(who, {who}):
+            out[n] = tall
+    return out
+
+
+def against(series_dir: Path, looks: str) -> float | None:
+    """The stage units of a prop's longest side, if its look sizes it against one of the cast; else None."""
+    low = looks.lower()
+    for name, tall in sorted(_cast_heights(series_dir).items(), key=lambda kv: -len(kv[0])):
+        for m in re.finditer(rf"\b{re.escape(name)}\b", low):
+            before = low[max(0, m.start() - 40): m.start()]
+            for pat, times in AGAINST:
+                if re.search(pat, before):
+                    return round(min(times, PROP_MOST) * tall, 3)
+    return None
+
+
 def fit_prop(series_dir: Path, key: str, looks: str) -> Kit:
     """A prop's base.png and kit.json from its drawing (drawn.png, as Qwen drew it: far bigger than asked).
 
@@ -363,18 +414,24 @@ def fit_prop(series_dir: Path, key: str, looks: str) -> Kit:
     _, a = cut(img, cream, cut_holes=True)
     ys, xs = np.nonzero(a > 0.5)
     bh, bw = max(1, ys.max() - ys.min()), max(1, xs.max() - xs.min())
-    size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), PROP_SIZE)
-    size = min(size, PROP_W * bh / bw)
     upp = _cast_upp(series_dir)
-    s = min(1.0, size / (bh * upp))
+    longest = against(series_dir, looks)
+    if longest:                                   # against one of the cast: the longest side, up or down to it
+        s = longest / (max(bh, bw) * upp)
+    else:
+        size = next((s for w, s in SIZES if re.search(rf"\b{w}\b", looks, re.I)), PROP_SIZE)
+        size = min(size, PROP_W * bh / bw)
+        s = min(1.0, size / (bh * upp))
     crop = img[max(0, ys.min() - 8):ys.max() + 9, max(0, xs.min() - 8):xs.max() + 9]
     if s < 1.0:
         blur = (1 / s - 1) * 0.5
         crop = ndimage.zoom(ndimage.gaussian_filter(crop, (blur, blur, 0)), (s, s, 1), order=1)
+    elif s > 1.0:
+        crop = ndimage.zoom(crop, (s, s, 1), order=1).clip(0, 255)
     small = np.pad(crop, ((MARGIN, MARGIN), (MARGIN, MARGIN), (0, 0)), mode="edge")
     small[:MARGIN], small[-MARGIN:], small[:, :MARGIN], small[:, -MARGIN:] = cream, cream, cream, cream
     grow = round(LINE * (1 - s) / 2)
-    if grow:
+    if grow > 0:
         _, a = cut(small, cream, cut_holes=True)
         fg = a > 0.5
         small[ndimage.binary_dilation(fg, iterations=grow) & ~fg] = 0
@@ -413,8 +470,13 @@ def props(folder: Path) -> list[Path]:
                 fit_prop(series_dir, key, looks)       # drawn before from this look: sized by today's rules
                 build(series_dir, key)
                 continue
+        # Drawn as it is seen: a spoon "lying on its side" lies flat (stood up, it was a cane, 2026-11-14), and a
+        # prop sized against the cast fills the picture, so it is not enlarged from a third of it into a blur.
+        pose = "lying flat on its side, horizontal" if LYING.search(looks) else "upright"
+        room = ("filling most of the picture's " + ("width" if LYING.search(looks) else "height")
+                if against(series_dir, looks) else "about a third of the picture's height")
         prompt = (f"Replace the character in this picture with {key}: {looks.rstrip('. ')}. Draw it alone, centred, "
-                  f"upright, about a third of the picture's height, in exactly the same flat cartoon style, bold black "
+                  f"{pose}, {room}, in exactly the same flat cartoon style, bold black "
                   f"outlines and flat colours, on the same plain cream background. No character, no animal, no text, "
                   f"nothing else in the picture.")
         r = cartoons._comfy("/prompt", {"prompt": edit_graph(prompt, name, 202, f"puppets/prop_{key}"),

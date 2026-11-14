@@ -21,7 +21,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from entertainment.cutout.kit import Kit
+from entertainment.cutout.kit import LYING, Kit
 from entertainment.cutout.layout import Actor, Beat as LBeat, Camera, Framing, Layout, Rope
 
 log = logging.getLogger(__name__)
@@ -98,7 +98,8 @@ class Stage(BaseModel):
 
 class PProp(BaseModel):
     key: str = Field(max_length=24, description="short lowercase key: bucket, crate, cone")
-    looks: str = Field(max_length=160, description="one fixed look: colour, material, size in plain words")
+    looks: str = Field(max_length=160, description="one fixed look: colour, material, size in plain words or "
+                                                   "against a character ('longer than Tuppence is tall')")
 
 
 class PShot(BaseModel):
@@ -150,9 +151,11 @@ Write about {n} SHOTS, each 2.5 to 10 seconds, with a beginning, a turn and a pa
   splash into mud", "a rope going twang") and when (seconds, or against the lines: "line_end+0.2", "line2").
   Off-screen business is mostly SFX plus an OFFSCREEN line, played on someone's face.
 - PROPS: as few as the story can manage (at most three), each once with one fixed look (colour, material,
-  size in plain words, never "the size of" another object); a prop's key is how SEEN names it. Props are
-  small beside the cast and drawn as one object: "a few chips", not "a heap of chips". A contraption is
-  talked about and heard, not built on screen.
+  size in plain words, never "the size of" another object); a prop's key is how SEEN names it. A prop drawn
+  big or small against one of THE CAST says so with their name ("longer than Tuppence is tall", "half Gully's
+  height"), at most half as big again as they are; one that lies on the floor says "lying on its side". Each
+  is drawn as one object: "a few chips", not "a heap of chips". A contraption is talked about and heard, not
+  built on screen.
 - No written words anywhere.
 Return ONLY JSON.
 """
@@ -400,6 +403,10 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
                 continue
         elif b.do == "spin":
             value = re.sub(r"[^0-9.\-]", "", value) or "360"
+            # A prop drawn lying ("a spoon lying on its side") lies already: the stager's quarter-turn to lay it
+            # down stood the Skirting Board pilot's spoon on its end (2026-11-14).
+            if who in props and LYING.search(kits[who].looks) and abs(abs(float(value)) - 90) < 30:
+                continue
         elif b.do == "lean":
             value = re.sub(r"[^0-9.\-]", "", value) or "4"
         beats.append(LBeat(who=who, do=b.do, value=value, at=b.at or "0", until=b.until))

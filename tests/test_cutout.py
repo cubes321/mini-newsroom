@@ -540,3 +540,37 @@ def test_a_mended_staging_is_kept_only_if_it_looks_better(tmp_path, monkeypatch)
     assert engine.layout_of(folder, 2).actors[0].x == -6.0
     assert sorted(p.name for p in (folder / "stages.1").iterdir()) == ["scene01.stage.json", "scene02.stage.json"]
     assert asked == [(), (1, 2), (2,)]                         # all, the two restaged, the one put back
+
+
+def test_a_prop_sized_against_the_cast_is_drawn_that_big_and_the_word_sizes_keep_their_cap(tmp_path):
+    series_dir, d = _series(tmp_path)
+    kitmod.build(series_dir, "gull")
+    gull = kitmod._cast_heights(series_dir)["gull"]
+    bar = np.full((200, 300, 3), CREAM, np.float32)                  # a spoon lying flat, drawn small by Qwen
+    bar[88:112, 28:272] = 0
+    bar[91:109, 31:269] = (150, 100, 56)
+
+    def longest(looks):
+        p = series_dir / "puppets" / "spoon"
+        kitmod.save_rgb(bar, p / "drawn.png")
+        k = kitmod.fit_prop(series_dir, "spoon", looks)
+        base = kitmod.rgb(p / "base.png")
+        _, a = kitmod.cut(base, kitmod.cream_of(base), cut_holes=True)
+        ys, xs = np.nonzero(a > 0.5)
+        return max(np.ptp(ys), np.ptp(xs)) * k.height / base.shape[0]
+    assert abs(longest("a wooden spoon lying on its side, longer than the gull is tall") - 1.25 * gull) < 0.15
+    assert abs(longest("a wooden spoon lying on its side, half the gull's height") - 0.5 * gull) < 0.15
+    assert kitmod.against(series_dir, "a biscuit, small beside the gull") is None
+    assert kitmod.against(series_dir, "a half-eaten bun as big as the gull") == round(gull, 3)
+    assert kitmod.against(series_dir, "twice as long as the gull") == round(kitmod.PROP_MOST * gull, 3)
+    assert longest("a small wooden spoon lying on its side") <= kitmod.PROP_W + 0.2     # the word sizes, as before
+    # Drawn lying, it lies: a quarter-turn to lay it down is dropped; knocking over anything else still spins.
+    from entertainment.cutout import writer
+
+    spoon = kitmod.load(series_dir, "spoon")
+    st = writer.Stage.model_validate({"actors": [{"who": "spoon", "mark": "left"}, {"who": "cup", "mark": "right"}],
+                                      "beats": [{"who": "spoon", "do": "spin", "value": "90", "at": "0"},
+                                                {"who": "cup", "do": "spin", "value": "90", "at": "1"}]})
+    cup = spoon.model_copy(update={"looks": "a small cup"})
+    lay_ = writer.stage(st, 1, {"spoon": spoon, "cup": cup}, {"spoon", "cup"})
+    assert [(b.who, b.do) for b in lay_.beats] == [("cup", "spin")]
