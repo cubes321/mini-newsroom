@@ -156,7 +156,7 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 | 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
 | 20:00 | Wexley Wits | |
 | 20:20 | **The soap**, 20 minutes: titles, five or six scenes, the cliffhanger and credits, no break | the scene engine |
-| 20:40 | **Factual or lifestyle**: wildlife on the coast, or a town celebrity's travelogue | the documentary, Out and About |
+| 20:40 | **Factual**: *Tideline*, coastal wildlife with Rowan Polglase (built 2026-11-14, `entertainment/wildlife.py`), alternating with a town celebrity's travelogue (docs/FACTUAL.md) | The Kettle's On's booking, the soap's episode shape |
 | 21:00 | **The TV movie**, an hour | the scene engine |
 | 22:00 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |
 | 22:30 | **Late-night drama**: an anthology first | the scene engine |

@@ -7,7 +7,8 @@ drop into the sofa's chat, a caller's aside or a vox pop. It is talk, not news: 
 and the story desk never sees it, so no thread grows from it.
 
 Its soap, Marina Row, is talked about too: an aired episode's cliffhanger, the question and never the
-answer (soap below).
+answer (soap below). So is its wildlife series, Tideline: what Rowan Polglase showed, and the number he gave
+(wildlife below). That one is canon: the seal pups in the coves really are there.
 
 Read from the world alone (`world.quizzes`, `world.soaps`, the archive): this module knows nothing of
 the other channel's code, and a station that never runs it has no talk.
@@ -85,7 +86,28 @@ def soap(world, today: date) -> list[str]:
     return out
 
 
+def wildlife(world, today: date) -> str | None:
+    """Channel 8's latest Tideline that aired in the last TALK_DAYS, as a sentence: the sight and its number. An
+    episode is stamped aired by the item that gives them (entertainment/wildlife.py); one booked but never shown is
+    nobody's talk. Read from the world alone (world.wildlife)."""
+    for ep in reversed((getattr(world, "wildlife", None) or {}).get("episodes", [])):
+        try:
+            day = date.fromisoformat(ep["date"])
+            gap = (today - day).days
+            if gap < 1:
+                continue
+            if gap > TALK_DAYS:
+                return None
+            if not ep.get("aired"):
+                continue
+            n = f", {ep['count']} {ep['counted']} by his count" if ep.get("count") is not None else ""
+            return f"Tideline, the wildlife programme on Channel 8, {day:%A} night: Rowan Polglase showed {ep['what']}{n}."
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
 def line(world, today: date) -> str:
     """The briefing's town-talk line, with its newline, or nothing."""
-    said = [s for s in (quiz(world, today), *soap(world, today)) if s]
+    said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today)) if s]
     return f"{LABEL}{' '.join(said)}\n" if said else ""

@@ -213,6 +213,9 @@ class World:
     # Channel 8's dramas (entertainment/soap.py), by series id: {arc, episodes}. Fiction: no reader of the town's
     # news looks here; talk.py takes a cliffhanger from an episode once it has aired.
     soaps: dict[str, dict] = field(default_factory=dict)
+    # Channel 8's wildlife series (entertainment/wildlife.py): {episodes: [{date, sight, count, aired, ...}]}. Canon:
+    # an episode's sight and count are stamped aired as the item that gives them goes out (player.AIRED_HOOKS).
+    wildlife: dict = field(default_factory=dict)
     bank_aired: dict[str, list[str]] = field(default_factory=dict)   # content bank item -> the days it aired (bank.py)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
@@ -1128,6 +1131,12 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("kettle_b", "bm_spargo"),
                   ["a retired chemistry teacher from Greymouth Academy", "weighs everything to the gram",
                    "frets about oven temperatures", "secretly can't cook"], lang="b"),
+        # Channel 8's wildlife series, Tideline (entertainment/wildlife.py), 20:40: look and voice chosen 2026-11-14.
+        Character("naturalist", "Rowan Polglase", "presenter, Tideline (Channel 8's wildlife series)",
+                  CONFIG.tts.voices.get("naturalist", "bm_polglase"),
+                  ["warden of the Salting reserve for thirty years, retired in 2021", "knows every counter by name",
+                   "unhurried, speaks low so as not to disturb the birds", "quietly delighted by everything"],
+                  lang="b"),
     ]
 
 

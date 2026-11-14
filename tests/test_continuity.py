@@ -289,7 +289,7 @@ def test_channel_eights_card_after_its_closedown_names_no_documentary_and_is_bak
     undo = entertainment.use()
     continuity._pool = cont                                     # use() opens Channel 8's folder: keep the test's
     try:
-        now = _ts("20:45")
+        now = _ts("21:05")                                     # after Tideline (20:40 to 21:00)
         it = continuity.bake_programmes(now, world_mod.seed())
         assert not any("STORIES" in l or "WEEK" in l for l in it.segment.work["continuity"]["lines"])
         assert it.valid_until == continuity.upcoming(now)[0][0] == _ts("19:00", date(2026, 10, 28))

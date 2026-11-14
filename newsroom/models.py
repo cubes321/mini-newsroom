@@ -23,10 +23,10 @@ from .locations import BACKDROP_IDS
 
 Speaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
                   "sport_reporter", "business", "historian", "travel", "kids", "gully", "kettle_a",
-                  "kettle_b", "guest"]
+                  "kettle_b", "naturalist", "guest"]
 SPEAKERS: tuple[str, ...] = ("anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
                              "sport_reporter", "business", "historian", "travel", "kids", "gully", "kettle_a",
-                             "kettle_b", "guest")
+                             "kettle_b", "naturalist", "guest")
 # Who goes out on location: Miles for the news and Coastwide, Tamsin for Full Time, Meg on Out and About.
 FIELD_REPORTERS: tuple[str, ...] = ("reporter", "sport_reporter", "travel")
 Backdrop = Literal[*BACKDROP_IDS]       # one list, in locations.py, for the schema and the painter
@@ -134,10 +134,10 @@ class Rundown(BaseModel):
 
 LiveSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
                       "sport_reporter", "business", "travel", "kids", "gully", "kettle_a",
-                      "kettle_b", "historian"]
+                      "kettle_b", "naturalist", "historian"]
 GuestSpeaker = Literal["anchor", "weather", "reporter", "host_a", "host_b", "mag_a", "mag_b", "late_host", "sport",
                        "sport_reporter", "business", "travel", "kids", "gully", "kettle_a",
-                       "kettle_b", "historian", "guest"]
+                       "kettle_b", "naturalist", "historian", "guest"]
 
 
 def _gender(v):

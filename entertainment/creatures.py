@@ -421,19 +421,20 @@ def draw_at(canvas: pygame.Surface, creature: str, backdrop: str, spot: str, t: 
         draw(canvas, creature, x, y, t, scale=scale, light=light, facing=facing)
 
 
-def hide_crop(backdrop: str, spot: str, zoom: int = 2, size: tuple[int, int] = (320, 180)) -> pygame.Rect:
-    """The part of the backdrop the hide view shows: the screen's size over `zoom`, round the spot (a little above
-    it, as the spot is the creature's feet), kept inside the picture."""
+def hide_crop(backdrop: str, spot: str, zoom: int = 2, size: tuple[int, int] = (320, 180),
+              feet: float = 0.72) -> pygame.Rect:
+    """The part of the backdrop the hide view shows: the screen's size over `zoom`, round the spot with the creature's
+    feet `feet` of the way down (on air 0.6, clear of the ticker), kept inside the picture."""
     w, h = size[0] // zoom, size[1] // zoom
     sx, sy = SPOTS[backdrop][spot]
     x = min(max(0, sx - w // 2), size[0] - w)
-    y = min(max(0, sy - (h // 2 if spot == "sky" else int(h * 0.72))), size[1] - h)   # a flock in the sky: centred
+    y = min(max(0, sy - (h // 2 if spot == "sky" else int(h * feet))), size[1] - h)   # a flock in the sky: centred
     return pygame.Rect(x, y, w, h)
 
 
 def draw_hide(canvas: pygame.Surface, backdrop: str, spot: str, creature: str, t: float, *, tod: str = "day",
               wx: str | None = None, zoom: int = 2, label: str = "TIDELINE", facing: int = 1,
-              soft: bool = False, shot: str | None = None) -> None:
+              soft: bool = False, shot: str | None = None, feet: float = 0.72) -> None:
     """The hide view: the composed backdrop (sky, grade and all) cropped round the spot and scaled up `zoom`x with
     nearest neighbour, the creature at the same scale, the documentary's letterbox and a strand label. `shot`
     ("close" or "wide", SHOTS) sets the zoom and the focus together."""
@@ -443,7 +444,7 @@ def draw_hide(canvas: pygame.Surface, backdrop: str, spot: str, creature: str, t
     w, h = canvas.get_size()
     full = pygame.Surface((w, h))
     backdrops.draw(full, backdrop, tod, wx, t)
-    crop = hide_crop(backdrop, spot, zoom, (w, h))
+    crop = hide_crop(backdrop, spot, zoom, (w, h), feet)
     part = full.subsurface(crop)
     if soft:                                      # a long lens's shallow focus: the place soft, the creature sharp
         small = pygame.transform.smoothscale(part, (max(1, crop.w // 2), max(1, crop.h // 2)))

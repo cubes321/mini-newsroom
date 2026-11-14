@@ -62,7 +62,7 @@ writers are told that it's a film made earlier, so nobody says "tonight" or "goo
 |---|---|---|
 | Titles | the ident | the series' card |
 | Open | the warden to camera: where we are and what we're looking for | the presenter on a backdrop |
-| 4 sequences, about 3 minutes each | narration over the creature, then a resident on what they've seen (a counter, a fisherman, the lifeboat crew) | **the hide view** (below), then a two-shot on the backdrop |
+| 4 sequences | narration over the creature, the first with the number; after each of the first three, a resident on what they've seen (a counter, a fisherman, the ferry crew) | **the hide view** (below), then a two-shot on the backdrop |
 | Spares | short "field notebook" moments for the minutes the plan leaves | the hide view, quiet narration |
 | Close | what to look for this week and where; next time | the presenter in the last light |
 
@@ -133,25 +133,38 @@ It's optional.
 **Canon.** The residents met get memories as usual. A finished series is remembered as one entry ("Lorna Quayle's
 coast road, six legs"), which Channel 7's Last Ferry can bring the host back to talk about.
 
-## How it's built
+## How it's built (Tideline, 2026-11-14)
 
-**Like The Kettle's On, shaped like an episode of the soap.** The Kettle's On (`entertainment/kettle.py`) is the
-nearest precedent: a canon Channel 8 show that books its people in the back office, with tokens in its briefs, a
-rest period and residents who get memories. The soap (`entertainment/soap.py`) gives the episode's shape: a plan,
-items written live to their part of it, spares for the minutes it leaves, the closing item last in the slot, and
-"aired" only once the last item has gone. The soap assumes fiction (every line a character), so its machinery won't
-transfer whole. How much of either to share is settled when building, after reading both in full. The soap's planned
-episode is the likeliest piece to lift into a shared module, since the TV movie and the anthology need it too.
+`entertainment/wildlife.py` is the series. It was built like The Kettle's On (a canon booking in the back office, with
+residents who get memories and a stand-in), in the soap's episode shape (planned items, spares, the close last). No
+code was lifted out of `soap.py`: the soap assumes fiction, and only its shape carried over.
 
-- **The alternation.** Each series is a show of its own, with its own id, ident, programme card and captions. Tonight's
-  is picked for the 20:40 slot the way `schedule.show_at` already picks Bonfire Night's or Christmas's version of a
-  show (`special_night`, `special_day`), through a small registry rather than a picker inside the show.
-- **The modules.** `entertainment/wildlife.py` and `entertainment/travelogue.py` hold each series' bible, presenter,
-  prompts, booking and stand-in, as `kettle.py` and `marina_row.py` do.
-- **The schedule.** `("20:40", <the factual slot>)`, then the closedown at 21:00.
-- **Live items.** The residents' parts are Channel 7's interview item on a backdrop. The hide view is a new view
-  mode, which needs a registry hook in `scenes`; none exists for this yet. Every line is the presenter or a named
-  resident.
+- **One lead sight an episode, chosen in code** (`pick`), not by the model.
+  - Ten sights each resting 21 to 60 days ran dry within a fortnight when an episode used several. So the four
+    sequences are angles on one sight, plus one sequence on a neighbour from the same backdrop (no number, no rest).
+  - The pick is the sight longest unseen. When every sight is resting, it's the one rested longest. A rare sight
+    leads on about one night in four once rested, at most once a winter.
+  - `tests/test_wildlife.py` runs sixty nights at a Channel 8 night every two days and every four.
+- **The number is drawn in code** from the sight's range, seeded by the date (`count_for`). The first sequence's brief
+  carries it, to be said exactly.
+- **The plan** (one call on The Chamber's route) gives a title, five watches (an angle each, close or wide; a flock always wide), three
+  residents met, and the close. Known people first, with no new history; never a presenter, nobody twice, and
+  nobody met in the last fourteen days. A plan that breaks those gives way to a stand-in made in code.
+- **On air**, the episode runs: the ident, the open, then the first three sequences each followed by a meeting, the
+  fourth (the neighbour's) and fifth sequences, the field notebook for spare minutes (three, then a break, round
+  again with new ones), and the close at dusk. The first sequence alone carries the sight's facts and its number,
+  and every item sees everything said before it in full.
+  - Every item is out on location by day (`seg.work["location"]`, `["tod"]`, `["filmed"]`), with no LIVE tag.
+  - Narration is in the hide, through two small engine hooks: `player.VIEW_HOOKS` (a show's say over the view) and
+    `scenes.SCENES["hide"]`. There's no caption over the creature, and on air its feet are 60% of the way down, clear
+    of the ticker.
+- **Rowan** is `naturalist` in `models.py`, with a `Character` in `world.seed_characters`. A saved town picks him up
+  on load.
+- **The wildlife log** (`world.wildlife`): an episode is stamped aired when its first sequence, the one with the
+  number, goes out (`player.AIRED_HOOKS`), since the archive keeps only about a night. Only aired episodes count for
+  the rests, the residents' rest and `talk.wildlife`, the town's talk the next two days.
+- **The schedule**: `("20:40", "tideline")`, and the closedown moves to 21:00. Tideline airs every Channel 8 night
+  until the travelogue is built; then the alternation (a registry like `special_night`) picks one a night.
 
 ## What goes to the user, in order
 
@@ -170,18 +183,25 @@ episode is the likeliest piece to lift into a shared module, since the TV movie 
 1. Read `kettle.py`, `soap.py` and `documentary.py` in full, and decide what is shared. If the soap's planned episode
    is lifted out, check that Marina Row is unchanged (tests plus a scratch run with the model off).
 2. The bestiary, the spots and the hide view, for the contact sheet.
-3. The wildlife series: booking, live sequences, spares, the stand-in, the wildlife log. Then two scratch runs, one
-   with the model off and one with it on, at 20:35 on a Channel 8 clock.
-4. Town talk from the wildlife log.
+3. The wildlife series: booking, live sequences, spares, the stand-in, the wildlife log. Built 2026-11-14, with two
+   scratch runs, one with the model off and one with it on.
+4. Town talk from the wildlife log. Built 2026-11-14 (`talk.wildlife`).
 5. The travelogue: the shortlist, the route planner, the legs, the map. A scratch run, then the alternation switched
    on.
 
+## Decided while building (2026-11-14), for the user to overrule
+
+- **Tideline airs every Channel 8 night until the travelogue is built.** With eight sights in season and a Channel 8
+  night every two days, a sight comes round about every sixteen days, inside its 21 to 35 day rest. So the picker
+  takes the one rested longest, and the planner is shown what earlier episodes on it covered. The travelogue's
+  alternation doubles the gap.
+- **An advert break sits in the spare-minutes loop** (three notebook moments, then a break), as the soap's does. On
+  the second model run the planned part filled 14½ minutes and only three notebook moments aired, so no break did.
+- **No caption over the creature in the hide**, and on air its feet are 60% of the way down the frame. The approved
+  sheet had 72%, before the lower third and ticker were drawn over it.
+- **The ticker runs over the film**, as on The Kettle's On.
+
 ## Open questions
 
-- **Until the travelogue is built**, should the wildlife series air every Channel 8 night, or the closedown come
-  forward to 20:40 on the travelogue's nights? I'd air the wildlife every night: it gives the planner's rest rules and
-  the log a real test sooner.
-- Should the warden appear on Channel 7 too (a Coastwide guest, Gordon's forecast for the seal pups), as Marina Row's
-  actors can? Probably yes, since they're a resident.
-- Does the slot need an advert break? The soap has none; with spares filling the slot, the factual slot wouldn't need
-  one either.
+- Should Rowan appear on Channel 7 too (a Coastwide guest, Gordon's forecast for the seal pups), as Marina Row's
+  actors can? Probably yes, since he's a resident.

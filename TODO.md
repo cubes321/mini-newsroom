@@ -142,8 +142,31 @@ bottom with the date.
       look A with binoculars; voice `bm_polglase`, B of three by ear).
     - The winter's seasonal list was approved the same day (`entertainment/seasons.py`), with four pieces of new
       canon: the Salting reserve, the seal colony below the light, the starling roost, and the heronry in Wexley Woods.
-    - Next: the wildlife series itself, on a booking like The Kettle's On's, in the soap's episode shape. Spring's
-      list and creatures (redshank, avocets, the heronry) are due before March.
+    - **Tideline built 2026-11-14** (`entertainment/wildlife.py`; docs/FACTUAL.md "How it's built"):
+      - 20:40 to 21:00 every Channel 8 night until the travelogue; the closedown moves to 21:00.
+      - One lead sight a night is chosen in code (rests, rarities), and its number is drawn in code. The plan in the
+        back office has five sequences and three residents, with a stand-in.
+      - Filmed by day in the hide view, through two new hooks: `player.VIEW_HOOKS` and `scenes.SCENES["hide"]`.
+      - The wildlife log is stamped as the number airs (`player.AIRED_HOOKS`), and `talk.wildlife` gives Channel 7
+        the town talk.
+    - Three scratch runs.
+      - Model off: clean, with every item on location and in the hide.
+      - First model-on run: the plan worked, but the number and the egret facts came in nearly every item, there was
+        a "Good evening", and four sequences left the slot half filler. Fixed: the facts are in the first sequence
+        only, every item sees all that was said, daytime words are enforced in code, and there are five sequences.
+      - Second model-on run, from 20:38: Tideline ran 20:41 to 20:59.
+        - The planned part filled 14½ minutes, with three notebook moments.
+        - The facts were said once, and each item opened its own way.
+        - The live writer gave a counter a husband, and the close gave the clock time: rules added against both,
+          not yet tried with the model (nor the planner's memory of earlier episodes).
+        - Both runs' first plans failed on the close's length: the limits are now 600 characters.
+      - The same egret night came up in both, since the scratch towns were the same: other sights have only been
+        tried in the tests.
+    - Left:
+      - the ident by ear (the folk arrangement stands in; `bumper_tideline.wav` untracked);
+      - a better egret and seal;
+      - spring's list and creatures (redshank, avocets, the heronry) before March;
+      - the travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.

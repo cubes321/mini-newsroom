@@ -51,6 +51,12 @@ SEATS: dict[str, int] = {}
 BARE_SHOWS: set[str] = set()
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
+# A show's own say over the view, by show id: (segment, view, line index) -> None, after the engine has set it (Channel 8's
+# wildlife films: the hide view, filmed by day). scenes.SCENES draws a mode a show adds.
+VIEW_HOOKS: dict = {}
+# A show's word that one of its segments went out, by show id: (segment, world) -> None. For records that must
+# outlive the archive (MAX_ARCHIVE is about a night): the wildlife log's sightings.
+AIRED_HOOKS: dict = {}
 
 # Segments shot on the interview set, and outside pieces with their wall caption at the handover.
 INTERVIEW_SET = (SegmentType.interview, SegmentType.consumer, SegmentType.links, SegmentType.monologue,
@@ -111,6 +117,7 @@ class View:
     wave: list[float] = field(default_factory=list)   # their voice's recent envelope while they speak
     verdict: dict | None = None          # a review's card on its last line: {place, stars, verdict}
     overlay: dict | None = None          # a show's own box over the set (OVERLAY_HOOKS; scenes.OVERLAYS draws it)
+    scene: dict | None = None            # a show's own view's details (VIEW_HOOKS): the hide's creature and spot
     film: tuple[str, float] | None = None   # a film from the bank on air: (its video, seconds into it)
     bonfire: bool = False                # a special night out on location (schedule.SPECIAL_NIGHTS): a bonfire
     fireworks: bool = False              # and fireworks overhead, in their window on the clock
@@ -323,6 +330,11 @@ class Player:
             from .workers import mark_aired
 
             mark_aired(seg.content_hash)             # a restart today writes this slot afresh
+        if self.world is not None and seg.show in AIRED_HOOKS and not seg.repeat:
+            try:
+                AIRED_HOOKS[seg.show](seg, self.world)
+            except Exception:                        # a show's own record must never take the station off air
+                log.exception("aired hook for %s failed", seg.show)
 
     def _drop(self) -> Segment | None:
         """Take what is on air off for good, and with it anything breaking news had set aside. Returns
@@ -692,6 +704,8 @@ class Player:
             v.advert["owner_id"] = owner.id if owner else "guest"     # Gordon's ghost tours: Gordon
         if seg.show in OVERLAY_HOOKS:          # a show from outside this package: its box, at this line
             v.overlay = OVERLAY_HOOKS[seg.show](seg, self.line_idx)
+        if seg.show in VIEW_HOOKS:             # and its own say over the view
+            VIEW_HOOKS[seg.show](seg, v, self.line_idx)
         if seg.type is SegmentType.call and seg.work.get("caller"):
             v.caller = (seg.work["caller"], seg.work.get("caller_from", ""))
             if line and line.guest_name == v.caller[0] and line.mouth_env:

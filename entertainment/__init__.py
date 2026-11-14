@@ -9,7 +9,8 @@ scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is T
 the test card until seven the next evening, as small channels did, with no repeats and no SEVENTEXT
 (those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
 the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time comes back at 18:30 once the bank has
-films (its shelf is empty, so its hour was the test card).
+films (its shelf is empty, so its hour was the test card). Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
+planned with the user 2026-11-14), at 20:40, before the closedown at 21:00.
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ from newsroom.schedule import Show
 
 CHANNEL_8 = Channel(number="8", name="Channel 8", said="channel eight", wordmark="CHANNEL 8 · PORT WEXLEY")
 
-# The closedown, one show from 20:40 to seven the next evening (one id, so the test card's "programmes
+# The closedown, one show from 21:00 to seven the next evening (one id, so the test card's "programmes
 # resume at" is 19:00, not midnight): the goodnight once, then the card on a loop.
 CLOSEDOWN = Show(
     "closedown", "GOODNIGHT", "CHANNEL 8", (52, 56, 118),
@@ -38,7 +39,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (19, "kettle"),             # The Kettle's On (kettle.py): the hour
     (20, "wits"),
     ("20:20", "marina"),        # Wits: twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
-    ("20:40", "closedown"),     # Marina Row, the soap (soap.py): twenty minutes after Wits (the user, 2026-11-13)
+    ("20:40", "tideline"),      # Marina Row, the soap (soap.py): twenty minutes after Wits (the user, 2026-11-13)
+    ("21:00", "closedown"),     # Tideline, the wildlife series (wildlife.py): twenty minutes (the user, 2026-11-14)
 )
 
 # The continuity announcer's lines over Channel 8's ident (continuity.IDENT_LINES): Cartoon Time and the
@@ -50,7 +52,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import kettle, oche, quiz, soap, wits
+    from . import kettle, oche, quiz, soap, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -81,6 +83,7 @@ def use():
     workers.IDLE_JOBS.append((quiz.should_commission, quiz.commission))
     _kettle(kettle)
     undo_soap = soap.register(MARINA_ROW)
+    undo_wildlife = wildlife.register()
     writers.SHOW_SYSTEMS[quiz.SHOW] = wits.SYSTEMS
     writers._PLACE.update(wits.PLACE)
     writers.BRIEF_HOOKS[quiz.SHOW] = quiz.brief_for
@@ -100,6 +103,7 @@ def use():
     writers.UNFILED_SHOWS.add(quiz.SHOW)
 
     def undo() -> None:
+        undo_wildlife()
         undo_soap()
         schedule.SCHEDULE = saved[0]
         schedule.SHOWS.clear(), schedule.SHOWS.update(saved[1])
