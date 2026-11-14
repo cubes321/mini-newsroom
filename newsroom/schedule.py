@@ -963,10 +963,23 @@ def starts(ts: float, days: int = 2) -> list[tuple[float, str]]:
     return out
 
 
+# A slot two shows share in turn, by slot id: (date) -> the show id on that night, or None for the slot's own.
+# Channel 8's 20:40 (entertainment/travelogue.py): the travelogue and Tideline alternate by the world's records of
+# what aired, not the weekday, since the channels alternate nights.
+ROTATIONS: dict = {}
+
+
+def _rotated(slot: str, day: date) -> Show | None:
+    f = ROTATIONS.get(slot)
+    sid = f(day) if f else None
+    return SHOWS.get(sid) if sid else None
+
+
 def show_at(ts: float) -> Show:
     slot = slot_at(ts)
-    plan = special_day(date.fromtimestamp(ts))
-    return ((plan[1].get(slot) if plan else None) or special_night(slot, date.fromtimestamp(ts))
+    day = date.fromtimestamp(ts)
+    plan = special_day(day)
+    return ((plan[1].get(slot) if plan else None) or special_night(slot, day) or _rotated(slot, day)
             or SHOWS[STAND_INS.get(slot, slot)])
 
 

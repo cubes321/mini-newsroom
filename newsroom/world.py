@@ -216,6 +216,9 @@ class World:
     # Channel 8's wildlife series (entertainment/wildlife.py): {episodes: [{date, sight, count, aired, ...}]}. Canon:
     # an episode's sight and count are stamped aired as the item that gives them goes out (player.AIRED_HOOKS).
     wildlife: dict = field(default_factory=dict)
+    # Channel 8's travelogue (entertainment/travelogue.py): {series: [{host, made, title, why, legs}], legs: [{date,
+    # made, n, aired}]}. Canon: the residents met remember it.
+    travelogue: dict = field(default_factory=dict)
     bank_aired: dict[str, list[str]] = field(default_factory=dict)   # content bank item -> the days it aired (bank.py)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
@@ -1262,6 +1265,11 @@ def _recast_presenter_voices(w: World) -> None:
             pool = GUEST_VOICES_F if p.voice[1:2] == "f" else GUEST_VOICES_M
             old, p.voice = p.voice, pool[_name_hash(p.name) % len(pool)]
             log.info("world migrated: %s shared %s with a presenter; now %s", p.name, old, p.voice)
+
+
+def current() -> World | None:
+    """The world this process loaded, if it has: for what can't be handed one (schedule.ROTATIONS reads it)."""
+    return _WORLD
 
 
 def load(path: Path | None = None) -> World:

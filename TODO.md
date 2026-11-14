@@ -143,7 +143,7 @@ bottom with the date.
     - The winter's seasonal list was approved the same day (`entertainment/seasons.py`), with four pieces of new
       canon: the Salting reserve, the seal colony below the light, the starling roost, and the heronry in Wexley Woods.
     - **Tideline built 2026-11-14** (`entertainment/wildlife.py`; docs/FACTUAL.md "How it's built"):
-      - 20:40 to 21:00 every Channel 8 night until the travelogue; the closedown moves to 21:00.
+      - 20:40 to 21:00, alternating with The Coast Road since the same day; the closedown moves to 21:00.
       - One lead sight a night is chosen in code (rests, rarities), and its number is drawn in code. The plan in the
         back office has five sequences and three residents, with a stand-in.
       - Filmed by day in the hide view, through two new hooks: `player.VIEW_HOOKS` and `scenes.SCENES["hide"]`.
@@ -167,8 +167,17 @@ bottom with the date.
       - a better egret and seal;
       - spring's list and creatures (redshank, avocets, the heronry) before March;
       - the travelogue. Its host was chosen 2026-11-14: Lorna Quayle, with look A (a yellow raincoat) and her own
-        voice `bf_quayle` (C of three), in `entertainment/travelogue.py`. Next: build the series (the route planner,
-        the legs, the alternation with Tideline).
+        voice `bf_quayle` (C of three), in `entertainment/travelogue.py`.
+    - **The Coast Road built 2026-11-14** (`entertainment/travelogue.py`; docs/FACTUAL.md "How it's built (The Coast
+      Road)"):
+      - Lorna stays a resident; making her a presenter would have deleted her record.
+      - The route is planned ahead and saved (`--plan`): "Six Slow Ways and a Tin of Parkin" is in data/travelogue.
+      - It alternates with Tideline through `schedule.ROTATIONS`.
+      - One scratch run: leg 1 aired cleanly. Fixed after it: the biscuit story in every item, and the day's auction
+        figures (untried).
+      - Left: the ident by ear (the toy arrangement; `bumper_coastroad.wav` untracked); her look on Channel 7 (only her
+        voice follows her there); the route map; the finished series as one town-talk entry; a new host when the six
+        legs are done. The "no new history" rule failed once with the model (Stan Tully's cot).
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.

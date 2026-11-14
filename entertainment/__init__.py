@@ -10,7 +10,8 @@ the test card until seven the next evening, as small channels did, with no repea
 (those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
 the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time comes back at 18:30 once the bank has
 films (its shelf is empty, so its hour was the test card). Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
-planned with the user 2026-11-14), at 20:40, before the closedown at 21:00.
+planned with the user 2026-11-14), at 20:40, before the closedown at 21:00, in turn with The Coast Road, the travelogue
+(travelogue.py), through schedule.ROTATIONS.
 """
 from __future__ import annotations
 
@@ -52,7 +53,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import kettle, oche, quiz, soap, wildlife, wits
+    from . import kettle, oche, quiz, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -84,6 +85,7 @@ def use():
     _kettle(kettle)
     undo_soap = soap.register(MARINA_ROW)
     undo_wildlife = wildlife.register()
+    undo_travelogue = travelogue.register()
     writers.SHOW_SYSTEMS[quiz.SHOW] = wits.SYSTEMS
     writers._PLACE.update(wits.PLACE)
     writers.BRIEF_HOOKS[quiz.SHOW] = quiz.brief_for
@@ -103,6 +105,7 @@ def use():
     writers.UNFILED_SHOWS.add(quiz.SHOW)
 
     def undo() -> None:
+        undo_travelogue()
         undo_wildlife()
         undo_soap()
         schedule.SCHEDULE = saved[0]

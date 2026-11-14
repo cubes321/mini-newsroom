@@ -139,7 +139,11 @@ engine never imports it. Instead a show from outside plugs into registries the e
   the model is down), `SEAT_HOOKS` and `CAPTION_HOOKS` (who sits on the set, under which caption),
   and `BOOKED_SHOWS`, `DEBATE_SHOWS` and `UNFILED_SHOWS`;
 - `workers.IDLE_JOBS` (its bookings, after Channel 7's), `scenes.SHOW_SETS`, `player.SEATS`,
-  `locations.MARKS` and `assets.IDENTS`.
+  `locations.MARKS` and `assets.IDENTS`;
+- added for Channel 8's factual slot (2026-11-14): `player.VIEW_HOOKS` (a show's say over the view), `scenes.SCENES`
+  (a view mode of its own: Tideline's hide, The Coast Road's road), `player.AIRED_HOOKS` (a record stamped as a
+  segment goes out, for what must outlive the archive), and `schedule.ROTATIONS` (a slot two shows share in turn,
+  read through `world.current()`).
 
 Channel 7's own shows still use their branches in those modules. They can move onto the registries
 when a change touches them anyway, as stage 1 says.
