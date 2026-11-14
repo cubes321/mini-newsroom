@@ -155,7 +155,8 @@ programme's next edition (its guests, subjects, questions, plans). So agree only
 what to keep off or put on, what to steer clear of or nod to, a fact to keep to. Neither of you can send the other
 anything later, look through old scripts, put a correction on air, or meet again before tomorrow: don't offer to. The
 first held dry (2026-11-14) had each editor promising the other a football score by evening.
-Say only what your own notes below show: if they show no last night for your channel, you have none to report.
+Say only what your own notes below show: if they show no last night for your channel, you have none to report. The
+meeting is held in the afternoon, before the evening's programmes are booked.
 Speak as yourself, plainly, to a colleague: at most {words} words, up to four points, each naming a programme, a
 story or a person. Answer what was put to you, and say no where you mean no. Don't plan the other channel's
 programmes for it. Everything is fiction, at small-town scale. Return ONLY JSON.

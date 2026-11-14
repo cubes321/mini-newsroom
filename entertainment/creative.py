@@ -165,8 +165,9 @@ def _fresh(day: str, today: str, days: int = NOTE_DAYS) -> bool:
 
 # ------------------------------------------------------------------ the schemas
 
-Note = Annotated[str, _clip_words(240)]
-Short = Annotated[str, _clip_words(140)]
+# Room for a whole thought: at 240 the first real notes (2026-11-14) reached the planner cut off mid-sentence.
+Note = Annotated[str, _clip_words(450)]
+Short = Annotated[str, _clip_words(200)]
 
 
 def _first(n: int) -> BeforeValidator:
@@ -218,8 +219,8 @@ edition. Look for:
 - THE SAME AGAIN: a film on a sight it has shown before, from the same angle, with the same people.
 - NEW HISTORY: a resident of the town given family, a past or a habit the town never knew. In a drama: the town's
   real people, places or news treated as part of the story, or the story treated as town fact.
-notes: at most four short directives to the planner of this programme's NEXT edition, each asking only for something
-THE PLANNER DECIDES; if it decides nothing nightly, leave notes empty. series_notes: the same for its long plan, if
+notes: at most four short directives (under fifty words each) to the planner of this programme's NEXT edition, each
+asking only for something THE PLANNER DECIDES; if it decides nothing nightly, leave notes empty. series_notes: the same for its long plan, if
 it has one. remarks: what only a change to the programme's standing rules could fix, for the station's owner. told,
 established, planted: what tonight added, a line each (planted is a drama's only). If the words were not kept, judge
 the plan alone and say less. An item marked a stand-in script is not the writers' work: ignore it. Small-town scale;
@@ -232,8 +233,8 @@ TOLD BEFORE, ESTABLISHED and STILL OPEN. Send it back only for something a viewe
 nowhere or drops what was planted; a cliffhanger nobody would ask about; a character acting against what is
 ESTABLISHED; an angle, story or person the programme has had before; new history for a resident of the town; the
 town's news inside a drama. A plan that is merely not how you would do it passes: ok = true, no notes. If you send it
-back: at most four short notes, each naming the scene, sequence or stop and what to do instead, and only about what
-this planner decides. It comes back once and then airs. Return ONLY JSON.
+back: at most four short notes (under fifty words each), each naming the scene, sequence or stop and what to do
+instead, and only about what this planner decides. It comes back once and then airs. Return ONLY JSON.
 """
 
 SENT_BACK = """

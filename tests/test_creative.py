@@ -260,7 +260,7 @@ def test_the_ledger_and_the_log_are_bounded(editor):
 def test_overlong_replies_are_cut_not_failed():
     r = creative.Review.model_validate({"mark": "weak", "verdict": "x" * 900, "notes": [f"note {i}" for i in range(9)],
                                         "told": ["y " * 400]})
-    assert len(r.verdict) <= 300 and len(r.notes) == 4 and len(r.told[0]) <= 140
+    assert len(r.verdict) <= 300 and len(r.notes) == 4 and len(r.told[0]) <= 200
 
 
 # ------------------------------------------------------------------ into the planners' prompts
