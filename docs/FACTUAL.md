@@ -159,7 +159,9 @@ episode is the likeliest piece to lift into a shared module, since the TV movie 
 2. **The bestiary and the hide view**, on a contact sheet. Done 2026-11-14: ten creatures, the close-up at 4× and
    the wide at 2× chosen. The egret and the seal could take more drawing.
 3. **The naturalist**. Done 2026-11-14: Rowan Polglase, look A, voice B.
-4. **November's list** (and the rest of the winter's), the hand-written seasonal calendar.
+4. **The winter's seasonal list**. Done 2026-11-14 (`entertainment/seasons.py`): ten sights for November to February,
+   five more waiting to be drawn, and the new canon approved: the Salting reserve and its hide, the seal colony below
+   the light, the starling roost in the reeds, and the heronry in Wexley Woods. Spring's list is due before March.
 5. The series titles, and both idents by ear (an arrangement of Beacon each, like Wits').
 6. Then the travelogue: **the first host** from the shortlist, their look, and the first route.
 

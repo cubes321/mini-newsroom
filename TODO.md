@@ -140,8 +140,10 @@ bottom with the date.
       place soft, wides at 2×.
     - The naturalist was chosen the same day: Rowan Polglase, the reserve's retired warden (`LOOKS["naturalist"]`,
       look A with binoculars; voice `bm_polglase`, B of three by ear).
-    - Next: November's hand-written seasonal list (with the new canon: the reserve, the seal colony); then the
-      wildlife series on a booking like The Kettle's On's, in the soap's episode shape.
+    - The winter's seasonal list was approved the same day (`entertainment/seasons.py`), with four pieces of new
+      canon: the Salting reserve, the seal colony below the light, the starling roost, and the heronry in Wexley Woods.
+    - Next: the wildlife series itself, on a booking like The Kettle's On's, in the soap's episode shape. Spring's
+      list and creatures (redshank, avocets, the heronry) are due before March.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
