@@ -154,3 +154,32 @@ def test_pocket_says_a_name_the_way_names_toml_respells_it(monkeypatch, tmp_path
     assert tts.spoken("Marchettino and MARCHETTI") == "Marchettino and MARCHETTI"
     monkeypatch.setattr(tts, "VOICES_DIR", Path(tmp_path) / "none")
     assert tts.spoken("Mrs Marchetti") == "Mrs Marchetti" and used == []
+
+
+def test_a_two_way_word_is_said_the_way_its_context_means(monkeypatch, tmp_path):
+    monkeypatch.setattr(tts, "VOICES_DIR", Path(tmp_path))                  # no names.toml: two-way words only
+    say = tts.SAY
+    cases = {   # lines from the station's own scripts (data/llm_calls, 2026-11-08 to 13)
+        "Full council sits tonight at eight, live on The Chamber.": f"eight, {say['live']} on The Chamber",
+        "Hello, you're live, what's your name?": f"you're {say['live']},",
+        "The council meets live on The Chamber on Thursday at eight.": f"meets {say['live']} on",
+        "Come to The Chamber on the nineteenth at eight, or watch it live.": f"watch it {say['live']}.",
+        "And on Thursday, at the live council meeting, Gerald Thorne has the item.": f"the {say['live']} council",
+        "Lines, hooks, lead weights, and I'll tie you a bowline.": f"{say['led']} weights",
+        "A woman brought in a mantel clock her husband wound every Sunday.": f"husband {say['wownd']} every",
+        "Yesterday's parade wound from the Town Hall to the war memorial.": f"parade {say['wownd']} from",
+        "Ivy Marchetti, who is singing bass, says it's nothing like as bad.": f"singing {say['base']},",
+        "Tam Buchanan is in the bow of the launch.": f"the {say['bough']} of",
+    }
+    for line, part in cases.items():
+        assert part in tts.spoken(line), (line, tts.spoken(line))
+    for line in ["My name is Marcus Holloway, I live on Harbour Row.", "I can live with that.",
+                 "Did you know a gull can live for over thirty years?", "My lot could already read a tape measure.",
+                 "Can you read it out for us, Helen?", "And keep dogs on a lead near the bonfire.",
+                 "The wind drops overnight.", "She made me tear up a little.", "The wound has healed.",
+                 "Pennant the shop cat has been given a bow for the occasion.", "There's a red bow on the gate.",
+                 # right as written by ear, so left to Pocket
+                 "I've read every paper in Port Wexley twice.", "People want something to tear apart.",
+                 "Let's wind up the meeting.", "The dearest fish was the bass, at twenty-three pounds a kilo."]:
+        assert tts.spoken(line) == line, line
+    assert tts.spoken("Live from the fish quay.").startswith(say["live"].capitalize())

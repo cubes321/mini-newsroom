@@ -103,11 +103,74 @@ def _names() -> tuple[dict[str, str], re.Pattern | None]:
     return _POCKET[key]
 
 
+# Words spelled one way and said two (heteronyms) that Pocket says one way whatever the sense. Each rule finds the
+# word in a context that settles its sense, as group "w", and names the respelling Pocket says right for that sense,
+# or None to keep it as written. The first rule to claim a word wins, so the keep rules go first. Contexts are
+# from the station's own scripts (data/llm_calls, 2026-11-08 to 13); respellings chosen by ear on the Two-Way Words
+# page (2026-11-14). Heard there and right as written, so left to Pocket: read (I've read), wind (wind up the
+# meeting), tear (tear down), bass the fish, a ribbon's bow.
+# live: round one's lyve and laiv were wrong everywhere; round two's lighv was right in some lines only, lighve in all.
+SAY = {"live": "lighve", "led": "led", "wownd": "wownd", "base": "base", "bough": "bough"}
+_GO = (r"go|goes|going|went|gone|come|comes|coming|came|be|being|been|is|are|was|were|am|'s|'re|'m"
+       r"|broadcast|broadcasts|broadcasting|air|airs|aired|airing")
+_TWO_WAY = [(re.compile(p, re.I), sense) for p, sense in [
+    # live on air (rhymes with drive), never "people who live on Mill Lane"
+    (r"\b(?:I|we|you|they|who|people|families|folk|to|can|could|would|will|'ll|still|actually)\s+(?P<w>live)\b",
+     None),                                                                              # I live on Harbour Row
+    (rf"\b(?:{_GO})(?:\s+(?:now|back|still|again|not))?\s+(?P<w>live)\b", "live"),        # goes live, we're live
+    (r"\b(?:watch|watched|watching|see|seen|hear|heard|keep|kept|keeps|carried|shown|streamed)(?:\s+(?:it|them))?"
+     r"\s+(?P<w>live)\b", "live"),                                                       # watch it live, kept live
+    (r"\b(?P<w>live)(?=\s+(?:from\b|on\s+(?:the\s+chamber|channel|air|tv|television|the\s+radio|stage)\b))", "live"),
+    (r"\b(?:a|an|the)\s+(?P<w>live)\b", "live"),                                           # a live broadcast
+    (r"(?:^|[,;:(—–-]\s*|[.!?]\s+)(?P<w>live)\s+(?:on|from|at)\b", "live"),     # ..., live on The Chamber
+    (r"\b(?P<w>live)(?=\s+(?:broadcast|broadcasts|coverage|music|band|feed|link|pictures|report|reports|audience"
+     r"|show|event|performance|television|tv|radio|stream|draw|final|bait|wire|crabs?|lobsters?)\b|-(?:stream|action))",
+     "live"),
+    # lead the metal (led), not a dog's lead or the league's
+    (r"\b(?P<w>lead)(?=\s+(?:weights?|flashing|pipes?|piping|roof|roofing|paint|poisoning|shot|sinkers?|crystal|ore"
+     r"|mines?|miners?|soldiers?|pencils?)\b|-(?:free|lined))", "led"),
+    (r"\b(?:stolen|scrap|sheet|molten|red|white)\s+(?P<w>lead)\b", "led"),
+    # wound, as in wound a clock or the parade wound (rhymes with sound), not a wound
+    (r"\b(?:a|an|the|his|her|their|my|your|its|our|stab|flesh|head|gunshot|bullet)\s+(?P<w>wound)\b", None),
+    (r"\b(?P<w>wound)(?=\s+(?:up|down|off|round|around|its|their|his|her|my|our|your|every|back|away|tight|tightly"
+     r"|through|along|from|and\s+set)\b)", "wownd"),
+    (r"\b(?:was|were|been|being|is|are|had|have|has|'ve|'d|clock|clocks)\s+(?P<w>wound)\b", "wownd"),
+    # bass the singer (rhymes with base); the fish, Quayside's, is Pocket's own reading
+    (r"\b(?:singing|sings|sang|sing|double|electric)\s+(?P<w>bass)\b", "base"),
+    (r"\b(?P<w>bass)(?=\s+(?:voice|voices|notes?|line|guitar|guitarist|player|drums?|section|singers?|clef|baritone"
+     r"|solo|amp|who)\b)", "base"),
+    # bow of a boat (rhymes with cow), not a ribbon's or a fiddle's, which Pocket says right as written
+    (r"\b(?:red|blue|green|pink|gold|golden|white|black|velvet|silk|satin|ribbon|hair|big|little|fiddle|violin"
+     r"|cello)\s+(?P<w>bow)\b", None),
+    (r"\b(?P<w>bow)(?=\s+(?:tie|ties|and\s+arrows?|strings?)\b)", None),
+    (r"\b(?:the|her|his|its|my|our|their)\s+(?P<w>bow)\b", "bough"),
+]]
+
+
+def _two_way(text: str) -> str:
+    """`text` with each heteronym whose sense its context settles respelled the way Pocket says that sense right."""
+    claimed: dict[int, tuple[int, str | None]] = {}
+    for pattern, sense in _TWO_WAY:
+        for m in pattern.finditer(text):
+            if m.start("w") not in claimed:
+                claimed[m.start("w")] = (m.end("w"), sense)
+    out, at = [], 0
+    for start in sorted(claimed):
+        end, sense = claimed[start]
+        if sense is None or not SAY.get(sense):
+            continue
+        word, say = text[start:end], SAY[sense]
+        out += [text[at:start], say.capitalize() if word[0].isupper() else say]
+        at = end
+    return "".join(out) + text[at:]
+
+
 def spoken(text: str) -> str:
-    """`text` as Pocket should read it: each name it gets wrong swapped for its respelling (names.toml, chosen by
-    ear). Only the audio changes; the caption and the script keep the real spelling."""
+    """`text` as Pocket should read it: each name it gets wrong swapped for its respelling (names.toml), and each
+    two-way word for the sense its context settles (_TWO_WAY), both chosen by ear. Only the audio changes; the
+    caption and the script keep the real spelling."""
     say, pattern = _names()
-    return pattern.sub(lambda m: say[m.group(0)], text) if pattern else text
+    return _two_way(pattern.sub(lambda m: say[m.group(0)], text) if pattern else text)
 
 
 def kokoro_voice(voice: str) -> str:

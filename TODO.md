@@ -260,11 +260,15 @@ bottom with the date.
 
 ## Engineering
 
-- [ ] **The voices say "live" (as in "live from the harbour", "going out live") like "give", not to rhyme with "drive"**
-  (heard 2026-11-13). A heteronym the TTS can't tell from context: respell the adjective/adverb before voicing
-  ("lyve", or whatever the engine takes) where it follows "go/going/come/coming out", "we're", "broadcasting",
-  "be", or comes before "from/on/at", and leave the verb ("people who live on Mill Lane") alone. Check the other
-  heteronyms while there: "read" (past), "lead" (the metal), "wind" (as in wind up), "tear".
+- [x] **The voices say "live" (as in "live from the harbour", "going out live") like "give", not to rhyme with "drive"**
+  (heard 2026-11-13). Fixed 2026-11-14: `tts._TWO_WAY` respells a two-way word for Pocket where its context settles
+  the sense (`tts.spoken`, which also does names.toml's names; captions keep the real spelling). Contexts mined
+  from six days of scripts (data/llm_calls) and checked against them: live on air -> "lighve" (goes live, you're
+  live, live on The Chamber, watch it live, a live broadcast; never "I live on Harbour Row"), lead the metal ->
+  "led", wound a clock or a parade -> "wownd", bass the singer -> "base", the bow of a boat -> "bough". Chosen
+  by ear on the Two-Way Words page in two rounds (lyve and laiv were wrong; lighv right in some lines only).
+  Heard right as written, so left to Pocket: read (past), wind (wind up), tear (rip), bass the fish, a
+  ribbon's bow. Pocket also says 14 hard names via assets/voices/names.toml (18faeb7).
 
 - [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
   back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
