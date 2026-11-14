@@ -160,6 +160,25 @@ def test_the_notes_are_the_weeks_record_and_nothing_else(tmp_paths):
     assert [c["id"] for c in clips] == ["C1"] and clips[0]["date"] == SUNDAY.isoformat()   # the story's latest keepsake
 
 
+def test_a_next_whose_day_has_gone_and_a_story_first_heard_tonight_are_not_looked_ahead_to(tmp_paths):
+    """The 2026-11-13 rehearsal (clock at Sunday 8 November): the desk's NEXT for Thursday the 5th's meeting, never
+    moved on, was told as still to come, and the ending looked ahead from threads opened that evening."""
+    w, ids = _week()
+    w.thread(ids["engine"]).next_development = "Full council debates the petition on Thursday 12 November."
+    tonight = w.update_thread(None, "Lifeboat crew to swim at dawn", "Lifeboat crew to swim at dawn.")
+    w.thread(tonight).next_development = "The crew swims on Monday 16 November at seven."
+    w.record_aired("bulletin", "Lifeboat crew to swim at dawn", tonight, "The crew will swim.", show="news")
+    notes, _ = review.notes(w, review.WEEK)
+    said = " ".join(t.event for t in notes.timeline)
+    assert "Thursday 12 November" not in said and "Petition reaches 2200 names" in said   # where it stood, no NEXT
+    assert not any("petition" in q.lower() for q in notes.questions)
+    assert not any("swim" in q.lower() for q in notes.questions)                # minutes old: no look-ahead
+    # Undated, or due tomorrow on a story the week carried: still looked ahead to.
+    w.thread(ids["engine"]).next_development = "Full council debates the petition on Thursday 19 November."
+    assert review.notes(w, review.WEEK)[0].questions == [
+        "Second fire engine petition: expected next, Full council debates the petition on Thursday 19 November."]
+
+
 def _stub_writers(monkeypatch):
     seen = {}
 

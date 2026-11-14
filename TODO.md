@@ -128,7 +128,8 @@ bottom with the date.
     named a real pub (prompt rules). Also fixed: Channel 8's scenes could air in Channel 7's overnight repeats (an
     unknown show passed as the news). Left: the ident (the cello stands in, `bumper_marina.wav` untracked, by ear);
     end credits; Sonnet for the scenes too (compare with `--route interview=claude_sonnet`); the actors' looks on
-    Channel 7 nights; Wits' and The Kettle's On's headlines still reach Channel 7's "Recent headlines".
+    Channel 7 nights. Done 2026-11-14: Wits' and The Kettle's On's headlines no longer reach Channel 7's "Recent
+    headlines" (`writers._apply_to_world` records a headline only while Channel 7 is on air).
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual or lifestyle**, 20:40 to 21:00: wildlife on the coast, or a town celebrity's travelogue.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
@@ -273,8 +274,9 @@ bottom with the date.
 - [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
   back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
   scratch town with the clock at Sunday 8 Nov: pages written, the week chosen unforced, the card, aired at 21:01
-  and archived; the story count was taken out of the notes (4ec1f94). Still in the script: a desk NEXT that has
-  already happened told as to come (the desk's, not the review's), and a look-ahead from minutes-old threads.
+  and archived; the story count was taken out of the notes (4ec1f94). Fixed 2026-11-14 (`review._ahead`): a desk
+  NEXT whose day has gone is no longer told as still to come, and the ending looks ahead only from stories the
+  week carried, never one first heard of that evening. Left: hear the first real one on the 22nd.
 - [x] **Found in the same run, in The Inquiry:** scripts one line over the cap (15 of 14, 17 of 16) fail both tries
   and air the template; and the stand-in's title from a thread title came out garbled ("What Next for Salting
   Harmony Choir's Thirty-One Voices Warm Up for?"), a stand-in only because the run began after 18:30. Fixed

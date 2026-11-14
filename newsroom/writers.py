@@ -21,8 +21,8 @@ from collections import deque
 from datetime import date, datetime
 from typing import Callable
 
-from . import (breaking, calendar, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown, safety,
-               schedule, sport, tides, tipline)
+from . import (breaking, calendar, channel, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown,
+               safety, schedule, sport, tides, tipline)
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -1890,7 +1890,10 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
         world.record_aired(seg.type.value, script.headline, None, "", content_hash=seg.content_hash, show=seg.show,
                            brief=seg.brief, aired=False, fiction=True)
         return
-    world.record_headline(script.headline)
+    # The headlines are Channel 7's news ("Recent headlines (do NOT repeat these)" in every writer's briefing, and the
+    # editor's), kept in the world both channels share: a Wits round or a Kettle's On call would push a story out.
+    if channel.CURRENT is channel.SEVEN:
+        world.record_headline(script.headline)
     if isinstance(script, WeatherScript):
         world.record_weather(script.map_state, script.temp_c, script.headline)
     elif isinstance(script, CallScript):

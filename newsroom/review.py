@@ -33,7 +33,7 @@ from datetime import date, timedelta
 from . import annals
 from .config import CONFIG
 from .models import DocumentaryCommission, DocumentaryResearch, Segment, Stakeholder, TimelineEntry
-from .world import World
+from .world import World, due_date
 
 log = logging.getLogger(__name__)
 
@@ -214,15 +214,26 @@ def _details(ps: list[dict], kind: str) -> list[str]:
     return out[:8]
 
 
+def _ahead(s: dict, today: date) -> bool:
+    """Whether a story's NEXT is still to come tonight: it has one, the story is live, and the day it names (if it
+    names one) hasn't gone. The desk doesn't always move a NEXT on once its day is past: the 2026-11-13 rehearsal
+    (clock at Sunday 8 November) told Thursday the 5th's council meeting as still to come."""
+    if not s.get("next") or s["phase"] in ("closed", "faded"):
+        return False
+    due = due_date(s["next"], today)
+    return due is None or due >= today
+
+
 def notes(world: World, kind: str, today: date | None = None) -> tuple[DocumentaryResearch, list[dict]]:
     """The research notes and the archive clips for a review, from the annals: no model."""
-    ps = pages(world, kind, today)
+    day = today or _today(world)
+    ps = pages(world, kind, day)
     top = stories(ps)[:TOP[kind]]
     firsts, lasts = [], []
     for s in top:
         d0, h0 = s["beats"][0] if s["beats"] else (s["first"], s["title"])
         same = h0.strip().lower() == s["title"].strip().lower()        # a story is often named by its first headline
-        live = s["phase"] not in ("closed", "faded")
+        live = _ahead(s, day)
         # A story's title and headlines are written like news ("Ruby Tennant Rows Twelve Hours") even when
         # the thing is still to come, so what is due goes beside where it stood, marked as not happened.
         coming = f" STILL TO COME (has NOT happened): {s['next']}" if s.get("next") and live else ""
@@ -247,8 +258,10 @@ def notes(world: World, kind: str, today: date | None = None) -> tuple[Documenta
             p = world.person_by_name(name)
             people.append(Stakeholder(name=name[:40], role=(p.role if p else "resident")[:60],
                                       stance=f"in the story of {s['title']}: {s['status']}"))
+    # The ending looks ahead from these: only from a story the week has carried, never one first heard of tonight,
+    # minutes before the review was made (the 2026-11-13 rehearsal looked ahead from threads hours old).
     questions = [f"{s['title']}: expected next, {s['next']}"[:300] for s in top
-                 if s.get("next") and s["phase"] not in ("closed", "faded")][:5]
+                 if _ahead(s, day) and s["first"] < day.isoformat()][:5]
     research = DocumentaryResearch(timeline=timeline, people=people, details=_details(ps, kind),
                                    questions=questions)
     mine = {s["thread_id"] for s in top}

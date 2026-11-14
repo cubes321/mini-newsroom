@@ -166,6 +166,16 @@ def test_a_call_is_written_to_the_phone_in_and_the_caller_joins_the_town(channel
     assert said["Not at all, get it in this week."] == expert
     assert said["Is it too late for my garlic?"] == "Doreen Uglow"
     assert w.person_by_name("Doreen Uglow").memories[-1]["show"] == kettle.CALLED   # not Have Your Say's
+    # Channel 7's news headlines, in every writer's briefing, are never Channel 8's (the world is shared).
+    assert "Garlic in November" not in w.headlines
+
+
+def test_channel_seven_still_records_its_headlines(monkeypatch):
+    w = world_mod.seed()
+    _stub(monkeypatch, llm.LLMError("down"))
+    seg = Segment(slot_id=1, type=T.bulletin, show="news", brief="", target_s=60)
+    writers.script_segment(seg, w)
+    assert seg.lines and w.headlines and w.headlines[-1]
 
 
 def test_with_the_model_down_every_item_is_still_tonights(channel, monkeypatch):
