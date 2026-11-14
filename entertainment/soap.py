@@ -85,8 +85,11 @@ class Arc(BaseModel):
     storylines: list[Storyline] = Field(min_length=2, max_length=3)
     # Cut at a word, not failed: on the first run with the creative editor (2026-11-14) an arc failed on a turning
     # point past 200 characters and cost a second call; a second draft that failed so would lose the send-back.
-    turning_point: Annotated[str, _clip_words(200)] = Field(min_length=8, max_length=200,
-                                                            description="the arc's big moment, and in which episode")
+    # Asked for in one sentence and given room: cut at 200, a turning point reached the creative editor ending
+    # "and…", and the editor sent the arc back for an unfinished sentence (the first night on air, 2026-11-14).
+    turning_point: Annotated[str, _clip_words(320)] = Field(
+        min_length=8, max_length=320,
+        description="the arc's big moment and in which episode, in one sentence of at most thirty words")
 
 
 class Scene(BaseModel):

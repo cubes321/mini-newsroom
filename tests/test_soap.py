@@ -36,6 +36,18 @@ def _arc():
          "beats": [f"secret beat {i}" for i in range(soap.ARC_EPISODES)]}]})
 
 
+def test_a_long_turning_point_is_asked_short_given_room_and_only_then_cut_at_a_word():
+    """Cut at 200, one reached the creative editor ending "and…", and the arc was sent back for an unfinished
+    sentence (the first night on air, 2026-11-14)."""
+    data = _arc().model_dump()
+    fits = "Episode 5: " + "Queenie walks into The Loft and finds Kerra behind the pass, " * 4 + "and says nothing."
+    assert 200 < len(fits) <= 320
+    assert soap.Arc.model_validate(data | {"turning_point": fits}).turning_point == fits
+    long = soap.Arc.model_validate(data | {"turning_point": "Queenie finds Kerra behind the pass " * 12}).turning_point
+    assert len(long) <= 320 and long.endswith("…") and not long[:-1].endswith(" ")
+    assert "thirty words" in soap.Arc.model_fields["turning_point"].description
+
+
 def _episode(**kw):
     sets = ["marina_mermaid", "marina_loft", "marina_kitchen", "marina_row", "marina_mermaid", "marina_row"]
     who = [["Sal Annear", "Davey Kernick"], ["Harriet Lockwood", "Kerra Kernick"],
