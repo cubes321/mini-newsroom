@@ -140,9 +140,22 @@ def state(world: World, series: Series) -> dict:
 
 
 def aired(world: World, series: Series, ep: dict) -> bool:
-    """Did this episode's last scene go out? Planned and written isn't shown (the station may be off)."""
-    return any(e.get("show") == series.id and e.get("date") == ep["date"] and e.get("brief") == ep["last_brief"]
-               for e in world.aired_archive())
+    """Did this episode's last scene go out? Planned and written isn't shown (the station may be off). The stamp
+    is what lasts (stamp, below): the archive keeps about two and a half nights, and by the fourth Channel 8 night
+    the first episode had left it, so the arc stopped moving on and "previously" forgot it. The archive still
+    answers for an episode aired before there was a stamp."""
+    return bool(ep.get("aired")) or any(
+        e.get("show") == series.id and e.get("date") == ep["date"] and e.get("brief") == ep["last_brief"]
+        for e in world.aired_archive())
+
+
+def stamp(seg, world: World, series: Series) -> None:
+    """player.AIRED_HOOKS: the episode's last scene went out, so the episode has aired, for good."""
+    ep = tonight(world, series)
+    if ep and seg.brief == ep["last_brief"] and not ep.get("aired"):
+        with world.lock:
+            ep["aired"] = True
+        log.info("soap: %s episode %d aired", series.title, ep["number"])
 
 
 def _aired_episodes(world: World, series: Series) -> list[dict]:
@@ -436,6 +449,7 @@ def register(series: Series):
         seg_type, world, rng, part, work, brief, series)
     writers.CHECK_HOOKS[sh.id] = lambda seg, script, world: check(seg, script, world, series)
     writers.AFTER_HOOKS[sh.id] = lambda seg, world: after(seg, world, series)
+    player.AIRED_HOOKS[sh.id] = lambda seg, world: stamp(seg, world, series)
     writers.LINE_CAPS[sh.id] = 24
     for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS, writers.FICTION_SHOWS):
         reg.add(sh.id)
@@ -449,7 +463,7 @@ def register(series: Series):
             world_mod.PINNED_VOICES.pop(p.character, None)
         for reg in (player.SEATS, assets.IDENTS, assets.IDENT_MUSIC, assets.IDENT_VOICES, writers.SHOW_SYSTEMS,
                     writers.BRIEF_HOOKS, writers.PROMPT_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
-                    writers.AFTER_HOOKS, writers.LINE_CAPS):
+                    writers.AFTER_HOOKS, writers.LINE_CAPS, player.AIRED_HOOKS):
             reg.pop(sh.id, None)
         writers._PLACE.pop((sh.id, T.interview), None)
         for reg in (player.BARE_SHOWS, writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS,

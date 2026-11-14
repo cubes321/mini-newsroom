@@ -75,8 +75,10 @@ def soap(world, today: date) -> list[str]:
                     continue
                 if gap > TALK_DAYS:
                     break
-                if not any(e.get("show") == series["show"] and e.get("date") == ep["date"]
-                           and e.get("brief") == ep["last_brief"] for e in world.aired_archive()):
+                # The episode's own stamp (soap.stamp), or the archive for one aired before there was a stamp.
+                if not (ep.get("aired") or any(
+                        e.get("show") == series["show"] and e.get("date") == ep["date"]
+                        and e.get("brief") == ep["last_brief"] for e in world.aired_archive())):
                     continue
                 out.append(f"{series['title']}, the soap on Channel 8, {day:%A} night: everyone is asking "
                            f"\"{ep['cliffhanger']}\" (nobody knows the answer yet).")

@@ -202,6 +202,26 @@ def test_the_town_talks_about_a_cliffhanger_only_once_its_episode_has_aired(chan
     assert "Episode 1" in seen[-1][3]                                          # previously: the aired one
 
 
+def test_an_aired_episode_stays_aired_when_the_archive_has_moved_on(channel, monkeypatch):
+    """The archive keeps about two and a half nights: by the fourth Channel 8 night episode 1 had left it, the arc
+    stopped moving on and "previously" forgot it. The last scene going out stamps the episode itself."""
+    w = world_mod.seed()
+    _stub(monkeypatch)
+    ep = soap.commission(w, M)
+    assert "marina" in player.AIRED_HOOKS
+    player.AIRED_HOOKS["marina"](Segment(slot_id=3, type=T.interview, show="marina", brief="{s2}", target_s=170), w)
+    assert not ep.get("aired")                                                # a scene, not the last one
+    player.AIRED_HOOKS["marina"](Segment(slot_id=9, type=T.interview, show="marina", brief=ep["last_brief"],
+                                         target_s=170), w)
+    assert ep["aired"] and w.archive == []                                    # nothing of it in the archive at all
+    tomorrow = date.fromisoformat(w.last_date) + timedelta(days=1)
+    assert "Will Queenie tell Davey?" in talk.soap(w, tomorrow)[0]
+    w.last_date = tomorrow.isoformat()
+    seen = _stub(monkeypatch)
+    soap.commission(w, M)
+    assert "Episode 1" in seen[-1][3] and [s[1] for s in seen] == [soap.Episode]   # previously; the arc is in hand
+
+
 def test_a_scene_is_drawn_bare_on_its_own_set(channel):
     import pygame
     from newsroom.player import View
