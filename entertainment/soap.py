@@ -28,12 +28,13 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 from newsroom import llm, schedule
 from newsroom.config import CONFIG
-from newsroom.models import SegmentType as T
+from newsroom.models import SegmentType as T, _clip_words
 from newsroom.schedule import Item as I, Show
 from newsroom.world import World
 
@@ -82,7 +83,10 @@ class Storyline(BaseModel):
 
 class Arc(BaseModel):
     storylines: list[Storyline] = Field(min_length=2, max_length=3)
-    turning_point: str = Field(min_length=8, max_length=200, description="the arc's big moment, and in which episode")
+    # Cut at a word, not failed: on the first run with the creative editor (2026-11-14) an arc failed on a turning
+    # point past 200 characters and cost a second call; a second draft that failed so would lose the send-back.
+    turning_point: Annotated[str, _clip_words(200)] = Field(min_length=8, max_length=200,
+                                                            description="the arc's big moment, and in which episode")
 
 
 class Scene(BaseModel):

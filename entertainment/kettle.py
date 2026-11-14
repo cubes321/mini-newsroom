@@ -20,12 +20,13 @@ import logging
 import random
 import re
 from datetime import date, datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 from newsroom import llm, schedule
 from newsroom.config import CONFIG
-from newsroom.models import SegmentType as T
+from newsroom.models import SegmentType as T, _clip_words
 from newsroom.schedule import Item as I, Show
 from newsroom.world import World
 from newsroom.writers import _COMMON_RULES, _MIDDLE
@@ -194,7 +195,8 @@ class Dish(BaseModel):
                            description="who they are: where they cook in town (a café, a pub kitchen, a bakery, home)")
     cook_gender: str = Field(default="", max_length=1, description="'f' or 'm'")
     cook_age: str = Field(default="", max_length=6, description="young, middle or old")
-    why: str = Field(min_length=3, max_length=160, description="why this dish tonight: the season, a story, a family recipe")
+    why: Annotated[str, _clip_words(160)] = Field(      # cut, not failed: a long one cost a second call (2026-11-14)
+        min_length=3, max_length=160, description="why this dish tonight: the season, a story, a family recipe")
 
 
 class Sofa(BaseModel):
