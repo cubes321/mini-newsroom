@@ -44,7 +44,9 @@ NUMBER = "oh one six three two, nine six oh, eight eight eight"   # the drama ra
 TASK = "kettle" if "kettle" in CONFIG.llm.routes else "chamber"
 REST_DAYS = 28                          # a dish, a cook or a sofa guest isn't booked again within this
 SO_FAR_CHARS = 200
-TOKEN = re.compile(r"\{(cook|dish|sofa|expert|question|notices|caller)\}")
+TOKEN = re.compile(r"\{(cook|dish|sofa|expert|says|question|notices|caller)\}")
+CALLS_ASKED = 24                        # problems the booking is asked for, one a call: the hour took nineteen
+CALLS_KEPT = 30
 
 # The phone-in's experts, one a night in turn; each joins the town as a resident the first time.
 EXPERTS = (
@@ -57,6 +59,39 @@ EXPERTS = (
     {"topic": "fixing and mending", "name": "Stan Coombe", "role": "retired joiner, our mending expert",
      "gender": "m", "age": "old", "says": "can fix anything with a screwdriver and patience; hates waste"},
 )
+
+# What a call can be about when the booking has no problem left for it, by the expert's topic: each used once a
+# night, and never one the booking has already had a call on. On the first night on air (2026-11-14) the booking
+# gave five kinds of caller and the hour took nineteen calls: waterlogged clay rang three times and leeks four.
+THINGS = {
+    "the garden": (
+        "roses that want pruning", "bare patches in a lawn", "a hedge that has got away", "houseplants by a radiator",
+        "slugs and snails", "an old apple tree", "spring bulbs still in the bag", "a small pond", "herbs on a windowsill",
+        "raspberry canes", "seed potatoes", "hanging baskets", "a neighbour's overhanging tree", "a hedgehog in the "
+        "garden", "rusty tools", "a new-build plot full of rubble", "a north-facing yard", "seeds saved from last year",
+        "ivy on a wall", "cats digging in the beds", "tomatoes for next year", "a wind-blown seaside border"),
+    "pets": (
+        "a dog that pulls on the lead", "a cat scratching the furniture", "a rabbit off its food", "a budgie that has "
+        "stopped singing", "a puppy chewing shoes", "an old dog stiff in the mornings", "a cat that won't use the flap",
+        "a hamster awake all night", "a tortoise and the winter", "a dog frightened of fireworks", "goldfish in a "
+        "cloudy tank", "two cats that don't get on", "a spaniel that bolts its dinner", "a kitten and a new baby",
+        "guinea pigs in the cold", "a parrot that swears", "a collie scared of the car", "fleas that keep coming back",
+        "a tabby getting fat", "hens in the back garden", "a terrier that barks at the postman", "a rescue greyhound "
+        "settling in"),
+    "what's it worth": (
+        "a grandfather's pocket watch", "a box of old postcards", "a ship in a bottle", "a set of fish knives",
+        "a brass ship's lamp", "a tin toy car", "a great-aunt's brooch", "an old sewing machine", "a painting of the "
+        "harbour", "an early children's book", "a tea set with one cup missing", "a medal from the war", "a barometer",
+        "a doll with a china face", "a chest of drawers from a house clearance", "a stamp album", "a silver "
+        "christening spoon", "an old football programme", "a wind-up gramophone", "an enamel cannery sign", "a pair "
+        "of vases", "a sailor's sea chest"),
+    "fixing and mending": (
+        "a wobbly chair", "a sticking door", "a dripping tap", "a zip that has gone", "a cracked teapot", "a squeaky "
+        "stair", "a drawer that won't run", "a lamp that flickers", "a bicycle puncture", "a torn deckchair",
+        "a wardrobe door off its hinge", "a garden gate that drags", "blunt shears", "a rocking horse", "a leaking "
+        "welly", "a picture frame with a split corner", "a clock that stops", "a broken umbrella", "a stool with a "
+        "split seat", "a loose saucepan handle", "a draughty sash window", "a radio that crackles"),
+}
 
 
 # ------------------------------------------------------------------ the show
@@ -72,13 +107,16 @@ _RECIPE_2 = ("THE RECIPE, part two, after the break: part one has already done t
              "Maggie's is a noise of joy); the cook's tip for doing it at home")
 _SOFA = ("ON THE SOFA: {sofa}. Maggie and Nigel chat with them about it, with a cup of tea: warm and a bit nosy, "
          "the details people like")
-_EXPERT = ("THE EXPERT on the sofa before the phones open: {expert}, on tonight's phone-in, {question}: one good "
-           "tip for the time of year, and Nigel asks the question everyone's too embarrassed to ask")
+# The expert's way of talking ({says}) is given here and nowhere else: in every expert item's brief it was said in
+# every item, and Lowenna pushed seaweed in nine spots out of ten (2026-11-14).
+_EXPERT = ("THE EXPERT on the sofa before the phones open: {expert} ({says}), on tonight's phone-in, {question}: one "
+           "good tip for the time of year, and Nigel asks the question everyone's too embarrassed to ask")
 _NOTICES = ("THE NOTICEBOARD: Maggie and Nigel read out the community notices: {notices}. A line on each, with "
             "when and where; they bicker gently about which one they're going to")
 # The loop's expert item, a different angle each lap (Show.item): with one brief, the second scratch run's hour
-# (2026-11-13) had Lowenna on "frosted dahlias, rhubarb and seaweed" five times.
-_POSTBAG = tuple(b + ", nothing the expert has already said tonight" for b in (
+# (2026-11-13) had Lowenna on "frosted dahlias, rhubarb and seaweed" five times. Ten, for the nine laps an hour
+# takes: with six, the first night on air (2026-11-14) had the postbag and Myth or True twice each.
+_POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing a caller has asked" for b in (
     "THE POSTBAG: {expert} answers two letters that came in on tonight's subject, with Maggie and Nigel",
     "MYTH OR TRUE: Nigel reads out three things people swear by in the expert's field, and {expert} says which "
     "are true and why",
@@ -88,6 +126,14 @@ _POSTBAG = tuple(b + ", nothing the expert has already said tonight" for b in (
     "wrong, and Nigel takes notes",
     "THE ONE THING: {expert}, Maggie and Nigel each name the one thing every home should have for it, and argue",
     "QUICK-FIRE: Nigel puts five quick questions from the postbag to {expert}, a line or two each",
+    "WHAT IS IT?: Maggie holds up something a viewer has sent in from the expert's field and says what it looks "
+    "like; {expert} says what it is and what to do about it, and Nigel guesses wrong first",
+    "THEN AND NOW: {expert} on how one job in the expert's field was done when they started out and how it is done "
+    "now; Maggie is for the old way, Nigel for the new",
+    "A VIEWER'S TRIUMPH: Maggie reads a letter from a viewer for whom something went right in the expert's field, "
+    "and {expert} says why it worked and how anyone could do the same",
+    "NIGEL'S EXPERIMENT: Nigel reports a careful test he ran at home in the expert's field, with his figures; "
+    "{expert} says what he got right and the one thing he missed",
 ))
 
 SHOW_DEF = Show(
@@ -204,7 +250,8 @@ class Sofa(BaseModel):
     role: str = Field(min_length=3, max_length=80)
     gender: str = Field(default="", max_length=1, description="'f' or 'm'")
     age: str = Field(default="", max_length=6, description="young, middle or old")
-    about: str = Field(min_length=8, max_length=200, description="their nice story, in a sentence")
+    about: Annotated[str, _clip_words(200)] = Field(     # cut, not failed: a long one cost a second call (2026-11-14)
+        min_length=8, max_length=200, description="their nice story, in a sentence")
 
 
 class KettleBooking(BaseModel):
@@ -213,9 +260,11 @@ class KettleBooking(BaseModel):
     sofa: Sofa
     question: str = Field(min_length=8, max_length=120,
                           description="tonight's phone-in subject in the expert's field, as Maggie would put it")
-    callers: list[str] = Field(min_length=4, max_length=6,
-                               description="kinds of caller with different problems on the subject, one line each, "
-                                           "never a name")
+    # One problem a call, each used once (brief_for). A short list is not failed (that would cost the cook and the
+    # sofa guest too): the calls past it take a spare subject from THINGS. A long one is cut.
+    callers: Annotated[list[str], creative._first(CALLS_KEPT)] = Field(
+        min_length=4, description=f"about {CALLS_ASKED} callers' problems, one line each, in the order they ring: each "
+                                  "about a different plant, animal or object and a different trouble; never a name")
     notices: list[str] = Field(min_length=3, max_length=4,
                                description="community notices: what, when and where, one line each")
 
@@ -231,8 +280,13 @@ Book tonight's show:
 - sofa: ONE guest with a nice story, never news: a long marriage, a record, a rescue, a hobby, a reunion,
   a first. Someone from PEOPLE, or a new resident.
 - question: tonight's phone-in in THE EXPERT's field, as Maggie would put it to viewers, right for the
-  time of year; and four to six kinds of caller with different problems on it (a description, never a
-  name: each kind may ring more than once, a different person every time).
+  time of year, and wide enough for a whole evening of different problems (the field in this season,
+  not one worry within it).
+- callers: {calls} callers' problems, one line each, in the order they ring. The hour takes about twenty
+  calls and each line is one call, used once, so no two may be alike: each about a different plant,
+  animal or object, and a different trouble (never two on the same vegetable, the same weather or the
+  same cure; at most three touching the season's big worry). The caller and their problem as a
+  description, never a name: "someone whose bay tree in a pot has gone brown on one side".
 - notices: three or four community notices: a jumble sale, a choir wanting tenors, a lost cat, a coffee
   morning, a talk at the library; what, when and where, from the town's places in the briefing.
 None of RECENT SHOWS again: no dish, cook or sofa guest from there. Everything is fiction. Return ONLY JSON.
@@ -286,7 +340,8 @@ def commission(world: World) -> dict:
                 f"{k['question']}" for k in recent) if recent else "")
             + creative.for_planner(world, SHOW))
     try:
-        b = llm.complete_json(TASK, KettleBooking, _SYSTEM.replace("{month}", month), user)
+        b = llm.complete_json(TASK, KettleBooking,
+                              _SYSTEM.replace("{month}", month).replace("{calls}", str(CALLS_ASKED)), user)
     except llm.LLMError as e:
         log.warning("kettle: no booking (%s); the stand-in takes tonight", e)
         b = None
@@ -304,10 +359,12 @@ def digest(world: World, day: str) -> str:
     if not k or k.get("stand_in"):
         return ""
     d, s, ex = k["dish"], k["sofa"], k.get("expert") or {}
+    callers = k.get("callers") or []
     return (f"The recipe: {d['dish']} by {d['cook']}, {d['cook_role']} ({d.get('why', '')}).\n"
             f"The sofa: {s['name']}, {s['role']}: {s['about']}\n"
             f"The phones, with {ex.get('name', 'the expert')} on {ex.get('topic', 'their subject')} (in turn, not "
-            f"the booking's choice): {k['question']} Callers: {'; '.join(k.get('callers') or [])}\n"
+            f"the booking's choice): {k['question']} The booking gave {len(callers)} callers' problems, one a call, "
+            f"and {k.get('calls', 0)} calls were taken; the first eight: {'; '.join(callers[:8])}\n"
             f"The noticeboard: {'; '.join(k.get('notices') or [])}")
 
 
@@ -319,8 +376,9 @@ def enrol():
                "measures nothing, and Nigel Spargo, a retired chemistry teacher, who weighs everything. A local cook's "
                "recipe in two parts, a sofa guest with a nice story, an expert taking viewers' calls, the noticeboard. "
                "Never news. The pair's ways clash, warmly: that is the show."),
-        decides=("tonight's dish and its cook; the sofa guest and their story; the phone-in's subject and the kinds of "
-                 "caller; the community notices. Not the presenters' lines, the expert (in turn) or how the hour runs"),
+        decides=("tonight's dish and its cook; the sofa guest and their story; the phone-in's subject and every "
+                 "caller's problem (one a call, about twenty, no two alike); the community notices. Not the "
+                 "presenters' lines, the expert (in turn) or how the hour runs"),
         digest=digest, books=should_commission)
 
 
@@ -353,13 +411,18 @@ _STAND_IN_CALLERS = (
 def _stand_in(world: World, ex: dict) -> KettleBooking:
     rng = random.Random(f"kettle-{world.last_date}")
     dish, why = rng.choice(_STAND_IN_DISHES)
+    things = rng.sample(THINGS.get(ex["topic"], ()), k=len(THINGS.get(ex["topic"], ())))
+    # A kind of caller and a thing of their own each, so the stand-in's calls differ too; with no list for the
+    # topic, the kinds alone, as before.
+    callers = ([f"{_STAND_IN_CALLERS[i % len(_STAND_IN_CALLERS)]}, about {t}" for i, t in enumerate(things)]
+               or list(_STAND_IN_CALLERS))
     return KettleBooking(
         dish=Dish(dish=dish, cook="Jean Truscott", cook_role="Maggie's sister-in-law, a home cook in the Salting",
                   cook_gender="f", cook_age="old", why=why),
         sofa=Sofa(name="Bill Lander", role="retired harbour pilot", gender="m", age="old",
                   about="fifty years married this week, and he still brings his wife tea in bed"),
         question=f"Your questions on {ex['topic']}",
-        callers=list(_STAND_IN_CALLERS),
+        callers=callers,
         notices=["a coffee morning at the village hall on Saturday at ten, in aid of the lifeboat",
                  "the Harbour Choir is looking for tenors: rehearsals on Tuesdays at seven at the chapel",
                  "a tabby cat called Pickle is missing from Harrow Street: answers to the sound of a tin opener"])
@@ -410,7 +473,7 @@ def caption(world: World, name: str) -> str | None:
 
 
 def brief_for(world: World, brief: str) -> str:
-    """A brief's tokens from tonight's booking; "{caller}" takes the next kind of caller in turn."""
+    """A brief's tokens from tonight's booking; "{caller}" takes the next call's problem (`problem`)."""
     k = booked(world)
 
     def part(m: re.Match) -> str:
@@ -423,8 +486,9 @@ def brief_for(world: World, brief: str) -> str:
             s = k["sofa"]
             return f"{s['name']}, {s['role']}: {s['about']}"
         if tok == "expert":
-            e = k["expert"]
-            return f"{e['name']}, {e['role']} ({e['says']})"
+            return f"{k['expert']['name']}, {k['expert']['role']}"
+        if tok == "says":
+            return k["expert"]["says"]
         if tok == "question":
             return f"\"{k['question']}\""
         if tok == "notices":
@@ -432,13 +496,49 @@ def brief_for(world: World, brief: str) -> str:
         with world.lock:                                      # the caller: the next kind in turn
             n = k["calls"]
             k["calls"] = n + 1
-        kinds = k["callers"]
         host = ("Maggie", "Nigel")[n % 2]                     # in turn: two calls began alike on the first run
-        return (f"ONE CALL to the phone-in (call {n + 1} tonight), {host} takes it, {WAYS_IN[n % len(WAYS_IN)]}: "
-                f"{kinds[n % len(kinds)]}"
-                + (" (that kind has rung already tonight: this is SOMEONE ELSE, with a problem of their own)"
-                   if n >= len(kinds) else ""))
+        # The problem in a sentence of its own, labelled: joined to the way in by a colon, "after a quick word to
+        # the expert about the last call: a caller whose compost heap has gone slimy" was read as the last call's
+        # problem, and the writer made up this caller's (leeks, four times on 2026-11-14).
+        return (f"ONE CALL to the phone-in (call {n + 1} tonight). {host} takes it, {WAYS_IN[n % len(WAYS_IN)]}. "
+                f"THIS CALLER'S PROBLEM, the only one they ring about and the whole of the call: {problem(k, n)}. "
+                "Keep to it: not another plant, pet or thing, and nothing from PROBLEMS ON THE PHONES ALREADY TONIGHT")
     return TOKEN.sub(part, brief or "")
+
+
+_DULL = {"about", "their", "there", "which", "where", "whose", "garden", "thing", "something", "someone", "caller",
+         "want", "would", "could", "should", "still", "never", "every", "after", "before", "tonight", "winter",
+         "that", "with", "from", "have", "next", "year", "last", "full", "keep", "gone", "away", "over", "into",
+         "what", "when", "they", "them", "this", "been", "will", "doe", "back", "viewer", "question", "morning",
+         "night", "cold", "small", "that'", "won't", "don't", "want", "getting", "come", "coming", "home", "house",
+         "back", "side", "time", "each", "only", "just", "more", "some", "know", "whether", "always"}
+
+
+def _words(text: str) -> set[str]:
+    """The telling words of a problem: four letters or more, a plural as its singular, the dull ones left out."""
+    return {w for w in (x.rstrip("s") for x in re.findall(r"[a-z']{4,}", text.lower())) if len(w) >= 3} - _DULL
+
+
+def spares(k: dict) -> list[str]:
+    """The expert's spare subjects the booking hasn't already had a call on (a telling word in common counts as
+    had: "slugs and snails" is no spare on a night with slugs on the hostas)."""
+    had = _words(" ".join(k.get("callers") or []))
+    return [t for t in THINGS.get((k.get("expert") or {}).get("topic"), ()) if not _words(t) & had]
+
+
+def problem(k: dict, n: int) -> str:
+    """What tonight's call number `n` (from 0) is about: the booking's problems in order, each once; then the
+    expert's spare subjects, each once; only then round again."""
+    booked = k.get("callers") or []
+    if n < len(booked):
+        return booked[n]
+    spare = spares(k)
+    if spare:
+        m = n - len(booked)
+        return (f"a viewer with a question about {spare[m % len(spare)]}"
+                + (" (asked about tonight already: this caller's trouble with it is a different one)"
+                   if m >= len(spare) else ""))
+    return booked[n % len(booked)] if booked else "a viewer with a question for the expert"
 
 
 def for_prompt(world: World) -> str:
@@ -463,6 +563,13 @@ def for_prompt(world: World) -> str:
     if calls:
         out += ("\nPROBLEMS ON THE PHONES ALREADY TONIGHT (a new call is a different problem, about a different "
                 "plant, pet or thing):\n" + "\n".join(f"  - {h}" for h in calls))
+    # The expert's own spots, all of them, as the calls: only the last ten items are in SO FAR TONIGHT, and by the
+    # seventh lap the expert was sorting the same myths again (2026-11-14).
+    spots = [a["headline"] for a in aired if a["type"] == T.interview.value
+             and e["name"].split()[0].lower() in a["headline"].lower()]
+    if spots:
+        out += (f"\n{e['name'].upper()}'S OWN SPOTS ALREADY TONIGHT (a new one is on other matters, with other "
+                "advice):\n" + "\n".join(f"  - {h}" for h in spots))
     if rang:
         out += f"\nRUNG ALREADY TONIGHT: {', '.join(rang)}. A new caller has a name unlike all of these."
     return out

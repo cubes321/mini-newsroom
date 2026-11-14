@@ -132,8 +132,70 @@ def test_the_briefs_carry_tonights_booking_and_the_callers_come_in_turn(monkeypa
     assert "knitted a jumper" in kettle.brief_for(w, kettle._SOFA)
     assert "jumble sale" in kettle.brief_for(w, kettle._NOTICES)
     calls = [kettle.brief_for(w, "{caller}") for _ in range(5)]
-    assert "a first-time grower" in calls[0] and "an old hand" in calls[2] and "SOMEONE ELSE" in calls[4]
+    assert "a first-time grower" in calls[0] and "an old hand" in calls[2]
     assert "Maggie takes it" in calls[0] and "Nigel takes it" in calls[1]          # two calls began alike
+
+
+def _problems(briefs):
+    return [b.split("the whole of the call: ")[1].split(". Keep to it")[0] for b in briefs]
+
+
+def test_an_hour_of_calls_has_a_problem_each_and_none_twice(monkeypatch):
+    """The first night on air (2026-11-14): five kinds of caller for nineteen calls, so each kind rang four times
+    (waterlogged clay three times), and "that kind has rung already: someone else, with a problem of their own" had
+    the writer make one up (leeks, four times)."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())                               # a short list: four problems
+    k = kettle.commission(w)
+    briefs = [kettle.brief_for(w, "{caller}") for _ in range(22)]
+    said = _problems(briefs)
+    assert said[:4] == k["callers"] and len(set(said)) == 22     # the booking's, then a spare subject each
+    assert all("garden" in kettle.EXPERTS[0]["topic"] and "question about" in s for s in said[4:])
+    assert not any("SOMEONE ELSE" in b or "of their own" in b for b in briefs)
+    # the way in and the problem are sentences of their own: "…about the last call: a caller whose compost heap
+    # has gone slimy" was read as the last call's problem
+    assert "about the last call. THIS CALLER'S PROBLEM" in briefs[3]
+
+
+def test_a_spare_subject_is_not_one_the_booking_has_had_a_call_on(monkeypatch):
+    w = world_mod.seed()
+    b = _booking().model_copy(update={"callers": ["someone whose raspberry canes have died back", "a hedge too tall",
+                                                  "slugs on the hostas", "a man with a pond gone green"]})
+    _stub(monkeypatch, b)
+    k = kettle.commission(w)
+    spare = kettle.spares(k)
+    assert not any(t in spare for t in ("raspberry canes", "slugs and snails", "a hedge that has got away", "a small pond"))
+    assert "roses that want pruning" in spare and len(spare) >= 15
+
+
+def test_a_long_list_of_callers_is_cut_and_the_booking_asks_for_an_hours_worth(monkeypatch):
+    b = kettle.KettleBooking.model_validate(_booking().model_dump() | {"callers": [f"problem {i}" for i in range(40)]})
+    assert len(b.callers) == kettle.CALLS_KEPT
+    w = world_mod.seed()
+    seen = _stub(monkeypatch, _booking())
+    kettle.commission(w)
+    assert f"{kettle.CALLS_ASKED} callers' problems" in seen[0][2] and "{calls}" not in seen[0][2]
+
+
+def test_the_stand_ins_calls_differ_too(monkeypatch):
+    w = world_mod.seed()
+    _stub(monkeypatch, llm.LLMError("down"))
+    kettle.commission(w)
+    said = _problems([kettle.brief_for(w, "{caller}") for _ in range(20)])
+    assert len(set(said)) == 20 and all(", about " in s for s in said)
+
+
+def test_the_experts_way_of_talking_is_given_once_not_in_every_item(monkeypatch):
+    """Lowenna "swears by seaweed": in every expert item's brief, it came up in nine of her ten spots."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    kettle.commission(w)
+    assert "seaweed" in kettle.brief_for(w, kettle._EXPERT)
+    assert len(kettle._POSTBAG) >= 9                             # a lap each for the hour: none came round twice
+    for b in kettle._POSTBAG:
+        said = kettle.brief_for(w, b)
+        assert "Lowenna Chenoweth" in said and "seaweed" not in said and "{" not in said
+    assert "seaweed" not in kettle.for_prompt(w)
 
 
 def test_a_call_is_written_to_the_phone_in_and_the_caller_joins_the_town(channel, monkeypatch):
@@ -230,3 +292,10 @@ def test_each_lap_of_the_loop_has_its_own_expert_angle_and_every_call_is_remembe
                   for i in range(14)]
     said = kettle.for_prompt(w)
     assert "Problem 0" in said and "Problem 13" in said
+    # and the expert's own spots, every one: by the seventh lap she was sorting the same myths again (2026-11-14)
+    w.archive += [{"date": w.last_date, "show": "kettle", "type": "interview", "headline": f"Lowenna Chenoweth on {i}",
+                   "text": "..."} for i in range(12)]
+    w.archive.append({"date": w.last_date, "show": "kettle", "type": "interview", "headline": "Tegan Moyle's tart",
+                      "text": "..."})
+    spots = kettle.for_prompt(w).split("OWN SPOTS ALREADY TONIGHT")[1]
+    assert "Lowenna Chenoweth on 0" in spots and "Lowenna Chenoweth on 11" in spots and "Tegan Moyle" not in spots
