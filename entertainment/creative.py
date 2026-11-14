@@ -520,7 +520,7 @@ def _from_the_meeting(world: World, show_id: str, kind: str) -> list[str]:
     out = []
     if mine:
         out.append(f"FROM THE EDITORS' MEETING ({day}): agreed with the news channel's senior editor. Keep to it:\n"
-                   + "\n".join(f"  - {w}" for w in mine[:4]))
+                   + "\n".join(f"  - {w}" for w in mine[:6]))
     if kind != "fiction" and (settled := meeting.canon(world)):
         out.append("SETTLED BETWEEN THE CHANNELS (the town's facts: keep to them):\n"
                    + "\n".join(f"  - {c}" for c in settled))
@@ -571,8 +571,17 @@ def meeting_brief(world: World) -> str:
     its latest mark, and the question its last aired episode left (what the town knows already: newsroom/talk.py)."""
     c = world.creative or {}
     today, since = world.last_date, _since(world)
+    # When it was last on the air, from its programmes' own records: the first held dry (2026-11-14) had the
+    # creative editor report a quiet last night, with Marina Row aired, for a channel that had never been on.
+    nights = sorted({d for d in (
+        [k.get("date", "") for k in world.kettles] + [q.get("date", "") for q in world.quizzes]
+        + [ep["date"] for ep in world.wildlife.get("episodes", []) if ep.get("aired")]
+        + [leg["date"] for leg in world.travelogue.get("legs", []) if leg.get("aired")]
+        + [ep["date"] for s in world.soaps.values() for ep in s.get("episodes", []) if ep.get("aired")]) if d and d < today})
     out = ["CHANNEL 8: evenings from seven to nine on its nights: The Kettle's On (a teatime magazine), Wexley Wits "
-           "(a pub quiz), Marina Row (a drama: fiction), then Tideline (wildlife) or The Coast Road (a travelogue)."]
+           "(a pub quiz), Marina Row (a drama: fiction), then Tideline (wildlife) or The Coast Road (a travelogue). "
+           + (f"It was last on the air on {nights[-1]}." if nights else
+              "It has not been on the air yet: you have no last night to report, and nothing has aired.")]
     latest: dict[str, dict] = {}
     for l in c.get("log") or []:
         if l.get("mark") and l["date"] >= since:
@@ -744,4 +753,7 @@ def _cli(argv: list[str]) -> int:
 if __name__ == "__main__":
     import sys
 
-    raise SystemExit(_cli(sys.argv[1:]))
+    # Run as a script this file is "__main__", a second copy: the programmes enrol on entertainment.creative.
+    from entertainment import creative as _creative
+
+    raise SystemExit(_creative._cli(sys.argv[1:]))

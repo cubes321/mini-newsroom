@@ -149,9 +149,16 @@ places, its calendar. The meeting has four jobs:
 - A JOINT LOOK AT THE DAY: how each channel's last night went, and what matters tonight.
 Channel 8's drama is fiction inside the town: its story is not town fact and is not discussed here, beyond that it
 aired and what the town is asking.
+WHAT THE MEETING CAN DO, and all it can do: what is agreed goes as a short note to the news channel's story desk (it
+plans the running stories' next steps and may open a new one) and to the planners who book each Channel 8
+programme's next edition (its guests, subjects, questions, plans). So agree only what such a note can carry: who or
+what to keep off or put on, what to steer clear of or nod to, a fact to keep to. Neither of you can send the other
+anything later, look through old scripts, put a correction on air, or meet again before tomorrow: don't offer to. The
+first held dry (2026-11-14) had each editor promising the other a football score by evening.
+Say only what your own notes below show: if they show no last night for your channel, you have none to report.
 Speak as yourself, plainly, to a colleague: at most {words} words, up to four points, each naming a programme, a
 story or a person. Answer what was put to you, and say no where you mean no. Don't plan the other channel's
-programmes for it, and promise nothing you can't do. Everything is fiction, at small-town scale. Return ONLY JSON.
+programmes for it. Everything is fiction, at small-town scale. Return ONLY JSON.
 """
 
 _MINUTES = """\
@@ -160,12 +167,16 @@ town: Channel 7, the news channel, and Channel 8, the entertainment channel. Wri
 - verdict: two or three sentences: how each channel's last night went, and what matters tonight.
 - actions: at most eight, only what the editor it is addressed to agreed to or did not contest; nothing one side
   asked and the other refused. Each is `to` a seat (a name from SEATS), `about` a programme by its name or a story by
-  its thread id (empty if it is for the whole channel), and `what`: one sentence a planner can act on.
+  its thread id (empty if it is for the whole channel), and `what`: one sentence a planner can act on. An action is
+  read by the news channel's story desk or by the planner who books a programme's next edition, and by nobody else:
+  leave out anything such a planner can't do (sending something later, checking old scripts, a correction on air),
+  and never one action twice for two programmes: address it to the whole channel.
 - canon: at most four: a fact about the town now settled between the channels, or a contradiction and who puts it
   right. Never anything from Channel 8's drama: its story is fiction, not the town's.
 - offer: at most ONE thing that really happened on a Channel 8 programme that the news desk may make a story of, as a
   tip-off (what, where, who), if the news side wanted it; null otherwise. Never the drama's story.
-Add nothing that was not said. Return ONLY JSON.
+The minutes stand until tomorrow's meeting: write nothing that will be untrue by then (a match not yet played, "no
+result yet"), and give a date to anything that ends on one. Add nothing that was not said. Return ONLY JSON.
 """
 
 
@@ -274,7 +285,8 @@ def _sheet(world: World) -> str:
     """What code can tell both editors: the day, who is on the air, and the residents on both channels."""
     seats = [(s, {k.lower(): (k, v) for k, v in (_safe(s.people, world) or {}).items()}) for s in _order() if s.people]
     day = date.fromisoformat(world.last_date)
-    out = f"TODAY is {day:%A %d %B}. {channel.CURRENT.name} is on the air tonight."
+    out = (f"TODAY is {day:%A %d %B}. {schedule.clock_line(schedule.now())} {channel.CURRENT.name} is the channel on "
+           "the air today; the other is off until its next night.")
     both = sorted(set.intersection(*(set(p) for _, p in seats))) if len(seats) >= 2 else []
     if both:
         out += "\n\nON BOTH CHANNELS (the same resident on each side):\n" + "\n".join(
@@ -296,7 +308,9 @@ def _advance(world: World, m: dict) -> bool:
             last = len(m["turns"]) >= (ROUNDS - 1) * len(seats)
             user = (f"{_safe(s.brief, world) or ''}\n\n{_sheet(world)}\n\nTHE MEETING SO FAR:\n"
                     + (_said(m) or "(nothing yet: you open it)")
-                    + f"\n\nYour turn, {s.title}" + (": your last word today." if last else "."))
+                    + f"\n\nYour turn, {s.title}"
+                    + (": your last word today. Settle only what is still open, in a sentence or two each; don't "
+                       "say again what is already agreed." if last else "."))
             t = llm.complete_json(s.task, Turn, _RULES.format(words=TURN_WORDS) + "\n" + s.persona, user,
                                   max_tokens=MAX_TOKENS, timeout_s=TIMEOUT_S)
             if bad := safety.check(t.says):
@@ -459,4 +473,7 @@ def _cli(argv: list[str]) -> int:
 if __name__ == "__main__":
     import sys
 
-    raise SystemExit(_cli(sys.argv[1:]))
+    # Run as a script this file is "__main__", a second copy: the seats are registered on newsroom.meeting.
+    from newsroom import meeting as _meeting
+
+    raise SystemExit(_meeting._cli(sys.argv[1:]))
