@@ -388,6 +388,10 @@ def _guest(v: View, name: str | None):
 SET_OVERRIDE: str | None = None     # a one-off's own studio set (registered by tools/one_off.py), or none
 SHOW_SETS: dict[str, str] = {}      # a set per show from outside this package (entertainment/), by show id
 OVERLAYS: dict = {}                 # and its box over the set: (canvas, view) -> None, drawn when view.overlay
+# And what a show draws ON its own set, behind the people: (canvas, view, t) -> None, in pixels and never with
+# text() (queued text is laid over the finished frame, so it would not zoom with a close shot). Wexley Wits'
+# scoreboard: the set had one painted on, and it stayed blank all night (2026-11-14).
+DRESSINGS: dict = {}
 
 
 def _interview_set(v: View) -> str:
@@ -437,6 +441,8 @@ def _speaking(v: View, who: str, name: str | None) -> bool:
 
 def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, _interview_set(v))
+    if v.show in DRESSINGS and _interview_set(v) == SHOW_SETS.get(v.show):     # on its own set only
+        DRESSINGS[v.show](canvas, v, t)
     late = v.show == "late"
     for who, name, (x, y, scale, facing) in _interview_marks(v):
         draw_character(canvas, x, y, who, v.mouth if _speaking(v, who, name) else 0.0, t, scale=scale, facing=facing,

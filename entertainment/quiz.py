@@ -363,12 +363,121 @@ def check(seg, script, world: World) -> None:
 
 
 def after(seg, world: World) -> None:
-    """Tie each dart to the line that calls it, for the window (oche.overlay)."""
+    """Tie each dart to the line that calls it, for the window (oche.overlay), and the score to the line where
+    Clive reads it, for the set's scoreboard (wits.draw_board)."""
     seg.work.pop("darts", None)
     r = darts_round(world, seg.brief)
     found = oche.calls_in(seg.lines, r["throws"]) if r else None
     if found:
         seg.work["darts"] = sorted(({**d, "line": i} for d, i in zip(r["throws"], found)), key=lambda d: d["line"])
+    seg.work.pop("board", None)
+    if b := board(seg, world):
+        seg.work["board"] = b
+
+
+_NOUGHT = ("0", "zero", "nil", "nothing", "none", "no points", "nought")
+
+
+def _read_out(lines, score: list[int], host: str = "mag_b") -> int:
+    """The line where the quizmaster reads this score out: the last of his closing three lines to give both
+    figures, in words or digits; his last line if none does (he read it another way: "six points each")."""
+    hosts = [i for i, l in enumerate(lines) if l.speaker == host]
+    if not hosts:
+        return max(0, len(lines) - 1)
+    for i in reversed(hosts[-3:]):
+        said = " " + " ".join(re.sub(r"[^a-z0-9 ]", " ", lines[i].text.lower().replace("-", " ")).split()) + " "
+        forms = [(str(n), oche.words(n).replace("-", " ")) if n else _NOUGHT for n in score]
+        if all(any(f" {f} " in said for f in fs) for fs in forms):
+            return i
+    return hosts[-1]
+
+
+def _key(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9 ]", " ", text.lower()).split()[:5])
+
+
+def _answers(lines, r: dict, before: list[int], host: str = "mag_b") -> list[list]:
+    """[line, score] for each answer of a question round that scores: the score goes up on Clive's next line
+    after it, his verdict, so the board is never ahead of him. Each question is looked for after the last (by its
+    own words, where Clive asks it as written: Who Said That is put in his), then its answerer's line, and the
+    other team's when it is offered over. Stops at the first answer it cannot place: the read-out at the end of
+    the round puts the board right whatever was missed."""
+    score, out, pos = list(before), [], 0
+
+    def said_by(name: str) -> int | None:
+        return next((i for i in range(pos, len(lines))
+                     if lines[i].speaker == "guest" and getattr(lines[i], "guest_name", None) == name), None)
+
+    for x in r.get("questions") or []:
+        asked = next((i for i in range(pos, len(lines)) if lines[i].speaker == host and _key(x["q"])
+                      and _key(x["q"]) in " ".join(re.sub(r"[^a-z0-9 ]", " ", lines[i].text.lower()).split())), None)
+        if asked is not None:
+            pos = asked + 1
+        a = said_by(x["who"])
+        if a is None:
+            break
+        pos = a + 1
+        if x["right"]:
+            team, points = x["to"], OWN_POINTS
+        else:
+            b = said_by(x["bonus_who"]) if x.get("bonus_who") else None
+            if b is not None:
+                a, pos = b, b + 1
+            if not x.get("stolen"):
+                continue                                     # nobody scores
+            if b is None:
+                break
+            team, points = 1 - x["to"], BONUS_POINTS
+        verdict = next((i for i in range(a + 1, len(lines)) if lines[i].speaker == host), None)
+        if verdict is None:
+            break
+        score[team] += points
+        out.append([verdict, list(score)])
+    return out
+
+
+def board(seg, world: World) -> dict | None:
+    """What the set's scoreboard shows during this item: the score it comes in with ("start") and each change
+    ("steps": [line, score], in order). In a question round the score goes up answer by answer, on Clive's verdict
+    (the user, 2026-11-14: it first changed only at the end of the round); the darts rounds' points go up as he
+    reads the totals. The last step is always the score as Clive reads it out, so the board ends every round right.
+    An item with no round (the opening, the chats) keeps the score it came in with."""
+    q = tonight(world)
+    if not q or not q.get("rounds"):
+        return None
+    brief = seg.brief or ""
+    last = q["rounds"][-1]["scores_after"]
+    steps: list[list] = []
+    m = re.search(r"\{r([1-9])\}", brief)
+    if m and int(m.group(1)) <= len(q["rounds"]):
+        n = int(m.group(1)) - 1
+        before, now = (q["rounds"][n - 1]["scores_after"] if n else [0, 0]), q["rounds"][n]["scores_after"]
+        if q["rounds"][n]["kind"] not in DARTS_ROUNDS:
+            steps = _answers(seg.lines, q["rounds"][n], before)
+    elif "{open}" in brief:
+        before = now = [0, 0]
+    elif "{close}" in brief:
+        before, now = last, q["final"]
+    else:
+        before = now = last                                  # the chats: the rounds are over
+    before, now = list(before), list(now)
+    read = _read_out(seg.lines, now)
+    steps = [s for s in steps if s[0] <= read]               # nothing after the read-out: that is the round's score
+    if (steps[-1][1] if steps else before) != now:
+        steps.append([read, now])
+    return {"teams": [t["name"] for t in q["teams"]], "start": before, "steps": steps}
+
+
+def view(seg, v, line_idx: int) -> None:
+    """player.VIEW_HOOKS: the scoreboard at this line; lit on the line where the score has just gone up."""
+    b = seg.work.get("board")
+    if not b or "steps" not in b:
+        return
+    now, lit = b["start"], False
+    for line, score in b["steps"]:
+        if line <= line_idx:
+            now, lit = score, line == line_idx
+    v.scene = {"board": now, "teams": b["teams"], "lit": lit}
 
 
 def caption(world: World, name: str) -> str | None:

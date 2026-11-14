@@ -108,6 +108,8 @@ def use():
     writers.AFTER_HOOKS[quiz.SHOW] = quiz.after
     player.OVERLAY_HOOKS[quiz.SHOW] = oche.overlay
     scenes.OVERLAYS[quiz.SHOW] = oche.draw
+    player.VIEW_HOOKS[quiz.SHOW] = quiz.view                   # the set's scoreboard: the score, as Clive reads it
+    scenes.DRESSINGS[quiz.SHOW] = wits.draw_board
     writers.BOOKED_SHOWS.add(quiz.SHOW)
     writers.DEBATE_SHOWS.add(quiz.SHOW)
     writers.UNFILED_SHOWS.add(quiz.SHOW)
@@ -139,7 +141,7 @@ def use():
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
                     writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS,
-                    writers.STUDIO_HOOKS, writers.CALLED):
+                    player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED):
             reg.pop(quiz.SHOW, None)
             reg.pop(kettle.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):

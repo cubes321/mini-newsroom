@@ -143,7 +143,12 @@ engine never imports it. Instead a show from outside plugs into registries the e
 - added for Channel 8's factual slot (2026-11-14): `player.VIEW_HOOKS` (a show's say over the view), `scenes.SCENES`
   (a view mode of its own: Tideline's hide, The Coast Road's road), `player.AIRED_HOOKS` (a record stamped as a
   segment goes out, for what must outlive the archive), and `schedule.ROTATIONS` (a slot two shows share in turn,
-  read through `world.current()`).
+  read through `world.current()`);
+- added for Wexley Wits' scoreboard (2026-11-14): `scenes.DRESSINGS` (what a show draws on its own set, behind
+  the people, in pixels with `logo.draw_text`, never `scenes.text`: queued text is laid over the finished frame
+  and would not zoom with a close shot). The score comes from `quiz.board` (`seg.work["board"]`, set as the item
+  is written) through `quiz.view`: it goes up answer by answer, each time on Clive's verdict so the board is never
+  ahead of him, and ends every round on the score he reads out.
 
 Channel 7's own shows still use their branches in those modules. They can move onto the registries
 when a change touches them anyway, as stage 1 says.

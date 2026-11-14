@@ -103,3 +103,49 @@ PLACE = {
 }
 
 IDENT = "It's Wexley Wits! The pub quiz, live from Port Wexley."
+
+
+# ---------------------------------------------------------------- the set's scoreboard
+
+# The board painted on the set (assets/backdrops/studio_quiz.png): two dark panels, the home pair's under a blue
+# strip and the away pair's under a gold one, in backdrop pixels. Nothing drew on it until 2026-11-14: the score
+# was only ever spoken. Each strip takes its pub's name, each panel its score (quiz.board, quiz.view).
+STRIPS = ((124, 20, 62, 8), (196, 20, 62, 8))
+PANELS = ((122, 28, 66, 28), (194, 28, 66, 28))
+_INK = (18, 22, 40)                          # the pub's name, on its strip
+_LAMP, _LIT = (250, 214, 130), (255, 248, 214)        # the figures; and while Clive reads a new score out
+
+
+_SHORT = {"WEXLEY LEGION": "LEGION"}         # what the regulars call it, where the first word alone would be wrong
+_JOINS = {"AND", "AT", "OF", "&"}
+
+
+def _pub(name: str, maxw: int) -> str:
+    """A pub's name as its strip has room for it, in whole words: without its "The"; then as many words from the
+    front as fit ("the Crown at Saltby" is the CROWN, "the Anchor and Bell" the ANCHOR); a single word too long
+    loses its "'s", and only then letters."""
+    from newsroom import logo
+
+    words = _SHORT.get(s := name.upper().removeprefix("THE ").strip(), s).split()
+    while len(words) > 1 and (logo.text_width(" ".join(words)) > maxw or words[-1] in _JOINS):
+        words.pop()
+    s = " ".join(words)
+    if logo.text_width(s) > maxw:
+        s = s.removesuffix("'S")
+    while len(s) > 1 and logo.text_width(s) > maxw:
+        s = s[:-1]
+    return s
+
+
+def draw_board(canvas, v, t: float) -> None:
+    """scenes.DRESSINGS: the two pubs and the score, in pixels on the set, so a close shot zooms them with it."""
+    from newsroom import logo
+
+    b = getattr(v, "scene", None) or {}
+    if "board" not in b:
+        return                                              # no quiz booked, or an item from before the board
+    blink = b.get("lit") and int(t * 4) % 2 == 0            # two flashes a second as the new score is read
+    for (sx, sy, sw, sh), (px, py, pw, ph), name, score in zip(STRIPS, PANELS, b["teams"], b["board"]):
+        logo.draw_text(canvas, _pub(name, sw - 2), sx + sw // 2, sy + (sh - 7) // 2, 1, _INK, center=True)
+        logo.draw_text(canvas, str(score), px + pw // 2, py + (ph - 21) // 2, 3, _LIT if blink else _LAMP,
+                       gap=1, center=True)

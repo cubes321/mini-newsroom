@@ -215,6 +215,139 @@ def test_with_the_model_down_a_round_is_still_tonights_questions_and_score(chann
     assert f"{q['teams'][q['winner']]['name']} win" in " ".join(l.text for l in close.lines)
 
 
+def test_the_sets_scoreboard_changes_as_clive_reads_the_score_and_never_before(channel, monkeypatch):
+    """The set had a scoreboard painted on and nothing drew on it: both panels stayed black all night (2026-11-14)."""
+    from entertainment import wits
+
+    w = world_mod.seed()
+    q = quiz._record(w, quiz.teams(w), _booking())
+    r1, r2, last = (q["rounds"][i]["scores_after"] for i in (0, 1, -1))
+    names = [t["name"] for t in q["teams"]]
+    assert r1 != r2
+    lines, want, score = [{"speaker": "mag_b", "text": "Round two!"}], [], list(r1)
+    for x in q["rounds"][1]["questions"]:                        # as Clive runs it: the verdict opens his next line
+        lines += [{"speaker": "mag_b", "text": f"Well now. {x['q']}"},
+                  {"speaker": "guest", "guest_name": x["who"], "text": "Hmm."}]
+        if not x["right"]:
+            lines.append({"speaker": "guest", "guest_name": x["bonus_who"], "text": "Ooh, us?"})
+        if x["right"] or x["stolen"]:
+            score[x["to"] if x["right"] else 1 - x["to"]] += 2 if x["right"] else 1
+            want.append([len(lines), list(score)])               # on Clive's next line: never ahead of him
+    assert score == r2 and len(want) >= 2
+    lines += [{"speaker": "mag_b", "text": f"So after round two it's {names[0]} {oche.words(r2[0])}, {names[1]} {r2[1]}."},
+              {"speaker": "guest", "guest_name": q["teams"][0]["members"][0], "text": "Could be worse."},
+              {"speaker": "mag_b", "text": "Don't go away."}]
+    _stub(monkeypatch, lambda schema: schema.model_validate({"headline": "Round two", "lower_third": "Wexley Wits",
+                                                             "lines": lines}))
+    seg = Segment(slot_id=3, type=T.interview, show="wits", brief="{r2}", target_s=240)
+    writers.script_segment(seg, w)
+    assert not seg.fallback and seg.work["board"] == {"teams": names, "start": r1, "steps": want}
+
+    class V:
+        scene = None
+    v = V()
+    first = want[0][0]
+    quiz.view(seg, v, first - 1)                                 # the answer itself: still round one's score
+    assert v.scene == {"board": r1, "teams": names, "lit": False}
+    quiz.view(seg, v, first)
+    assert v.scene["board"] == want[0][1] and v.scene["lit"]     # up on Clive's verdict, and lit while he gives it
+    quiz.view(seg, v, first + 1)
+    assert v.scene["board"] == want[0][1] and not v.scene["lit"]
+    quiz.view(seg, v, len(seg.lines) - 1)
+    assert v.scene["board"] == r2 and not v.scene["lit"]
+    # an answer the script lost: the board goes as far as it can follow, and the read-out puts it right
+    short = Segment(slot_id=6, type=T.interview, show="wits", brief="{r2}", target_s=240)
+    lost = [l for l in lines if l.get("guest_name") != q["rounds"][1]["questions"][2]["who"]]
+    _stub(monkeypatch, lambda schema: schema.model_validate({"headline": "Round two", "lower_third": "Wexley Wits",
+                                                             "lines": lost}))
+    writers.script_segment(short, w)
+    steps = short.work["board"]["steps"]
+    assert steps[-1] == [len(short.lines) - 3, r2] and [s[0] for s in steps] == sorted(s[0] for s in steps)
+    # the items with no round keep the score they came in with; the result goes to the final score
+    for brief, part, start, end in (("Clive opens Wexley Wits: {open}", "open", [0, 0], [0, 0]),
+                                    (wits.DONE + "Clive chats with {chat1}", "", last, last),
+                                    ("the RESULT, {close}", "close", last, q["final"])):
+        b = quiz.board(Segment(slot_id=9, type=T.interview, show="wits", brief=brief, part=part, target_s=60), w)
+        assert b["start"] == start and (b["steps"][-1][1] if b["steps"] else b["start"]) == end
+    # the darts round's three points go up as Clive reads the totals, not dart by dart
+    r3 = q["rounds"][2]
+    _stub(monkeypatch, lambda schema: __import__("newsroom.models", fromlist=["PanelScript"]).PanelScript(
+        lines=_darts_lines(r3), headline="The darts round", lower_third="Wexley Wits", guest_name=r3["throws"][0]["who"]))
+    darts_seg = Segment(slot_id=7, type=T.interview, show="wits", brief="{r3}", target_s=200)
+    writers.script_segment(darts_seg, w)
+    assert [s[1] for s in darts_seg.work["board"]["steps"]] == [r3["scores_after"]]
+    # the code's own round (the model down) goes up answer by answer too, and ends on the score it reads out
+    _stub(monkeypatch, llm.LLMError("down"))
+    own = Segment(slot_id=4, type=T.interview, show="wits", brief="{r4}", target_s=240)
+    writers.script_segment(own, w)
+    r4 = q["rounds"][3]
+    scoring = sum(x["right"] or x["stolen"] for x in r4["questions"])
+    steps = own.work["board"]["steps"]
+    assert len(steps) == scoring and (not steps or steps[-1][1] == r4["scores_after"])
+    assert all(own.lines[line].speaker == "mag_b" for line, _ in steps)       # each on a line of Clive's
+
+
+def test_the_score_is_found_in_words_or_figures_level_or_not():
+    from newsroom.models import PanelLine
+
+    def said(who, text):
+        return PanelLine(speaker=who, text=text, guest_name="Kath Bunt" if who == "guest" else None)
+    lines = [said("mag_b", "Is it twenty-three or thirteen?"), said("guest", "Thirteen."), said("mag_b", "Right!"),
+             said("mag_b", "So that's the Lantern on twenty-three, the Railway thirteen."), said("guest", "Ha."),
+             said("mag_b", "Back soon.")]
+    assert quiz._read_out(lines, [23, 13]) == 3                  # not the question that happens to hold both
+    assert quiz._read_out(lines[:3] + [said("mag_b", "Level at six points each!")], [6, 6]) == 3
+    assert quiz._read_out(lines[:3] + [said("mag_b", "The Lantern 8, the Railway nil.")], [8, 0]) == 3
+    assert quiz._read_out(lines, [40, 41]) == 5                  # read some other way: his last line
+    assert quiz._read_out([], [1, 2]) == 0
+
+
+def test_the_board_is_drawn_on_the_set_in_pixels_with_each_pub_on_its_strip():
+    import pygame
+
+    from entertainment import wits
+
+    def lamps(canvas, rect, colour):
+        x, y, w_, h = rect
+        return sum(canvas.get_at((i, j))[:3] == colour for i in range(x, x + w_) for j in range(y, y + h))
+
+    class V:
+        scene = {"board": [8, 13], "teams": ["the Lantern", "the Railway"], "lit": False}
+    canvas = pygame.Surface(scenes.CANVAS)
+    wits.draw_board(canvas, V, 0.0)
+    assert all(lamps(canvas, p, wits._LAMP) > 40 for p in wits.PANELS)          # the figures, in each panel
+    assert all(lamps(canvas, s, wits._INK) > 40 for s in wits.STRIPS)           # the pub, on each strip
+    assert lamps(canvas, (0, 60, 320, 120), wits._LAMP) == 0                    # and nowhere else
+    V.scene = dict(V.scene, lit=True)
+    lit, off = pygame.Surface(scenes.CANVAS), pygame.Surface(scenes.CANVAS)
+    wits.draw_board(lit, V, 0.0), wits.draw_board(off, V, 0.3)                  # two flashes a second
+    assert lamps(lit, wits.PANELS[0], wits._LIT) > 40 and lamps(off, wits.PANELS[0], wits._LAMP) > 40
+
+    class Before:                                                # an item cached before the board: left blank
+        scene = None
+    blank = pygame.Surface(scenes.CANVAS)
+    wits.draw_board(blank, Before, 0.0)
+    assert lamps(blank, wits.PANELS[0], wits._LAMP) == 0
+    # every pub in the league fits its strip in whole words
+    room = wits.STRIPS[0][2] - 2
+    short = {pub: wits._pub(pub, room) for pub, *_ in darts.PUBS}
+    assert all(s and logo.text_width(s) <= room and s.split()[-1] not in wits._JOINS for s in short.values())
+    assert short["the Crown at Saltby"] == "CROWN" and short["the Wexley Legion"] == "LEGION"
+    assert short["the Anchor and Bell"] == "ANCHOR" and wits._pub("The Fisherman's Arms", room) == "FISHERMAN"
+    assert all(d in logo.GLYPHS for d in "0123456789")
+
+
+def test_the_board_belongs_to_wits_own_set_and_undo_takes_it_away():
+    from entertainment import wits
+
+    undo = entertainment.use()
+    try:
+        assert player.VIEW_HOOKS["wits"] is quiz.view and scenes.DRESSINGS["wits"] is wits.draw_board
+    finally:
+        undo()
+    assert "wits" not in player.VIEW_HOOKS and "wits" not in scenes.DRESSINGS
+
+
 def test_a_quiz_round_is_never_offered_a_return_guest(channel, monkeypatch):
     """The scratch run's quiz prompts carried 19 "A RETURN VISIT" offers: Wits is a light show, and a
     light show's interview may book back a guest with a loose end. A quiz's guests are its teams."""
