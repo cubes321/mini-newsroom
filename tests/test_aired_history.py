@@ -49,6 +49,17 @@ def test_a_segment_from_the_cache_gets_its_entry_when_it_airs():
     assert len(w.archive) == n + 1 and w.archive[-1]["headline"] == "From the cache"
 
 
+def test_a_drama_scene_from_the_cache_enters_the_archive_without_its_words():
+    """A soap scene written before a restart airs from the cache with no entry waiting: the one made then must be
+    fiction's (that it aired, never what was said), or a search of the archive would take the scene for news."""
+    w = world_mod.seed()
+    w.confirm_aired("interview", "Queenie sees", None, "Marjorie Pell took the money, Davey.", show="marina",
+                    brief="{s6}", content_hash="scene", fiction=True)
+    e = w.archive[-1]
+    assert e["fiction"] and e["text"] == "" and e["people"] == [] and e["brief"] == "{s6}"
+    assert not w.search_archive("Marjorie Pell took the money")
+
+
 def test_what_never_aired_is_dropped_after_the_hour_and_all_of_it_at_load():
     w = world_mod.seed()
     _written(w, "old")

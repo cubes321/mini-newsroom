@@ -323,9 +323,12 @@ class Player:
         from .models import SCRIPT_SCHEMAS
 
         if self.world is not None and seg.type in SCRIPT_SCHEMAS and not seg.repeat and seg.lines:
+            from .writers import FICTION_SHOWS
+
             self.world.confirm_aired(seg.type.value, seg.headline, seg.thread_id,
                                      " ".join(l.text for l in seg.lines if l.text), show=seg.show,
-                                     brief=seg.brief, content_hash=seg.content_hash)
+                                     brief=seg.brief, content_hash=seg.content_hash,
+                                     fiction=seg.show in FICTION_SHOWS)
         if seg.type in SCRIPT_SCHEMAS and not seg.repeat:
             from .workers import mark_aired
 

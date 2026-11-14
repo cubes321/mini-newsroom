@@ -603,10 +603,11 @@ class World:
 
     @_locked
     def confirm_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
-                      show: str = "", brief: str = "", content_hash: str = "") -> None:
+                      show: str = "", brief: str = "", content_hash: str = "", fiction: bool = False) -> None:
         """The player's word that a written segment went out: its waiting entry becomes history
         and its people's appearances count. One with no entry waiting (from the cache after a
-        restart) gets one now, unless the archive has it already."""
+        restart) gets one now, unless the archive has it already; `fiction` as record_aired's, or a soap scene
+        picked up from the cache would enter the archive with its words, as if it were news."""
         self.drop_unaired(older_than_s=UNAIRED_KEEP_S)
         for e in reversed(self.archive) if content_hash else ():
             if e.get("hash") == content_hash:
@@ -615,7 +616,8 @@ class World:
                 del e["aired"], e["ts"]
                 self._count_appearances(e.get("people", []))
                 return
-        self.record_aired(seg_type, headline, thread_id, text, show=show, brief=brief, content_hash=content_hash)
+        self.record_aired(seg_type, headline, thread_id, text, show=show, brief=brief, content_hash=content_hash,
+                          fiction=fiction)
 
     @_locked
     def drop_unaired(self, older_than_s: float | None = None, now: float | None = None) -> int:
