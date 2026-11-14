@@ -14,7 +14,7 @@ import logging
 import time
 from datetime import datetime
 
-from . import desk, llm, safety, schedule
+from . import desk, llm, meeting, safety, schedule
 from .config import CONFIG
 from .models import SeniorMemo
 from .world import World
@@ -72,6 +72,7 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
                          "new_thread must be null.\n\n")
         + f"THE DESK'S RECENT ROUNDS, oldest first:\n{_rounds(world)}\n\n"
         + (f"YOUR LAST MEMO ({world.senior_memo_at}):\n{world.senior_memo}\n\n" if world.senior_memo else "")
+        + meeting.for_desk(world, offer=False)        # what you agreed at the editors' meeting: the desk has it too
         + "Write the memo for the desk's next rounds."
     ) + desk._loose_ends(world)
     try:

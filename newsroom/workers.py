@@ -393,8 +393,8 @@ class WorkerPool:
         documentary is commissioned, finished pieces get a trail and the day's stories a
         community notice now and then, the model writes a new advert now and then, and the
         editor may commission a special."""
-        from . import (adverts, annals, breaking, chamber, continuity, desk, documentary, inquiry, panel, phonein,
-                       prune, review, rundown, senior, special)
+        from . import (adverts, annals, breaking, chamber, continuity, desk, documentary, inquiry, meeting, panel,
+                       phonein, prune, review, rundown, senior, special)
 
         try:
             if annals.tick(self.world):
@@ -446,6 +446,12 @@ class WorkerPool:
                     book(self.world)
                     world_mod.save(self.world)
                     return
+            # The editors' daily meeting, from four: one editor's turn a tick, then the minutes. After any booking
+            # already due, so a late start never holds a programme for it.
+            if meeting.due(self.world):
+                meeting.step(self.world)
+                world_mod.save(self.world)
+                return
             # After the evening's bookings, which are one call each and due by 20:00: started at 19:40, the
             # documentary's eight stages kept the workers busy until The Chamber opened on its stand-in (2026-11-01).
             specials = schedule.specials_air()          # Channel 8 airs none: no documentary or specials

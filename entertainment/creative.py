@@ -480,18 +480,16 @@ def for_planner(world: World, show_id: str, *, series: bool = False) -> str:
 
 
 def _for_planner(world: World, show_id: str, series: bool) -> str:
-    c = world.creative
-    if not c:
-        return ""
-    out = []
+    c = world.creative or {}
+    kind = SHOWS[show_id].kind if show_id in SHOWS else next(
+        (l.get("kind") for l in reversed(c.get("log") or []) if l["show"] == show_id), "")
+    out = _from_the_meeting(world, show_id, kind)
     n = (c.get("notes") or {}).get(show_id)
     items = (n.get("series" if series else "items") or []) if n and _fresh(n.get("date", ""), world.last_date) else []
     if items:
         out.append(f"THE CREATIVE EDITOR'S NOTES, after the edition of {n['date']}. Follow them where they touch what "
                    "you are planning:\n" + "\n".join(f"  - {x}" for x in items))
     led = (c.get("ledger") or {}).get(show_id) or {}
-    kind = SHOWS[show_id].kind if show_id in SHOWS else next(
-        (l.get("kind") for l in reversed(c.get("log") or []) if l["show"] == show_id), "")
     if kind == "fiction" and led.get("open"):
         out.append("STILL OPEN (set up in earlier episodes and not yet paid off: pay one off or move it on when the "
                    "story allows; don't let it drop):\n"
@@ -503,6 +501,114 @@ def _for_planner(world: World, show_id: str, series: bool) -> str:
         out.append("TOLD BEFORE (not the same again):\n"
                    + "\n".join(f"  - {t['date']}: {t['what']}" for t in led["told"][-12:]))
     return "\n\n" + "\n\n".join(out) if out else ""
+
+
+def _from_the_meeting(world: World, show_id: str, kind: str) -> list[str]:
+    """What the editors' meeting (newsroom/meeting.py) asked of this programme's planner: the actions addressed to
+    Channel 8 about it, about the whole channel, or about nothing this channel makes (a person, a story); and, for
+    a programme set in the real town, the facts the channels settled. A drama hears only what names it: the town's
+    people and news are not its business, and it gets no town canon."""
+    from newsroom import meeting
+
+    day, acts = meeting.actions(world, SEAT)
+    keys = {sid: {sid.lower(), e.title.lower()} for sid, e in SHOWS.items()}
+
+    def names(about: str, sid: str) -> bool:
+        return bool(about) and any(k in about or about in k for k in keys.get(sid, {sid}))
+    mine = [what for about, what in ((a.strip().lower(), w) for a, w in acts)
+            if names(about, show_id) or (kind != "fiction" and not any(names(about, sid) for sid in keys))]
+    out = []
+    if mine:
+        out.append(f"FROM THE EDITORS' MEETING ({day}): agreed with the news channel's senior editor. Keep to it:\n"
+                   + "\n".join(f"  - {w}" for w in mine[:4]))
+    if kind != "fiction" and (settled := meeting.canon(world)):
+        out.append("SETTLED BETWEEN THE CHANNELS (the town's facts: keep to them):\n"
+                   + "\n".join(f"  - {c}" for c in settled))
+    return out
+
+
+# ------------------------------------------------------------------ the creative editor's seat at the meeting
+
+SEAT = "channel8"
+_SEAT = ("You are the creative editor of Channel 8, the entertainment channel. You keep its programmes good: a drama "
+         "whose storylines pay off, double acts that stay themselves, a joke or an angle not used twice. You don't "
+         "run the news. Your drama's story stays in the drama: say only that it aired and what the town is asking.")
+WEEK = 7
+
+
+def _since(world: World, days: int = WEEK) -> str:
+    return (date.fromisoformat(world.last_date) - timedelta(days=days)).isoformat()
+
+
+def meeting_people(world: World) -> dict[str, str]:
+    """The residents on Channel 8 in the last week or booked for tonight, and where: read from the world alone
+    (its programmes' own records), so it answers on a Channel 7 night too."""
+    since, today, out = _since(world), world.last_date, {}
+
+    def add(name: str | None, where: str, day: str) -> None:
+        if name and since <= day <= today:
+            out.setdefault(name, f"{where}, {'tonight' if day == today else day}")
+    for k in world.kettles:
+        day = k.get("date", "")
+        add((k.get("dish") or {}).get("cook"), "cooking on The Kettle's On", day)
+        add((k.get("sofa") or {}).get("name"), "on The Kettle's On's sofa", day)
+        add((k.get("expert") or {}).get("name"), "The Kettle's On's expert", day)
+    for ep in world.wildlife.get("episodes", []):
+        if ep.get("aired") or ep.get("date") == today:
+            for m in ep.get("meets") or []:
+                add(m.get("name"), "met on Tideline", ep.get("date", ""))
+    routes = {s.get("made"): s for s in world.travelogue.get("series", [])}
+    for leg in world.travelogue.get("legs", []):
+        s = routes.get(leg.get("made"))
+        if s and (leg.get("aired") or leg.get("date") == today) and 1 <= leg.get("n", 0) <= len(s.get("legs", [])):
+            for stop in s["legs"][leg["n"] - 1].get("stops") or []:
+                add(stop.get("meet"), "met on The Coast Road", leg.get("date", ""))
+    return out
+
+
+def meeting_brief(world: World) -> str:
+    """What the creative editor brings to the editors' meeting, from the world alone. Nothing of a drama's story:
+    its latest mark, and the question its last aired episode left (what the town knows already: newsroom/talk.py)."""
+    c = world.creative or {}
+    today, since = world.last_date, _since(world)
+    out = ["CHANNEL 8: evenings from seven to nine on its nights: The Kettle's On (a teatime magazine), Wexley Wits "
+           "(a pub quiz), Marina Row (a drama: fiction), then Tideline (wildlife) or The Coast Road (a travelogue)."]
+    latest: dict[str, dict] = {}
+    for l in c.get("log") or []:
+        if l.get("mark") and l["date"] >= since:
+            latest[l["show"]] = l
+    if latest:
+        out.append("YOUR LATEST REVIEWS:\n" + "\n".join(
+            f"  - {l.get('title', sid)} ({l['date']}): {l['mark']}"
+            + ("" if l.get("kind") == "fiction" else f". {l['verdict']}") for sid, l in latest.items()))
+    asking = [f"  - {s.get('title', sid)} ({ep['date']}): the town is asking \"{ep['cliffhanger']}\""
+              for sid, s in world.soaps.items()
+              for ep in [e for e in s.get("episodes", []) if e.get("aired") and since <= e["date"] < today][-1:]]
+    if asking:
+        out.append("YOUR DRAMA (fiction; only what has aired):\n" + "\n".join(asking))
+    facts = [f"  - {l.get('title', sid)}: {f['what']}"
+             for sid, l in latest.items() if l.get("kind") == "factual"
+             for f in ((c.get("ledger") or {}).get(sid) or {}).get("facts", []) if f["date"] >= since][-8:]
+    if facts:
+        out.append("WHAT YOUR FACTUAL PROGRAMMES ESTABLISHED about the town this week:\n" + "\n".join(facts))
+    wits = next((q for q in reversed(world.quizzes) if since <= q.get("date", "") < today), None)
+    if wits:
+        w = wits["winner"]
+        out.append(f"WEXLEY WITS ({wits['date']}): {wits['teams'][w]['name']} beat {wits['teams'][1 - w]['name']} "
+                   f"{wits['final'][w]}-{wits['final'][1 - w]}.")
+    people = meeting_people(world)
+    if people:
+        out.append("RESIDENTS ON CHANNEL 8 this week:\n" + "\n".join(f"  - {n}: {where}" for n, where in people.items()))
+    return "\n\n".join(out)
+
+
+def attend() -> Callable[[], None]:
+    """Take the creative editor's seat at the editors' meeting (newsroom/meeting.py). Returns an undo. On a
+    Channel 7 night too: the seat reads the world, not the programmes' registrations."""
+    from newsroom import meeting
+
+    return meeting.seat(SEAT, "the creative editor of Channel 8", task=TASK, persona=_SEAT, brief=meeting_brief,
+                        people=meeting_people, order=1)
 
 
 # ------------------------------------------------------------------ before air: the vet

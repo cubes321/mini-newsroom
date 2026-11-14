@@ -451,6 +451,13 @@ def main(argv: list[str] | None = None) -> int:
         import entertainment
 
         entertainment.use()
+    else:                                     # the other channel's editor still comes to the daily meeting (meeting.py)
+        try:
+            import entertainment
+
+            entertainment.attend()
+        except ImportError:                   # an engine with no second channel: no meeting, nothing else changes
+            pass
     if args.clock:
         schedule.set_clock(args.clock)
         log.info("broadcast clock set to %s (%s)", args.clock, schedule.show_at(schedule.now()).id)

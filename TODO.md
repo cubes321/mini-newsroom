@@ -200,6 +200,12 @@ bottom with the date.
       night), whether the notes are ones a planner can act on, and whether a send-back makes the plan better.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).
+  - **The editors' meeting** (the user, 2026-11-14; built that day, `newsroom/meeting.py`; docs/ENGINE.md): once a
+    day from 16:00 the senior editor (Sonnet) and the creative editor (Opus) take two turns each and the minutes are
+    written. Its actions reach the story desk and Channel 8's planners; one story may be offered to the desk.
+    Nothing of the soap's story is brought to it. `python -m newsroom.meeting minutes`. Not on air yet: on the
+    first nights, whether the turns are worth reading, whether the desk acts on the minutes, and the cost (about
+    $0.25 a day). Left: names and faces for the two editors; the meeting on screen.
 - [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,

@@ -223,6 +223,9 @@ class World:
     # Channel 8's creative editor (entertainment/creative.py): {notes, ledger, log, vets, tried}. Its own business:
     # no reader of the town's news looks here (a drama's ledger is fiction).
     creative: dict = field(default_factory=dict)
+    # The editors' daily meetings (meeting.py), the last fortnight: {date, at, turns, minutes, done, ...}. The desk
+    # and Channel 8's planners read the standing minutes' actions.
+    meetings: list[dict] = field(default_factory=list)
     guest_cast: str = ""                                  # GUEST_CAST once the town's guests were spread by it
     phone_ins: list[dict] = field(default_factory=list)   # Have Your Say's bookings: {date, thread_id, question, guest, ...}
     reviews: list[dict] = field(default_factory=list)     # Out and About's verdicts: {date, place, kind, where, stars, verdict, owner}

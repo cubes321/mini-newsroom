@@ -227,6 +227,35 @@ only in the back office, a few calls a Channel 8 night. Nothing of it is on the 
 (`soap.stamp`, through `player.AIRED_HOOKS`): the archive keeps about two and a half nights, and the arc counts
 aired episodes for weeks.
 
+## The editors' meeting, built (2026-11-14)
+
+Once a day the two editors meet (`newsroom/meeting.py`; the user's idea, 2026-11-14): Channel 7's senior editor and
+Channel 8's creative editor, each speaking as themselves on their own model (Sonnet and Opus), two rounds, and then
+the minutes (Sonnet). One call per idle tick from 16:00, after any booking already due.
+
+- **Its four jobs:** keep the channels out of each other's way (a resident in a hard news story is not tonight's
+  jolly guest; code hands both editors the residents on both channels), pass stories between them, guard the shared
+  canon, and a joint look at the day.
+- **Seats, not channels.** `meeting.seat(name, title, task=..., persona=..., brief=..., people=...)` gives an editor
+  a seat; the module knows nothing of the other channel's code. The news seat is its own. The creative editor's is
+  registered by `entertainment.attend()`, which `use()` calls on Channel 8 nights and the launcher on Channel 7
+  nights, so the meeting is held every day. Its brief reads the world alone.
+- **Where the minutes go.** Actions are addressed to a seat. The news side's reach the story desk and the senior
+  editor beside the senior memo (`meeting.for_desk`). Channel 8's reach its planners through `creative.for_planner`:
+  the ones that name a programme go to that programme, the rest to every programme set in the town. They stand for
+  two days, since the channels take turns.
+- **One story may be offered to the desk**, which may seed it from the day's allowance as it may a guest's loose
+  end. This is the first way a Channel 8 happening can become news; town talk (`talk.py`) is still only talk. The
+  offer goes once the desk takes it, after four rounds, or with the day.
+- **The drama's story stays out of the room.** The minutes sit in the desk's prompt. The creative editor's seat
+  brings only what the town already knows of Marina Row: that it aired, its mark, and the question it left. Never
+  the arc, an unaired plan or the fiction ledger; and the only meeting actions the soap's planner hears are ones
+  that name it.
+- A turn that fails is tried once more; then the day has no meeting and nothing changes. With one seat or a model
+  off there is none.
+
+`python -m newsroom.meeting minutes` prints the meeting as held; `hold --dry` holds one now without keeping it.
+
 ## The content bank, built (2026-11-07)
 
 `newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them

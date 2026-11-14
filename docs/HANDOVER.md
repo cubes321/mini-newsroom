@@ -79,6 +79,11 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
   converging on one meeting (11 of 24 rounds said "converge" on 2026-10-29).
 - **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 10 a day, none before 06:00 and the rest released through the day (since 2026-11-01),
   and whether they air.
+- **The editors' meeting** (since 2026-11-14, from 16:00 on either channel's night): four "editors' meeting:" turns and
+  the minutes, then whether the desk acts on its actions and takes the offered story ("the desk took the offered
+  story"). `uv run python -m newsroom.meeting minutes` prints it.
+- **The creative editor** (Channel 8 nights): "creative editor: passed" or "sent back" at the bookings, a review per
+  programme after it has aired, and `uv run python -m entertainment.creative notes` the morning after.
 - **The fallback**: how often "falling back to" fires, and why.
 - **The Inquiry** (20:00): the story and guest it booked ("inquiry: tonight"), and whether Pat's
   questions run across both halves of the interview.

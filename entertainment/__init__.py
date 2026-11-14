@@ -49,6 +49,14 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
 IDENT_LINES = {"wits": ["This is Channel 8.", "Channel 8, for Port Wexley and the Greymouth coast."]}
 
 
+def attend():
+    """Give Channel 8's creative editor its seat at the editors' daily meeting (newsroom/meeting.py), and nothing
+    else: the launcher calls this on a Channel 7 night, when the channel itself is off the air. Returns an undo."""
+    from . import creative
+
+    return creative.attend()
+
+
 def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
@@ -107,8 +115,10 @@ def use():
     # light shows here. Its idle jobs go in last, so its catch-up is ahead of every booking and its reviews behind.
     undo_enrolled = (kettle.enrol(), quiz.enrol())
     undo_creative = creative.install()
+    undo_seat = attend()
 
     def undo() -> None:
+        undo_seat()
         undo_creative()
         for un in undo_enrolled:
             un()

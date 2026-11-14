@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import date, datetime
 
-from . import chamber, llm, promises, safety, schedule
+from . import chamber, llm, meeting, promises, safety, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan
 from .world import THREAD_PEOPLE, Thread, World
@@ -130,7 +130,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) +
+        f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) + meeting.for_desk(world, offer=not dry) +
         f"{schedule.clock_line(schedule.now())} A NEXT development dated today must come after now; a "
         "thread whose event is over moves on to how it went, or closes.\n\n"
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "
@@ -171,6 +171,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
             world.desk_notes = (world.desk_notes + [{
                 "at": f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}", "planned": [t.id for t in todo],
                 "new": len(p.new_threads), "merges": len(p.merges), "note": p.note}])[-12:]
+        meeting.offer_seeded(world, p.new_threads)     # a story the editors' meeting offered, if the desk took it
     if breaking == "no":
         p.breaking = None
     log.info("story desk: %d updates, %d new threads (planned %s)%s — %s", len(p.updates), len(p.new_threads),
