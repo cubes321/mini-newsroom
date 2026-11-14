@@ -437,3 +437,9 @@ person = 'Nigel Spargo'
 kokoro = 'bm_daniel'
 description = "A British man in his late fifties with a precise, well-spoken English accent and a faint West Country burr, a retired chemistry teacher turned presenter: fussy, exact and dryly funny (DramaBox seed 21, B of three)"
 line = "Two tablespoons is not a measurement, it's a mood. I would like the figure in grams, please, and the oven temperature, and the time, to the minute."
+
+[bm_polglase]
+person = 'Rowan Polglase'
+kokoro = 'bm_lewis'
+description = "A British man in his late sixties with a soft Cornish West Country accent, a retired nature reserve warden: warm, unhurried and quietly delighted, speaking low as if not to disturb the birds (DramaBox seed 21, B of three)"
+line = "There. Just past the reeds. That's a curlew, and she's been coming back to this same bit of mud every winter for as long as I've been counting."

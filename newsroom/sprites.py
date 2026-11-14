@@ -144,6 +144,13 @@ LOOKS["kettle_a"] = Look(skin=(234, 192, 166), hair=(196, 196, 204), top=(176, 5
 LOOKS["kettle_b"] = Look(skin=(226, 184, 158), hair=(92, 70, 52), top=(44, 58, 96), under=(226, 230, 236),
                          hair_style="swept", top_style="jumper", tie=(120, 36, 50), glasses="on",
                          temples=(170, 168, 164), mouth="line", brows="raised")
+# Channel 8's wildlife series (docs/FACTUAL.md), chosen on a contact sheet 2026-11-14 (A of four): Rowan Polglase,
+# late 60s, the Salting reserve's retired warden: white hair and beard, a tweed flat cap, an olive waxed jacket over a
+# check shirt, binoculars on a leather strap
+LOOKS["naturalist"] = Look(skin=(222, 178, 150), hair=(232, 232, 234), top=(76, 82, 52), under=(196, 176, 140),
+                           hair_style="receding", top_style="jacket", facial="beard", hat="flatcap",
+                           hat_col=(120, 104, 80), extra="binoculars", extra_col=(92, 62, 40), mouth="smile",
+                           brows="raised")
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 
@@ -491,6 +498,15 @@ def _body(p: _Pen, L: Look) -> None:
             p(L.extra_col, x, 17, 1, 17)
             for r in range(18, 34, 2):
                 p(_dark(L.extra_col, 0.6), x, r)
+    elif L.extra == "binoculars":                             # a naturalist's, on a strap round the neck (2026-11-14)
+        strap, body = L.extra_col, (44, 44, 48)
+        for i in range(7):
+            p(strap, -5 + i // 2, 17 + i); p(strap, 4 - i // 2, 17 + i)
+        for x in (-4, 1):                                      # two barrels side by side, the eyepieces up
+            p(_dark(body, 0.7), x, 23, 3, 1)
+            p(body, x, 24, 3, 4)
+            p((150, 170, 190), x, 28, 3, 1)                    # the big lenses catch the light
+        p(_dark(body, 0.6), -1, 25, 2, 1)                      # the bridge between them
     elif L.extra == "scarf":                                  # a club scarf in stripes, one end hanging
         stripes = (L.extra_col, WHITE)
         for r in range(16, 19):

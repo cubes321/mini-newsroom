@@ -297,6 +297,8 @@ historian = "am_santa"   # Hugh Tremayne, the history documentaries (and the ent
 # Channel 8's The Kettle's On: DramaBox designs chosen by ear 2026-11-13 (voices.toml names their Kokoro stand-ins)
 kettle_a = "bf_truscott"     # Maggie Truscott
 kettle_b = "bm_spargo"       # Nigel Spargo
+# Channel 8's wildlife series (docs/FACTUAL.md): a DramaBox design chosen by ear 2026-11-14
+naturalist = "bm_polglase"   # Rowan Polglase
 
 [paths]
 data = "data"

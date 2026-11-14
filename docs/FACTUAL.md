@@ -41,10 +41,15 @@ the kind, so new canon is never made up live.
 
 **Working title: *Tideline*** (to be chosen; "Wild Wexley" is the other candidate). Neither name is used in the town.
 
-**The presenter.** The reserve's retired warden, in their sixties or seventies, who knows every counter by name. Two
-unused names, checked against the town: **Rowan Polglase** or **Bryony Penberthy** (one of the two, or two looks of
-each, on a sheet). They get a look in `sprites.LOOKS` (a field coat; binoculars would be a new `Look` field, so it
-defaults to off and gets the `--sheet` before-and-after check in CLAUDE.md) and a DramaBox voice by ear.
+**The presenter: Rowan Polglase** (chosen 2026-11-14), late sixties, the reserve's retired warden, who knows every
+counter by name.
+
+- **His look** is A of four on data/contact-sheets/2026-11-14-tideline-naturalist.png: white hair and beard, a tweed
+  flat cap, an olive waxed jacket, binoculars on a strap. It's `sprites.LOOKS["naturalist"]`. The binoculars are a new
+  value of `Look.extra`, not a new field, so no other character changed.
+- **His voice** is `bm_polglase`, a DramaBox design: a soft Cornish accent, low and unhurried. It's B of three on
+  data/voice-samples/tideline, with Kokoro's `bm_lewis` standing in.
+- The speaker id `naturalist` is in config.toml. The show that speaks it isn't built yet.
 
 **Filmed, not live.** The slot is after dark in winter, but the films are shot by day: every item pins its time of
 day (`seg.work["tod"]`, which the player already honours for on-location shows) to day, or to dusk for a roost. The
@@ -153,7 +158,7 @@ episode is the likeliest piece to lift into a shared module, since the TV movie 
 1. **This plan**, with the new canon above (the reserve, the seal colony).
 2. **The bestiary and the hide view**, on a contact sheet. Done 2026-11-14: ten creatures, the close-up at 4× and
    the wide at 2× chosen. The egret and the seal could take more drawing.
-3. **The naturalist**: their name, a look (two or three on a sheet) and a voice (DramaBox, two or three by ear).
+3. **The naturalist**. Done 2026-11-14: Rowan Polglase, look A, voice B.
 4. **November's list** (and the rest of the winter's), the hand-written seasonal calendar.
 5. The series titles, and both idents by ear (an arrangement of Beacon each, like Wits').
 6. Then the travelogue: **the first host** from the shortlist, their look, and the first route.

@@ -138,8 +138,10 @@ bottom with the date.
     - The animals are drawn in code. The bestiary was built and approved the same day (`entertainment/creatures.py`,
       data/contact-sheets/2026-11-14-tideline-bestiary.png): ten creatures, close-ups in the hide at 4× with the
       place soft, wides at 2×.
-    - Next: the naturalist's name, look and voice; November's hand-written seasonal list; then the wildlife series on
-      a booking like The Kettle's On's, in the soap's episode shape.
+    - The naturalist was chosen the same day: Rowan Polglase, the reserve's retired warden (`LOOKS["naturalist"]`,
+      look A with binoculars; voice `bm_polglase`, B of three by ear).
+    - Next: November's hand-written seasonal list (with the new canon: the reserve, the seal colony); then the
+      wildlife series on a booking like The Kettle's On's, in the soap's episode shape.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
