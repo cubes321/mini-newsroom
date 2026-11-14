@@ -66,6 +66,7 @@ class Rope(BaseModel):
     up: bool = False               # hangs straight up out of the top of the shot from its attachment
     color: tuple[float, float, float] = (0.02, 0.07, 0.40)      # linear RGB: the Chip Lift's blue nylon
     width: float = 0.24
+    loop: bool = True              # tied on with a loop round the point; a spider's thread just starts there
 
 
 class Framing(BaseModel):
@@ -378,7 +379,7 @@ def plan(layout: Layout, kits: dict[str, Kit], series_dir: Path, n: int, speech:
             s = c["scales"][0]
             at = [[round(v, 4) for v in _world(c, p, f, point)] for f in range(n)]
             ax, ay = at[0]
-            loop = [ax, ay, round(0.5 * s, 4), round(0.22 * s, 4)]
+            loop = [ax, ay, round(0.5 * s, 4), round(0.22 * s, 4)] if r.loop else None
             pts = [[ax, ay], [ax, ay + 40.0]] if r.up else [[round(ax - 0.4 * s, 4), round(ay - 0.05, 4)], *pts]
         ropes.append({"points": pts, "loop": loop, "at": at, "up": bool(r.up and at), "color": list(r.color),
                       "width": r.width})
@@ -526,6 +527,8 @@ def _card(k, a: Actor, p: _Puppet, kit: Kit, mine: list[Beat], talk: list[str], 
         elif how == "fly" and kit.fly:                    # wings: a bob and a flap
             cy += 0.25 * math.sin(2 * math.pi * f / 12)
             sy *= 1.0 + 0.05 * math.sin(2 * math.pi * f / 6)
+        elif how == "fly" and kit.hangs:                  # on a thread: a slow sway, never an arc
+            rot += math.radians(3.0) * math.sin(math.pi * through)
         elif how == "fly":                                # no wings: thrown, in an arc
             cy += 2.0 * math.sin(math.pi * through)
         elif entering and 0 <= f - entering < 6:          # arriving: squash, stretch, settle

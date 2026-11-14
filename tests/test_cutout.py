@@ -310,6 +310,45 @@ def test_a_snatched_prop_waits_until_taken_and_the_camera_finds_a_hanging_puppet
     assert p["camera"][0][1] < tf[1]                                          # the camera below his feet, on him
 
 
+def test_a_spider_always_hangs_on_a_thread_and_only_moves_along_it(tmp_path):
+    from entertainment.cutout import writer
+
+    series_dir, d = _series(tmp_path)
+    kj = json.loads((d / "kit.json").read_text(encoding="utf-8"))
+    kj["hangs"], kj["anchors"]["thread"] = True, [24, 8]
+    (d / "kit.json").write_text(json.dumps(kj), encoding="utf-8")
+    kitmod.build(series_dir, "gull")
+    spider = kitmod.load(series_dir, "gull")
+    mouse = spider.model_copy(update={"hangs": False})
+    kits = {"spider": spider, "mouse": mouse}
+    st = writer.Stage.model_validate({
+        "actors": [{"who": "mouse", "mark": "left"}, {"who": "spider", "mark": "right"}],
+        "beats": [{"who": "spider", "do": "walk", "to": "centre", "at": "1"},
+                  {"who": "spider", "do": "spin", "value": "180", "at": "2"},
+                  {"who": "spider", "do": "fly", "to": "centre", "height": "air", "at": "3"},
+                  {"who": "spider", "do": "exit", "value": "left", "at": "4"}]})
+    lay_ = writer.stage(st, 1, kits, set())
+    sp = next(a for a in lay_.actors if a.who == "spider")
+    assert (sp.x, sp.y, sp.spot) == (6.0, writer.HANG["ground"], None)          # face to face, on his mark
+    # Every move is along his thread or up and down it, never a walk; no spin; going is up out of the shot.
+    assert [(b.do, b.value) for b in lay_.beats] == [("fly", f"0.0,{writer.HANG['ground']}"),
+                                                     ("fly", f"0.0,{writer.HANG['air']}"),
+                                                     ("fly", f"0.0,{writer.ABOVE}")]
+    (r,) = lay_.ropes
+    assert (r.attach, r.up, r.loop, r.width) == ("spider.thread", True, False, writer.SILK_W)
+    w, h = 48 + 2 * kitmod.PAD, 64 + 2 * kitmod.PAD
+    p = lay.plan(lay_, kits, series_dir, 48, {}, [], d / "base.png", {x: (w, h) for x in kits})
+    thread = p["ropes"][0]
+    assert thread["loop"] is None and thread["up"] and thread["points"][1][1] > 30
+    # Coming in, he drops down his thread from above the shot to where he talks.
+    st = writer.Stage.model_validate({"actors": [{"who": "spider", "mark": "centre", "enter": "left"}]})
+    lay_ = writer.stage(st, 1, kits, set())
+    assert lay_.actors[0].y == writer.ABOVE and lay_.actors[0].enter == "none"
+    assert [(b.do, b.value, b.at) for b in lay_.beats] == [("fly", f"0.0,{writer.HANG['ground']}", "0")]
+    assert "ALWAYS HANGS" in writer.brief(type("S", (), {"cast": [type("C", (), {
+        "key": "spider", "name": "Mr L", "looks": "a spider", "voice": "deep"})()]})(), kits, [])
+
+
 def test_times_are_read_against_the_lines_and_effects_land_on_the_track(monkeypatch, tmp_path):
     from entertainment import cartoons
     from entertainment.cutout import at_seconds

@@ -62,6 +62,9 @@ class Kit(BaseModel):
     facing: dict[str, Literal["left", "right", "front"]] = {}   # a pose drawn facing another way (walking)
     walk: list[str] = []                       # poses that alternate as a walk (two strides)
     fly: str | None = None                     # the pose for flying
+    # Always on a thread from anchors["thread"] (Skirting Board's spider, 2026-11-14): never on the floor or a
+    # spot, never walks; a move slides him along or up and down it. Drawn right way up, hanging, no thread drawn.
+    hangs: bool = False
 
     def folder(self, series_dir: Path) -> Path:
         return series_dir / "puppets" / self.who

@@ -183,6 +183,34 @@ SERIES: dict[str, Series] = {s.id: s for s in (
          "the town hall steps", "the beach at Saltby", "the Harrow Street market"),
         tone="cheerful, inventive slapstick with a kind heart; the contraption always half-works",
     ),
+    # Written for the cut-out engine (the user's pick of six premises, 2026-11-14): everything at floor level, so
+    # every backdrop is a skirting board inches away (no giants against far buildings), nothing ever on a table
+    # (props are held or on the floor), and the spider lives on the rope the engine already draws. The household
+    # is only ever heard. Not scheduled on Cartoon Time until it has episodes.
+    Series(
+        "skirting", "SKIRTING BOARD",
+        "Tuppence, a brisk, hungry field mouse, lives behind the kitchen skirting board of a cottage on Chapel Row "
+        "in Port Wexley. Every episode she needs one thing off the floor of the house. Mr Lofthouse, a gloomy, "
+        "well-read house spider who hangs on his thread above her door, explains why it can't be done; it usually "
+        "can, though never the way she planned. The family who live there are never seen, only heard: footsteps, a "
+        "kettle, a voice from far above. Everything happens on the floor; nothing is ever up on a table.",
+        "hand-drawn 2D cartoon animation in the style of a classic British children's television cartoon: clean "
+        "bold outlines, flat warm colours, simple painted backgrounds of a cottage seen from a mouse's height: "
+        "skirting boards, floorboards, a doormat, the bottoms of doors and table legs",
+        "a light, tiptoeing cartoon score: pizzicato strings, a bassoon and a celesta, in a major key",
+        (Character("tuppence", "Tuppence", "a small brown field mouse standing upright on her hind legs, with warm "
+                   "brown fur, a cream belly and muzzle, big round pink-lined ears, bright black eyes and a small red "
+                   "neckerchief with white spots", "a quick, bright, determined young woman's voice with a light "
+                   "Cornish accent, always on her way somewhere", "She"),
+         Character("lofthouse", "Mr Lofthouse", "a round, charcoal-grey house spider with a pale grey face, large "
+                   "round eyes behind small round spectacles, bushy grey eyebrows and eight thin grey legs; he hangs "
+                   "on a single silk thread", "a slow, deep, gloomy older man's voice, well-spoken with a faint West "
+                   "Country burr, fond of long words", "He")),
+        ("the kitchen skirting by the dresser", "the hall doormat under the letterbox", "the back step by the cat flap",
+         "under the kitchen table", "the pantry floor"),
+        tone="gently comic and cosy, two small creatures in a big house; never cruel; for children and the "
+             "grown-ups watching with them",
+    ),
 )}
 
 # Cartoon Time: an hour of films from the bank, a series in turn, a bumper between. Nothing is written live.
@@ -558,6 +586,40 @@ def _trim(a, sr: int):
     return a[max(0, loud[0] - m): loud[-1] + m]
 
 
+PAUSE_S = 0.6                                      # the longest silence kept inside one line
+
+
+def _tighten(a, sr: int, most: float = PAUSE_S):
+    """A line whose silences inside it are at most `most` seconds. Pocket cloning Skirting Board's slow, gloomy
+    spider left 1.4 to 2.6 s of nothing at full stops ("Further, yes. I did say."), so two short lines ran past
+    a shot's 15 s (2026-11-14). Silence is under 3% of the line's loudest, in 20 ms steps; each long run keeps
+    its first and last `most / 2`, so the words either side still breathe."""
+    import numpy as np
+
+    h = max(1, int(0.02 * sr))
+    n = len(a) // h
+    if n < 3:
+        return a
+    loud = np.sqrt((a[: n * h].reshape(n, h) ** 2).mean(1))
+    quiet = loud < 0.03 * (float(loud.max()) or 1.0)
+    keep = int(most / 2 * sr)
+    out, at, k = [], 0, 0
+    while k < n:
+        if not quiet[k]:
+            k += 1
+            continue
+        j = k
+        while j < n and quiet[j]:
+            j += 1
+        s, e = k * h, j * h
+        if e - s > 2 * keep and k > 0 and j < n:     # inside the line, not at its ends
+            out += [a[at: s + keep]]
+            at = e - keep
+        k = j
+    out.append(a[at:])
+    return np.concatenate(out)
+
+
 def _bed(series: Series, scene: Scene, i: int, n: int, start: float | None = None):
     """Scene i's bed, `n` samples of stereo at TRACK_SR: the score from `start` seconds in (default (i - 1)
     scenes of this length), so the slices join up into one piece across the episode, and the place's ambience;
@@ -623,7 +685,7 @@ def record(series: Series, scene: Scene, folder: Path, i: int,
     for k, l in enumerate(lines, start=1):
         wav = store / f"{k:02d}_{l.who}.wav"
         if not wav.exists():
-            sf.write(wav, _trim(_speak(series, l.who, l.words), sr), sr)
+            sf.write(wav, _tighten(_trim(_speak(series, l.who, l.words), sr), sr), sr)
         a, got = sf.read(wav, dtype="float32")
         clips.append(np.interp(np.arange(int(len(a) * TRACK_SR / got)) * got / TRACK_SR, np.arange(len(a)), a))
     speech = sum(len(c) for c in clips) / TRACK_SR

@@ -533,3 +533,20 @@ def test_a_closed_film_reader_lets_go_of_its_thread_and_frames(monkeypatch):
     r.close()
     r.thread.join(2.0)
     assert not r.thread.is_alive() and r.q.empty() and r.done
+
+
+def test_a_lines_long_silences_are_shortened_but_its_words_and_ends_are_kept():
+    import numpy as np
+
+    from entertainment import cartoons
+
+    sr = 1000
+    word = np.sin(np.arange(300) * 0.5).astype(np.float32)          # 0.3 s of sound
+    gap = np.zeros(2000, np.float32)                                  # 2 s of nothing at a full stop
+    short = np.zeros(400, np.float32)                                 # 0.4 s: a breath, kept
+    line = np.concatenate([word, gap, word, short, word])
+    out = cartoons._tighten(line, sr)
+    assert abs(len(out) - (900 + int(cartoons.PAUSE_S * sr) + 400)) <= 40     # only the long gap shrank
+    assert np.allclose(out[:300], word) and np.allclose(out[-300:], word)       # the words untouched
+    lead = np.concatenate([np.zeros(1500, np.float32), word])                   # silence at an end is _trim's
+    assert len(cartoons._tighten(lead, sr)) == len(lead)

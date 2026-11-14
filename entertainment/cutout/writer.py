@@ -34,6 +34,13 @@ GAP = 0.5                                      # units of air between two who st
 EDGE_X = 14.0                                  # a wide shot's edge is 16: nobody is spread past this
 TOP = 16.2                                     # a wide shot's top edge, in stage units
 PROP_FAR = 0.4                                 # a spot drawn smaller than this is too far off for a prop to read
+# Whoever hangs on a thread (Kit.hangs): where his feet are at each height. At "ground" Mr Lofthouse's face is
+# level with Tuppence's as she stands (both kits 9 units tall: his face is 3.9 units above his feet, hers 6.1
+# above the floor).
+HANG = {"ground": 2.2, "raised": 4.5, "air": 7.5}
+ABOVE = TOP + 2.0                              # a hanger's feet up here: all of him above the top of a wide shot
+SILK = (0.80, 0.80, 0.84)                      # linear RGB: a spider's thread
+SILK_W = 0.05
 
 
 class Said(BaseModel):
@@ -201,6 +208,10 @@ def brief(series, kits: dict[str, Kit], places: list[str]) -> str:
         poses = [p for p in k.poses if p not in k.walk and p != k.fly]
         faces = [f for f in k.faces if f not in ("talk", "squawk", "blink")]
         can = (["walks"] if k.walk else ["waddles"]) + (["CAN FLY"] if k.fly else [])
+        if k.hangs:
+            can = ["ALWAYS HANGS ON A THREAD from above: never stands, walks or perches; HEIGHT ground is face to "
+                   "face with someone standing, raised higher, air up near the top; a walk or fly slides him along "
+                   "or up and down his thread; ENTER drops him in from above; EXIT climbs him out of the top"]
         rows.append(f"  - {c.key}: {c.name}, {c.looks}; " + (f"speaks: {c.voice}" if c.voice else "NEVER SPEAKS")
                     + f". POSES: {', '.join(poses)}. FACES: {', '.join(faces) or 'none'}. {', '.join(can)}.")
     return "THE CAST (their puppets):\n" + "\n".join(rows) + "\n\nTHE PLACES:\n" + "\n".join(f"  - {p}" for p in places)
@@ -264,6 +275,8 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         return y + kits[who].height * 0.85 * far[spot] <= TOP and abs(x) + kits[who].half * far[spot] <= EDGE_X + 1.5
 
     actors, held, used = [], {}, set()
+    drops_in: dict[str, float] = {}                       # a hanger who comes in: the height he drops to
+    threads = {w for w, k in kits.items() if k.hangs}
     for a in st.actors:
         who = a.who.strip().lower()
         if who not in known:                              # a prop not drawn yet is staged once it is (props)
@@ -274,6 +287,15 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         k = kits[who]
         pose = a.pose if a.pose in k.poses else "normal"
         mark = a.mark.strip().lower().replace(" ", "_")
+        if k.hangs:
+            # On his thread, never on a spot or the floor. Coming in, he drops down it from above the shot
+            # (a walk-in would have him hang from nothing on the way); an off-shot mark is a drop-in there too.
+            x = at_wide[mark][0] if mark in at_wide else max(-MARKS["far_right"], min(MARKS["far_right"], _mark(mark)))
+            actors.append(Actor(who=who, x=x, y=ABOVE if a.enter != "none" or mark.startswith("off") else HANG[a.height],
+                                facing=a.facing, pose=pose))
+            if a.enter != "none" or mark.startswith("off"):
+                drops_in[who] = HANG[a.height]
+            continue
         spot = mark if mark in spots and fits(mark, who) else None
         y = HEIGHTS[a.height]
         if mark in spots and spot is None:                # too high for them: under it, on the ground
@@ -303,7 +325,7 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
             actors = [x for x in actors if x.who != prop] + [a.model_copy(update={"on": f"{who}.hold", "on_at": b.at or "0"})]
 
     def spins(who: str) -> bool:
-        return any(b.who.strip().lower() == who and b.do == "spin"
+        return who not in threads and any(b.who.strip().lower() == who and b.do == "spin"
                    and abs(float(re.sub(r"[^0-9.\-]", "", b.value) or 0)) >= 150 for b in st.beats)
     for a in actors:
         # Hung upside down: a spin turns a card round its feet, so from the writer's "air" Gully's body hung
@@ -317,12 +339,31 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
                 if x is a or (x.who in props and x.x == a.x and x.y > 0 and not x.on):
                     x.y = hang
     hung = {a.who: a.y for a in actors if spins(a.who)}
-    _spread(actors, kits, set(hung))
+    _spread(actors, kits, set(hung) | threads)
     carried = {a.on.partition(".")[0]: a for a in actors if a.on}
     beats = []
+    thread_x = {a.who: a.x for a in actors if a.who in threads}
+    for who, y in drops_in.items():
+        beats.append(LBeat(who=who, do="fly", value=f"{thread_x[who]},{y}" + (",1.0" if where else ""), at="0",
+                           until="0.9"))
     for b in st.beats:
         who = b.who.strip().lower()
         if who not in names or b.do == "take":
+            continue
+        if who in threads and b.do in ("walk", "fly", "exit", "spin"):
+            # On a thread every move is along it or up and down it; going is climbing out of the top. A spin
+            # would hang him upside down by a rope of the wrong kind.
+            if b.do == "spin":
+                continue
+            to = (b.to or "").strip().lower().replace(" ", "_")
+            if b.do == "exit":
+                x, y = thread_x[who], ABOVE
+            else:
+                x = at_wide[to][0] if to in at_wide else (_mark(to) if to else thread_x[who])
+                x, y = max(-MARKS["far_right"], min(MARKS["far_right"], x)), HANG[b.height]
+            thread_x[who] = x
+            beats.append(LBeat(who=who, do="fly", value=f"{x},{y}" + (",1.0" if where else ""), at=b.at or "0",
+                               until=b.until))
             continue
         if b.do == "drop" and (who in carried or any(a.who == who and a.on for a in actors)):
             # Whoever carries something and drops lets go of it; they don't fall themselves (the stager's
@@ -384,6 +425,8 @@ def stage(st: Stage, place: int, kits: dict[str, Kit], props: set[str],
         # Hung from something: a rope from the ankle up out of the top of the shot. The script said "from the
         # hook" and the stage drew nothing, so Gully hung from thin air (shots 18, 19 and 21).
         ropes.append(Rope(attach=f"{who}.ankle", up=True))
+    for who in sorted(threads & names):
+        ropes.append(Rope(attach=f"{who}.thread", up=True, loop=False, color=SILK, width=SILK_W))
     c = st.camera
     on = (c.on or "").strip().lower() or None
     if on and on.partition(".")[0] not in names:
