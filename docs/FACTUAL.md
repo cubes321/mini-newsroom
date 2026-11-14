@@ -75,7 +75,9 @@ said.
 the user, no model). For November, for example: seal pups below the lighthouse, the waders back on the Salting,
 brent geese, the starling roost over the reeds, the herons. The planner is given the month's list and the log of what
 earlier episodes covered, and books nothing outside the list. A creature isn't booked again within a rest period,
-like The Kettle's On's `REST_DAYS`. The creative editor in TODO.md takes that job over when it is built.
+like The Kettle's On's `REST_DAYS`. The rests stay in code as hard limits (the user, 2026-11-14): the creative editor
+(`entertainment/creative.py`, built that day) sits above them and judges what code can't: the same angle again, the
+same story from a resident, a film that covers what the last one on that sight did.
 
 **The hide view** is a new view, the documentary's look (`scenes.draw_special`: a letterboxed backdrop with a strand
 label) without the presenter on screen:

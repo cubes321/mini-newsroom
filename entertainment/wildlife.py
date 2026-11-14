@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+import time
 from datetime import date, datetime
 from typing import Literal
 
@@ -42,7 +43,7 @@ from newsroom.schedule import Item as I, Show
 from newsroom.world import World
 from newsroom.writers import _COMMON_RULES, _MIDDLE
 
-from . import creatures, seasons
+from . import creative, creatures, seasons
 
 log = logging.getLogger(__name__)
 
@@ -258,22 +259,46 @@ def commission(world: World) -> dict:
     season = seasons.in_season(today.month)
     people = _people(world, today)
     near_at = SEQUENCES - 1                               # the neighbour's sequence: the third of four
-    user = (f"BRIEFING\n{world.summary_for_editor()}\n\nTHE SIGHT: {_sight_text(lead, n)}"
-            + (f"\n\nTHE NEIGHBOUR (sequence {near_at}, no number): {near.what}. {near.note}" if near else
-               "\n\nTHE NEIGHBOUR: none tonight; every sequence is about THE SIGHT.")
-            + "\n\nTHE SEASON (what is about this month):\n" + "\n".join(f"  - {s.what}" for s in season)
-            + "\n\nPEOPLE:\n" + ("\n".join(f"  - {p.name}, {p.role}{_said(p)}" for p in people) or "  (nobody yet)")
-            + _earlier(world, lead)
-            + f"\n\nToday is {today:%A %d %B}.")
+    started = time.monotonic()
+    # What the planner is asked, apart from the town's briefing: the creative editor reads this much of it too.
+    asked = (f"THE SIGHT: {_sight_text(lead, n)}"
+             + (f"\n\nTHE NEIGHBOUR (sequence {near_at}, no number): {near.what}. {near.note}" if near else
+                "\n\nTHE NEIGHBOUR: none tonight; every sequence is about THE SIGHT.")
+             + "\n\nTHE SEASON (what is about this month):\n" + "\n".join(f"  - {s.what}" for s in season)
+             + "\n\nPEOPLE:\n" + ("\n".join(f"  - {p.name}, {p.role}{_said(p)}" for p in people) or "  (nobody yet)")
+             + _earlier(world, lead) + creative.for_planner(world, SHOW))
+    user = f"BRIEFING\n{world.summary_for_editor()}\n\n{asked}\n\nToday is {today:%A %d %B}."
     system = _SYSTEM.format(seq=SEQUENCES, near=near_at, meets=MEETS)
     try:
         plan = llm.complete_json(TASK, WildEpisode, system, user)
         _check(plan, world, today)
+        plan = creative.redraft(world, SHOW, "episode", plan, text=_plan_text, context=asked, started=started,
+                                check=lambda p: _check(p, world, today),
+                                again=lambda more: llm.complete_json(TASK, WildEpisode, system, user + more))
         entry, stand_in = plan.model_dump(), False
     except llm.LLMError as e:
         log.warning("tideline: no plan (%s); the stand-in takes tonight", e)
         entry, stand_in = _stand_in(world, lead, people), True
     return _record(world, lead, near, n, entry, stand_in)
+
+
+def _plan_text(plan: WildEpisode) -> str:
+    return (f"\"{plan.title}\"\n" + "\n".join(f"  Sequence {i + 1} ({w.shot}): {w.angle}" for i, w in enumerate(plan.watches))
+            + "\n" + "\n".join(f"  Meets {m.name}, {m.role}: {m.talk}" for m in plan.meets) + f"\n  Close: {plan.close}")
+
+
+def digest(world: World, day: str) -> str:
+    """The episode booked for `day`, as the creative editor reads it after it has aired; "" for none or the
+    stand-in (not the planner's work)."""
+    ep = next((e for e in state(world) if e["date"] == day), None)
+    if not ep or ep.get("stand_in"):
+        return ""
+    try:
+        plan = _plan_text(WildEpisode.model_validate({k: ep[k] for k in WildEpisode.model_fields}))
+    except (KeyError, ValueError):
+        plan = f"\"{ep.get('title')}\""
+    return (f"The sight (chosen in code): {ep['what']}"
+            + (f", {ep['count']} {ep['counted']}" if ep.get("count") is not None else "") + f".\n{plan}")
 
 
 def _check(plan: WildEpisode, world: World, today: date) -> None:
@@ -642,8 +667,17 @@ def register():
     writers.CAPTION_HOOKS[SHOW] = caption
     writers.BOOKED_SHOWS.add(SHOW)                      # its residents are booked: no loose ends
     writers.UNFILED_SHOWS.add(SHOW)                     # never news
+    undo_creative = creative.register(
+        SHOW, TITLE, kind="factual", vetted=True, airs_at=AIRS_AT,
+        brief=("A wildlife series on the town's own coast, filmed by day: Rowan Polglase, thirty years the warden of "
+               "the Salting reserve, unhurried and quietly delighted, shows one creature of the season in five "
+               "sequences and meets three residents out there. It is canon: what it shows is true in the town."),
+        decides=("the title; the five sequences' angles and shots; the three residents met and what each tells him; "
+                 "the close. The sight and its number are chosen in code, with their rests: not the planner's"),
+        digest=digest, aired=lambda world: [ep["date"] for ep in aired_episodes(world)], books=should_commission)
 
     def undo() -> None:
+        undo_creative()
         schedule.SHOWS.pop(SHOW, None)
         for reg in (assets.IDENTS, assets.IDENT_MUSIC, assets.IDENT_VOICES, player.SEATS, player.VIEW_HOOKS,
                     player.AIRED_HOOKS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,

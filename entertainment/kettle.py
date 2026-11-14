@@ -30,6 +30,8 @@ from newsroom.schedule import Item as I, Show
 from newsroom.world import World
 from newsroom.writers import _COMMON_RULES, _MIDDLE
 
+from . import creative
+
 log = logging.getLogger(__name__)
 
 SHOW = "kettle"
@@ -279,7 +281,8 @@ def commission(world: World) -> dict:
             + f"\n\nTHE EXPERT tonight: {ex['name']}, {ex['role']} ({ex['topic']})."
             + ("\n\nRECENT SHOWS (none of these again):\n" + "\n".join(
                 f"  - {k['dish']['dish']} by {k['dish']['cook']}; on the sofa {k['sofa']['name']}; the phones: "
-                f"{k['question']}" for k in recent) if recent else ""))
+                f"{k['question']}" for k in recent) if recent else "")
+            + creative.for_planner(world, SHOW))
     try:
         b = llm.complete_json(TASK, KettleBooking, _SYSTEM.replace("{month}", month), user)
     except llm.LLMError as e:
@@ -291,6 +294,32 @@ def commission(world: World) -> dict:
                     b.dish.dish, b.sofa.name)
         b = None
     return _record(world, ex, b)
+
+
+def digest(world: World, day: str) -> str:
+    """The show booked for `day`, as the creative editor reads it after it has aired; "" for none or the stand-in."""
+    k = next((x for x in world.kettles if x.get("date") == day), None)
+    if not k or k.get("stand_in"):
+        return ""
+    d, s, ex = k["dish"], k["sofa"], k.get("expert") or {}
+    return (f"The recipe: {d['dish']} by {d['cook']}, {d['cook_role']} ({d.get('why', '')}).\n"
+            f"The sofa: {s['name']}, {s['role']}: {s['about']}\n"
+            f"The phones, with {ex.get('name', 'the expert')} on {ex.get('topic', 'their subject')} (in turn, not "
+            f"the booking's choice): {k['question']} Callers: {'; '.join(k.get('callers') or [])}\n"
+            f"The noticeboard: {'; '.join(k.get('notices') or [])}")
+
+
+def enrol():
+    """Enrol the show with the creative editor: notes after air, for the next booking. Returns an undo."""
+    return creative.register(
+        SHOW, TITLE, kind="light", airs_at=AIRS_AT,
+        brief=("A homely teatime magazine, an hour from a studio kitchen: Maggie Truscott, the Cannery café's cook, who "
+               "measures nothing, and Nigel Spargo, a retired chemistry teacher, who weighs everything. A local cook's "
+               "recipe in two parts, a sofa guest with a nice story, an expert taking viewers' calls, the noticeboard. "
+               "Never news. The pair's ways clash, warmly: that is the show."),
+        decides=("tonight's dish and its cook; the sofa guest and their story; the phone-in's subject and the kinds of "
+                 "caller; the community notices. Not the presenters' lines, the expert (in turn) or how the hour runs"),
+        digest=digest, books=should_commission)
 
 
 # How a call begins, in turn: calls written side by side, before any of them airs, all began "the phones are open

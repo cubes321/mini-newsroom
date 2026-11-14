@@ -191,6 +191,15 @@ bottom with the date.
     would keep the fiction good: storylines that build and pay off across episodes, characters who stay
     themselves, jokes that land and aren't told twice, a wildlife film that doesn't reuse last week's animal.
     It would plan ahead (the series arcs, the week's episodes) and send back weak scripts, on a stronger model.
+    - **Built 2026-11-14** (`entertainment/creative.py`; docs/ENGINE.md, "The creative editor"), on the `creative`
+      route (Opus). After air: a review per programme, notes for the next planner, a ledger (told, established, set
+      up and not paid off), remarks for the owner (`python -m entertainment.creative notes`). Before air: the soap's
+      arc and episode, Tideline's plan and a new Coast Road route are read and may be sent back once. The Kettle's
+      On and Wits get notes only. Programmes enrol themselves, so the comedy and the drama join with one call.
+    - Not on air yet. On the first Channel 8 nights with a key: the Opus tokens against the estimate (about $0.50 a
+      night), whether the notes are ones a planner can act on, and whether a send-back makes the plan better.
+    - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
+      planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).
 - [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,

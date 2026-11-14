@@ -53,7 +53,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import kettle, oche, quiz, soap, travelogue, wildlife, wits
+    from . import creative, kettle, oche, quiz, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -103,8 +103,15 @@ def use():
     writers.BOOKED_SHOWS.add(quiz.SHOW)
     writers.DEBATE_SHOWS.add(quiz.SHOW)
     writers.UNFILED_SHOWS.add(quiz.SHOW)
+    # The creative editor (creative.py): the soap, Tideline and The Coast Road enrolled themselves above; the two
+    # light shows here. Its idle jobs go in last, so its catch-up is ahead of every booking and its reviews behind.
+    undo_enrolled = (kettle.enrol(), quiz.enrol())
+    undo_creative = creative.install()
 
     def undo() -> None:
+        undo_creative()
+        for un in undo_enrolled:
+            un()
         undo_travelogue()
         undo_wildlife()
         undo_soap()

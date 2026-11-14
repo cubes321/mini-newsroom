@@ -42,6 +42,8 @@ from newsroom.schedule import Item as I, Show
 from newsroom.sprites import Look
 from newsroom.world import World
 
+from . import creative
+
 log = logging.getLogger(__name__)
 
 SHOW = "coastroad"
@@ -175,15 +177,36 @@ def _check(route: Route, world: World) -> None:
                 raise llm.LLMError(f"{s.meet} is a presenter or the host, not a resident to meet")
 
 
-def plan_route(world: World) -> dict:
-    """The series' route: the model's (or the stand-in's), not yet recorded."""
-    user = (f"BRIEFING\n{world.summary_for_editor()}\n\nPEOPLE:\n"
-            + "\n".join(f"  - {p.name}, {p.role}" for p in _people(world))
-            + "\n\nBACKDROPS for the stops: " + ", ".join(STOP_BACKDROPS))
+def _leg_text(i: int, leg: dict) -> str:
+    return (f"  Leg {i}: {leg['title']} ({leg['travel']})\n" + "\n".join(
+        f"    - {s['place']} [{s['backdrop']}]: {s['what']} Meets {s['meet']}, {s['role']}: {s['talk']}"
+        for s in leg["stops"]) + f"\n    Ends: {leg['ends']}")
+
+
+def _route_text(route: Route) -> str:
+    r = route.model_dump()
+    return f"\"{r['title']}\": {r['why']}\n" + "\n".join(_leg_text(i, leg) for i, leg in enumerate(r["legs"], 1))
+
+
+def _asked(world: World) -> str:
+    """What the route's planner is asked, apart from the town's briefing: the creative editor reads this much too."""
+    return ("PEOPLE:\n" + "\n".join(f"  - {p.name}, {p.role}" for p in _people(world))
+            + "\n\nBACKDROPS for the stops: " + ", ".join(STOP_BACKDROPS)
+            + creative.for_planner(world, SHOW, series=True))
+
+
+def plan_route(world: World, unhurried: bool = False) -> dict:
+    """The series' route: the model's (or the stand-in's), not yet recorded. The creative editor reads it and may
+    send it back once; `unhurried` for a route planned ahead by hand, days from air (the CLI)."""
+    asked = _asked(world)
+    user = f"BRIEFING\n{world.summary_for_editor()}\n\n{asked}"
     system = _SYSTEM.format(host=HOST, about=HOST_ABOUT, legs=LEGS, stops=STOPS)
     try:
         route = llm.complete_json(TASK, Route, system, user)
         _check(route, world)
+        route = creative.redraft(world, SHOW, "route", route, text=_route_text, context=asked, margin=not unhurried,
+                                 check=lambda r: _check(r, world),
+                                 again=lambda more: llm.complete_json(TASK, Route, system, user + more))
         return {**route.model_dump(), "stand_in": False}
     except llm.LLMError as e:
         log.warning("coast road: no route (%s); the stand-in route takes the series", e)
@@ -274,6 +297,31 @@ def aired(seg, world: World) -> None:
         with world.lock:
             entry["aired"] = True
         log.info("coast road: leg %d aired", entry["n"])
+
+
+def digest(world: World, day: str) -> str:
+    """The leg that aired on `day`, as the creative editor reads it afterwards; "" for none, or the stand-in route.
+    A leg has no planner of its own (it is the route's): the editor's notes wait for the next series' route."""
+    all_, legs = state(world)
+    entry = next((l for l in legs if l["date"] == day), None)
+    s = next((x for x in all_ if entry and x["made"] == entry["made"]), None)
+    if not s or s.get("stand_in"):
+        return ""
+    return (f"\"{s['title']}\" with {s['host']}: {s['why']}\nLeg {entry['n']} of {len(s['legs'])}:\n"
+            + _leg_text(entry["n"], s["legs"][entry["n"] - 1]))
+
+
+def enrol():
+    """Enrol The Coast Road with the creative editor: its route is read before it stands, and each leg after it has
+    aired. Returns an undo."""
+    return creative.register(
+        SHOW, TITLE, kind="factual", vetted=True, airs_at=AIRS_AT,
+        brief=(f"A travelogue round the Greymouth coast in {LEGS} legs, one an episode, by every slow way there is: "
+               f"{HOST}, {HOST_SHORT}, arrives at {STOPS} stops a leg and meets a resident at each. Warm and funny, "
+               "never cruel. It is canon: the residents met remember it."),
+        series_decides=("the next series' route: its legs, how the host travels each, the stops, the resident met at "
+                        "each and what they talk about"),
+        digest=digest, aired=lambda world: [l["date"] for l in aired_legs(world)])
 
 
 # ------------------------------------------------------------------ the alternation
@@ -625,8 +673,10 @@ def register():
     writers.LINE_CAPS[SHOW] = 24
     for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
         reg.add(SHOW)
+    undo_creative = enrol()
 
     def undo() -> None:
+        undo_creative()
         schedule.SHOWS.pop(SHOW, None)
         schedule.ROTATIONS.pop("tideline", None)
         scenes.PINNED_LOOKS.pop(HOST, None)
@@ -648,8 +698,10 @@ def register():
 # ------------------------------------------------------------------ planning a route ahead, for the user to read
 
 def _cli(argv: list[str]) -> int:
-    """python -m entertainment.travelogue --plan [--world PATH]: plan the host's route on a world (a copy, by
-    default the town's, read only) and save it to data/travelogue/<host>.json for the user to read before it airs."""
+    """python -m entertainment.travelogue --plan [--world PATH] [--out PATH]: plan the host's route on a world (a
+    copy, by default the town's, read only) and save it to data/travelogue/<host>.json (or --out) for the user to
+    read before it airs. The creative editor reads the draft and may send it back once. --vet instead prints the
+    editor's notes on the route already saved, and changes nothing."""
     import argparse
     from pathlib import Path
 
@@ -657,14 +709,31 @@ def _cli(argv: list[str]) -> int:
 
     ap = argparse.ArgumentParser(prog="python -m entertainment.travelogue")
     ap.add_argument("--plan", action="store_true", help="plan the route and save it")
+    ap.add_argument("--vet", action="store_true", help="the creative editor's notes on the saved route; nothing is written")
     ap.add_argument("--world", help="the world to read (default: data/world.json; it isn't saved)")
+    ap.add_argument("--out", help="--plan: where to save the route (default: the station's own, which it then airs)")
     a = ap.parse_args(argv)
-    if not a.plan:
+    if not (a.plan or a.vet):
         ap.print_help()
         return 1
     w = world_mod._from_dict(json.loads(Path(a.world or CONFIG.paths.world).read_text(encoding="utf-8")))
-    route = plan_route(w)
-    path = _saved_route_path()
+    enrol()
+    if a.vet:
+        path = _saved_route_path()
+        if not path.exists():
+            print(f"no route saved in {path}")
+            return 1
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        route = Route.model_validate({k: saved[k] for k in ("title", "why", "legs")})
+        if not creative._on():
+            print("the creative editor can't be asked (the models are off, or its model couldn't be reached)")
+            return 1
+        notes = creative.vet(w, SHOW, "route", _route_text(route), _asked(w), margin=False)
+        print(f"{route.title}: " + ("the creative editor would send it back:\n" + "\n".join(f"  - {n}" for n in notes)
+                                    if notes else "the creative editor has no notes on it"))
+        return 0
+    route = plan_route(w, unhurried=True)
+    path = Path(a.out) if a.out else _saved_route_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(route, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"{route['title']}: {route['why']}")

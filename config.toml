@@ -53,6 +53,8 @@ chamber = "deepseek_flash_think"         # books The Chamber: four motions and e
 rundown = "deepseek_flash"               # plans Coastwide's and The Last Ferry's evening: a theme, a subject per item
                                          # (no thinking: thinking spent all 16000 tokens on 35 slots, 2026-11-13)
 senior_editor = "claude_sonnet"   # reviews the desk's board every [story] review_every_s and leaves it a memo
+creative = "anthropic"            # Channel 8's creative editor (entertainment/creative.py): Opus, a few calls a Channel 8
+                                  # night (a review per programme after air, a vet per plan before it); never per item
 breaking = "claude_haiku"         # breaking news from the tip-line
 advert = "claude_haiku"           # local adverts, written in idle time
 promo = "claude_haiku"            # continuity: trails for specials, community notices

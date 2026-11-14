@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import random
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -35,6 +36,8 @@ from newsroom.config import CONFIG
 from newsroom.models import SegmentType as T
 from newsroom.schedule import Item as I, Show
 from newsroom.world import World
+
+from . import creative
 
 log = logging.getLogger(__name__)
 
@@ -186,7 +189,22 @@ def _previously(world: World, series: Series) -> str:
         for ep in done))
 
 
-def _arc(world: World, series: Series) -> dict:
+def _arc_text(a: Arc) -> str:
+    return ("\n".join(f"  - {s.name} ({', '.join(s.characters)}): " + " / ".join(
+        f"{i + 1}. {b}" for i, b in enumerate(s.beats)) for s in a.storylines)
+            + f"\n  The turning point: {a.turning_point}")
+
+
+def _episode_text(ep: Episode) -> str:
+    def row(sc: Scene) -> str:
+        return (f"{sc.set}: {', '.join(sc.characters)}. As it starts: {sc.knows} What happens: {sc.beats} "
+                f"Ends on: {sc.ends_on}")
+    return (f"\"{ep.title}\"\n" + "\n".join(f"  {i + 1}. {row(sc)}" for i, sc in enumerate(ep.scenes))
+            + f"\n  The cliffhanger: {ep.cliffhanger} ({ep.said_by}: \"{ep.last_line}\")\n  Summary: {ep.summary}\n"
+            + "  Side scenes:\n" + "\n".join(f"    - {row(sc)}" for sc in ep.spares))
+
+
+def _arc(world: World, series: Series, started: float | None = None) -> dict:
     """The arc this episode follows: the one in hand, until ARC_EPISODES aired episodes have used it."""
     st = state(world, series)
     arc = st.get("arc")
@@ -195,13 +213,19 @@ def _arc(world: World, series: Series) -> dict:
         return {**arc, "step": used}
     old = ("THE LAST ARC: " + "; ".join(f"{s['name']}: {' / '.join(s['beats'])}" for s in arc["storylines"])
            if arc else "THE FIRST ARC. Start from these storylines:\n" + "\n".join(f"  - {o}" for o in series.opening))
-    user = (f"THE CHARACTERS:\n{_people(series)}\n\nTHE SETS:\n{_sets(series)}\n\n{_previously(world, series)}\n\n{old}")
+    user = (f"THE CHARACTERS:\n{_people(series)}\n\nTHE SETS:\n{_sets(series)}\n\n{_previously(world, series)}\n\n{old}"
+            + creative.for_planner(world, series.id, series=True))
     system = _ARC.format(title=series.title, bible=series.bible, n=ARC_EPISODES)
+
+    def check(a: Arc) -> None:
+        if not all(set(s.characters) <= set(series.characters) for s in a.storylines):
+            raise llm.LLMError("an arc storyline named someone not in the cast")
     try:
         a = llm.complete_json(TASK, Arc, system, user)
-        names = set(series.characters)
-        if not all(set(s.characters) <= names for s in a.storylines):
-            raise llm.LLMError("an arc storyline named someone not in the cast")
+        check(a)
+        # The creative editor reads it before it stands for six episodes, and may send it back once.
+        a = creative.redraft(world, series.id, "arc", a, text=_arc_text, context=user, check=check, started=started,
+                             again=lambda more: llm.complete_json(TASK, Arc, system, user + more))
         made = {"made": f"{world.last_date}#{len(st['episodes'])}", **a.model_dump()}
     except llm.LLMError as e:
         log.warning("soap: no arc (%s); the opening storylines stand in", e)
@@ -231,7 +255,8 @@ def _check(ep: Episode, series: Series) -> None:
 def commission(world: World, series: Series) -> dict:
     """Plan tonight's episode (the model, or the stand-in if it fails) and record it."""
     _cast_actors(world, series)
-    arc = _arc(world, series)
+    started = time.monotonic()                 # the editor's reading stops once the booking has taken long enough
+    arc = _arc(world, series, started)
     st = state(world, series)
     last = next(iter(_aired_episodes(world, series)[-1:]), None)
     step = arc["step"]
@@ -241,11 +266,15 @@ def commission(world: World, series: Series) -> dict:
                f"\"{last['last_line']}\")\n\n" if last else "")
             + f"TONIGHT, in the arc (episode {step + 1} of {ARC_EPISODES}):\n{beats}"
             + (f"\nThe arc's turning point: {arc['turning_point']}" if arc.get("turning_point") else "")
+            + creative.for_planner(world, series.id)
             + f"\n\nTonight is {date.fromisoformat(world.last_date):%A %d %B}.")
     system = _EPISODE.format(title=series.title, bible=series.bible, scenes=SCENES, spares=SPARES)
     try:
         ep = llm.complete_json(TASK, Episode, system, user)
         _check(ep, series)
+        ep = creative.redraft(world, series.id, "episode", ep, text=_episode_text, context=user, started=started,
+                              check=lambda e: _check(e, series),
+                              again=lambda more: llm.complete_json(TASK, Episode, system, user + more))
         plan, stand_in = ep.model_dump(), False
     except llm.LLMError as e:
         log.warning("soap: no episode (%s); the stand-in takes tonight", e)
@@ -266,6 +295,24 @@ def _stand_in(series: Series) -> dict:
                     for sid, who, beats in group] for group in (scenes, spares))
     return {"title": title, "scenes": plan, "spares": spare, "cliffhanger": cliff, "last_line": last_line,
             "said_by": plan[-1]["characters"][0], "summary": " ".join(s["beats"] for s in plan)[:600]}
+
+
+def digest(world: World, series: Series, day: str) -> str:
+    """The episode booked for `day` and the arc it follows, as the creative editor reads them after it has aired;
+    "" for none, or the stand-in (not the planner's work)."""
+    st = state(world, series)
+    ep = next((e for e in st["episodes"] if e["date"] == day), None)
+    if not ep or ep.get("stand_in"):
+        return ""
+    try:
+        out = f"Episode {ep['number']}, " + _episode_text(Episode.model_validate({k: ep[k] for k in Episode.model_fields}))
+        arc = st.get("arc") or {}
+        if arc.get("made") == ep.get("arc") and arc.get("turning_point"):
+            out += "\nTHE ARC it follows (a beat an episode):\n" + _arc_text(
+                Arc.model_validate({k: arc[k] for k in Arc.model_fields}))
+        return out
+    except (KeyError, ValueError):             # saved in an older shape
+        return f"Episode {ep.get('number')}, \"{ep.get('title')}\": {ep.get('summary', '')}"
 
 
 def _cast_actors(world: World, series: Series) -> None:
@@ -453,8 +500,19 @@ def register(series: Series):
     writers.LINE_CAPS[sh.id] = 24
     for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS, writers.FICTION_SHOWS):
         reg.add(sh.id)
+    undo_creative = creative.register(
+        sh.id, series.title, kind="fiction", vetted=True, airs_at=series.airs_at,
+        brief=(f"{series.bible} Twenty minutes a Channel 8 night: six planned scenes written live from the plan, side "
+               "scenes for the spare minutes, and a cliffhanger the town talks about the next day."),
+        decides=("each scene's set and characters, who knows what as it starts, what happens and what it ends on; the "
+                 "cliffhanger question and its closing line; the side scenes"),
+        series_decides=f"the arc: two or three storylines, a beat for each of {ARC_EPISODES} episodes, and the turning point",
+        digest=lambda world, day: digest(world, series, day),
+        aired=lambda world: [ep["date"] for ep in state(world, series)["episodes"] if aired(world, series, ep)],
+        books=lambda world: should_commission(world, series))
 
     def undo() -> None:
+        undo_creative()
         schedule.SHOWS.pop(sh.id, None)
         locations.MARKS.clear(), locations.MARKS.update(saved_marks)
         locations.BY_ID.clear(), locations.BY_ID.update(saved_ids)

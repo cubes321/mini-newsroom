@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 
 from newsroom import darts, llm, schedule
 
-from . import oche
+from . import creative, oche
 from newsroom.config import CONFIG
 from newsroom.models import SegmentType
 from newsroom.world import World
@@ -173,13 +173,41 @@ def commission(world: World) -> dict:
             + "\n".join(f"  - {h}" for h in _week(world))
             + "\n\nTHE TOWN'S PAST:\n" + ("\n".join(f"  - {p}" for p in _past(world)) or "  (nothing yet)")
             + f"\n\nTONIGHT: {ts[0]['name']} against {ts[1]['name']}, at {ts[0]['name']}."
-            + ("\n\nRECENT QUIZZES (don't ask these again):\n" + "\n".join(f"  - {q}" for q in asked) if asked else ""))
+            + ("\n\nRECENT QUIZZES (don't ask these again):\n" + "\n".join(f"  - {q}" for q in asked) if asked else "")
+            + creative.for_planner(world, SHOW))
     try:
         booking = llm.complete_json(TASK, QuizBooking, _SYSTEM, user)
     except llm.LLMError as e:
         log.warning("quiz: no questions (%s); the stand-in quiz takes tonight", e)
         booking = None
     return _record(world, ts, booking)
+
+
+def digest(world: World, day: str) -> str:
+    """The quiz booked for `day`, as the creative editor reads it after it has aired; "" for none or the stand-in."""
+    q = next((x for x in world.quizzes if x.get("date") == day), None)
+    if not q or q.get("stand_in"):
+        return ""
+    ts, final = q["teams"], q["final"]
+    rows = [f"At {q['venue']}: {ts[0]['name']} {final[0]}, {ts[1]['name']} {final[1]} (the result is played in code)."]
+    for r in q["rounds"]:
+        if r.get("questions"):
+            rows.append(f"  {r['title']}: " + " / ".join(f"{x['q']} ({x['a']})" for x in r["questions"]))
+        else:
+            rows.append(f"  {r['title']}: thrown in code")
+    return "\n".join(rows)
+
+
+def enrol():
+    """Enrol the quiz with the creative editor: notes after air, for the next set of questions. Returns an undo."""
+    return creative.register(
+        SHOW, "Wexley Wits", kind="light", airs_at=AIRS_AT,
+        brief=("A pub quiz in a darts pub, twenty minutes: Clive Ashdown, excitable, a collector of facts nobody asked "
+               "for, asks two pub teams seven rounds, two of them darts. Who answers, who is right and the score are "
+               "played in code before a word is written; the writers give the teams their chat."),
+        decides=("the questions of the four asked rounds (general, local, the week's news, pot luck), each with its "
+                 "answer and two wrong answers, and the tiebreak. Not the teams, the result, the darts or the chat"),
+        digest=digest, books=should_commission)
 
 
 def _stand_in(world: World) -> QuizBooking:

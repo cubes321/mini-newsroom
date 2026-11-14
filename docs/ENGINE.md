@@ -199,6 +199,34 @@ speaks and looks like their actor), `player.BARE_SHOWS` (no lower third, ticker 
 an item's own set (`seg.work["set"]`, `View.set_id`), and marks named a, b, c. `talk.soap` gives Channel 7 an aired
 episode's cliffhanger, the question only. The TV movie, the sitcom and the anthology are meant to reuse it.
 
+## The creative editor, built (2026-11-14)
+
+`entertainment/creative.py` is Channel 8's editor, as the senior editor is Channel 7's: it keeps the made-up and the
+light programmes good. It runs on the `creative` route (Opus; the senior editor's route if config.toml has none) and
+only in the back office, a few calls a Channel 8 night. Nothing of it is on the live writer path.
+
+- **A registry.** A programme enrols with `creative.register(show_id, title, kind=..., brief=..., decides=...,
+  vetted=..., digest=..., aired=..., books=...)`: what it is, what its planner decides, how to read a night's plan and
+  which nights aired. Marina Row, Tideline and The Coast Road are vetted; The Kettle's On and Wits get notes only. A
+  programme not built yet (the comedy, the drama, the TV movie) joins with that one call.
+- **After air**, one review per programme in idle time, the same night (`workers.IDLE_JOBS`, last): the plan as
+  booked and the words that went out, read from the archive entry's cached segment. A night missed because the station
+  was closed is caught up at the next Channel 8 start, and ahead of that programme's booking if there is time. It
+  keeps, in `World.creative`: `notes` for the next planner, a `ledger` (told, established, and for a drama what is set
+  up and not yet paid off), a `log` of marks with remarks for the owner, and `vets`.
+- **Before air**, `creative.redraft` wraps a planner's result: the editor may send a plan back once with notes, the
+  planner plans again on its own model, and a second draft that fails the module's own check gives way to the first.
+  No plan is read within 30 minutes of air.
+- **Notes go to planners only** (`creative.for_planner`, at the end of each booking prompt), never to
+  `writers.PROMPT_HOOKS`: what is in every item's prompt is said in every item.
+- **The rests stay in code** as hard limits; the editor judges what code can't.
+- With the models off or its model out of reach it does nothing, and every planner runs as before.
+
+`python -m entertainment.creative notes` prints each programme's latest mark, notes, remarks and ledger;
+`review --dry` reads a night without keeping anything. The soap's episodes are now stamped aired on the episode
+(`soap.stamp`, through `player.AIRED_HOOKS`): the archive keeps about two and a half nights, and the arc counts
+aired episodes for weeks.
+
 ## The content bank, built (2026-11-07)
 
 `newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them
