@@ -1,0 +1,23 @@
+# How Pocket should say the names it gets wrong (tts.spoken): the name as written = a respelling it reads right.
+# Only the audio changes; captions and scripts keep the real spelling. Whole words, case as written, so a possessive
+# ("Marchetti's") is covered and a longer name containing one ("Marchettino") is not. Chosen by ear on the
+# Name Book page (2026-11-14), in Mayor Strand's voice and Victoria's: add a name only after hearing it.
+
+[say]
+Marchetti = "Marketti"
+Achebe = "Achaybay"
+Okonkwo = "Oh-konkwoh"
+Wojcik = "Voychik"
+Tregarthen = "Treh-garthen"
+Treloar = "Treh-lore"
+Trewin = "Treh-win"
+Pengelly = "Pen-ghelly"
+Trebilcock = "Treh-bilco"
+Trethewey = "Treh-thoo-ee"
+Trevena = "Treh-veena"
+Trenoweth = "Treh-noweth"
+Ruairi = "Roory"
+Nuala = "Noola"
+# Heard and kept as written (2026-11-14): Ramachandran, Kowalczyk, Penhaligon, Nancarrow, Tregear, Penhale,
+# Penhallow, Tremayne, Tregenza, Tressider, Vingoe, Varcoe, Vercoe, Dougal, Morag, Colm, Donal, Euan, Maeve,
+# Lostwithiel.

@@ -139,3 +139,18 @@ def test_a_long_line_gets_a_breath_where_pocket_can_split_it():
     assert all(words(c) <= tts.POCKET_TOKENS for c in tts.pocket_text(long, words).split(", "))
     short = "Thanks, Miles. The ferry stops between 17:33 and 19:13 – so check first."
     assert tts.pocket_text(short, words) == short.replace(" –", ",")   # a time keeps its colon
+
+
+def test_pocket_says_a_name_the_way_names_toml_respells_it(monkeypatch, tmp_path):
+    used = _engines(monkeypatch, tmp_path)
+    (Path(tmp_path) / "names.toml").write_text('[say]\nMarchetti = "Marketti"\nPenhale = "Pen-hail"\n'
+                                             'Penhallow = "Pen-hallow"\n', encoding="utf-8")
+    heard = []
+    monkeypatch.setattr(tts, "_pocket_speak", lambda text, clip: heard.append(text) or np.full(2400, .5, np.float32))
+    tts.synthesize("Mrs Marchetti's stall, and Penhallow and Penhale's boats.", "bm_lewis", tmp_path / "a.wav",
+                   lang="b")
+    assert heard == ["Mrs Marketti's stall, and Pen-hallow and Pen-hail's boats."]
+    # Whole names only, case as written; with no table every line goes through untouched.
+    assert tts.spoken("Marchettino and MARCHETTI") == "Marchettino and MARCHETTI"
+    monkeypatch.setattr(tts, "VOICES_DIR", Path(tmp_path) / "none")
+    assert tts.spoken("Mrs Marchetti") == "Mrs Marchetti" and used == []

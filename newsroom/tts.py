@@ -89,6 +89,27 @@ def _cast() -> dict[str, dict]:
     return _POCKET[key]
 
 
+def _names() -> tuple[dict[str, str], re.Pattern | None]:
+    """names.toml's [say] table, written name -> the respelling Pocket says right, with one pattern for them all
+    (longest first, so Penhallow is never read as Penhale)."""
+    key = f"names:{VOICES_DIR}"
+    if key not in _POCKET:
+        import tomllib
+
+        f = VOICES_DIR / "names.toml"
+        say = tomllib.loads(f.read_text(encoding="utf-8")).get("say", {}) if f.exists() else {}
+        alts = "|".join(re.escape(n) for n in sorted(say, key=len, reverse=True))
+        _POCKET[key] = (say, re.compile(rf"\b(?:{alts})\b") if say else None)
+    return _POCKET[key]
+
+
+def spoken(text: str) -> str:
+    """`text` as Pocket should read it: each name it gets wrong swapped for its respelling (names.toml, chosen by
+    ear). Only the audio changes; the caption and the script keep the real spelling."""
+    say, pattern = _names()
+    return pattern.sub(lambda m: say[m.group(0)], text) if pattern else text
+
+
 def kokoro_voice(voice: str) -> str:
     """The Kokoro voice that speaks for `voice`: itself, or, for a voice designed outside Kokoro (the council, some
     presenters: DramaBox clips with no Kokoro original), the one voices.toml names as its stand-in."""
@@ -291,7 +312,7 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
     with _SYNTH_LOCK:
         if clip:
             try:
-                audio = _pocket_speak(text, clip)
+                audio = _pocket_speak(spoken(text), clip)
             except Exception:  # noqa: BLE001
                 log.exception("pocket failed on %s; Kokoro takes the line", clip.name)
         if audio is None:
