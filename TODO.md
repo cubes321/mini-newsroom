@@ -166,7 +166,9 @@ bottom with the date.
       - the ident by ear (the folk arrangement stands in; `bumper_tideline.wav` untracked);
       - a better egret and seal;
       - spring's list and creatures (redshank, avocets, the heronry) before March;
-      - the travelogue.
+      - the travelogue. Its host was chosen 2026-11-14: Lorna Quayle, with look A (a yellow raincoat) and her own
+        voice `bf_quayle` (C of three), in `entertainment/travelogue.py`. Next: build the series (the route planner,
+        the legs, the alternation with Tideline).
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.

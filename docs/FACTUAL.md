@@ -119,6 +119,21 @@ short:
 Recasting a well-known American-voiced resident is the other route, as `_recast_guests` did in November. Their look
 is dressed by hand (as `[cast.X.look]` does for the one-offs) and shown on a sheet.
 
+**The first host: Lorna Quayle** (chosen 2026-11-14 from four: Lorna Quayle, Nell Harrower, Ruth Ellery, Hal Anand;
+data/contact-sheets/2026-11-14-travelogue-hosts.png, data/voice-samples/travelogue-hosts).
+
+- She is the town's most-seen celebrity, a comedian and singer with 73 appearances.
+- Her running story is waiting. She waited fourteen minutes at the Saltby ferry office for a biscuit, retired her water
+  joke, won the sorting office round with a tin of parkin, and is starting a waiting club.
+- The proposed journey is the coast by every slow way there is (the ferries, the bus, a borrowed bike), collecting
+  waiting stories along the way.
+- **Her look**, chosen the same day, is A of three hand-dressed (data/contact-sheets/2026-11-14-lorna-quayle-looks.png):
+  a canary-yellow raincoat over a navy top, gold earrings, and the face and ponytail she has had on air.
+- **Her voice** is `bf_quayle`, C of three DramaBox designs (data/voice-samples/travelogue-lorna). It replaces the
+  guest pool's `bf_emma`, which other residents share (Imelda Crane among them).
+- Both are in `entertainment/travelogue.py`, which nothing reads until the series is built. Then her look is pinned
+  to her by name and her voice moves to the new one, everywhere she appears.
+
 **A series is a journey of six legs** around the Greymouth coast. One planner call writes the whole route when a
 series starts: where it begins and ends, the host's own reason for making it (retracing a grandparent's round, the
 book they're writing), and the stops on each leg. It's like the soap's arc. The route goes to the user before the
@@ -176,7 +191,8 @@ code was lifted out of `soap.py`: the soap assumes fiction, and only its shape c
    five more waiting to be drawn, and the new canon approved: the Salting reserve and its hide, the seal colony below
    the light, the starling roost in the reeds, and the heronry in Wexley Woods. Spring's list is due before March.
 5. The series titles, and both idents by ear (an arrangement of Beacon each, like Wits').
-6. Then the travelogue: **the first host** from the shortlist, their look, and the first route.
+6. Then the travelogue: **the first host** from the shortlist, their look, and the first route. Done 2026-11-14: Lorna
+   Quayle, look A, voice C. The first route waits for the build.
 
 ## Build order
 
