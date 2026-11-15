@@ -149,7 +149,7 @@ A second channel sharing the same town, for light entertainment, is being built 
 show, *Wexley Wits*, is a pub quiz between two of the town's pubs with a darts round, where every dart is
 thrown in code. TODO: anything else you want to promise.
 
-If you'd like to keep the lights on, it costs about $1-2 a day: TODO (Ko-fi). The code, the docs and the
+If you'd like to keep the lights on, it costs about $1-2 a day: [ko-fi.com/portwexley](https://ko-fi.com/portwexley). The code, the docs and the
 credits: TODO (GitHub).
 
 *Port Wexley is a fictional town. Every programme is written and voiced by AI. Voices: Pocket TTS by Kyutai

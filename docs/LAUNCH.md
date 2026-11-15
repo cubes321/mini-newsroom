@@ -47,17 +47,22 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       dollars, so the goal and the bill compare directly (decided 8 November). Link it to the payout account
       (Stripe or PayPal) now: the first payout check can take days. Converting to pounds on payout costs a
       little; allow for it when comparing the month.
+      Made 15 November: [ko-fi.com/portwexley](https://ko-fi.com/portwexley), paid out to a PayPal Business
+      account (an individual's, category Digital Goods Media, described as voluntary viewer tips, not
+      donations). Left: 2FA and the US dollar currency to confirm, the page's About text (still Ko-fi's
+      default), and the profile picture (`data/brand/port-wexley-avatar.png`).
 - [ ] **You: turn on 2FA** on the Google account behind the YouTube channel and on GitHub, if not already.
       If the channel has never streamed, enable live streaming now: YouTube can take up to 24 hours to
       switch it on.
-- [ ] **Once Ko-fi exists, add `.github/FUNDING.yml`** to the repo, which puts a Sponsor button on the
+- [x] **Once Ko-fi exists, add `.github/FUNDING.yml`** to the repo, which puts a Sponsor button on the
       GitHub page:
 
       ```yaml
       ko_fi: <your-ko-fi-username>
       ```
 
-      and replace the Ko-fi `TODO` in the README and the description templates.
+      and replace the Ko-fi `TODO` in the README and the description templates. Done 15 November
+      (`ko_fi: portwexley`; the README, STREAMING.md's templates, launch/uploads.md and launch/making-of.md).
 - [x] **The cartoons are not part of the launch** (decided 8 November). The output isn't consistent enough
       yet; the licence comes when it is. The MiniMax H3 licence excludes the UK (and the EU, US and South
       Korea), so rendering or airing them from here needs MiniMax's approval, or another video model

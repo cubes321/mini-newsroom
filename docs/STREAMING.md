@@ -228,7 +228,7 @@ Today's schedule: 06:00 Morning Tide · 10:00 Have Your Say · 13:00 Quayside ·
 21:00 the news and Port Wexley Stories · 22:00 The Last Ferry · the news in between (UK time).
 
 Also live on Twitch: https://www.twitch.tv/portwexley
-Support the station (it costs about $1-2 a day to run): TODO (Ko-fi)
+Support the station (it costs about $1-2 a day to run): https://ko-fi.com/portwexley
 How it's made, and the code: https://github.com/cubes321/mini-newsroom
 
 Voices: Pocket TTS by Kyutai (CC BY 4.0, https://huggingface.co/kyutai/pocket-tts) and Kokoro-82M (Apache 2.0).
@@ -245,7 +245,7 @@ About panel (a panel under the stream):
 Port Wexley is a fictional town. Every programme is written and voiced by AI.
 [the same "Channel 7 is..." paragraph and schedule as YouTube]
 Voices: Pocket TTS by Kyutai (CC BY 4.0) and Kokoro-82M (Apache 2.0). Full credits: [CREDITS.md link]
-Support: TODO (Ko-fi)
+Support: https://ko-fi.com/portwexley
 ```
 
 **Shorts** (one moment from a saved part or a recording; `tools/shorts.py` cuts them)

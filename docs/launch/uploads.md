@@ -96,7 +96,7 @@ Port Wexley Stories is Channel 7's nightly documentary: fifteen minutes on one o
 researched from everything the station has aired about it. As broadcast on 3 November 2026.
 
 Channel 7 is live around the clock: TODO (live link)
-Support the station: TODO (Ko-fi)
+Support the station: https://ko-fi.com/portwexley
 
 Voices: Pocket TTS by Kyutai (CC BY 4.0, https://huggingface.co/kyutai/pocket-tts) and Kokoro-82M (Apache 2.0).
 Scripts: Claude and DeepSeek. Full credits: https://github.com/cubes321/mini-newsroom/blob/master/docs/CREDITS.md

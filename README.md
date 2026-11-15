@@ -9,7 +9,7 @@
 > - Watch live on YouTube: [Port Wexley, @portwexley](https://www.youtube.com/@portwexley)
 > - Watch live on Twitch: [twitch.tv/portwexley](https://www.twitch.tv/portwexley)
 > - The four-minute tour, the Channel 7 promo: TODO
-> - Help keep the lights on (the station costs about $1-2 a day to run): Ko-fi TODO
+> - Help keep the lights on (the station costs about $1-2 a day to run): [ko-fi.com/portwexley](https://ko-fi.com/portwexley)
 >
 > Credits and licences: [docs/CREDITS.md](docs/CREDITS.md). Everything below is for people who want to run
 > it or read the code.
