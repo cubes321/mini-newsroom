@@ -77,6 +77,11 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
 
 - **The senior editor**: its memos ("senior editor:" lines) and whether the desk's notes stop
   converging on one meeting (11 of 24 rounds said "converge" on 2026-10-29).
+- **Stories moved in the pool** (since 2026-11-15): a story waiting in the running-stories pool that the memo
+  names is put within the desk's reach once per memo ("from the pool t454, ..." on the desk's line), and a new
+  dated NEXT moves its day ("moved in the pool: Monday 16 November -> Monday 23 November"). Until then a memo
+  could ask for a crowded day to be thinned and nothing could do it: on the 2026-11-14 night four memos asked,
+  and Monday 16 kept its eight stories. Check that a memo's "still N deep" is not repeated in the next one.
 - **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 10 a day, none before 06:00 and the rest released through the day (since 2026-11-01),
   and whether they air.
 - **The editors' meeting** (since 2026-11-14, from 16:00 on either channel's night): four "editors' meeting:" turns and

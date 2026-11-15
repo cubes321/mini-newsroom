@@ -4,12 +4,15 @@ board, instead of being reported with nothing new until it is closed as stalled 
 from __future__ import annotations
 
 import dataclasses
+import itertools
+import time
 from datetime import date
 
 import pytest
 
-from newsroom import desk, inquiry, world as world_mod
+from newsroom import desk, inquiry, senior, world as world_mod
 from newsroom.config import CONFIG
+from newsroom.models import StoryPlan, ThreadUpdate
 from newsroom.world import due_date
 
 TODAY = date(2026, 11, 4)
@@ -94,6 +97,88 @@ def test_the_pool_can_be_switched_off(monkeypatch):
     tray = story("Boxing Day tray order goes in early", "2026-10-31", 33, "On Thursday 12 November Dolores walks it down")
     w.fade_threads()
     assert not w.waiting_threads() and tray.phase == "faded"
+
+
+def _memo_round(monkeypatch, w, memo, updates):
+    """One desk round with the senior editor's memo just left and the model's reply stubbed."""
+    w.senior_memo, w.senior_memo_at, w.last_senior_ts = memo, "2026-11-04 20:00", time.time()
+    seen = []
+
+    def complete_json(task, schema, system, user, **kw):
+        seen.append(user)
+        return StoryPlan(updates=[ThreadUpdate(thread_id=i, phase=ph, next_development=nxt) for i, ph, nxt in updates])
+    monkeypatch.setattr(desk.llm, "complete_json", complete_json)
+    assert desk.plan(w) is not None
+    return seen
+
+
+def _pooled(monkeypatch):
+    ticks = itertools.count(1_800_000_000)                  # a clock of its own: Windows' ticks every 15 ms
+    monkeypatch.setattr(time, "time", lambda: float(next(ticks)))
+    w, story = _town(monkeypatch)
+    tray = story("Boxing Day tray order goes in early", "2026-10-31", 33, "On Thursday 12 November Dolores walks it down")
+    wreath = story("Lifeboat crew ready the wreath", "2026-11-03", 28, "On Sunday 8 November the crew lay it")
+    fresh = story("Boiler fails at the Academy", "2026-11-04", 3, "The engineer comes")
+    fresh.moved_ts = 1_800_000_000.0
+    w.fade_threads()
+    assert w.waiting(tray) and w.waiting(wreath) and fresh in w.board_threads()
+    return w, tray, wreath, fresh
+
+
+def test_a_waiting_story_the_memo_names_is_within_the_desks_reach_once_and_moves(monkeypatch):
+    """On the night of 2026-11-14 four memos asked for t454, t492, t474 and t476 to come off Monday 16, which
+    had eight stories due; the desk plans only the board, so they stayed."""
+    w, tray, wreath, fresh = _pooled(monkeypatch)
+    assert desk.reach(w) == []                                           # no memo: nothing from the pool
+    seen = _memo_round(monkeypatch, w, f"Thursday 12 is too full: move {tray.id} to Monday 16 November.", [
+        (fresh.id, "developing", "The engineer fits the valve"),
+        (tray.id, "developing", "On Monday 16 November Dolores walks the tray sheet down"),
+        (wreath.id, "developing", "On Monday 16 November the crew lay it")])
+    reach = seen[0].split("ALSO WITHIN REACH")[1].split("DUPLICATES")[0]
+    assert tray.id in reach and wreath.id not in reach and len(seen) == 1
+    assert "threads within reach this round" in seen[0]
+    assert tray.waits_until == "2026-11-16" and w.waiting(tray) and tray.next_development.startswith("On Monday 16")
+    assert tray.id not in {t.id for t in desk.batch(w)}                  # moved, and still off the rounds
+    assert wreath.waits_until == "2026-11-08" and "Sunday 8" in wreath.next_development   # not named: out of turn
+    assert w.desk_notes[-1]["planned"] == [fresh.id] and w.desk_notes[-1]["pool"] == [tray.id]
+    assert f"offered from the pool {tray.id}" in senior._rounds(w)
+    assert desk.reach(w) == []                                           # once a memo
+    w.last_senior_ts = time.time() + 1                                   # the next memo still names it
+    assert desk.reach(w) == [tray]
+
+
+def test_a_round_that_leaves_the_pooled_stories_alone_is_not_an_empty_plan(monkeypatch):
+    w, tray, wreath, fresh = _pooled(monkeypatch)
+    seen = _memo_round(monkeypatch, w, f"Keep {tray.id} and {wreath.id} where they are.",
+                       [(fresh.id, "developing", "The engineer fits the valve")])
+    assert len(seen) == 1 and "ALSO WITHIN REACH" in seen[0]
+    assert (tray.waits_until, wreath.waits_until) == ("2026-11-12", "2026-11-08")
+
+
+def test_a_pooled_story_is_moved_only_to_a_day_to_come_or_closed(monkeypatch):
+    w, tray, wreath, fresh = _pooled(monkeypatch)
+    _memo_round(monkeypatch, w, f"Move {tray.id}. Close {wreath.id}: the service is over.", [
+        (fresh.id, "developing", "The engineer fits the valve"),
+        (tray.id, "developing", "Dolores thinks again about the tray"),          # no day: back on every bulletin
+        (wreath.id, "closed", "Laid, and done")])
+    assert tray.waits_until == "2026-11-12" and tray.next_development.startswith("On Thursday 12 November")
+    assert wreath.phase == "closed" and not wreath.waits_until
+    # "Close it at the hand-over" is not "close it now": the ending is reported on its day first.
+    _memo_round(monkeypatch, w, f"Close {tray.id} at the hand-over.", [
+        (fresh.id, "developing", "The engineer fits the valve"),
+        (tray.id, "closed", "On Friday 13 November Dolores hands the tray sheet over, and the story ends there")])
+    assert tray.phase == "resolving" and tray.waits_until == "2026-11-13" and w.waiting(tray)
+    _memo_round(monkeypatch, w, f"Bring {tray.id} forward to today.", [
+        (fresh.id, "developing", "The engineer fits the valve"),
+        (tray.id, "developing", "On Wednesday 4 November Dolores walks the tray sheet down")])
+    assert not tray.waits_until and tray in w.board_threads() and tray.moved_ts == 1_800_000_000.0
+
+
+def test_a_story_on_tonights_council_agenda_is_not_offered_from_the_pool(monkeypatch):
+    w, tray, wreath, fresh = _pooled(monkeypatch)
+    w.senior_memo, w.last_senior_ts = f"Move {tray.id} and {wreath.id}.", time.time()
+    monkeypatch.setattr(desk.chamber, "on_agenda", lambda world: {tray.id})
+    assert desk.reach(w) == [wreath]
 
 
 def test_waiting_stories_leave_room_for_new_ones(monkeypatch):

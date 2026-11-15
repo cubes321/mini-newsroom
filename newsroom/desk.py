@@ -9,17 +9,24 @@ occasionally a new thread to seed (perhaps from a chat-show guest's loose end)
 or two threads to merge as one story. Writers see the NEXT development in their
 briefing, so a bulletin that follows up a thread moves it along. The senior
 editor's latest memo on the whole board (senior.py) comes after the briefing.
+
+A story waiting in the running-stories pool is off the rounds until its day, with one exception: when the
+senior editor's memo names it, it is put within the desk's reach once (`reach`), so that it can be moved
+to another day or closed. On the night of 2026-11-14 four memos running asked for four stories to come
+off a Monday that had eight due, and nothing could move them: the desk never saw them, and the senior
+editor only writes the memo.
 """
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import date, datetime
 
 from . import chamber, llm, meeting, promises, safety, schedule
 from .config import CONFIG
-from .models import NewThread, StoryPlan
-from .world import THREAD_PEOPLE, Thread, World
+from .models import NewThread, StoryPlan, ThreadUpdate
+from .world import THREAD_PEOPLE, Thread, World, due_date, said_date
 
 log = logging.getLogger(__name__)
 
@@ -61,9 +68,27 @@ def batch(world: World) -> list[Thread]:
     # Tonight's council motions wait for their votes (chamber.py): a NEXT rewritten after the booking
     # would leave a motion about a story that has moved on.
     agenda = chamber.on_agenda(world)
-    # A story waiting in the running-stories pool is planned again on its day (world.pool_threads).
+    # A story waiting in the running-stories pool is planned again on its day (world.pool_threads), or
+    # sooner if the senior editor's memo names it (reach).
     open_ = [t for t in world.board_threads() if t.id not in agenda]   # most recently updated first, kept for ties
     return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
+
+
+_THREAD_ID = re.compile(r"\bt\d+\b")
+
+
+def reach(world: World) -> list[Thread]:
+    """The stories waiting in the pool that the senior editor's latest memo names, the soonest due first:
+    within the desk's reach this round beside its batch, to be moved to another day or closed. Each is
+    offered once a memo (the desk stamps it planned); if the memo still wants it moved, the next one says
+    so and it is offered again. Not part of the batch: a round that rightly leaves them all alone is not
+    an empty plan."""
+    if not world.senior_memo:
+        return []
+    named = set(_THREAD_ID.findall(world.senior_memo))
+    agenda = chamber.on_agenda(world)
+    return [t for t in world.waiting_threads() if t.id in named and t.id not in agenda
+            and t.planned_ts < world.last_senior_ts][: CONFIG.story.batch]
 
 
 def _in_turn(p: StoryPlan, todo: list[Thread]) -> int:
@@ -97,7 +122,7 @@ def _memo(world: World) -> str:
     if not world.senior_memo:
         return ""
     return (f"SENIOR EDITOR'S MEMO ({world.senior_memo_at}). The senior editor reviewed the whole board and the "
-            f"desk's recent rounds; follow it where it touches this round's threads:\n{world.senior_memo}\n\n")
+            f"desk's recent rounds; follow it where it touches the threads within reach this round:\n{world.senior_memo}\n\n")
 
 
 def _loose_ends(world: World) -> str:
@@ -127,8 +152,10 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     open_n = len(world.board_threads())           # the pool's waiting stories leave room for new ones
     room = seed_room(world, open_n)
     todo = batch(world)
+    also = reach(world)
     faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
+    pool_ids = ", ".join(t.id for t in also)
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) + meeting.for_desk(world, offer=not dry) +
         f"{schedule.clock_line(schedule.now())} A NEXT development dated today must come after now; a "
@@ -142,6 +169,13 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         "unless it is covered again: give it a NEXT step worth covering, or close it."
         + (f" You may also revive one recently faded thread ({', '.join(t.id for t in faded)}) by giving it "
            "a phase and a NEXT development, but only if something new would really happen." if faded else "")
+        # Action first: worded as "leave each as it is unless...", the desk left them all (rehearsal, 2026-11-15).
+        + (f"\n\nALSO WITHIN REACH this round: {pool_ids}. They are WAITING in the running-stories pool and "
+           "the senior editor's memo names them; this is the one round you can change them before the next "
+           "memo. Where the memo asks for one to go to another day, move it now: return its phase and a NEXT "
+           "that opens with the new day and date (\"On Monday 23 November ...\") and names no other date, and "
+           "it waits in the pool for that day instead. Where the memo asks for one to be closed now, close "
+           "it. Return no update for the others: they keep their day." if also else "")
     ) + _MERGES + _loose_ends(world) + promises.for_desk(world, date.fromisoformat(world.last_date), {
         t.id for t in todo}) + {"may": _BREAKING_RARE, "now": _BREAKING_NOW}.get(breaking, _BREAKING_NO)
     try:
@@ -164,18 +198,20 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
         return None
     if not dry:
         with world.lock:                           # threads are changed in place
-            apply(world, p, only={t.id for t in todo} | {t.id for t in faded})
+            apply(world, p, only={t.id for t in todo} | {t.id for t in faded}, reach={t.id for t in also})
             now = time.time()
-            for t in todo:
+            for t in todo + also:                  # a pooled story is offered once a memo (reach)
                 t.planned_ts = now
             world.desk_notes = (world.desk_notes + [{
                 "at": f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}", "planned": [t.id for t in todo],
+                "pool": [t.id for t in also],
                 "new": len(p.new_threads), "merges": len(p.merges), "note": p.note}])[-12:]
         meeting.offer_seeded(world, p.new_threads)     # a story the editors' meeting offered, if the desk took it
     if breaking == "no":
         p.breaking = None
-    log.info("story desk: %d updates, %d new threads (planned %s)%s — %s", len(p.updates), len(p.new_threads),
-             ids, f", BREAKING {p.breaking.tip!r}" if p.breaking else "", p.note)
+    log.info("story desk: %d updates, %d new threads (planned %s%s)%s — %s", len(p.updates), len(p.new_threads),
+             ids, f"; from the pool {pool_ids}" if also else "",
+             f", BREAKING {p.breaking.tip!r}" if p.breaking else "", p.note)
     return p
 
 
@@ -200,12 +236,44 @@ def _resolve_people(world: World, names: list[str]) -> list[str]:
     return ids
 
 
-def apply(world: World, p: StoryPlan, only: set[str] | None = None) -> None:
+def apply(world: World, p: StoryPlan, only: set[str] | None = None, reach: set[str] | None = None) -> None:
+    """`only` is the round's threads (and the faded ones it may revive); `reach` the pooled stories the
+    memo put within reach, which may be re-dated or closed but settle no promises."""
     with world.lock:                               # changes the threads it is handed in place
-        _apply(world, p, only)
+        _apply(world, p, only, reach or set())
 
 
-def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
+def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
+    """A waiting story's new day, from the NEXT the desk gave it: the update to apply, or None to leave
+    the story as it is. `world.pool_threads` leaves a story already in the pool alone, so the date is
+    moved here.
+
+    A NEXT that names no day, or one gone by, is refused: it would put a long story back on every
+    bulletin with nothing new, which is what the pool is for. A story closed with its ending still to
+    come ("close t462 at the fender sign-off", and the desk closed it two days early in the rehearsal of
+    2026-11-15) is not closed: it waits for that day as resolving, so the ending is reported first."""
+    today = date.fromisoformat(world.last_date)
+    due = due_date(u.next_development, today)
+    if u.phase == "closed":
+        if due is None or due <= today:
+            t.waits_until = ""
+            return u
+        log.info("thread %s is to close on %s, not before: resolving, and it waits for that day", t.id, said_date(due))
+        u = u.model_copy(update={"phase": "resolving"})
+    if due is None or due < today:
+        log.info("story desk gave waiting thread %s a NEXT with no day to come; left in the pool until %s",
+                 t.id, said_date(t.waits_until))
+        return None
+    if due == today:
+        log.info("thread %s brought out of the pool today (was %s)", t.id, said_date(t.waits_until))
+        t.waits_until, t.moved_ts = "", schedule.now()          # a fresh start on the fade timer
+    elif due.isoformat() != t.waits_until:
+        log.info("thread %s moved in the pool: %s -> %s", t.id, said_date(t.waits_until), said_date(due))
+        t.waits_until = due.isoformat()
+    return u
+
+
+def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -> None:
     for m in p.merges:                             # first, so an update can't reopen a duplicate
         if world.merge_thread(m.duplicate, m.into):
             log.info("story desk merged thread %s into %s: %s", m.duplicate, m.into, world.thread(m.into).title[:60])
@@ -219,8 +287,10 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None) -> None:
         if t.merged_into:
             log.info("story desk planned %s, merged into %s; skipping", t.id, t.merged_into)
             continue
-        if only is not None and t.id not in only:
+        if only is not None and t.id not in only and t.id not in reach:
             log.info("story desk planned %s out of turn; skipping", t.id)
+            continue
+        if world.waiting(t) and (u := _redate(world, t, u)) is None:
             continue
         if t.phase == "faded" and u.phase != "closed":
             t.moved_ts = schedule.now()             # revived: a full window before it can fade again

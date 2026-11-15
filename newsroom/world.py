@@ -407,7 +407,8 @@ class World:
         times) whose NEXT names a later day waits for it: off the writers' board and the desk's rounds, not
         counted as live, never faded for being quiet. On its day it is back, with its history. Until
         2026-11-04 such a story was reported daily with nothing new until the senior editor had it closed
-        as stalled, and it came back under a new id: the harbour wall, t220 (117x), then t372."""
+        as stalled, and it came back under a new id: the harbour wall, t220 (117x), then t372. A story already
+        waiting is left alone here: the desk moves its day when the senior editor's memo names it (desk.reach)."""
         now = now or schedule.now()
         today = date.fromisoformat(self.last_date)
         s = CONFIG.story

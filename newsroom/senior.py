@@ -35,7 +35,9 @@ plan threads yourself; you correct the board's shape. Look for:
 - CLOSURES: threads that have run their course. Closing them makes room for new stories. A long
   story that is only waiting for a later day is not stalled: give it a NEXT dated to that day and it
   goes to the RUNNING-STORIES POOL, off the bulletins until then with its history kept (the board
-  marks those WAITING); close it only if it is really over.
+  marks those WAITING); close it only if it is really over. A WAITING story can still be moved: name
+  its id and the day it should go to, and the desk re-dates it on its next round. It is offered to
+  the desk once per memo, so say it once and plainly ("move t454 to Monday 23 November").
 - DUPLICATES: one story under several threads. Merge them yourself (merges), into the one covered more.
 - FRESHNESS and BALANCE: the board needs stories from all of town life (harbour, schools, shops,
   sport, clubs, weather, oddities), not only the council and its money, and some light ones. You may
@@ -53,8 +55,9 @@ def should_review(world: World, now: float | None = None) -> bool:
 
 
 def _rounds(world: World) -> str:
-    rows = "\n".join(f"  - {n['at']}: planned {', '.join(n['planned']) or '(none)'}; {n['new']} new, "
-                     f"{n['merges']} merged — {n['note']}" for n in world.desk_notes)
+    rows = "\n".join(f"  - {n['at']}: planned {', '.join(n['planned']) or '(none)'}"
+                     + (f"; offered from the pool {', '.join(n['pool'])}" if n.get("pool") else "")
+                     + f"; {n['new']} new, {n['merges']} merged — {n['note']}" for n in world.desk_notes)
     return rows or "  (none yet)"
 
 
