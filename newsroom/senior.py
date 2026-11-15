@@ -1,6 +1,6 @@
 """The senior editor: a periodic look at the story desk's whole board.
 
-The desk plans eight threads a round, every half hour, and each model has a habit there: on
+The desk plans up to eight threads a round, every half hour, and each model has a habit there: on
 2026-10-29 DeepSeek Flash steered 11 of 24 rounds onto the same council meeting, and on 2026-10-28
 Sonnet held the same eight threads with "hold Friday's beats" all night. Every `[story]
 review_every_s` (two hours), when the worker is idle, the senior editor reads the whole board and

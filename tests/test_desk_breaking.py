@@ -50,7 +50,9 @@ def _desk(monkeypatch, mode, reply):
         seen["user"] = user
         return reply
     monkeypatch.setattr(desk.llm, "complete_json", fake)
-    return desk.plan(world_mod.seed(), breaking=mode, dry=True), seen["user"]
+    w = world_mod.seed()
+    monkeypatch.setattr(w, "seeds_left", lambda now=None: 1)      # at any hour: with nothing to do the desk makes no call
+    return desk.plan(w, breaking=mode, dry=True), seen["user"]
 
 
 def test_the_desk_is_told_when_it_may_break_a_story(monkeypatch):

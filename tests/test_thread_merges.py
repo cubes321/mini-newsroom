@@ -22,6 +22,7 @@ def _town():
 
 def _plan(monkeypatch, w, p):
     monkeypatch.setattr(desk.llm, "complete_json", lambda *a, **k: p)
+    monkeypatch.setattr(w, "seeds_left", lambda now=None: 1)      # at any hour: with nothing to do the desk makes no call
     return desk.plan(w)
 
 
@@ -64,5 +65,6 @@ def test_merges_in_a_reply_that_planned_nothing_else_are_kept(monkeypatch):
                     StoryPlan(updates=[ThreadUpdate(thread_id=t.id, phase="developing", next_development="On.")
                                        for t in desk.batch(w)])])
     monkeypatch.setattr(desk.llm, "complete_json", lambda *a, **k: next(replies))
+    monkeypatch.setattr(w, "seeds_left", lambda now=None: 1)      # at any hour, as in _plan
     desk.plan(w)
     assert w.thread(chief).merged_into == station

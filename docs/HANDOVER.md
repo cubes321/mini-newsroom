@@ -82,6 +82,11 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
   dated NEXT moves its day ("moved in the pool: Monday 16 November -> Monday 23 November"). Until then a memo
   could ask for a crowded day to be thinned and nothing could do it: on the 2026-11-14 night four memos asked,
   and Monday 16 kept its eight stories. Check that a memo's "still N deep" is not repeated in the next one.
+- **Rounds with nothing to do** (since 2026-11-15): the desk plans a story again only when something has changed
+  for it (it aired, a new day, the memo names it, it is going quiet), and makes no call when nothing has
+  ("story desk: nothing has changed ...; no call"). On the 2026-11-14 night two stories were planned in 22 rounds
+  of 24. Expect a few rounds overnight (the day's turn, and one per memo), not one every half hour, and check
+  that by day a story the bulletins keep covering is still planned after each airing.
 - **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 10 a day, none before 06:00 and the rest released through the day (since 2026-11-01),
   and whether they air.
 - **The editors' meeting** (since 2026-11-14, from 16:00 on either channel's night): four "editors' meeting:" turns and

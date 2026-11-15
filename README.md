@@ -308,9 +308,12 @@ developments, closes finished threads and seeds new ones (`[story]
 seeds_per_day`, released a few at a time from `seeds_from`, none overnight).
 Each call plans a batch of threads (`[story] batch`, the least recently
 planned first), so the reply stays small as the town grows and the board
-rotates. Every two hours the **senior editor** (`senior.py`) reads the whole
-board and leaves the desk a memo: threads to merge, people to trim, a story
-that needs a new angle.
+rotates. A thread is planned again only when something has changed for it:
+it aired, a new day began, the senior editor's memo names it, or it is going
+quiet. With nothing changed and nothing else for a round to do, the desk
+makes no call. Every two hours the **senior editor** (`senior.py`) reads the
+whole board and leaves the desk a memo: threads to merge, people to trim, a
+story that needs a new angle, a waiting story to move to another day.
 
 ```bash
 uv run python -m newsroom.desk plan --dry      # see what the desk would do

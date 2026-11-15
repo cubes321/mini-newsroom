@@ -41,6 +41,7 @@ def test_the_desk_sees_loose_ends_and_may_make_one_news(monkeypatch):
 
 def test_no_loose_ends_no_section(monkeypatch):
     w = _town()
+    monkeypatch.setattr(w, "seeds_left", lambda now=None: 1)       # at any hour: with nothing to do the desk makes no call
     calls = _stub(monkeypatch, desk, [StoryPlan()])
     desk.plan(w)
     assert "LOOSE ENDS" not in calls[0] and "DUPLICATES" in calls[0]

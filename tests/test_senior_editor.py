@@ -49,6 +49,8 @@ def test_desk_notes_keep_the_last_dozen(monkeypatch):
                               for t in desk.batch(w)])
     _stub(monkeypatch, desk, [plan] * 15)
     for _ in range(15):
+        for t in w.board_threads():
+            t.mentions += 1                # each aired again: a round with nothing changed leaves no note
         desk.plan(w)
     assert len(w.desk_notes) == 12
 

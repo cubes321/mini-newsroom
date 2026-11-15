@@ -119,8 +119,9 @@ def test_a_debate_files_its_vote_with_the_story_once(monkeypatch):
             {"speaker": "guest", "text": "Carried.", "guest_name": "Helen Strand"}]})
     seg = Segment(slot_id=5, type=T.interview, show="chamber", target_s=330, brief="the FIRST motion, {m1}")
     seg.work["motion"] = 0
-    writers._apply_to_world(seg, script, w)
     t = w.thread(tid)
+    t.planned_seen = desk.seen(w, t)                 # the desk had planned it as it stood before the booking
+    writers._apply_to_world(seg, script, w)
     assert seg.thread_id == tid and t.status.startswith("Full council voted 5-1, motion carried")
     assert t.next_development == f"{tid} goes ahead on Monday 9 November." and t.phase == "resolving"
     assert tid in {x.id for x in desk.batch(w)}                               # back on the desk's board

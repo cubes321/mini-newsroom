@@ -161,6 +161,7 @@ class Thread:
     breaking: str = ""              # ISO date it broke as breaking news (the light shows lead with it)
     breaking_ts: float = 0.0        # when it broke, on the broadcast clock (bulletins lead with it for a while)
     planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
+    planned_seen: str = ""          # what the desk had in front of it then (desk.seen): planned again when that changes
     moved_ts: float = 0.0           # when it last moved on air, on the broadcast clock (it fades when quiet)
     faded_ts: float = 0.0           # when it faded, on the broadcast clock
     merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread

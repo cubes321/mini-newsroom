@@ -1,8 +1,9 @@
 """The story desk: makes threads develop instead of repeating.
 
 Every `plan_every_s`, when the worker is idle and the live buffer is healthy,
-the desk reads the open threads and returns a plan for a batch of them (the
-least recently planned, `[story] batch` per call): a phase for each
+the desk reads the open threads and returns a plan for a batch of them (those
+something has changed for since they were last planned, the least recently
+planned first, `[story] batch` per call): a phase for each
 (emerging, developing, peak, resolving, closed), the concrete next
 development the next follow-up should deliver, who is now involved, and
 occasionally a new thread to seed (perhaps from a chat-show guest's loose end)
@@ -26,7 +27,7 @@ from datetime import date, datetime
 from . import chamber, llm, meeting, promises, safety, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan, ThreadUpdate
-from .world import THREAD_PEOPLE, Thread, World, due_date, said_date
+from .world import STALE_WARNING_S, THREAD_PEOPLE, Thread, World, due_date, fade_after_s, said_date
 
 log = logging.getLogger(__name__)
 
@@ -59,8 +60,29 @@ def should_plan(world: World, now: float | None = None) -> bool:
     return now - world.last_story_plan_ts >= CONFIG.story.plan_every_s
 
 
+_THREAD_ID = re.compile(r"\bt\d+\b")
+
+
+def seen(world: World, t: Thread) -> str:
+    """What the desk has in front of it for a story: the day, how often it has aired, when it last moved
+    (on air, back from the pool, breaking), the senior editor's memo if it names the story, and whether
+    it is going quiet. The desk plans a story again only when this has changed since it last did
+    (`Thread.planned_seen`).
+
+    Until 2026-11-15 a board no bigger than the batch was planned whole every half hour: on the night of
+    2026-11-14 t484 and t513 were planned in 22 rounds of 24, eight rounds running overnight with nothing
+    aired in between, and the senior editor wrote "the desk has replanned the same four threads for eight
+    rounds; stop restating them". Compared for equality, never ordered: `moved_ts` is on the broadcast
+    clock and `planned_ts` on the real one."""
+    named = t.id in _THREAD_ID.findall(world.senior_memo or "")
+    quiet = bool(t.moved_ts) and fade_after_s(t) - (schedule.now() - t.moved_ts) < STALE_WARNING_S
+    return "|".join((world.last_date, str(t.mentions), f"{t.moved_ts:.0f}", world.senior_memo_at if named else "",
+                     "going quiet" if quiet else ""))
+
+
 def batch(world: World) -> list[Thread]:
-    """The open threads to plan this call: the least recently planned first.
+    """The open threads to plan this call: those something has changed for (`seen`), the least recently
+    planned first.
 
     Planning every open thread in one reply grew past max_tokens and the timeout
     as the town grew, so each call plans a few and the board rotates.
@@ -70,11 +92,9 @@ def batch(world: World) -> list[Thread]:
     agenda = chamber.on_agenda(world)
     # A story waiting in the running-stories pool is planned again on its day (world.pool_threads), or
     # sooner if the senior editor's memo names it (reach).
-    open_ = [t for t in world.board_threads() if t.id not in agenda]   # most recently updated first, kept for ties
+    open_ = [t for t in world.board_threads()                          # most recently updated first, kept for ties
+             if t.id not in agenda and t.planned_seen != seen(world, t)]
     return sorted(open_, key=lambda t: t.planned_ts)[: CONFIG.story.batch]
-
-
-_THREAD_ID = re.compile(r"\bt\d+\b")
 
 
 def reach(world: World) -> list[Thread]:
@@ -144,6 +164,10 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     planned none of this round's threads (valid JSON, but an empty plan is a failed plan:
     local models did it in the bench). Either way the same batch comes round next time.
 
+    With nothing to do (no story changed since it was planned, none within reach from the pool, no room
+    for a new one, no breaking news asked for) no call is made: an empty plan comes back, and the round
+    leaves no note for the senior editor.
+
     `breaking` is "no", "may" (the desk may break a story itself, rarely) or "now" (asked to):
     the plan's `breaking` is left for the worker, which commissions it (`breaking.from_desk`)."""
     world.last_story_plan_ts = time.time()
@@ -153,6 +177,10 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     room = seed_room(world, open_n)
     todo = batch(world)
     also = reach(world)
+    if not todo and not also and not room and breaking == "no":
+        # Before the prompt is built: the editors' meeting counts each showing of its offered story.
+        log.info("story desk: nothing has changed for any story on the board since it was planned; no call")
+        return StoryPlan(note="Nothing has changed since the last round: no call made.")
     faded = world.recently_faded()
     ids = ", ".join(t.id for t in todo) or "(none)"
     pool_ids = ", ".join(t.id for t in also)
@@ -202,6 +230,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
             now = time.time()
             for t in todo + also:                  # a pooled story is offered once a memo (reach)
                 t.planned_ts = now
+                t.planned_seen = seen(world, t)    # after the plan is applied: a revival restarts its fade clock
             world.desk_notes = (world.desk_notes + [{
                 "at": f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}", "planned": [t.id for t in todo],
                 "pool": [t.id for t in also],
