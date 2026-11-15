@@ -36,12 +36,21 @@ bottom with the date.
 - [x] A fish quay backdrop for Quayside, 2026-11-01 (e977fc2): boxes on ice, the auctioneer's chalk board, the
   fish vans (`fish_quay`). Quayside's field report is always there, unless breaking news sends Miles out.
 - [ ] Station audio follow-ups. Done 2026-11-07: the mixer runs at 44.1 kHz stereo (assets.MUSIC_SR; SDL converts
-  each 24 kHz voice on load), stems and bumpers are baked stereo at 44.1 kHz; the re-rendered stems wait for the
-  user's ear (data/voice-samples/mixer-44k/); the bed's SA3 take wasn't kept, so it stays 24 kHz mono until a
-  new take. Left: a bed per show. Was: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
+  each 24 kHz voice on load), stems and bumpers are baked stereo at 44.1 kHz; the fifteen re-rendered stems were
+  chosen by ear against the old ones the same day (8851775). Done 2026-11-08 (c5dddca): the bed is rendered in
+  code (`jingle.bed`, the vibes take, chosen by ear), and no Stable Audio take is on air. Left: a bed per show.
+  Was: a 44.1 kHz stereo mixer (everything plays at 24 kHz mono, so
   the music stems are exported that way; Kokoro would need resampling on load); a bed per show
   (the bed is loaded once at start).
-- [ ] Parked (2026-10-27): parallax. True parallax needs the camera to move, and every backdrop is
+  Done 2026-11-15: six idents that had been baked on a borrowed arrangement were heard by the user and kept as
+  they are (data/voice-samples/idents-2026-11-15), so the borrowed arrangement is each one's own:
+  `bumper_kettle.wav` and `bumper_tideline.wav` (Out and About's folk), `bumper_marina.wav` (The Inquiry's
+  cello), `bumper_coastroad.wav` (Rock Pool's toy), `bumper_closedown_kettle.wav` (Channel 8's goodnight with its
+  new words, on the gameshow arrangement), `bumper_tales.wav` (Hugh's Christmas Tales, on The Last Ferry's).
+  Still untracked: `bumper_cartoons.wav`, a leftover that says "channel seven" (Cartoon Time uses the tracked
+  `bumper_cartoons_8.wav`); the user to say delete or keep.
+- [ ] Parallax: built and off by default; turning it on is the user's call (the end of this item). Parked
+  2026-10-27: true parallax needs the camera to move, and every backdrop is
   exactly screen-sized, so each exterior (24 days, 14 nights) would have to be redrawn wider in
   ComfyUI with its far layer painted separately: several sessions of art. The cheap version, about an
   evening and no ComfyUI: drifting skies. Lift the sky out of each picture by colour, rebuild it as
@@ -55,8 +64,14 @@ bottom with the date.
   on the harbour, Main Street and the fish quay (a foot row per pixel, a gentle drift drawn at window size;
   clips in E:\recordings\parallax-trial) and the user asked for it to be planned: `docs/PARALLAX.md`
   (triage the 24 exteriors by depth, the engine behind `[broadcast] parallax`, a pilot evening, then the art).
-  Triage done (12 chosen) and the engine built the same day (`newsroom/parallax.py`, off by default); next
-  the pilot evening with `--parallax` on the trial's harbour and fish quay.
+  Triage done (12 chosen) and the engine built the same day (`newsroom/parallax.py`, off by default).
+  Done since, all on 2026-11-03, each layer set approved before it was committed: the pilot run and the harbour
+  and fish quay layers (4047212); the rest of the day set (678c4fb, 5bfe8ed, 80ecf2f, 585ed4e; the park was
+  dropped); night plates for the six backdrops with night art of their own (80f87f8); and a ration of about
+  one field item in three (`parallax.ONE_IN`, 7225b35). The 2026-11-06 night ran with `--parallax` (recorded
+  2026-11-07: frame p99 of 1 to 3 ms; the log has no line for it). Left, for the user: whether to turn it on.
+  `[broadcast] parallax` is still false, and the 2026-11-14 night's launcher didn't pass `--parallax`. The
+  moving camera over wider art stays parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up. 2026-11-07: 95 of the town's roles matched none;
   volunteers, makers and menders, darts players, choirs and bell ringers, a cyclist, and new words for the rest
   left 12, all plain residents (approved on a sheet). Check a new word against every cast role first: an early
@@ -66,10 +81,10 @@ bottom with the date.
   chairs dockers, "fire" put the bonfire's stewards and a firewood seller in the brigade's uniform); fixed, with
   sellers, a regatta winner, the ukulele and banjo, and a child (cast young, but still drawn grown-up size: a
   smaller figure would need a new `Look` field). Ten guests changed, nobody else. Left: plain residents.
-- [ ] **Graphics made live by ComfyUI** (the user's idea, 2026-11-03; brainstormed 2026-11-04, build after the
-  11-05 log is checked). Decided: **shadow mode first**: the back office makes the pictures for a few nights
-  but nothing shows them, and each night's go on a contact sheet to judge how they would fit. Then decide
-  where they show (and whether Phase 0, a library approved by the user, comes first).
+- [ ] **Graphics made live by ComfyUI** (the user's idea, 2026-11-03; brainstormed 2026-11-04; built 2026-11-06
+  in shadow mode, see the end of this item). Decided: **shadow mode first**: the back office makes the pictures
+  for a few nights but nothing shows them, and each night's go on a contact sheet to judge how they would fit.
+  Then decide where they show (and whether Phase 0, a library approved by the user, comes first).
   - The GPU is free during a run: the voices are on the CPU (`[tts] device = "cpu"`); on the 11-04 night
     the card sat at 1.4 of 16 GB. Qwen-Image-Edit int8 needs ~12 GB, ~6 s a picture warm.
   - The writer names the picture: an optional `picture` line in the script (what to show, no text in it).
@@ -85,6 +100,18 @@ bottom with the date.
     story; Coastwide and Out and About cutaways; sepia "archive photographs" for documentaries and The
     Inquiry; product shots for adverts. Never real people, brands or readable text; the user to decide
     whether serious stories (fires, accidents) get pictures at all.
+  - **Built 2026-11-06 in shadow mode** (13b3d91, `newsroom/pictures.py`; off unless `--pictures`): a news story
+    (by its thread) or a light-show piece (by its headline) gets a picture at most once a day, from a visual
+    brief written by one Haiku call, not named by the writer; nothing shows them. `--sheet DATE` makes the
+    night's contact sheets (data/pictures).
+  - Two nights so far: 2026-11-06 (204 pictures, about 4 in 5 fit; six faults fixed in d98cf58) and 2026-11-07
+    (89; a fault in about 1 in 10, and many near-identical ones from reworded headlines). f10fae4 (2026-11-08)
+    turns away a reworded headline's second picture: unchecked, since no night has run with `--pictures` since
+    ("again; no new picture" in the log; the 2026-11-14 night's launcher didn't pass it).
+  - Left: the user's decision on where they show, and whether serious stories get one. Open faults (recorded
+    2026-11-08): lettering and faces still slip through now and then; the daily cap counts calendar days, so a
+    night's morning uses up the next evening's; once pictures show, a reworded item will need the earlier
+    picture's file.
 
 ## Content
 
@@ -126,10 +153,16 @@ bottom with the date.
     and wore Wits' captions (the view now takes "bare" from what's playing); spare minutes were all adverts (now
     side scenes, three to a break, then quiet moments in turn); three side scenes made the same topical joke and one
     named a real pub (prompt rules). Also fixed: Channel 8's scenes could air in Channel 7's overnight repeats (an
-    unknown show passed as the news). Left: the ident (the cello stands in, `bumper_marina.wav` untracked, by ear);
-    end credits; Sonnet for the scenes too (compare with `--route interview=claude_sonnet`); the actors' looks on
-    Channel 7 nights. Done 2026-11-14: Wits' and The Kettle's On's headlines no longer reach Channel 7's "Recent
+    unknown show passed as the news). Done 2026-11-15: the ident, the announcer over The
+    Inquiry's cello, kept by ear (`bumper_marina.wav`). Left: end credits; Sonnet for the scenes too (compare
+    with `--route interview=claude_sonnet`); the actors' looks on Channel 7 nights. Done 2026-11-14: Wits' and The Kettle's On's headlines no longer reach Channel 7's "Recent
     headlines" (`writers._apply_to_world` records a headline only while Channel 7 is on air).
+    First evening on air with the model, 2026-11-14 from 18:15, on a copy of the town (`data/creative-trial/air`;
+    the real town holds no aired episode): the creative editor sent the arc back once, passed the episode and
+    marked it fair (recorded that night). Fixed after it: an arc's turning point is asked for short and cut at a
+    word (0f28f04, 86e582c); an aired episode is stamped on the episode itself (1a5e063). Open, from the
+    editor's remarks at the offline rehearsal the same day: scenes that lose track of who is speaking, stage
+    directions spoken aloud, and planned closing gestures that never air.
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual**, 20:40 to 21:00 (planned with the user 2026-11-14, docs/FACTUAL.md):
     - Two series alternate by Channel 8 night: *Tideline* (working title), coastal wildlife presented by a new
@@ -162,12 +195,16 @@ bottom with the date.
         - Both runs' first plans failed on the close's length: the limits are now 600 characters.
       - The same egret night came up in both, since the scratch towns were the same: other sights have only been
         tried in the tests.
+    - First evening on air with the model, 2026-11-14, on a copy of the town (`data/creative-trial/air`; the real
+      town's wildlife log has no entry): the creative editor passed the plan and marked the programme fair
+      (recorded that night). Open, from the editor's remarks at the offline rehearsal the same day: the opening
+      gave a different count from the booked one.
     - Left:
-      - the ident by ear (the folk arrangement stands in; `bumper_tideline.wav` untracked);
+      - (done 2026-11-15: the ident, on Out and About's folk arrangement, kept by ear, `bumper_tideline.wav`);
       - a better egret and seal;
       - spring's list and creatures (redshank, avocets, the heronry) before March;
-      - the travelogue. Its host was chosen 2026-11-14: Lorna Quayle, with look A (a yellow raincoat) and her own
-        voice `bf_quayle` (C of three), in `entertainment/travelogue.py`.
+      - (done 2026-11-14: the travelogue, below.) Its host was chosen 2026-11-14: Lorna Quayle, with look A (a
+        yellow raincoat) and her own voice `bf_quayle` (C of three), in `entertainment/travelogue.py`.
     - **The Coast Road built 2026-11-14** (`entertainment/travelogue.py`; docs/FACTUAL.md "How it's built (The Coast
       Road)"):
       - Lorna stays a resident; making her a presenter would have deleted her record.
@@ -175,9 +212,9 @@ bottom with the date.
       - It alternates with Tideline through `schedule.ROTATIONS`.
       - One scratch run: leg 1 aired cleanly. Fixed after it: the biscuit story in every item, and the day's auction
         figures (untried).
-      - Left: the ident by ear (the toy arrangement; `bumper_coastroad.wav` untracked); her look on Channel 7 (only her
-        voice follows her there); the route map; the finished series as one town-talk entry; a new host when the six
-        legs are done. The "no new history" rule failed once with the model (Stan Tully's cot).
+      - Done 2026-11-15: the ident, on Rock Pool's toy arrangement, kept by ear (`bumper_coastroad.wav`).
+      - Left: her look on Channel 7 (only her voice follows her there); the route map; the finished series as one
+        town-talk entry; a new host when the six legs are done. The "no new history" rule failed once with the model (Stan Tully's cot).
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
@@ -196,16 +233,28 @@ bottom with the date.
       up and not paid off), remarks for the owner (`python -m entertainment.creative notes`). Before air: the soap's
       arc and episode, Tideline's plan and a new Coast Road route are read and may be sent back once. The Kettle's
       On and Wits get notes only. Programmes enrol themselves, so the comedy and the drama join with one call.
-    - Not on air yet. On the first Channel 8 nights with a key: the Opus tokens against the estimate (about $0.50 a
-      night), whether the notes are ones a planner can act on, and whether a send-back makes the plan better.
+    - On air 2026-11-14 from 18:15, on a copy of the town (`data/creative-trial/air`, the real clock, recorded;
+      figures recorded that night): three plans read at 18:30 (the arc sent back once; the episode and Tideline
+      passed) and each programme reviewed within a minute of its end (The Kettle's On weak; Wits, Marina Row and
+      Tideline fair). Measured: $0.62 for the editor and the meeting ($0.40 for four reviews, $0.09 for three
+      plans read, $0.10 the meeting, $0.03 the arc's second plan), against the estimate of about $0.50.
+    - The offline rehearsal the same day (two nights, the real models): night one's notes were followed on night
+      two. The editor sent back four of the five plans it read, each for a real continuity fault; watch that
+      rate on air, since a send-back costs a Sonnet re-plan.
+    - Since 2026-11-15 a timed-out Opus call is sent once, not twice (34aa3f1: `max_retries = 0`).
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).
   - **The editors' meeting** (the user, 2026-11-14; built that day, `newsroom/meeting.py`; docs/ENGINE.md): once a
     day from 16:00 the senior editor (Sonnet) and the creative editor (Opus) take two turns each and the minutes are
     written. Its actions reach the story desk and Channel 8's planners; one story may be offered to the desk.
-    Nothing of the soap's story is brought to it. `python -m newsroom.meeting minutes`. Not on air yet: on the
-    first nights, whether the turns are worth reading, whether the desk acts on the minutes, and the cost (about
-    $0.25 a day). Left: names and faces for the two editors; the meeting on screen.
+    Nothing of the soap's story is brought to it. `python -m newsroom.meeting minutes`.
+    Held live twice on 2026-11-14, as each run started: at 18:15 on the Channel 8 copy, and at 22:02 on the real
+    town (seven actions, all for Channel 8, and two canon notes, which reached the desk). About $0.10 a meeting,
+    against the estimate of $0.25 a day. Found and fixed: nobody could move a story waiting in the pool when a
+    memo asked for it (6535c73, 2026-11-15); the senior editor said "Morning" at 22:08, the prompt having said
+    "the afternoon" whatever the hour (6b3ba34, 2026-11-15, not yet seen by the models). Open: a Channel 8
+    start books The Kettle's On and Wits before the meeting is held, so its actions for that night reach only
+    the 18:30 bookings. Left: names and faces for the two editors; the meeting on screen.
 - [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,
@@ -215,17 +264,36 @@ bottom with the date.
   (now a host and a way in each, in turn), and the recipe's part two repeated part one (now told it can't see it).
   The second run's hour went round its loop seven times: the expert on "frosted dahlias, rhubarb and seaweed" five
   times and callers on the same five problems, so the loop's expert item now has six angles, one a lap, and a call
-  sees every call tonight (not on air yet). Its close aired at 19:59 and Wits followed cleanly. It keeps the hour (the
-  user, 2026-11-13: the soap goes after Wits instead); watch the next run for the loop repeating.
+  sees every call tonight (on air 2026-11-14, below). Its close aired at 19:59 and Wits followed cleanly. It keeps
+  the hour (the user, 2026-11-13: the soap goes after Wits instead); watch the next run for the loop repeating.
+  On air 2026-11-14 at 19:00 (the Channel 8 evening on a copy of the town, `data/creative-trial/air`): the calls
+  still repeated (clay three times, leeks four), and the creative editor marked the hour weak. Fixed that evening
+  (0567b7c): the booking gives a problem for every call, about 24, and none comes twice; rehearsed offline (two
+  full hours, 19 calls each, none repeated), not yet seen on air.
   Left, for the user:
+  - **Its shape**: on that evening the back 43 minutes were one phone-in. Whether the hour keeps that is a
+    format decision.
   - Done 2026-11-13: the **looks** (A of three each, now in `sprites.LOOKS`) and the **voices** (DramaBox designs
     `bf_truscott` and `bm_spargo`, C and B of three, on data/voice-samples/marina-row).
   - **Its set**, a studio kitchen with a sofa corner (`studio_kettle`, ComfyUI art): the breakfast sofa stands in.
-  - **Its ident**: the folk arrangement stands in (`bumper_kettle.wav`, untracked until it is chosen by ear).
+  - Done 2026-11-15: **its ident**, on Out and About's folk arrangement, kept by ear (`bumper_kettle.wav`).
   - An expert's unnamed line can still go to the caller (`writers._guest_of`'s guess, Have Your Say's too): one in
     about eight on the second run.
   - Town talk: the dish or the sofa guest in Channel 7's briefing the next day, as the quiz result is.
+  - From the creative editor's remarks at the offline rehearsal (2026-11-14): the hosts contradict the recipe's
+    weights.
 - [ ] Wexley Wits, next:
+  - On air 2026-11-14 at 20:00, seven rounds (the Channel 8 evening on a copy of the town); the creative editor
+    marked it fair. The wrong word the user heard at its start was in the ident, not the programme, where Clive
+    said it right (the user, 2026-11-15). `bumper_wits.wav` was baked on 2026-11-13, the day before Pocket's
+    two-way words were fixed (ff0d046), and its line has "live from Port Wexley". An ident is baked again only
+    when it is missing or its music is newer (`assets._stale`), so a pronunciation fix never reaches one already baked. Baked again on 2026-11-15 through
+    the station's own ident code and chosen by ear over the old take (data/voice-samples/idents-2026-11-15, take
+    B); that exact file is now `assets/bumper_wits.wav`. No other baked ident has a respelled word in its line.
+    Left: an ident should be baked again when its line's spoken form changes, not only its music. The scoreboard
+    on the set now shows the score, going up answer by answer on Clive's verdict (6467328, that evening; the look
+    approved on a contact sheet), after the user saw it change only at a round's end. Open, from the editor's
+    remarks at the offline rehearsal: Who Said That? runs out of quotes.
   - First Channel 8 scratch run (2026-11-13, 19:50-20:30 on the new set): the quiz booked at once, all seven rounds
     and the chats written by the model with no template, every score matching the booking (Who Said That 22-16,
     the doubles to the Lugger by one double, 25-22 at the end); the closedown's goodnight at 20:20, then the test
@@ -243,7 +311,7 @@ bottom with the date.
     Clive names (7fbe0ee); two model darts rounds then mapped all twelve. The quiz was over 8 minutes in: chats
     filled the other 22. The user chose two more rounds (2026-11-07): Who Said That? (six lines the week's guests
     said on channel 7, from Person.memories, none naming its speaker) and darts doubles at double twenty (most
-    doubles wins; a miss mostly lands in the number ring, "No score."). Seven rounds now; not on air yet.
+    doubles wins; a miss mostly lands in the number ring, "No score."). Seven rounds now; on air 2026-11-14 (above).
   - Done 2026-11-09: the result as town talk (`newsroom/talk.py`: in the writers' briefing for two days).
 - [ ] **Cartoons** (the user, 2026-11-07), **on the back burner** (the user, 2026-11-13: another project is
   working out the best way to make them): animated films made offline with H3 and aired from the content bank.
@@ -255,16 +323,33 @@ bottom with the date.
   Part B, only when the user says: the designs on a sheet, a speed test (ComfyUI H3 20 steps, its turbo LoRA,
   Wan2GP FastH3 NVFP4 8 steps; confirm the voice-clip flags with --dry-run), then a pilot episode. Left: with
   a small shelf an hour of Cartoon Time repeats the same few films.
+  As it stands (2026-11-15): Cartoon Time is off Channel 8's schedule until the bank has films (planned back at
+  18:30). Since 2026-11-08 a cut-out engine in Blender has been built beside the H3 route (`entertainment/cutout`,
+  73b0015 to 5f1f340, with a series of its own, Skirting Board, e8d1c8e); where it stands and its open list are
+  in docs/CARTOON_NOTES.md. The cartoons are not part of the Christmas launch (docs/LAUNCH.md).
 - [ ] Watch a real evening for what the 2026-10-27 scratch run couldn't show: a British-pronounced local
   guest on air (only heard in samples), a main guest's second part that hands over to the couch
   instead of saying goodnight (`stays_on`, added after the run), the trail and notice prompts after
   their fixes (no repeated title, notices for the public, slide lines cut at a word past 190
   characters), and a special waiting for its hour and then airing.
+  2026-11-15: no night review since has ticked these off, so they stand. The guest part has changed: since
+  2026-11-01 local guests speak in British DramaBox clips cloned by Pocket, and Kokoro's British pronunciation
+  is only the stand-in.
 - [x] The Chamber, the last of the 2026-10-30 brainstorm's seven new shows (`docs/SHOWS.md`): built
   2026-11-01, full council live every other Thursday from 5 November, with a council calendar, six
   councillors and booked votes that settle stories. All seven are built. The Kettle's On, Harbour Row and
   Wexley Wits go to the entertainment channel (`docs/ENGINE.md`).
-- [ ] The Chamber's first night (Thursday 5 November, or a test run with `NEWSROOM_COUNCIL_NIGHT=1`):
+- [ ] **The Chamber's second night: Thursday 19 November** (it airs only if a Channel 7 run is going before 18:30).
+  The first aired on 2026-11-05 (station-2026-11-05-1944.log, its clock about 44 minutes behind the real one):
+  four motions on stories from the board, the votes counted in code (t433 carried 4-1, t435 lost 2-3, t434
+  carried 4-1, t438 carried 5-1); the hour filled with 37 segments and no stand-in; the four debates ran 155 to
+  195 s against 330. The loop still repeated itself: six headlines aired twice in the hour ("Gallery divided as
+  the votes fall", "Who won the night in the chamber, and who didn't"), and a link said two votes were still to
+  come after all four had been read. Afterwards the desk kept the lost motion's story (t435) resolving, with a
+  NEXT for 17 November. Watch on the 19th: the loop (if it still repeats, shorter debate targets with more loop
+  angles, or more motions), and the council's promises (built 2026-11-09, never yet on a council night): a
+  carried motion becoming a promise, and the desk's verdict when it falls due.
+  Was, before the first night (Thursday 5 November, or a test run with `NEWSROOM_COUNCIL_NIGHT=1`):
   whether the agenda picks stories really due at council, the debates read their booked results
   exactly, the votes split believably, the hour fills without the loop repeating itself, and what the
   desk does with the stories afterwards (resolving, then closed?). The 2026-11-01 test run (started at
@@ -538,10 +623,39 @@ bottom with the date.
   out of the brief. Not yet seen: ring-backs (the run ended 20 minutes into the phone-in), and whether
   Out and About's places rest a fortnight (needs two weeks of airings).
 
-- [ ] Watch the next run's log for how the thread and guest changes land: "continues thread" (the
-  title match), "story desk merged" (are the merges right, and do they keep up?), "from ...'s loose
-  end" (does the desk make news of a loose end, and is it news?), "has been on before" (how often
-  a writer rebooks a remembered guest; each costs a second call).
+- [x] **The two nights of 2026-11-14, reviewed 2026-11-15.** Channel 8 from 18:15 on a copy of the town
+  (`data/creative-trial/air`), then Channel 7 from 22:02 on the real town for twelve hours
+  (station-2026-11-14-2202.log; figures recorded at the review): 703 segments, no filler, every item by the
+  model, 13 recordings all with sound, the annals page for 14 November written, Anthropic $0.70. The first real
+  cache clear-out removed 2,935 entries (8.3 GB). Found on the Channel 7 night and fixed 2026-11-15:
+  - Nobody could move a story waiting in the pool, though four memos asked (6535c73): the desk is offered a
+    waiting story the memo names, once per memo, and may move its day (`desk.reach`, `_redate`).
+  - The desk planned the same board every half hour, t484 and t513 in 22 rounds of 24 (988e69c): a story is
+    planned again only when something has changed for it (`desk.seen`, `Thread.planned_seen`), and a round with
+    nothing to do makes no call.
+  - The senior editor reviewed an unchanged board every two hours, six reviews (667b999): after the interval,
+    only on a new day or once `[story] review_min_pieces` (6) news pieces have aired on the town's stories
+    (`senior.moved`). Replayed on that night: four reviews.
+  - The desk closed four stories with their endings still to come, and nobody reported them (e8314a8): a close
+    whose NEXT names today or a later day is held as resolving until the story is covered (`desk._held`). The
+    four (t349, t469, t515, t526) were put back as resolving in the real town by hand on 2026-11-15, with a
+    backup (`data/world.backup-2026-11-15-pre-reopen.json`).
+  - Also: the tests refuse to start once newsroom has been imported (6be9259), after a test run overwrote the
+    real town (recovered); the editors' meeting is told when it is held late (6b3ba34); a timed-out Opus call
+    is sent once (34aa3f1).
+- [ ] Watch the first night on those fixes (none has run on a real night yet), in the log:
+  - "moved in the pool:" and "brought out of the pool today": a memo's re-dating carried out.
+  - "nothing has changed for any story on the board since it was planned; no call": how many rounds are
+    skipped, and whether the board goes stale for it.
+  - "senior editor: N news piece(s) on the town's stories since the last memo, fewer than 6, and the same day:
+    no review until the town moves": how many reviews a night makes now.
+  - "is to close on ..., not before" and "is to close once its ending for ... has been reported": each held
+    story is covered and then closed by the desk's next round, and none stays resolving until it fades.
+  - The editors' meeting on a late start: no "Morning", and nothing about "this afternoon".
+  - As on every night, how the thread and guest changes land. On the 2026-11-14 night: "continues thread" 8
+    (the title match), "story desk merged" 5 (are the merges right, and do they keep up?), "from ...'s loose
+    end" 6 (does the desk make news of a loose end, and is it news?), "has been on before" 26 (how often a
+    writer rebooks a remembered guest; each costs a second call).
 
 - [x] Not doing (the user, 2026-11-07): the current routing stays (Haiku live, DeepSeek Flash back office,
   Sonnet senior editor and fallback). A quick side-by-side that day, six live prompts from the town: Haiku
@@ -588,6 +702,9 @@ bottom with the date.
   fallback fires.
 - [ ] Split the reusable backend from Port Wexley when the entertainment channel starts: plan in
   `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
+  The first split is made (2026-11-07; docs/ENGINE.md, "The first split"): Channel 8's shows live in
+  `entertainment/` and reach the engine through registries by show id. Left: the engine's own repo, once the
+  boundary settles.
 - [x] Claude on the `anthropic` route: Haiku live and Sonnet as senior editor since 2026-10-26. Benched 2026-10-26 on the Kimi bench
   prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
   timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
