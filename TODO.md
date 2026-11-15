@@ -49,7 +49,7 @@ bottom with the date.
   new words, on the gameshow arrangement), `bumper_tales.wav` (Hugh's Christmas Tales, on The Last Ferry's).
   Deleted the same day at the user's say: `bumper_cartoons.wav`, a leftover that said "channel seven" (Cartoon
   Time uses the tracked `bumper_cartoons_8.wav`), and PROJECT_REVIEW.md, whose findings were fixed 2026-11-03.
-- [ ] Parallax: built and off by default; turning it on is the user's call (the end of this item). Parked
+- [x] Parallax: built, and on by default since 2026-11-15 (the user; the end of this item). Parked
   2026-10-27: true parallax needs the camera to move, and every backdrop is
   exactly screen-sized, so each exterior (24 days, 14 nights) would have to be redrawn wider in
   ComfyUI with its far layer painted separately: several sessions of art. The cheap version, about an
@@ -69,9 +69,9 @@ bottom with the date.
   and fish quay layers (4047212); the rest of the day set (678c4fb, 5bfe8ed, 80ecf2f, 585ed4e; the park was
   dropped); night plates for the six backdrops with night art of their own (80f87f8); and a ration of about
   one field item in three (`parallax.ONE_IN`, 7225b35). The 2026-11-06 night ran with `--parallax` (recorded
-  2026-11-07: frame p99 of 1 to 3 ms; the log has no line for it). Left, for the user: whether to turn it on.
-  `[broadcast] parallax` is still false, and the 2026-11-14 night's launcher didn't pass `--parallax`. The
-  moving camera over wider art stays parked.
+  2026-11-07: frame p99 of 1 to 3 ms; the log has no line for it). Decided 2026-11-15 (the user): on by
+  default, `[broadcast] parallax = true` in config.toml. Watch the first night on it: the harbour and the fish
+  quay on air, and the frame times in STATS. The moving camera over wider art stays parked.
 - [ ] More guest costumes in `sprites.COSTUMES` as new roles turn up. 2026-11-07: 95 of the town's roles matched none;
   volunteers, makers and menders, darts players, choirs and bell ringers, a cyclist, and new words for the rest
   left 12, all plain residents (approved on a sheet). Check a new word against every cast role first: an early
@@ -108,7 +108,11 @@ bottom with the date.
     (89; a fault in about 1 in 10, and many near-identical ones from reworded headlines). f10fae4 (2026-11-08)
     turns away a reworded headline's second picture: unchecked, since no night has run with `--pictures` since
     ("again; no new picture" in the log; the 2026-11-14 night's launcher didn't pass it).
-  - Left: the user's decision on where they show, and whether serious stories get one. Open faults (recorded
+  - Decided 2026-11-15 (the user): they stay in shadow, shown nowhere, and the nights make them again:
+    data/night_channel7.ps1 starts ComfyUI if it isn't up and passes `--pictures`, on `qwen_image_cfg` (the model
+    picked by eye on 2026-11-06). Where they show is decided after the launch, from the sheets.
+  - Left: the first night's sheet (`python -m newsroom.pictures --sheet DATE`), and "again; no new picture" in
+    the log; whether serious stories ever get one. Open faults (recorded
     2026-11-08): lettering and faces still slip through now and then; the daily cap counts calendar days, so a
     night's morning uses up the next evening's; once pictures show, a reworded item will need the earlier
     picture's file.
@@ -209,6 +213,8 @@ bottom with the date.
       Road)"):
       - Lorna stays a resident; making her a presenter would have deleted her record.
       - The route is planned ahead and saved (`--plan`): "Six Slow Ways and a Tin of Parkin" is in data/travelogue.
+        Approved by the user as saved on 2026-11-15, from its six legs and their stops; no leg has aired in the
+        real town yet.
       - It alternates with Tideline through `schedule.ROTATIONS`.
       - One scratch run: leg 1 aired cleanly. Fixed after it: the biscuit story in every item, and the day's auction
         figures (untried).
@@ -271,8 +277,14 @@ bottom with the date.
   (0567b7c): the booking gives a problem for every call, about 24, and none comes twice; rehearsed offline (two
   full hours, 19 calls each, none repeated), not yet seen on air.
   Left, for the user:
-  - **Its shape**: on that evening the back 43 minutes were one phone-in. Whether the hour keeps that is a
-    format decision.
+  - Done 2026-11-15: **its shape**. On that evening the back 43 minutes were one phone-in. The user chose to
+    spread the same booked items across the hour: the dish goes in at the top and comes out in the close
+    (so it lands at about 19:57 however the items run), the sofa guest is at about 19:17 and the noticeboard at
+    the half hour, and the phones come in blocks of one to four calls, each with one of the expert's own items.
+    Rehearsed with the real producer at 85%, 100% and 115% of the targets: 13 to 18 calls (still about half the
+    hour), the hour ending within twenty seconds of 20:00; from about 19:42 it is the loop (a break, two calls,
+    the expert's next item) until the dish comes out. About as many written items an hour as before (27 at the
+    targets, against about 26), so no new cost. Not yet seen on air.
   - Done 2026-11-13: the **looks** (A of three each, now in `sprites.LOOKS`) and the **voices** (DramaBox designs
     `bf_truscott` and `bm_spargo`, C and B of three, on data/voice-samples/marina-row).
   - Done 2026-11-15: **its set**, a studio kitchen with a sofa corner (`studio_kettle`, ComfyUI art, candidate A,
@@ -660,6 +672,12 @@ bottom with the date.
   - The editors' meeting on a late start: no "Morning", and nothing about "this afternoon".
   - The harbour church (`church`), offered to every writer since 2026-11-15: what gets set there, and whether
     a story invents things the picture doesn't have. The Kettle's On on its own set, on the next Channel 8 evening.
+  - Parallax, on by default since 2026-11-15: the drifting location items in the recordings, and STATS' p99.
+    Channel 8 has never aired with it (The Coast Road's stops have layers): drawn offscreen at the window's
+    size on both channels, not yet on air there. `--no-parallax` puts a run back to stills.
+  - The Kettle's On's new order, on the next Channel 8 evening: the dish out at about 19:57 and not cut by the
+    hour, the sofa guest at about 19:17, and whether "part two" still talks as if no time had passed.
+  - The pictures, back in shadow on Channel 7 nights: the sheet, and that ComfyUI started and stayed polite.
   - As on every night, how the thread and guest changes land. On the 2026-11-14 night: "continues thread" 8
     (the title match), "story desk merged" 5 (are the merges right, and do they keep up?), "from ...'s loose
     end" 6 (does the desk make news of a loose end, and is it news?), "has been on before" 26 (how often a
