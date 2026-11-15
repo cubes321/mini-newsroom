@@ -6,7 +6,7 @@
 > people, the council, the ferry and the news are all made up. Every programme is written and voiced by
 > AI, live, around the clock.
 >
-> - Watch live on YouTube: TODO (Cubes Channel, @cubes123)
+> - Watch live on YouTube: [Port Wexley, @portwexley](https://www.youtube.com/@portwexley)
 > - Watch live on Twitch: TODO
 > - The four-minute tour, the Channel 7 promo: TODO
 > - Help keep the lights on (the station costs about $1-2 a day to run): Ko-fi TODO

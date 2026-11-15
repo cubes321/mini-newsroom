@@ -1,7 +1,7 @@
 # Launch: Christmas Eve 2026
 
 Channel 7 goes public on **Thursday 24 December 2026**, live on YouTube (a new Port Wexley channel of its own,
-not Cubes Channel; name and handle to be chosen) and Twitch, with a shelf of long videos from 20 December, a
+not Cubes Channel: [Port Wexley, @portwexley](https://www.youtube.com/@portwexley), created 15 November) and Twitch, with a shelf of long videos from 20 December, a
 Short a day from 1 December and a making-of post in launch week. This is the checklist from Sunday
 8 November. **You** marks the steps only the user can do (accounts, uploads, posting); the rest is work for a
 session.
@@ -22,10 +22,14 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 
 ## Week 1: Sun 8 to Sun 15 November, accounts and the quality test
 
-- [ ] **You: create the Port Wexley channel** as a Brand Account under your Google account (YouTube →
+- [x] **You: create the Port Wexley channel** as a Brand Account under your Google account (YouTube →
       Settings → Add or manage your channel(s) → Create a channel), with its handle. Verify it
       (youtube.com/verify) and turn on live streaming: the first time can take up to 24 hours. Then tell a
       session the name and handle, to replace Cubes Channel (@cubes123) in the README and STREAMING.md.
+      Created 15 November: **Port Wexley, @portwexley**, a Brand Account managed from the main Google account
+      (the README links it; STREAMING.md never named the old channel). Channel ID `UClVRoxPUU-xM--79wcIYo0w`.
+      Phone-verified the same evening (on Port Wexley itself: verification belongs to the channel that is active
+      when it's done), and live streaming requested at 19:11, so it opens about 19:11 on Mon 16 November.
 - [ ] **You: upload the promo to the new channel as the quality test.**
       `E:/recordings/2026-11-08 Channel 7 Promo - final 1440p.mp4`, **Unlisted**. Landscape uploads get a
       sparse quality ladder on YouTube; a 1440p upload should get the better encode, so check on the watch
