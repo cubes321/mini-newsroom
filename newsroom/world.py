@@ -52,6 +52,7 @@ THREAD_PEOPLE = 4               # a thread's people, as the desk lists them; app
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
+LOOKING_BACK = {"documentary", "special"}   # pieces about a story that don't move it on (World._story_piece)
 HISTORY_DOCS = 5                # the documentaries the desk and editors are shown in full,
 HISTORY_PER_DOC = 4             # with this many background facts each;
 HISTORY_FACTS = 6               # the writers, this many of the newest background facts
@@ -203,6 +204,10 @@ class World:
     senior_memo: str = ""
     senior_memo_at: str = ""                 # broadcast date and clock it was written
     last_senior_ts: float = 0.0
+    # How far the town had got when the senior editor last left a memo ({date, pieces}): it reviews again only
+    # once the town has moved on from there (senior.moved), not every two hours through a night of repeats.
+    senior_seen: dict = field(default_factory=dict)
+    story_pieces: int = 0                    # news pieces that have gone out on the town's stories, ever (_story_piece)
     seeded: list[str] = field(default_factory=list)   # the date of each story the desk or senior editor seeded
     inquiries: list[dict] = field(default_factory=list)   # The Inquiry's subjects: {date, thread_id, title, angle, questions, guest}
     panels: list[dict] = field(default_factory=list)      # The Panel's lineups: {date, questions, panellists}
@@ -588,8 +593,19 @@ class World:
             entry["guest"] = guest
         if fiction:
             entry["fiction"] = True
+        else:
+            self._story_piece(entry)
         self.archive.append(entry)
         self.archive = self.archive[-MAX_ARCHIVE:]
+
+    def _story_piece(self, entry: dict) -> None:
+        """Count a news piece that has gone out on one of the town's stories: the measure of how far the town
+        has moved (senior.moved). Not a documentary or a special, which look back at a story (seven aired in
+        the small hours of 2026-11-15, among the repeats, and moved nothing); not one still waiting to air.
+        A count of its own because the archive can't say: it is capped, its entries carry no time once aired,
+        and a merge moves a story's `mentions` to another."""
+        if entry.get("aired", True) and entry.get("thread_id") and entry["type"] not in LOOKING_BACK:
+            self.story_pieces += 1
 
     def guests_today(self, show: str) -> list[str]:
         """The named guests on `show` today, aired or about to, once each. Coastwide booked the mayor three
@@ -623,6 +639,8 @@ class World:
                     return
                 del e["aired"], e["ts"]
                 self._count_appearances(e.get("people", []))
+                if not e.get("fiction"):
+                    self._story_piece(e)
                 return
         self.record_aired(seg_type, headline, thread_id, text, show=show, brief=brief, content_hash=content_hash,
                           fiction=fiction)

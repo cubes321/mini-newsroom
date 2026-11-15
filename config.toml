@@ -138,6 +138,11 @@ batch = 8                # threads planned per desk call; the whole board in one
 # leaves the desk a memo (and merges duplicates itself): on 2026-10-29 Flash steered 11 of 24 plans onto
 # one council meeting and opened no threads, and on 2026-10-28 Sonnet held the same eight all night.
 review_every_s = 7200
+# ...and only once the town has moved since its last memo: a new day, or this many news pieces aired on
+# stories (documentaries don't count). On the night of 2026-11-14 it reviewed at 02:08 and 04:08 with one or
+# two documentaries aired among the repeats, and wrote the same memo; by day a two-hour stretch airs 20 to 70.
+# 0: every two hours whatever has aired, as before 2026-11-15.
+review_min_pieces = 6
 # Threads fade off the air when they stop moving (hours of air time without a new beat), and past
 # max_live_threads open the stalest fade. A faded thread comes back on a follow-up or from the desk.
 max_live_threads = 40

@@ -82,6 +82,11 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
   dated NEXT moves its day ("moved in the pool: Monday 16 November -> Monday 23 November"). Until then a memo
   could ask for a crowded day to be thinned and nothing could do it: on the 2026-11-14 night four memos asked,
   and Monday 16 kept its eight stories. Check that a memo's "still N deep" is not repeated in the next one.
+- **Reviews only once the town has moved** (since 2026-11-15): after its two hours the senior editor reviews only
+  on a new day or once `[story] review_min_pieces` (6) news pieces have aired on stories since its last memo;
+  documentaries and specials don't count. A held review is logged once ("no review until the town moves").
+  Replayed against the 2026-11-14 night: reviews at 22:08, 00:08, 06:29 and 08:29, not six. Expect one review
+  between midnight and breakfast, and the first of the morning about half an hour into Morning Tide.
 - **Rounds with nothing to do** (since 2026-11-15): the desk plans a story again only when something has changed
   for it (it aired, a new day, the memo names it, it is going quiet), and makes no call when nothing has
   ("story desk: nothing has changed ...; no call"). On the 2026-11-14 night two stories were planned in 22 rounds

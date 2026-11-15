@@ -3,10 +3,12 @@
 The desk plans up to eight threads a round, every half hour, and each model has a habit there: on
 2026-10-29 DeepSeek Flash steered 11 of 24 rounds onto the same council meeting, and on 2026-10-28
 Sonnet held the same eight threads with "hold Friday's beats" all night. Every `[story]
-review_every_s` (two hours), when the worker is idle, the senior editor reads the whole board and
-the desk's recent rounds and leaves the desk a short memo it reads on every round until the next
-one. It merges duplicates itself, and may open one fresh story, from the day's allowance of new
-stories it shares with the desk (`[story] seeds_per_day`).
+review_every_s` (two hours), when the worker is idle and the town has moved since the last memo
+(a new day, or `review_min_pieces` news pieces aired on its stories: `moved`), the senior editor
+reads the whole board and the desk's recent rounds and leaves the desk a short memo it reads on
+every round until the next one. Through a night of repeats it reviews once, at the day's turn. It
+merges duplicates itself, and may open one fresh story, from the day's allowance of new stories it
+shares with the desk (`[story] seeds_per_day`).
 """
 from __future__ import annotations
 
@@ -49,9 +51,36 @@ fiction, never real people or events. Return ONLY JSON.
 """
 
 
+def moved(world: World) -> bool:
+    """Whether the town has moved on since the last memo: a new broadcast day (dates on the board fall due,
+    the pool gives stories back), or `[story] review_min_pieces` news pieces aired on its stories.
+
+    The town only, never the desk's edits: each memo has the desk plan the stories it names once
+    (desk.seen), and if that counted as change the two would trade rounds every two hours all night."""
+    seen = world.senior_seen
+    return (seen.get("date") != world.last_date
+            or world.story_pieces - seen.get("pieces", 0) >= CONFIG.story.review_min_pieces)
+
+
+_held_at = -1.0           # the review last held for a town that hadn't moved: said once, not every idle tick
+
+
 def should_review(world: World, now: float | None = None) -> bool:
+    """Every `review_every_s`, once the town has moved (`moved`). A review held for a quiet town leaves
+    `last_senior_ts` alone: the desk offers pooled stories by it (desk.reach), and the review then comes as
+    soon as the town does move, not at the next two-hour mark."""
+    global _held_at
     every = CONFIG.story.review_every_s
-    return every > 0 and (now or time.time()) - world.last_senior_ts >= every
+    if every <= 0 or (now or time.time()) - world.last_senior_ts < every:
+        return False
+    if moved(world):
+        return True
+    if _held_at != world.last_senior_ts:
+        _held_at = world.last_senior_ts
+        log.info("senior editor: %d news piece(s) on the town's stories since the last memo, fewer than %d, and "
+                 "the same day: no review until the town moves", world.story_pieces - world.senior_seen.get("pieces", 0),
+                 CONFIG.story.review_min_pieces)
+    return False
 
 
 def _rounds(world: World) -> str:
@@ -99,6 +128,7 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
                 desk.seed(world, m.new_thread, who="senior editor")
             world.senior_memo = m.memo.strip()
             world.senior_memo_at = f"{world.last_date} {datetime.fromtimestamp(schedule.now()):%H:%M}"
+            world.senior_seen = {"date": world.last_date, "pieces": world.story_pieces}   # how far the town had got
     log.info("senior editor: %d merges, %s — %s", len(m.merges),
              f"new thread {m.new_thread.title!r}" if m.new_thread else "no new thread", m.memo.replace("\n", " / "))
     return m

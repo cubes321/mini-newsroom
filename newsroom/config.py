@@ -134,7 +134,8 @@ class StoryCfg:
     seeds_from: str = "06:00"            # none before this (the overnight repeats), then released evenly
     seeds_over_h: float = 18.0           # over this many hours: one every 1.8 h, the last by midnight
     batch: int = 8                       # threads the desk plans per call, least recently planned first
-    review_every_s: float = 7200.0       # the senior editor reviews the desk's board this often (0: never)
+    review_every_s: float = 7200.0       # the senior editor reviews the desk's board this often (0: never),
+    review_min_pieces: int = 6           # once this many news pieces have aired on stories since its last memo, or a new day
     max_live_threads: int = 40           # past this many open, the stalest fade (world.fade_threads)
     fade_oneoff_h: float = 8.0           # hours of air time without a new beat before a thread fades,
     fade_quiet_h: float = 24.0           # for one covered once or twice, most threads,

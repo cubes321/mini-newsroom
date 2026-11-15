@@ -135,3 +135,78 @@ def test_the_senior_editor_seeds_nothing_once_the_day_is_used_up(monkeypatch):
     before = len(w.threads)
     senior.review(w)
     assert "new_thread must be null" in seen[0][1] and len(w.threads) == before
+
+
+# ------------------------------------------------------------------ only once the town has moved
+
+def _reviewed(monkeypatch):
+    """A town the senior editor has just reviewed, and the moment its next review falls due by the clock."""
+    w = _world()
+    _stub(monkeypatch, senior, [SeniorMemo(memo="Fine.")] * 4)
+    assert senior.should_review(w)                                   # a town it has never reviewed
+    assert senior.review(w) is not None
+    return w, w.last_senior_ts + CONFIG.story.review_every_s + 1
+
+
+def test_the_senior_editor_reviews_again_only_once_the_town_has_moved(monkeypatch):
+    """On the night of 2026-11-14 it reviewed at 02:08 and 04:08 with one or two documentaries aired among the
+    repeats since its last memo, and wrote the same memo three times running ($0.05 a time)."""
+    w, due = _reviewed(monkeypatch)
+    story = w.open_threads()[0].id
+    assert not senior.should_review(w, due - 10) and not senior.should_review(w, due)     # two hours on, nothing aired
+    n = CONFIG.story.review_min_pieces
+    w.record_aired("documentary", "The Harbour Wall: A Promise in the Drawer", story, "Looking back.", content_hash="d1")
+    w.record_aired("special", "Special report", story, "Looking back.", content_hash="d2")
+    w.record_aired("weather", "Frost tonight", None, "Cold.", content_hash="w1")           # on no story
+    w.record_aired("interview", "Marina Row", None, "", content_hash="f1", fiction=True)   # the other channel's drama
+    w.record_aired("bulletin", "Written, not yet aired", story, "Soon.", content_hash="u1", aired=False)
+    for i in range(n - 1):
+        w.record_aired("bulletin", f"Piece {i}", story, "It moves.", content_hash=f"b{i}")
+    assert w.story_pieces == n - 1 and not senior.should_review(w, due)                    # one short
+    held = w.last_senior_ts
+    w.confirm_aired("bulletin", "Written, not yet aired", story, "Soon.", content_hash="u1")   # the player: it went out
+    w.confirm_aired("bulletin", "Written, not yet aired", story, "Soon.", content_hash="u1")   # told twice: counted once
+    assert w.story_pieces == n and senior.should_review(w, due)
+    assert w.last_senior_ts == held                                  # a held review moved nothing: desk.reach reads this
+    assert senior.review(w) is not None and not senior.should_review(w, w.last_senior_ts + CONFIG.story.review_every_s + 1)
+
+
+def test_a_new_day_is_reason_enough_and_a_failed_or_dry_review_is_no_review(monkeypatch):
+    w, due = _reviewed(monkeypatch)
+    seen = dict(w.senior_seen)
+    assert seen == {"date": w.last_date, "pieces": 0} and not senior.should_review(w, due)
+    w.last_date = "2099-01-02"                                       # the day turns: dates on the board fall due
+    assert senior.should_review(w, due)
+    senior.review(w, dry=True)
+    assert w.senior_seen == seen                                     # a dry run leaves no mark
+
+    def down(*a, **kw):
+        raise senior.llm.LLMUnavailable("down")
+    monkeypatch.setattr(senior.llm, "complete_json", down)
+    assert senior.review(w) is None and w.senior_seen == seen
+    assert senior.should_review(w, w.last_senior_ts + CONFIG.story.review_every_s + 1)   # tried again in two hours
+
+
+def test_a_town_from_before_the_count_is_reviewed_once_and_a_held_review_is_said_once(monkeypatch, caplog):
+    w, due = _reviewed(monkeypatch)
+    d = world_mod._to_dict(w)
+    d.pop("senior_seen"), d.pop("story_pieces")
+    old = world_mod._from_dict(d)
+    assert old.senior_seen == {} and senior.should_review(old, due)
+    monkeypatch.setattr(senior, "_held_at", -1.0)                    # whatever an earlier test's review left
+    with caplog.at_level("INFO", logger="newsroom.senior"):
+        assert not any(senior.should_review(w, due + i) for i in range(5))               # every idle tick asks
+    assert sum("no review until the town moves" in r.message for r in caplog.records) == 1
+
+
+def test_a_threshold_of_none_is_every_two_hours_as_it_was(monkeypatch):
+    import dataclasses
+
+    w, due = _reviewed(monkeypatch)
+    assert not senior.should_review(w, due)
+    old = CONFIG.story
+    object.__setattr__(CONFIG, "story", dataclasses.replace(old, review_min_pieces=0))
+    try:
+        assert senior.should_review(w, due) and not senior.should_review(w, due - 10)
+    finally:
+        object.__setattr__(CONFIG, "story", old)
