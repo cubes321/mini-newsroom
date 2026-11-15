@@ -155,8 +155,8 @@ programme's next edition (its guests, subjects, questions, plans). So agree only
 what to keep off or put on, what to steer clear of or nod to, a fact to keep to. Neither of you can send the other
 anything later, look through old scripts, put a correction on air, or meet again before tomorrow: don't offer to. The
 first held dry (2026-11-14) had each editor promising the other a football score by evening.
-Say only what your own notes below show: if they show no last night for your channel, you have none to report. The
-meeting is held in the afternoon, before the evening's programmes are booked.
+Say only what your own notes below show: if they show no last night for your channel, you have none to report.
+{when}
 Speak as yourself, plainly, to a colleague: at most {words} words, up to four points, each naming a programme, a
 story or a person. Answer what was put to you, and say no where you mean no. Don't plan the other channel's
 programmes for it. Everything is fiction, at small-town scale. Return ONLY JSON.
@@ -297,6 +297,19 @@ def _sheet(world: World) -> str:
     return out
 
 
+def _when(ts: float) -> str:
+    """When today's meeting is held, for the rules. It is held from MEET_FROM: in the afternoon if the station
+    has been on all day, and as soon as it comes on the air if that is later. On 2026-11-14 the station started
+    at 22:02; the rules said "held in the afternoon", the sheet said 22:08, and the senior editor opened with
+    "Morning, colleague"."""
+    part = schedule.part_of_day(ts)
+    if part == "afternoon":
+        return "The meeting is held in the afternoon, before the evening's programmes are booked."
+    return ("The meeting is usually held in the afternoon. Today the station came on the air late and it is held "
+            f"{'tonight' if part == 'night' else 'this ' + part}: some of tonight's programmes may be booked "
+            "already, and what you agree reaches those still to be booked, and tomorrow's.")
+
+
 def _said(m: dict) -> str:
     return "\n\n".join(f"{t['title'].upper()}: {t['says']}" for t in m["turns"])
 
@@ -312,7 +325,8 @@ def _advance(world: World, m: dict) -> bool:
                     + f"\n\nYour turn, {s.title}"
                     + (": your last word today. Settle only what is still open, in a sentence or two each; don't "
                        "say again what is already agreed." if last else "."))
-            t = llm.complete_json(s.task, Turn, _RULES.format(words=TURN_WORDS) + "\n" + s.persona, user,
+            rules = _RULES.format(words=TURN_WORDS, when=_when(schedule.now()))
+            t = llm.complete_json(s.task, Turn, rules + "\n" + s.persona, user,
                                   max_tokens=MAX_TOKENS, timeout_s=TIMEOUT_S)
             if bad := safety.check(t.says):
                 raise llm.LLMError(f"{bad!r} in {s.title}'s turn")

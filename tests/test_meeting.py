@@ -110,6 +110,21 @@ def test_it_is_held_from_four_one_call_at_a_time_each_editor_on_their_own_model(
     assert "MINUTES" in meeting.show(m) and "to news [t001]" in meeting.show(m)
 
 
+def test_a_meeting_held_late_is_not_told_it_is_the_afternoon(table, monkeypatch):
+    """On 2026-11-14 the station came on at 22:02 and held the meeting at 22:08; the rules said "held in the
+    afternoon", and the senior editor opened with "Morning, colleague"."""
+    w = world_mod.seed()
+    seen = _stub(monkeypatch)
+    meeting.step(w)
+    assert "The meeting is held in the afternoon, before the evening's programmes are booked." in seen[0][2]
+    for hour, said in ((22, "it is held this evening"), (23, "it is held tonight")):
+        w, seen = world_mod.seed(), _stub(monkeypatch)
+        monkeypatch.setattr(schedule, "now", lambda: _at(hour, 8))
+        meeting.step(w)
+        assert said in seen[0][2] and "The meeting is held in the afternoon" not in seen[0][2] and "{" not in seen[0][2]
+        assert f"It is {hour}:08 on the broadcast clock" in seen[0][3]
+
+
 def test_a_turn_that_fails_is_tried_once_more_later_and_then_the_day_has_no_meeting(table, monkeypatch):
     w = world_mod.seed()
     seen = _stub(monkeypatch, fail=(2, 3))

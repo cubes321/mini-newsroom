@@ -103,7 +103,8 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
   and whether they air.
 - **The editors' meeting** (since 2026-11-14, from 16:00 on either channel's night): four "editors' meeting:" turns and
   the minutes, then whether the desk acts on its actions and takes the offered story ("the desk took the offered
-  story"). `uv run python -m newsroom.meeting minutes` prints it.
+  story"). `uv run python -m newsroom.meeting minutes` prints it. A station that comes on the air after the
+  afternoon holds it then, and since 2026-11-15 the editors are told so (the senior editor said "Morning" at 22:08).
 - **The creative editor** (Channel 8 nights): "creative editor: passed" or "sent back" at the bookings, a review per
   programme after it has aired, and `uv run python -m entertainment.creative notes` the morning after.
 - **The fallback**: how often "falling back to" fires, and why.
