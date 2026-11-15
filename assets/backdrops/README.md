@@ -41,6 +41,17 @@ sky and are never graded for time of day or weather. They follow the location ru
 the reporter's place on the left, an owner or a player at about (215, 156), and the review's verdict card
 covers (176, 24, 136, 62) on her last line, so the place's best piece sits between them.
 
+`church` is the harbour church, an interior any writer may pick and where the Christmas Morning Service comes
+from: the chancel arch, its window of plain coloured panes and the altar in the middle, the organ on the left
+wall, a model ship hung from the roof, the pulpit on the right, pews at both sides. The arch's left leg starts at
+x 117, clear of the reporter's place (x 64 to 116). On location the station draws whoever is speaking large, so a guest
+covers the altar's right half and the presenter the arch's left side.
+
+**A dressed picture.** `church_christmas.png` is the same church with a garland on the arch, a tree, candles
+on the chancel step and ribbons on the pew ends. From Christmas Eve to Twelfth Night (24 December to 6 January,
+`christmas.dressed`) it is the church's picture for every programme (`backdrops.DRESSED`: an id's function
+gives a suffix, and `<id>_<suffix>.png` is then the art). To dress another place, add its picture and an entry.
+
 ## Studio sets: who goes where
 
 People are drawn by code on top of the art, so the furniture has to be where

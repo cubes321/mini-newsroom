@@ -121,3 +121,39 @@ def test_a_tale_is_told_in_breaths_in_the_middle_of_the_hour_and_two_come_before
     assert "six to ten lines" in system and "PLACE IN THE SHOW: the MIDDLE of Hugh's Christmas Tales" in user
     loop = [schedule.as_item(e).type for e in christmas.TALES.pattern[christmas.TALES.loop_from:]]
     assert loop == [T.links, T.links, T.ad_break]
+
+
+def test_the_service_comes_from_the_harbour_church_dressed_for_christmas(monkeypatch):
+    """The church is a place in town all year (approved 2026-11-15); from Christmas Eve to Twelfth Night its
+    picture is the dressed one, and the built pictures are kept apart, since the station is on through midnight."""
+    import pygame
+
+    from newsroom import backdrops, locations
+
+    church = locations.BY_ID["church"]
+    assert christmas.CAROLS.location == "church" and church.interior and "church" in locations.BACKDROP_IDS
+    assert backdrops.has_art("church") and (backdrops.ART_DIR / "church_christmas.png").exists()
+    for d, yes in ((date(2026, 12, 23), False), (EVE, True), (DAY, True), (date(2026, 12, 31), True),
+                   (date(2027, 1, 6), True), (date(2027, 1, 7), False), (date(2026, 7, 1), False)):
+        assert christmas.dressed(_at(d, 9)) is yes, d
+    monkeypatch.setattr(schedule, "_offset_s", _at(date(2026, 7, 1), 9) - time.time())
+    assert not christmas.dressed()                                             # July, on the station's clock
+    monkeypatch.setenv("NEWSROOM_SPECIAL_DAY", "Christmas Day")               # a rehearsal forcing the day
+    assert christmas.dressed() and christmas.DRESSED["church"]() == "christmas"
+    monkeypatch.setenv("NEWSROOM_SPECIAL_DAY", "0")
+    assert not christmas.dressed() and christmas.DRESSED["church"]() == ""
+    assert backdrops.DRESSED["church"] is christmas.DRESSED["church"]          # scenes registers it
+
+    monkeypatch.setitem(backdrops.DRESSED, "church", lambda: "")
+    assert backdrops._art_file(church, "day")[0].name == "church.png"
+    plain = backdrops.surface("church")
+    monkeypatch.setitem(backdrops.DRESSED, "church", lambda: "christmas")
+    assert backdrops._art_file(church, "day")[0].name == "church_christmas.png"
+    dressed = backdrops.surface("church")
+    assert dressed is not plain
+    assert pygame.image.tobytes(dressed, "RGB") != pygame.image.tobytes(plain, "RGB")
+    assert backdrops.picture("church", "day", None, (98, 58)) is not None
+    monkeypatch.setitem(backdrops.DRESSED, "church", lambda: "")
+    assert backdrops.surface("church") is plain                                # back to the plain one, from the cache
+    hall = locations.BY_ID["village_hall"]                                     # a place with no dressing: as before
+    assert backdrops._art_file(hall, "day")[0].name == "village_hall.png"

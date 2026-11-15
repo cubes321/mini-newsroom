@@ -94,6 +94,11 @@ LOCATIONS: tuple[Location, ...] = (
              "sea through the bay window", "town", (200, 220, 215), (150, 110, 80), interior=True),
     Location("dining_room", "a pub dining room", "inside a country pub's dining room: beams, an inglenook fire, tables "
              "laid for supper", "town", (120, 90, 60), (110, 100, 90), interior=True),
+    # The harbour church (approved 2026-11-15, seed 101), where the Christmas Morning Service comes from. From
+    # Christmas Eve to Twelfth Night its picture is the dressed one, church_christmas.png (backdrops.DRESSED).
+    Location("church", "the harbour church", "inside the harbour church: the chancel arch and its coloured window, "
+             "the organ, a model ship hung from the roof, oak pews", "town", (204, 194, 172), (158, 150, 136),
+             interior=True),
     # ---- country
     Location("coast_road", "the coast road", "the coast road along the cliffs: a stone wall, the sea far below",
              "country", (130, 180, 230), (110, 140, 80), water=True),

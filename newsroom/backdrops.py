@@ -1401,9 +1401,23 @@ def _load(path: Path) -> pygame.Surface:
     return out
 
 
+# A place dressed for a season: its id -> a function giving today's suffix ("christmas"), or "" for the plain
+# picture. The art is then <id>_<suffix>.png (church_christmas.png), if it exists. Registered from outside
+# (christmas.DRESSED, by scenes), so this module knows no dates. The suffix is part of the caches' keys: the
+# station is on through midnight on Christmas Eve, and the picture has to change then.
+DRESSED: dict[str, Callable[[], str]] = {}
+
+
+def _dress(backdrop_id: str) -> str:
+    dress = DRESSED.get(backdrop_id)
+    return dress() if dress else ""
+
+
 def _art_file(loc: Location, tod: str) -> tuple[Path, bool] | None:
-    """The art file for this time of day, and whether it was made for it."""
-    for name, own_tod in ((f"{loc.id}_{tod}.png", True), (f"{loc.id}.png", False)):
+    """The art file for this time of day, and whether it was made for it. A dressed picture comes first."""
+    dress = _dress(loc.id)
+    for name, own_tod in ((((f"{loc.id}_{dress}.png", False),) if dress else ())
+                          + ((f"{loc.id}_{tod}.png", True), (f"{loc.id}.png", False))):
         if (ART_DIR / name).exists():
             return ART_DIR / name, own_tod
     return None
@@ -1448,7 +1462,7 @@ def surface(backdrop_id: str | None, tod: str = "day", wx: str | None = None, *,
     loc = locations.get(backdrop_id)
     if not loc.exterior:
         tod, wx, clean = "day", None, False
-    key = (loc.id, tod, wx, clean)
+    key = (loc.id, tod, wx, clean, _dress(loc.id))
     s = _cache.get(key)
     if s is None:
         s = _cache[key] = _build(loc, tod, wx, clean)
@@ -1465,7 +1479,8 @@ _pictures: OrderedDict[tuple, pygame.Surface] = OrderedDict()
 def picture(backdrop_id: str | None, tod: str, wx: str | None, size: tuple[int, int]) -> pygame.Surface:
     """A backdrop as a picture on a studio screen: centre-cropped to the screen's
     shape and smooth-scaled, which reads as a monitor rather than the set."""
-    key = (locations.get(backdrop_id).id, tod, wx, size)
+    bid = locations.get(backdrop_id).id
+    key = (bid, tod, wx, size, _dress(bid))
     pic = _pictures.get(key)
     if pic is None:
         src = surface(backdrop_id, tod, wx)

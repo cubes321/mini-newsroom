@@ -110,7 +110,7 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       logs, and make the pictures (a screenshot grid, a 20-second clip or GIF).
 - [ ] Christmas Eve, Christmas Day and Boxing Day are special days in `newsroom/christmas.py`. Run each on a
       scratch town with `--clock "2026-12-24 06:00"` (and 25th, 26th) and watch a few hours of each. Finish
-      what's open there (the church set, the Christmas idents).
+      what's open there (the Christmas idents; the church has its art since 15 November).
 - [ ] Channel pages: the YouTube banner, About text (the disclosure line first), links to Twitch, Ko-fi and
       GitHub; the Twitch About panels; the Ko-fi page text and a monthly goal of the running cost in dollars
       (**$60 a month**, the top of the $30-60 estimate; adjust once a month of real bills is in).

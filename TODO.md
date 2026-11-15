@@ -480,7 +480,10 @@ bottom with the date.
   Message, Christmases Past, Coastwide and The Last Ferry on Christmas night. Boxing Day: the Dip, Quayside
   on the sales, Full Time at the stadium (both clubs at home). Found on the way: the writers never got a
   special night's version of its show (`schedule.get` now takes the time), so on Bonfire Night not one
-  prompt said it was at the bonfire. Still to come: a church set (the village hall stands in), and
+  prompt said it was at the bonfire. Done 2026-11-15: the harbour church (`church`, candidate A, seed 101), a
+  place in town all year and where the Christmas Morning Service comes from (the village hall stood in);
+  dressed for Christmas from Christmas Eve to Twelfth Night
+  (`church_christmas.png`, candidate C; `christmas.dressed`, `backdrops.DRESSED`). Still to come:
   Christmas idents (the new programmes borrow a show's music).
 - [ ] **New Year's Eve: The Last Ferry: New Year's Eve** (build in December): 22:00 to half past
   midnight in place of The Last Ferry and the 23:00 news. Vincent and the house band; a monologue on the
@@ -655,6 +658,8 @@ bottom with the date.
   - "is to close on ..., not before" and "is to close once its ending for ... has been reported": each held
     story is covered and then closed by the desk's next round, and none stays resolving until it fades.
   - The editors' meeting on a late start: no "Morning", and nothing about "this afternoon".
+  - The harbour church (`church`), offered to every writer since 2026-11-15: what gets set there, and whether
+    a story invents things the picture doesn't have. The Kettle's On on its own set, on the next Channel 8 evening.
   - As on every night, how the thread and guest changes land. On the 2026-11-14 night: "continues thread" 8
     (the title match), "story desk merged" 5 (are the merges right, and do they keep up?), "from ...'s loose
     end" 6 (does the desk make news of a loose end, and is it news?), "has been on before" 26 (how often a

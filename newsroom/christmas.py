@@ -15,12 +15,13 @@ Ferry's couch) comes with it; the new programmes have ids of their own and bring
 - **Boxing Day** (a Saturday in 2026): the Boxing Day Dip at eleven, Quayside on the sales, and Full Time
   out at the stadium from two, with the Tides and the Wreckers both at home.
 
-Sets: the on-location ones use the town's own (the harbour at night, the seafront, the village hall for
-the church, which has no art of its own yet); Hugh's tales are on The Last Ferry's set, the Mayor in the
-council chamber. New programmes' bumpers borrow a show's music (assets.IDENT_MUSIC).
+Sets: the on-location ones use the town's own (the harbour at night, the seafront, the harbour church, which
+is dressed for Christmas from Christmas Eve to Twelfth Night: `dressed`); Hugh's tales are on The Last Ferry's
+set, the Mayor in the council chamber. New programmes' bumpers borrow a show's music (assets.IDENT_MUSIC).
 """
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 
 from .models import SegmentType as T
@@ -128,7 +129,7 @@ CAROLS = Show(
                   T.feature: ("anchor", "reporter", "guest"), T.vox_pop: ("anchor", "reporter", "guest")},
     station="The Christmas Morning Service, channel 7 at the harbour church in Port Wexley",
     tone="gentle, reverent but warm; a community at its best, never preachy",
-    light=True, repeats_overnight=False, location="village_hall",
+    light=True, repeats_overnight=False, location="church",
 )
 
 SWIM = Show(
@@ -507,6 +508,25 @@ IDENTS = {
 }
 # Its set, when it has no location of its own (scenes.SHOW_SETS).
 SETS = {"tales": "studio_late", "mayor": "council_chamber", "past": "studio_interview"}
+
+
+def dressed(ts: float | None = None) -> bool:
+    """Is the town dressed for Christmas at `ts` (now, on the station's clock)? From Christmas Eve to Twelfth
+    Night, 24 December to 6 January: the church's tree, garland and candles go up and come down with them.
+    A rehearsal that forces one of the three days (NEWSROOM_SPECIAL_DAY) is dressed too, whatever the date:
+    the service's briefs have Dana talk about the decorations."""
+    import os
+
+    from . import schedule
+
+    if ts is None and os.environ.get("NEWSROOM_SPECIAL_DAY", "") in DAYS:
+        return True
+    lt = time.localtime(schedule.now() if ts is None else ts)
+    return (lt.tm_mon, lt.tm_mday) >= (12, 24) or (lt.tm_mon, lt.tm_mday) <= (1, 6)
+
+
+# A place's picture while the town is dressed (backdrops.DRESSED): the art is <id>_christmas.png.
+DRESSED = {"church": lambda: "christmas" if dressed() else ""}
 
 def places(middle: str) -> dict:
     """Where an item is in its programme (writers._PLACE): the middle of it, unless THIS ITEM opens or closes it.

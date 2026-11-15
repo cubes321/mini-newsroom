@@ -929,3 +929,4 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
 from . import christmas as _christmas  # noqa: E402
 
 SHOW_SETS.update(_christmas.SETS)
+backdrops.DRESSED.update(_christmas.DRESSED)        # the harbour church, dressed from Christmas Eve to Twelfth Night
