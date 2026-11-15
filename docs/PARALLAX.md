@@ -38,8 +38,9 @@ notes are in `E:\recordings\parallax-trial\` (`NOTE.md`), and its scripts are in
 - **Rationed:** the user didn't want it overused (2026-11-03), so about one field item in three drifts
   (`parallax.ONE_IN`, chosen by a hash of the slot). The rest are locked off and flat, like a crew mixing
   handheld and tripod shots. A report never changes partway through.
-- **Behind a switch:** `[broadcast] parallax = false` until the user has watched it on air (`--parallax`
-  turns it on for one run).
+- **Behind a switch:** `[broadcast] parallax` in config.toml. It was false until the user had seen it on air;
+  on by default since 2026-11-15 (the user's decision). `--parallax` turns it on for one run when the switch
+  is false.
 
 ## Steps
 

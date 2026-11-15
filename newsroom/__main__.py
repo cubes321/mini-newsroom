@@ -66,6 +66,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="move providers' or tasks' calls for this run: deepseek_flash_think=claude_sonnet[,...] (or NEWSROOM_ROUTES)")
     p.add_argument("--parallax", action="store_true",
                    help="draw the location backdrops that have layers in parallax, whatever config.toml says")
+    p.add_argument("--no-parallax", action="store_true",
+                   help="every location backdrop a still for this run, whatever config.toml says")
     p.add_argument("--pictures", action="store_true",
                    help="make ComfyUI pictures for the stories in shadow mode (shown nowhere; pictures.py)")
     p.add_argument("--obs", action="store_true",
@@ -82,8 +84,8 @@ def redirect_paths(args: argparse.Namespace) -> None:
     imported: CONFIG is built at import time from these environment variables."""
     if args.route:
         os.environ["NEWSROOM_ROUTES"] = args.route
-    if args.parallax:
-        os.environ["NEWSROOM_PARALLAX"] = "1"
+    if args.parallax or args.no_parallax:
+        os.environ["NEWSROOM_PARALLAX"] = "0" if args.no_parallax else "1"
     if args.pictures:
         os.environ["NEWSROOM_PICTURES"] = "1"
     if args.world:

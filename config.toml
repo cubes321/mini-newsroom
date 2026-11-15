@@ -4,7 +4,9 @@
 width = 960
 height = 540
 fps = 60
-parallax = false         # location backdrops in layers that drift (docs/PARALLAX.md); --parallax for one run
+parallax = true          # location backdrops in layers that drift (docs/PARALLAX.md): about one location item in
+                         # three; on since 2026-11-15 (the user). false puts every backdrop back to a still;
+                         # --no-parallax does that for one run
 audio_device = "CABLE Input"   # play into this output (its name, or part of it); VB-Cable's name since its
                          # reinstall (2026-11-10), when "Speakers (2- VB-Audio Virtual Cable)" stopped matching;
                          # "" = Windows' default. OBS records the other end, an Audio Input Capture of "CABLE Output".

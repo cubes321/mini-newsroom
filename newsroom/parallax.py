@@ -50,7 +50,10 @@ CACHE = 12                      # scenes kept, about 5 MB each at 3x: a pilot ev
 
 
 def enabled() -> bool:
-    return CONFIG.broadcast.parallax or os.environ.get("NEWSROOM_PARALLAX") == "1"
+    """`[broadcast] parallax` (on since 2026-11-15), unless NEWSROOM_PARALLAX says otherwise for this run: 1 on
+    (`--parallax`), 0 off (`--no-parallax`, and the tests that want the flat shot)."""
+    forced = os.environ.get("NEWSROOM_PARALLAX", "")
+    return forced == "1" if forced in ("0", "1") else CONFIG.broadcast.parallax
 
 
 def drifts(slot_id: int | None) -> bool:
