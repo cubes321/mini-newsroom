@@ -248,6 +248,33 @@ Voices: Pocket TTS by Kyutai (CC BY 4.0) and Kokoro-82M (Apache 2.0). Full credi
 Support: https://ko-fi.com/portwexley
 ```
 
+**Ko-fi** (the page's About, at https://ko-fi.com/portwexley; drafted 15 November). Tips, never "donations":
+the PayPal Business account behind it is set up for viewer tips, not charity. If the page has a goal, about
+$45 a month is the API bill at the top of $1-2 a day.
+
+```text
+About:
+Port Wexley is a fictional seaside town. Every programme on its TV station is written and voiced by AI.
+
+Channel 7 is the town's local station, live around the clock on YouTube and Twitch: breakfast on the sofa,
+the news, a phone-in, the fish quay's prices, children's TV with a seagull puppet, local sport, a late-night
+talk show and, every other Thursday, the town council live. Stories run for days, the same people come back,
+and the foot ferry runs to the tides.
+
+It's an independent hobby project. The voices run on a home computer, but the scripts come from AI models
+that cost about $1-2 a day. Tips here pay those bills first, so the station stays on air; anything beyond
+that goes into new programmes.
+
+There's nothing to buy and no paywall: Channel 7 stays free to watch. Thank you for tuning in.
+
+Watch: youtube.com/@portwexley · twitch.tv/portwexley
+How it's made, and the code: github.com/cubes321/mini-newsroom
+
+Short bio or tagline:
+Channel 7: live, round-the-clock local TV for Port Wexley, a seaside town that doesn't exist. Written and
+voiced by AI.
+```
+
 **Shorts** (one moment from a saved part or a recording; `tools/shorts.py` cuts them)
 
 ```text
