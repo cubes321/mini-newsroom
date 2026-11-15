@@ -172,11 +172,17 @@ SHOW_DEF = Show(
     repeats_overnight=False,
 )
 
-# Its own set (a studio kitchen with a sofa corner) waits for art the user approves; until then the breakfast
-# sofa stands in: Maggie and Nigel on the sofa, the guest in the chair (scenes._interview_marks seats the
-# first presenter to speak at "host", then "panel_1", "panel_2", so the prompt has Maggie speak first).
-STAND_IN_SET = "studio_sofa"
+# Its own set, a studio kitchen with a sofa corner (assets/backdrops/studio_kettle.png, approved 2026-11-15, seed
+# 101; the breakfast sofa stood in before): Maggie and Nigel stand behind the kitchen island (its top's back edge
+# at y 143, 3 px above their baseline), the guest sits on the mustard sofa, the kettle is on the range under the
+# window, and the plain wall at the top right is where a caller's box goes (scenes.CALLER_BOX).
+# scenes._interview_marks seats the first presenter to speak at "host", then "panel_1", "panel_2", so the prompt
+# has Maggie speak first. The set is registered for the run by entertainment.use(), never in locations.py.
 SET = "studio_kettle"
+SET_NAME = "The Kettle's On's kitchen"
+SET_BLURB = ("a studio kitchen with a sofa corner: the range with the kettle on it, a plate rack, the kitchen "
+             "island, a mustard sofa")
+SET_COLOURS = ((240, 228, 198), (184, 108, 74))     # the cream wall and the terracotta floor, for a placeholder
 MARKS = {"host": (122, 146, 2, 1), "panel_1": (186, 146, 2, -1), "panel_2": (272, 150, 2, -1)}
 
 _RULES = """

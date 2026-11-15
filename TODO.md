@@ -47,8 +47,8 @@ bottom with the date.
   `bumper_kettle.wav` and `bumper_tideline.wav` (Out and About's folk), `bumper_marina.wav` (The Inquiry's
   cello), `bumper_coastroad.wav` (Rock Pool's toy), `bumper_closedown_kettle.wav` (Channel 8's goodnight with its
   new words, on the gameshow arrangement), `bumper_tales.wav` (Hugh's Christmas Tales, on The Last Ferry's).
-  Still untracked: `bumper_cartoons.wav`, a leftover that says "channel seven" (Cartoon Time uses the tracked
-  `bumper_cartoons_8.wav`); the user to say delete or keep.
+  Deleted the same day at the user's say: `bumper_cartoons.wav`, a leftover that said "channel seven" (Cartoon
+  Time uses the tracked `bumper_cartoons_8.wav`), and PROJECT_REVIEW.md, whose findings were fixed 2026-11-03.
 - [ ] Parallax: built and off by default; turning it on is the user's call (the end of this item). Parked
   2026-10-27: true parallax needs the camera to move, and every backdrop is
   exactly screen-sized, so each exterior (24 days, 14 nights) would have to be redrawn wider in
@@ -275,7 +275,10 @@ bottom with the date.
     format decision.
   - Done 2026-11-13: the **looks** (A of three each, now in `sprites.LOOKS`) and the **voices** (DramaBox designs
     `bf_truscott` and `bm_spargo`, C and B of three, on data/voice-samples/marina-row).
-  - **Its set**, a studio kitchen with a sofa corner (`studio_kettle`, ComfyUI art): the breakfast sofa stands in.
+  - Done 2026-11-15: **its set**, a studio kitchen with a sofa corner (`studio_kettle`, ComfyUI art, candidate A,
+    seed 101, picked from four on a contact sheet): Maggie and Nigel behind the kitchen island, the guest on a
+    mustard sofa, the kettle on the range, a plain wall for the caller's box. Registered for the run by
+    `entertainment.use()`; the breakfast sofa no longer stands in. Not yet seen on air.
   - Done 2026-11-15: **its ident**, on Out and About's folk arrangement, kept by ear (`bumper_kettle.wav`).
   - An expert's unnamed line can still go to the caller (`writers._guest_of`'s guess, Have Your Say's too): one in
     about eight on the second run.

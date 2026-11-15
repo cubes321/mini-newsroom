@@ -130,6 +130,7 @@ def use():
         schedule.SCHEDULE = saved[0]
         schedule.SHOWS.clear(), schedule.SHOWS.update(saved[1])
         locations.MARKS.clear(), locations.MARKS.update(saved[2])
+        locations.BY_ID.pop(kettle.SET, None)                  # The Kettle's On's set, registered by _kettle
         assets.IDENTS.clear(), assets.IDENTS.update(saved[3])
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
@@ -158,9 +159,11 @@ def _kettle(kettle) -> None:
     assets.IDENTS[kettle.SHOW] = (assets.CONFIG.paths.assets / "bumper_kettle.wav", kettle.IDENT)
     assets.IDENT_MUSIC[kettle.SHOW] = "outabout"               # folk, until it has music of its own (by ear)
     assets.IDENT_VOICES[kettle.SHOW] = CONFIG.tts.voices.get("kettle_a", "bf_truscott")
-    # Its own set waits for approved art; the breakfast sofa stands in, with the show's three marks added.
-    locations.MARKS[kettle.STAND_IN_SET] = {**locations.MARKS[kettle.STAND_IN_SET], **kettle.MARKS}
-    scenes.SHOW_SETS[kettle.SHOW] = kettle.STAND_IN_SET
+    # Its own set, for this run only: in BY_ID and MARKS, never in locations.LOCATIONS (use()'s undo takes it out).
+    locations.BY_ID[kettle.SET] = locations.Location(kettle.SET, kettle.SET_NAME, kettle.SET_BLURB, "studio",
+                                                     *kettle.SET_COLOURS)
+    locations.MARKS[kettle.SET] = dict(kettle.MARKS)
+    scenes.SHOW_SETS[kettle.SHOW] = kettle.SET
     player.SEATS[kettle.SHOW] = 1                              # one guest at a time: the cook, the sofa, the expert
     workers.IDLE_JOBS.append((kettle.should_commission, kettle.commission))
     writers.SHOW_SYSTEMS[kettle.SHOW] = kettle.SYSTEMS

@@ -9,7 +9,7 @@ import pytest
 
 import entertainment
 from entertainment import kettle
-from newsroom import llm, locations, player, scenes, schedule, sprites, world as world_mod, writers
+from newsroom import backdrops, llm, locations, player, scenes, schedule, sprites, world as world_mod, writers
 from newsroom.models import Segment, SegmentType as T
 
 
@@ -60,14 +60,19 @@ def test_channel_eight_opens_at_seven_with_the_kettles_on_and_undo_takes_it_off(
         assert schedule.show_at(_at(20, 10)).id == "wits"
         assert schedule.next_start("closedown", _at(3, 0)) == "19:00"
         assert "The Kettle's On" in entertainment.CLOSEDOWN_TEXT and "Cartoon" not in entertainment.CLOSEDOWN_TEXT
-        assert scenes.SHOW_SETS["kettle"] == kettle.STAND_IN_SET and player.SEATS["kettle"] == 1
-        assert {"host", "panel_1", "panel_2", "host_a"} <= set(locations.MARKS["studio_sofa"])
+        assert scenes.SHOW_SETS["kettle"] == kettle.SET == "studio_kettle" and player.SEATS["kettle"] == 1
+        assert set(locations.MARKS[kettle.SET]) == {"host", "panel_1", "panel_2"}  # its own set since 2026-11-15
+        assert locations.BY_ID[kettle.SET].kind == "studio"                       # so no writer is offered it
+        assert kettle.SET not in {loc.id for loc in locations.LOCATIONS}
+        assert (backdrops.ART_DIR / f"{kettle.SET}.png").exists()                 # its art, approved 2026-11-15
+        assert locations.MARKS["studio_sofa"] is sofa                             # the breakfast sofa is left alone
         assert sprites.LOOKS["kettle_a"].hair_style == "curly"                    # chosen 2026-11-13: A
         assert "kettle" in writers.BOOKED_SHOWS and "kettle" in writers.UNFILED_SHOWS
     finally:
         undo()
     assert schedule.show_at(seven).id == before and "kettle" not in schedule.SHOWS
     assert locations.MARKS["studio_sofa"] is sofa and "panel_1" not in sofa          # the breakfast sofa as it was
+    assert kettle.SET not in locations.MARKS and kettle.SET not in locations.BY_ID    # and the set is gone again
     assert "kettle_a" in sprites.LOOKS and "kettle" not in writers.BOOKED_SHOWS        # a presenter on both channels
 
 
