@@ -16,6 +16,9 @@ senior editor's memo names it, it is put within the desk's reach once (`reach`),
 to another day or closed. On the night of 2026-11-14 four memos running asked for four stories to come
 off a Monday that had eight due, and nothing could move them: the desk never saw them, and the senior
 editor only writes the memo.
+
+A story the desk closes with its ending still to come is not closed yet (`_held`): it is resolving until
+the ending has been reported, waiting in the pool if the ending is for a later day.
 """
 from __future__ import annotations
 
@@ -280,9 +283,10 @@ def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     A NEXT that names no day, or one gone by, is refused: it would put a long story back on every
     bulletin with nothing new, which is what the pool is for. A story closed with its ending still to
     come ("close t462 at the fender sign-off", and the desk closed it two days early in the rehearsal of
-    2026-11-15) is not closed: it waits for that day as resolving, so the ending is reported first."""
+    2026-11-15) is not closed: it waits for that day as resolving, so the ending is reported first. One
+    closed with today's ending, or none, comes out of the pool, and `_held` has the last word."""
     today = date.fromisoformat(world.last_date)
-    due = due_date(u.next_development, today)
+    due = due_date(u.next_development, today, looking_back=u.phase == "closed")
     if u.phase == "closed":
         if due is None or due <= today:
             t.waits_until = ""
@@ -300,6 +304,41 @@ def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
         log.info("thread %s moved in the pool: %s -> %s", t.id, said_date(t.waits_until), said_date(due))
         t.waits_until = due.isoformat()
     return u
+
+
+def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
+    """A close stands once the story's ending has gone out; until then the story is resolving, with the
+    ending as its NEXT. A closed story leaves the board at once, so an ending the desk wrote as it closed
+    had no writer left to report it.
+
+    On the night of 2026-11-14 the desk closed t515 on the Sunday with "On Monday 16 November the harbour
+    office ... passes the crane invoice for payment ... the story ends there", and t349 and t469 within forty
+    minutes of coming back from the pool for the day, each with that day's ending: none of the three
+    was covered again. `_redate` held only a story waiting in the pool, and only for a later day.
+
+    The day is the first one the closing NEXT names. None, or one gone by: the story is over and the
+    close stands. A later day: the story waits for it in the pool whatever its length (left on the board
+    it would be covered with nothing new, and that would look like the ending). Today: the close stands
+    only if the story has been covered today since the desk last wrote its NEXT (`Thread.next_mentions`;
+    covered is counted when a piece is written, a few minutes before it airs); a story back from the pool
+    is planned at once, before any piece. Otherwise it stays on the board with a fresh start on the fade
+    timer, and the desk sees it again when it is covered. A faded story the desk closes stays closed."""
+    if u.phase != "closed" or t.phase in ("closed", "faded"):
+        return u
+    today = date.fromisoformat(world.last_date)
+    due = due_date(u.next_development, today, looking_back=True)
+    if due is None or due < today:
+        return u
+    if due == today and t.updated == world.last_date and t.mentions > t.next_mentions:
+        return u
+    if due > today and CONFIG.story.pool:
+        log.info("thread %s is to close on %s, not before: resolving, and it waits for that day", t.id, said_date(due))
+        t.waits_until = due.isoformat()
+    else:
+        log.info("thread %s is to close once its ending for %s has been reported: resolving until then",
+                 t.id, said_date(due))
+        t.moved_ts = schedule.now()
+    return u.model_copy(update={"phase": "resolving"})
 
 
 def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -> None:
@@ -321,10 +360,13 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -
             continue
         if world.waiting(t) and (u := _redate(world, t, u)) is None:
             continue
+        u = _held(world, t, u)
         if t.phase == "faded" and u.phase != "closed":
             t.moved_ts = schedule.now()             # revived: a full window before it can fade again
             log.info("story desk revived faded thread %s", t.id)
         t.phase = u.phase
+        if u.next_development.strip() != t.next_development:
+            t.next_mentions = t.mentions            # a new NEXT: nothing has been covered since it was written
         t.next_development = u.next_development.strip()
         t.updated = world.last_date if u.phase == "closed" else t.updated
         # The desk's list replaces the old one: appended to, "at most four" could never shrink a list, and

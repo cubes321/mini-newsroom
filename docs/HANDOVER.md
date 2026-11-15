@@ -92,6 +92,13 @@ all-Claude 2026-10-28 one (`data/measure-2026-10-28.log`):
   ("story desk: nothing has changed ...; no call"). On the 2026-11-14 night two stories were planned in 22 rounds
   of 24. Expect a few rounds overnight (the day's turn, and one per memo), not one every half hour, and check
   that by day a story the bulletins keep covering is still planned after each airing.
+- **A story closes once its ending has been reported** (since 2026-11-15): a close whose NEXT names today or a
+  later day is held as resolving until the story is covered ("is to close on Monday 16 November, not before"
+  when it waits in the pool for a later day, whatever its length; "is to close once its ending for ... has been
+  reported" when the day is today). On the 2026-11-14 night t515 was closed on the Sunday with Monday's ending,
+  and t349 and t469 within forty minutes of coming back from the pool, each with that day's ending; none was
+  covered again. A close with no day, or a day gone by, stands as before. Check that a held story is covered
+  and then closed by the desk's next round, and that none stays resolving until it fades.
 - **New stories**: how many the desk and the senior editor seed ("seeded thread"), up to 10 a day, none before 06:00 and the rest released through the day (since 2026-11-01),
   and whether they air.
 - **The editors' meeting** (since 2026-11-14, from 16:00 on either channel's night): four "editors' meeting:" turns and

@@ -190,3 +190,76 @@ def test_waiting_stories_leave_room_for_new_ones(monkeypatch):
     assert len(w.open_threads()) == CONFIG.story.thin_board + 1 and len(w.board_threads()) == 1
     monkeypatch.setattr(w, "seeds_left", lambda: 5)
     assert desk.seed_room(w, len(w.board_threads())) == 2                               # a thin board again
+
+
+def _close(w, t, nxt):
+    desk.apply(w, StoryPlan(updates=[ThreadUpdate(thread_id=t.id, phase="closed", next_development=nxt)]))
+
+
+def test_a_story_closed_with_its_ending_still_to_come_waits_for_it(monkeypatch):
+    """On the night of 2026-11-14 the desk closed t515 on the Sunday with Monday's ending ("... passes the crane
+    invoice for payment ... the story ends there"). It was a day old and on the board, so nothing held it, and
+    the ending had no writer left to report it."""
+    w, story = _town(monkeypatch)
+    crane = story("Harbourmaster says crane invoice still under checks", "2026-11-03", 9, "The office checks it")
+    crane.moved_ts = 1_800_000_000.0
+    _close(w, crane, "On Thursday 5 November the harbour office passes the crane invoice, and the story ends there")
+    assert crane.phase == "resolving" and crane.waits_until == "2026-11-05"      # a short story waits too
+    assert w.waiting(crane) and crane not in w.board_threads()
+    assert crane.next_development.startswith("On Thursday 5 November")           # the ending is its NEXT
+
+    # Its day: back on the board and planned at once, before any piece is written, as t349 and t469 were.
+    w.last_date = "2026-11-05"
+    w.fade_threads(now=1_800_000_000.0 + 86400)
+    assert crane in w.board_threads()
+    _close(w, crane, "Today, Thursday 5 November, the harbour office passes the crane invoice")
+    assert crane.phase == "resolving" and crane in w.board_threads()
+    w.update_thread(crane.id, "Crane invoice passed for payment", "paid")
+    _close(w, crane, "On Thursday 5 November the harbour office passed the crane invoice: settled")
+    assert crane.phase == "closed"
+
+
+def test_a_story_closed_with_todays_ending_is_reported_first(monkeypatch):
+    w, story = _town(monkeypatch)
+    sail = story("Bernard Moss airs the red spinnaker", "2026-11-02", 3, "On Wednesday 4 November he lays it flat")
+    sail.updated, sail.moved_ts = "2026-11-02", 1_800_000_000.0 - 3600          # back from the pool, not covered today
+    _close(w, sail, "Later on Wednesday 4 November Bernard lays the spinnaker flat and the surname goes to the file")
+    assert sail.phase == "resolving" and not sail.waits_until
+    assert sail.moved_ts == 1_800_000_000.0                                     # a full window to be reported in
+    w.update_thread(sail.id, "The red spinnaker is laid flat", "done")
+    _close(w, sail, "Wednesday 4 November: the spinnaker was laid flat and the surname went to the file")
+    assert sail.phase == "closed"
+
+    # Covered today, but before the desk wrote the ending: it has not gone out either.
+    salt = story("Frost sells the salt off Harrow Street", "2026-11-03", 27, "The frost holds")
+    salt.moved_ts = 1_800_000_000.0
+    desk.apply(w, StoryPlan(updates=[ThreadUpdate(
+        thread_id=salt.id, phase="resolving", next_development="By this evening, Wednesday 4 November, the last sack goes")]))
+    _close(w, salt, "By the evening of Wednesday 4 November the last sack goes, and the frost story closes")
+    assert salt.phase == "resolving"
+    w.update_thread(salt.id, "The last of the rock salt goes", "sold out")
+    _close(w, salt, "By the evening of Wednesday 4 November the last sack goes, and the frost story closes")
+    assert salt.phase == "closed"
+
+
+def test_a_story_that_is_over_closes(monkeypatch):
+    w, story = _town(monkeypatch, pool=False)
+
+    def fresh(title, nxt):
+        t = story(title, "2026-11-03", 4, nxt)
+        t.moved_ts = 1_800_000_000.0
+        return t
+    cups, rye, fence, one_off, quiet, later = (
+        fresh("Thirteen numbered cups", "The count goes on"), fresh("Rye on Harrow Street", "The rye sells"),
+        fresh("The allotment fence", "The fence waits"), fresh("Calm morning on the slipway", ""),
+        fresh("Gulls on the bins", "Someone does something"), fresh("Pontoon fenders", "The fender waits"))
+    _close(w, cups, "On Monday 2 November the thirteen cups went nine to four")          # a day gone by
+    _close(w, rye, "The rye settles into a standing Wednesday bake")                     # no day named
+    _close(w, fence, "The fence went up on the 3rd, and that is that")                   # not 3 December
+    _close(w, one_off, "Wednesday 4 November's calm morning piece ran, and is done")     # covered today, never planned
+    assert [t.phase for t in (cups, rye, fence, one_off)] == ["closed"] * 4
+    quiet.phase = "faded"
+    _close(w, quiet, "On Friday 6 November the bins are emptied")                        # a faded story stays down
+    assert quiet.phase == "closed"
+    _close(w, later, "On Friday 6 November the third fender goes on and the job is signed off")
+    assert later.phase == "resolving" and not later.waits_until                          # the pool is switched off

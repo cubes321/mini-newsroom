@@ -311,7 +311,8 @@ planned first), so the reply stays small as the town grows and the board
 rotates. A thread is planned again only when something has changed for it:
 it aired, a new day began, the senior editor's memo names it, or it is going
 quiet. With nothing changed and nothing else for a round to do, the desk
-makes no call. Every two hours the **senior editor** (`senior.py`) reads the
+makes no call. A thread the desk closes with its ending still to come stays
+open until that ending has been reported. Every two hours the **senior editor** (`senior.py`) reads the
 whole board and leaves the desk a memo: threads to merge, people to trim, a
 story that needs a new angle, a waiting story to move to another day. It
 waits for the town to have moved since its last memo (a new day, or `[story]

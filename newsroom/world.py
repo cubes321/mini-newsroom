@@ -163,6 +163,7 @@ class Thread:
     breaking_ts: float = 0.0        # when it broke, on the broadcast clock (bulletins lead with it for a while)
     planned_ts: float = 0.0         # when the story desk last planned it (it plans a batch per call)
     planned_seen: str = ""          # what the desk had in front of it then (desk.seen): planned again when that changes
+    next_mentions: int = -1         # how often it had been covered when the desk last wrote its NEXT (desk._held)
     moved_ts: float = 0.0           # when it last moved on air, on the broadcast clock (it fades when quiet)
     faded_ts: float = 0.0           # when it faded, on the broadcast clock
     merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread
@@ -987,10 +988,12 @@ def said_date(d: date | str) -> str:
     return f"{d:%A} {d.day} {d:%B}"
 
 
-def due_date(text: str, today: date) -> date | None:
+def due_date(text: str, today: date, looking_back: bool = False) -> date | None:
     """The first day a story desk's NEXT names ("On Thursday 12 November Dolores Finch...", "on the 19th");
     None if it names none. A day and month take the year that puts them nearest after today (a date
-    just gone is a stale NEXT, not next year's); "the 19th" is this month's, or next month's if gone."""
+    just gone is a stale NEXT, not next year's); "the 19th" is this month's, or next month's if gone.
+    `looking_back` is for a story's closing words, which tell what happened: there "the 3rd", on the 4th,
+    was yesterday, not a month away."""
     try:
         if m := _DAY_MONTH.search(text or ""):
             day, month = int(m.group(1)), _MONTHS.index(m.group(2).lower()) + 1
@@ -998,7 +1001,7 @@ def due_date(text: str, today: date) -> date | None:
             return d if d >= today - timedelta(days=60) else date(today.year + 1, month, day)
         if m := _THE_NTH.search(text or ""):
             day, year, month = int(m.group(1)), today.year, today.month
-            if day < today.day:
+            if day < today.day and not looking_back:
                 year, month = (year + 1, 1) if month == 12 else (year, month + 1)
             return date(year, month, day)
     except ValueError:                                    # "31 November"
