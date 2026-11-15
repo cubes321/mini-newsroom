@@ -304,3 +304,47 @@ def test_each_lap_of_the_loop_has_its_own_expert_angle_and_every_call_is_remembe
                       "text": "..."})
     spots = kettle.for_prompt(w).split("OWN SPOTS ALREADY TONIGHT")[1]
     assert "Lowenna Chenoweth on 0" in spots and "Lowenna Chenoweth on 11" in spots and "Tegan Moyle" not in spots
+
+
+def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
+    """On the first night on air (2026-11-14) everything booked was over in 17 minutes and the other 43 were one
+    phone-in. The dish now goes in at the top and comes out in the close, with the sofa guest and the noticeboard
+    in between and the phones in short blocks (the user, 2026-11-15)."""
+    from newsroom.buffer import Buffer
+    from newsroom.producer import Producer
+
+    show = kettle.SHOW_DEF
+    order = [schedule.as_item(e) for e in show.pattern]
+    briefs = [i.brief if isinstance(i.brief, str) else i.brief[0] for i in order]
+
+    def at(key: str) -> int:
+        return next(n for n, b in enumerate(briefs) if key in b)
+
+    assert at("RECIPE, part one") < at("ON THE SOFA") < at("NOTICEBOARD") < show.loop_from
+    assert not any("RECIPE, part two" in b for b in briefs)                    # the dish comes out in the close
+    close = [schedule.as_item(e) for e in show.closing]
+    assert "RECIPE, part two" in close[0].brief and close[-1].part == "close"
+    assert [b for b in briefs if b in kettle._POSTBAG] == list(kettle._POSTBAG[:4])   # the expert's items, each once
+    run = longest = 0
+    for i in order:                                                            # a break doesn't end a run of calls
+        run = run + 1 if i.type is T.call else run if i.type is T.ad_break else 0
+        longest = max(longest, run)
+    assert longest <= 4
+    # The real producer, with the items coming in short, on target and long: the dish is out by the end each time.
+    for factor in (0.85, 1.0, 1.15):
+        p = Producer(Buffer(), 600, start_ts=_at(19))
+        out = sofa = ended = None
+        for _ in range(90):
+            ts = p.cursor_ts
+            seg = p.plan_one()
+            if seg.show != "kettle":
+                ended = ts
+                break
+            if "RECIPE, part two" in (seg.brief or ""):
+                out = ts
+            if "ON THE SOFA" in (seg.brief or ""):
+                sofa = ts
+            p.cursor_ts = ts + seg.target_s * (1.0 if seg.type in (T.bumper, T.ad_break) else factor)
+        assert out is not None and _at(19, 54) <= out <= _at(19, 58), factor
+        assert sofa is not None and _at(19, 12) <= sofa <= _at(19, 22), factor
+        assert ended is not None and abs(ended - _at(20)) <= 60, factor

@@ -1,11 +1,12 @@
 """The Kettle's On: Channel 8's teatime magazine, 19:00 to 20:00 (docs/ENGINE.md; agreed with the user 2026-11-13).
 
-A homely forty minutes from a studio kitchen with a sofa corner, presented by a double act whose ways clash in the
+A homely hour from a studio kitchen with a sofa corner, presented by a double act whose ways clash in the
 kitchen (Coastwide's Pat and Clive showed that clashing pairs are the most watchable thing on air):
 Maggie Truscott ("kettle_a"), thirty years running the Cannery café's kitchen, who measures nothing, and Nigel
 Spargo ("kettle_b"), a retired chemistry teacher who weighs everything to the gram.
 
-Each night a local cook makes one dish at the counter (in two parts: it goes in, it comes out), one of four
+Each night a local cook makes one dish at the counter (in two parts: it goes in at the top of the hour, and it
+comes out as the last thing before the goodnight; the order is spread across the hour, SHOW_DEF), one of four
 experts takes the phone-in (the garden, pets, what's it worth, mending: in turn, a different one each Channel 8
 night), a guest on the sofa has a nice story, and the community noticeboard is read out. All of it is booked
 by one back-office call from BOOK_FROM (The Chamber's route unless config.toml gives "kettle" its own), recorded
@@ -99,9 +100,10 @@ THINGS = {
 _RECIPE_1 = ("THE RECIPE, part one: {cook} at the counter with Maggie and Nigel, making {dish}: why this dish, "
              "the ingredients, and the first steps until it goes in the oven or the pan. Maggie throws things in by "
              "eye, Nigel wants the weights; the cook settles it")
-# Written while part one is still on air, so it can't see it: on the first scratch run (2026-11-13) part two
-# opened with part one's first line and went through the ingredients again.
-_RECIPE_2 = ("THE RECIPE, part two, after the break: part one has already done the ingredients and the method, so "
+# On the first scratch run (2026-11-13) part two opened with part one's first line and went through the
+# ingredients again. Since 2026-11-15 it is the last thing in the hour, before the goodnight (SHOW_DEF.closing).
+_RECIPE_2 = ("THE RECIPE, part two, at the end of the hour: the dish went in at the start of the programme and has "
+             "been cooking through it. Part one has already done the ingredients and the method, so "
              "none of that again: it starts with {dish} coming out of the oven or from under the grill. {cook} "
              "finishes it and serves up; Maggie and Nigel taste it and give their verdicts (Nigel's is precise, "
              "Maggie's is a noise of joy); the cook's tip for doing it at home")
@@ -113,9 +115,10 @@ _EXPERT = ("THE EXPERT on the sofa before the phones open: {expert} ({says}), on
            "good tip for the time of year, and Nigel asks the question everyone's too embarrassed to ask")
 _NOTICES = ("THE NOTICEBOARD: Maggie and Nigel read out the community notices: {notices}. A line on each, with "
             "when and where; they bicker gently about which one they're going to")
-# The loop's expert item, a different angle each lap (Show.item): with one brief, the second scratch run's hour
-# (2026-11-13) had Lowenna on "frosted dahlias, rhubarb and seaweed" five times. Ten, for the nine laps an hour
-# takes: with six, the first night on air (2026-11-14) had the postbag and Myth or True twice each.
+# The expert's own items between the calls, each a different angle: with one brief, the second scratch run's hour
+# (2026-11-13) had Lowenna on "frosted dahlias, rhubarb and seaweed" five times; with six, the first night on air
+# (2026-11-14) had the postbag and Myth or True twice each. Ten: the first three have places of their own in the
+# hour, and the loop at its end takes the rest in turn, one a lap (Show.item).
 _POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing a caller has asked" for b in (
     "THE POSTBAG: {expert} answers two letters that came in on tonight's subject, with Maggie and Nigel",
     "MYTH OR TRUE: Nigel reads out three things people swear by in the expert's field, and {expert} says which "
@@ -136,31 +139,45 @@ _POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing
     "{expert} says what he got right and the one thing he missed",
 ))
 
+# The hour's order, spread out since 2026-11-15 (the user): on the first night on air (2026-11-14) everything
+# booked was over in 17 minutes and the other 43 were one phone-in. Now the dish goes in at the top and comes out
+# as the last thing before the goodnight (the closing, so it lands at the end however long the items run), the
+# sofa guest is about twenty minutes in and the noticeboard at the half hour, and the phones come in short blocks
+# between them, each with one of the expert's own items. The times are the targets' running total.
+_CALL = I(T.call, brief="{caller}")
 SHOW_DEF = Show(
     SHOW, "THE KETTLE'S ON", "KETTLE'S ON", (214, 120, 70),
     pattern=(
         T.bumper,
         I(T.links, "open", brief="Maggie and Nigel open The Kettle's On: a cosy good evening from the kitchen, "
-                                 "tonight's dish and cook, tonight's sofa guest, and the expert on the phones",
-          target_s=50.0),
-        I(T.interview, brief=_RECIPE_1, target_s=200.0),
+                                 "tonight's dish and cook (it goes in now and comes out before the goodnight), "
+                                 "tonight's sofa guest, and the expert on the phones", target_s=50.0),
+        I(T.interview, brief=_RECIPE_1, target_s=200.0),               # the dish goes in
         I(T.interview, brief=_EXPERT, target_s=110.0),
-        I(T.call, brief="{caller}"),
-        I(T.call, brief="{caller}"),
+        _CALL, _CALL,
+        T.ad_break,                                                    # 19:11
+        I(T.interview, brief=_POSTBAG[0], target_s=120.0),
+        _CALL, _CALL,
+        I(T.interview, brief=_SOFA, target_s=220.0),                   # 19:17, the sofa guest
+        T.ad_break,                                                    # 19:22
+        _CALL, _CALL,
+        I(T.interview, brief=_POSTBAG[1], target_s=120.0),
+        _CALL,
+        I(T.links, brief=_NOTICES, target_s=60.0),                     # 19:30, the noticeboard
         T.ad_break,
-        I(T.interview, brief=_SOFA, target_s=220.0),
-        I(T.links, brief=_NOTICES, target_s=60.0),
-        I(T.interview, brief=_RECIPE_2, target_s=160.0),
-        # Wraps to here until the close: more calls, and the postbag.
-        I(T.call, brief="{caller}"),
-        I(T.call, brief="{caller}"),
+        _CALL, _CALL,
+        I(T.interview, brief=_POSTBAG[2], target_s=120.0),
+        _CALL, _CALL,                                                  # to 19:42
+        # Wraps to here until the close: a break, two calls and the expert's next item, a new one each lap.
         T.ad_break,
-        I(T.interview, brief=_POSTBAG, target_s=120.0),
+        _CALL, _CALL,
+        I(T.interview, brief=_POSTBAG[3:], target_s=120.0),
     ),
-    loop_from=10,
-    closing=(I(T.links, "close", brief="Maggie and Nigel close The Kettle's On: what's left of the dish, thanks to "
+    loop_from=23,
+    closing=(I(T.interview, brief=_RECIPE_2, target_s=160.0),          # the dish comes out
+             I(T.links, "close", brief="Maggie and Nigel close The Kettle's On: what's left of the dish, thanks to "
                                        "the cook, the sofa guest and the expert, the number for next time's phone-in, "
-                                       "and a cosy goodnight", target_s=40.0),),
+                                       "and a cosy goodnight", target_s=40.0)),
     target_s={T.bumper: 8.0, T.links: 50.0, T.interview: 180.0, T.call: 120.0, T.ad_break: 60.0},
     cast=("kettle_a", "kettle_b"), lead="kettle_a",
     cast_by_type={T.links: ("kettle_a", "kettle_b"), T.interview: ("kettle_a", "kettle_b", "guest"),
