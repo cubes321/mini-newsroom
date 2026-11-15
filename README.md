@@ -7,7 +7,7 @@
 > AI, live, around the clock.
 >
 > - Watch live on YouTube: [Port Wexley, @portwexley](https://www.youtube.com/@portwexley)
-> - Watch live on Twitch: TODO
+> - Watch live on Twitch: [twitch.tv/portwexley](https://www.twitch.tv/portwexley)
 > - The four-minute tour, the Channel 7 promo: TODO
 > - Help keep the lights on (the station costs about $1-2 a day to run): Ko-fi TODO
 >

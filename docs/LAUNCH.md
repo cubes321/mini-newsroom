@@ -36,8 +36,13 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
       page that 1440p is offered and that Auto plays sharp on a desktop. Answer Yes to the altered-content
       question. Keep it unlisted until 20 December. The answer decides whether the long videos are upscaled
       to 1440p before upload ([launch/uploads.md](launch/uploads.md#preparing-each-file)).
-- [ ] **You: create a Twitch account** for the channel (the same name as the YouTube channel if it's free)
-      and turn on **two-factor authentication** (Settings → Security and Privacy).
+      Uploaded 15 November ([watch page](https://youtu.be/zj5Z0-OFUYo), Unlisted, 248.5 s like the file): the
+      player offers 1440p, 1080p and 720p. Left: Auto's sharpness full-screen on a desktop, and the
+      altered-content answer.
+- [x] **You: create a Twitch account** for the channel (the same name as the YouTube channel if it's free)
+      and turn on **two-factor authentication** (Settings → Security and Privacy). Done 15 November:
+      [twitch.tv/portwexley](https://www.twitch.tv/portwexley), with 2FA. Streaming goes by the stream key,
+      not the login.
 - [ ] **You: create a Ko-fi page** and turn on 2FA. Set its currency to **US dollars**: the API bills are in
       dollars, so the goal and the bill compare directly (decided 8 November). Link it to the payout account
       (Stripe or PayPal) now: the first payout check can take days. Converting to pounds on payout costs a

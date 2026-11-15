@@ -227,7 +227,7 @@ Today's schedule: 06:00 Morning Tide · 10:00 Have Your Say · 13:00 Quayside ·
 16:00 Rock Pool · 18:45 Full Time · 19:00 Coastwide · 20:00 The Inquiry · 20:30 The Panel ·
 21:00 the news and Port Wexley Stories · 22:00 The Last Ferry · the news in between (UK time).
 
-Also live on Twitch: TODO
+Also live on Twitch: https://www.twitch.tv/portwexley
 Support the station (it costs about $1-2 a day to run): TODO (Ko-fi)
 How it's made, and the code: https://github.com/cubes321/mini-newsroom
 
