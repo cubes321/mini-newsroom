@@ -5,7 +5,16 @@ itself would be too late whenever an earlier module imported newsroom first, and
 real data/world.json and data/cache would be in play.
 """
 import os
+import sys
 import tempfile
+
+if "newsroom.config" in sys.modules:
+    # Too late: CONFIG already points at the real town. On 2026-11-15 a run started as
+    # `python -c "from newsroom import schedule; ...; pytest.main()"` overwrote data/world.json with a
+    # test's world and left test files in data/cache. Start pytest first; set a clock from a fixture or
+    # a plugin's pytest_sessionstart, never by importing newsroom ahead of it.
+    raise RuntimeError("newsroom was imported before the tests' own paths were set: the tests would run against "
+                       "the real data/world.json and data/cache. Start pytest without importing newsroom first.")
 
 _TMP = tempfile.mkdtemp(prefix="newsroom-test-")
 os.environ["NEWSROOM_TEST_DIR"] = _TMP
