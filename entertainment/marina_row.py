@@ -46,10 +46,11 @@ CAST: tuple[Part, ...] = (
     Part("Tristan Lockwood", "Rupert Kinsman", "m", "middle", "the Lockwoods",
          Look(skin=(236, 196, 172), hair=(200, 170, 110), top=(100, 110, 70), under=(150, 180, 220),
               hair_style="swept", top_style="jacket", mouth="smile", brows="raised"), "bm_kinsman"),
-    # Sal: a platinum bun, a plum cardigan, a pen in the pocket for the tab
+    # Sal: copper curls, a plum cardigan, a bar towel over the shoulder (until 2026-11-16 a platinum bun and a pen,
+    # which in a two-shot read as Queenie in another jumper; B on data/review/sal-and-queenie-2026-11-16.png)
     Part("Sal Annear", "Gaynor Pawley", "f", "middle", "The Mermaid",
-         Look(skin=(226, 180, 152), hair=(236, 228, 210), top=(110, 40, 70), under=(236, 226, 220), hair_style="bun",
-              top_style="cardigan", extra="pen", extra_col=(30, 30, 30), mouth="smirk"), "bf_pawley"),
+         Look(skin=(226, 180, 152), hair=(190, 92, 46), top=(110, 40, 70), under=(236, 226, 220), hair_style="curly",
+              top_style="cardigan", extra="towel", extra_col=(232, 228, 214), mouth="smirk"), "bf_pawley"),
 )
 
 BY_CHARACTER = {p.character: p for p in CAST}
