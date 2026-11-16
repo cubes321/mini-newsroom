@@ -113,8 +113,11 @@ YouTube is OBS's main output: Settings → Stream.
 - Create → Go live → **Stream** (the stream-key tab, not "Manage").
 - Visibility **Unlisted** for tests, so only people with the link can watch. **Public** from the soak night on.
 - Copy the stream key into OBS → Settings → Stream (Service: YouTube - RTMPS).
-- In the stream's settings, leave **Auto-start** and **Auto-stop** on. Auto-stop is what ends one saved
-  broadcast when OBS stops streaming, so the next start opens a new one (see the restarts below).
+- **Auto-start and auto-stop.** The Stream tab shows no toggles for them: there they are built in, so the
+  broadcast starts when OBS sends and ends when it stops (seen 2026-11-16; Google's API guide says the same of
+  default broadcasts). A broadcast made with **Schedule stream** has them as settings, and they may be off, so
+  turn both on there. Auto-stop is what ends one saved broadcast when OBS stops streaming, so the next start
+  opens a new one (see the restarts below).
 - Turn on live chat for the comments. Turn latency to "Low" so replies to the chat feel live.
 - **Altered or synthetic content.** Answer **Yes** to YouTube's question about altered or synthetic content
   (labelled "Altered content", or "AI use" under Attributes in newer versions of YouTube Studio). Set it in
@@ -155,7 +158,9 @@ keep_alive = false
 ```
 
 With `--obs`, the station asks OBS (through the WebSocket server) to stop and start its stream on the first
-bumper, test card or teletext page at or after each time. A restart that fails (OBS not answering) is tried
+bumper, test card or teletext page at or after each time. A new programme that opens up to five minutes early
+takes the restart too (`obs.EARLY_S`): on 2026-11-16 Coastwide's bumper played at 18:59:26 and the 19:00 restart
+would otherwise have waited for The Inquiry an hour later. The news's own bumpers in those minutes don't count. A restart that fails (OBS not answering) is tried
 again at the next break, and a stream the station stopped is always started again. A stream that was never
 started, or that stopped by itself, is left alone unless `keep_alive = true`: then the station starts it at
 the next break. Leave it `false` for private test runs, or a run with `--obs` will go live on its own.

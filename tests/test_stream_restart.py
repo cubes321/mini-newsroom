@@ -134,3 +134,56 @@ def test_keep_alive_starts_a_stream_found_stopped_at_any_break():
     assert fake.calls == ["start"]
     d.segment(3, "bumper", "news")
     assert fake.calls == ["start"]                        # streaming: nothing to do
+
+
+def _at_s(hh, mm, ss, day=8):
+    return datetime(2026, 11, day, hh, mm, ss).timestamp()
+
+
+def test_a_programme_that_opens_a_little_early_takes_the_restart():
+    """2026-11-16: Full Time ran short, Coastwide's bumper played at 18:59:26, and the 19:00 restart waited for
+    The Inquiry's bumper an hour later."""
+    fake, clock = FakeOBS(), [_at(18, 30)]
+    d = _director(fake, clock)
+    clock[0] = _at_s(18, 59, 0)
+    d.segment(29, "sport", "sport")
+    clock[0] = _at_s(18, 59, 26)
+    d.segment(30, "bumper", "magazine")
+    assert fake.calls == ["stop", "start"]
+    clock[0] = _at_s(19, 9, 30)
+    d.segment(-1, "ident", "magazine")
+    d.segment(40, "bumper", "magazine")
+    assert fake.calls == ["stop", "start"]                # that was 19:00's restart: not another
+
+
+def test_the_news_own_bumpers_before_the_time_dont_count():
+    fake, clock = FakeOBS(), [_at(23, 0)]
+    d = _director(fake, clock)
+    for slot, (mm, ss) in enumerate([(56, 8), (58, 23)], start=286):
+        clock[0] = _at_s(23, mm, ss)
+        d.segment(slot, "field_report", "news")
+        d.segment(slot + 1, "bumper", "news")
+    d.segment(-1, "continuity", "news")                   # a filler carries the outgoing show's name
+    assert fake.calls == []
+    clock[0] = _at_s(0, 0, 8, day=9)
+    d.segment(296, "bumper", "overnight")
+    assert fake.calls == ["stop", "start"]
+
+
+def test_a_programme_too_early_or_the_runs_first_waits_for_the_time():
+    fake, clock = FakeOBS(), [_at(18, 56)]
+    d = _director(fake, clock)
+    clock[0] = _at(18, 57)
+    d.segment(0, "bumper", "sport")                       # the run's first programme: no earlier one to follow
+    assert fake.calls == []
+
+    fake, clock = FakeOBS(), [_at(18, 40)]
+    d = _director(fake, clock)
+    clock[0] = _at(18, 41)
+    d.segment(0, "bumper", "sport")
+    clock[0] = _at(18, 54)
+    d.segment(5, "bumper", "magazine")                    # six minutes early
+    assert fake.calls == []
+    clock[0] = _at_s(19, 0, 40)
+    d.segment(9, "bumper", "magazine")
+    assert fake.calls == ["stop", "start"]

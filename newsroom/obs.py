@@ -172,6 +172,8 @@ class Director:
 
 
 BREAKS = {"bumper", "testcard", "teletext"}     # a restart's few seconds of nothing fall on one of these
+EARLY_S = 300.0     # a programme that opens this long before a restart time takes the restart: on 2026-11-16 Full
+                    # Time ran short, Coastwide's bumper played at 18:59:26, and the 19:00 restart waited for 20:00
 
 
 class StreamDirector:
@@ -179,7 +181,9 @@ class StreamDirector:
 
     `restart_at` is "HH:MM" on the broadcast clock (schedule.now, so --clock tests it). A time
     passed while nothing was a break is caught at the next one; several passed together make one
-    restart. Times before the station started never count.
+    restart. Times before the station started never count. A new programme's first break up to
+    EARLY_S before a time counts as that time's restart, since a show often opens a little early;
+    the news's own bumpers in those minutes don't.
 
     A restart that fails (OBS not answering, the stream slow to let go) is tried again at the next
     break, and a stream this stopped and couldn't start again is started then. With `keep_alive`
@@ -192,24 +196,33 @@ class StreamDirector:
         self.marks = sorted((int(h), int(m)) for h, m in (t.split(":") for t in restart_at))
         self.last = self.clock()
         self.ours = False                   # stopped here for a restart and not yet started again
+        self.show = None                    # the programme on air, from the scheduled items (fillers carry the
+                                            # outgoing one's name, so they don't count)
 
-    def _due(self, now: float) -> bool:
+    def _due(self, now: float, early: float = 0.0) -> float | None:
+        """The latest restart time not yet done, if it has come (or comes within `early`)."""
         day = datetime.fromtimestamp(now).date()
-        for d in (day - timedelta(days=1), day):
+        due = None
+        for d in (day - timedelta(days=1), day, day + timedelta(days=1)):
             for h, m in self.marks:
                 at = datetime(d.year, d.month, d.day, h, m).timestamp()
-                if self.last < at <= now:
-                    return True
-        return False
+                if self.last < at <= now + early:
+                    due = at
+        return due
 
     def segment(self, slot: int, seg_type: str, show: str) -> None:
+        opens = slot >= 0 and self.show is not None and show != self.show   # a new programme, not the run's first
+        if slot >= 0:
+            self.show = show
         if seg_type not in BREAKS or not (self.marks or self.keep_alive):
             return
         now = self.clock()
-        if self._due(now):
+        at = self._due(now, EARLY_S if opens else 0.0)
+        if at is not None:
             self.restart()
-            self.last = now                 # only once it worked: until 2026-11-09 a restart that threw
-                                            # waited for the next time, up to ten hours on
+            self.last = max(now, at)        # only once it worked: until 2026-11-09 a restart that threw
+                                            # waited for the next time, up to ten hours on; and an early one
+                                            # is that time's restart, not another to come
         elif self.ours or self.keep_alive:
             ws = self.ws()
             if not ws.get_stream_status().output_active:

@@ -102,6 +102,13 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
         is saved and processing;
   - [ ] Twitch carried on through the restart without a drop;
   - [ ] the restart's gap on air is a few seconds, at a bumper.
+
+  Tried 16 November from 19:37 (`data/stream_test.cmd`: a scratch copy, `--clock 18:35 --minutes 70 --obs`),
+  Unlisted on YouTube and on Twitch through the dock. **Found and fixed the same evening:** the restart never
+  came, because Coastwide's bumper played at 18:59:26 and only a break at or after 19:00 counted; the next was
+  The Inquiry's, after the run's end. Now a new programme opening up to five minutes early takes the restart.
+  The restart itself was done by hand at 20:15:54 with `StreamDirector.restart()`: OBS stopped at once and
+  streamed again at 20:16:00. Still to see on a run: the restart at a bumper by itself.
 - [ ] Thu 19 November is a council night: watch *The Chamber* in the log the next day (no stream needed).
 - [ ] **You: watch the launch shelf** ([launch/uploads.md](launch/uploads.md)): the three documentaries,
       *The Chamber* of 5 November and both *Last Ferry* candidates (5 and 6 November; keep the better one).
