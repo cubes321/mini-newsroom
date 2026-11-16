@@ -330,3 +330,17 @@ def test_a_resident_the_town_knows_keeps_their_own_role(channel, monkeypatch):
     ep = wildlife.commission(w)
     assert w.person_by_name("Eamon Trask").role == "retired keeper of the Greymouth light"
     assert next(m for m in ep["meets"] if m["name"] == "Eamon Trask")["role"] == "retired keeper of the Greymouth light"
+
+
+def test_the_opening_gives_no_count_and_a_resident_agrees_with_rowans(channel, monkeypatch):
+    """The rehearsal (2026-11-14): an opening said "six little egrets" before the booked eight and named the pool
+    "the Grey estuary"; a resident said 276 against Rowan's 280."""
+    w = _world()
+    _stub(monkeypatch)
+    ep = wildlife.commission(w)
+    opening = wildlife.brief_for(w, "{open}")
+    assert "No number or count" in opening and "by that name and no other" in opening
+    meets = [wildlife.brief_for(w, "{m%d}" % k) for k in range(1, wildlife.MEETS + 1)]
+    assert ep["count"] is not None                         # the egrets on this date: the test has a count to check
+    assert any(f"it is {ep['count']} {ep['counted']}, as Rowan gave it" in b for b in meets)
+    assert "never a new name for a pool" in writers.SHOW_SYSTEMS["tideline"][T.links]

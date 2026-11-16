@@ -206,8 +206,11 @@ bottom with the date.
         tried in the tests.
     - First evening on air with the model, 2026-11-14, on a copy of the town (`data/creative-trial/air`; the real
       town's wildlife log has no entry): the creative editor passed the plan and marked the programme fair
-      (recorded that night). Open, from the editor's remarks at the offline rehearsal the same day: the opening
-      gave a different count from the booked one.
+      (recorded that night). Done 2026-11-16, from the editor's remarks at the offline rehearsal the same day, not
+      yet seen with the model: the opening gave "six little egrets" before the booked eight and named the pool "the
+      Grey estuary", and a resident said 276 against Rowan's 280. The opening is told to give no count and to call
+      the place by its own name only (the rules too: no new names for a pool, an estuary or a beach), and a meeting
+      on the lead sight is given the booked number, to agree with if it comes up.
     - Left:
       - (done 2026-11-15: the ident, on Out and About's folk arrangement, kept by ear, `bumper_tideline.wav`);
       - a better egret and seal;

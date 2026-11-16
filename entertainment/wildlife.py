@@ -437,15 +437,22 @@ def brief_for(world: World, brief: str) -> str:
     it = _item(ep, tok)
     s, place = it["sight"], _place(it["sight"])
     if it["kind"] == "open":
+        # No number here: on the 2026-11-14 rehearsal an opening said "six little egrets" before the first sequence
+        # gave the booked eight, and called the place "the Grey estuary", a name the plan never gave.
         return (f"THE OPENING, Rowan to camera at {place}: \"Hello, and welcome to {TITLE}\", where we are and what "
-                f"we've come to see: {s.what}. Filmed earlier, by day: no time of day")
+                f"we've come to see: {s.what}. Filmed earlier, by day: no time of day. No number or count of anything: "
+                f"the first sequence gives it. The place is {place}, by that name and no other")
     if it["kind"] == "close":
         return (f"THE CLOSE, Rowan to camera at {place} in the last of the light: {ep['close']} Then goodbye until "
                 "next time, without saying when or what's next")
     if it["kind"] == "meet":
         m = it["meet"]
+        # The count, for agreeing with: given none, a resident said 276 against Rowan's 280 (rehearsal, 2026-11-14).
+        n = (f" They needn't give the count again, but if it comes up it is {ep['count']} {ep['counted']}, as Rowan "
+             "gave it: they agree with it, with no other figure for it"
+             if ep.get("count") is not None and s.id == ep["sight"] else "")
         return (f"ROWAN MEETS {m['name']} ({m['role']}) out at {place}, about {s.what}: {m['talk']} They talk as "
-                "people do outdoors, side by side, looking at the same thing")
+                f"people do outdoors, side by side, looking at the same thing.{n}")
     shot = "a close-up, one creature filling the frame" if it["shot"] == "close" else "a wide, the place and the flock"
     if it["kind"] == "spare":
         return (f"A FIELD-NOTEBOOK MOMENT in the hide ({shot}), on {s.what}: "
@@ -611,7 +618,8 @@ This is part of TIDELINE, a wildlife film on Channel 8, presented by Rowan Polgl
 the warden of the Salting reserve, retired in 2021: unhurried, warm, quietly delighted, speaking low so as not to
 disturb anything. It was FILMED EARLIER, BY DAY, out on the town's coast: never "tonight", "this evening", "good
 evening" or "live"; say "today" or "this week". THIS EPISODE gives the sight, its facts and its number: keep to them,
-say the number exactly as written, and mention no creature that isn't in THE SEASON. Nobody says "good evening",
+say the number exactly as written, and mention no creature that isn't in THE SEASON. A place is called only by the
+name THIS ITEM gives it, never a new name for a pool, an estuary or a beach. Nobody says "good evening",
 the residents neither, and nobody gives the time of day or the clock ("coming up to nine o'clock"). Every item is new: nothing from SAID ALREADY TONIGHT again, no fact, no number, no phrase, and
 each opens its own way (not "keep still" or "let your eyes settle" once an earlier item has). Real natural history in plain
 words, the way a warden talks, not a textbook. No real organisations, charities or people. Not news: thread_id is
