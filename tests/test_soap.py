@@ -290,3 +290,39 @@ def test_spare_minutes_go_to_side_scenes_then_quiet_moments_never_a_planned_scen
     writers.script_segment(seg, w)
     assert {l.guest_name for l in seg.lines} <= {"Sal Annear", "Tristan Lockwood"} and seg.work["set"] == "marina_mermaid"
     assert "x2" in soap.tonight(w, M)["written"]
+
+
+def test_a_scenes_doubled_names_directions_and_self_address_are_mended_before_it_airs(channel, monkeypatch):
+    """The 2026-11-14 night and rehearsal: a scene written "Queenie: Well, go on then", "Sal reads the last clause
+    twice" and "Sliding it back under the teapot" spoken aloud, and Harriet calling herself by name."""
+    w = world_mod.seed()
+    _stub(monkeypatch)
+    soap.commission(w, M)
+    _stub(monkeypatch, _scene_reply([
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Sal: You've heard, then."},
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Davey: Heard what? (He puts the glass down.)"},
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Sal reads the last clause twice: the moorings."},
+        {"speaker": "guest", "guest_name": "Davey Kernick", "text": "Sliding it back under the beer mat, where she'll "
+                                                                    "never look."},
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Sal, the petition takes your moorings, Davey."},
+        {"speaker": "guest", "guest_name": "Davey Kernick", "text": "Coming up. Over my dead body."},
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Morning, then."}]))
+    seg = Segment(slot_id=3, type=T.interview, show="marina", brief="{s1}", target_s=170)
+    writers.script_segment(seg, w)
+    assert [(l.guest_name, l.text) for l in seg.lines] == [
+        ("Sal Annear", "You've heard, then."),
+        ("Davey Kernick", "Heard what?"),                                     # the name took the line, the aside went
+        ("Sal Annear", "The petition takes your moorings, Davey."),
+        ("Davey Kernick", "Coming up. Over my dead body."),
+        ("Sal Annear", "Morning, then.")]
+
+
+def test_the_writers_are_told_family_ties_and_that_a_scene_ends_on_a_line_or_a_look(channel, monkeypatch):
+    w = world_mod.seed()
+    seen = _stub(monkeypatch)
+    soap.commission(w, M)
+    plan_user = next(u for _, schema, _, u in seen if schema is soap.Episode)
+    assert 'Davey calls Queenie "Mum"' in plan_user
+    assert "never an action" in soap.Scene.model_fields["ends_on"].description
+    assert "only what is said reaches the screen" in soap.brief_for(w, M, "{s2}")
+    assert 'Davey calls Queenie "Mum"' in soap.for_prompt(w, M)

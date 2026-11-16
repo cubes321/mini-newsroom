@@ -66,6 +66,7 @@ class Series:
     colour: tuple = (40, 90, 120)
     tone: str = "warm, sharp and a little heightened, a British soap: rows over the bins, secrets in the pub"
     ident: str = ""                # the opening titles' announcement
+    ties: str = ""                 # family ties and what they call each other, for every prompt with the cast
     characters: dict = field(default_factory=dict, compare=False, hash=False)
 
     def __post_init__(self):
@@ -97,7 +98,11 @@ class Scene(BaseModel):
     characters: list[str] = Field(min_length=2, max_length=3, description="exact names, the one at mark a first")
     knows: str = Field(min_length=3, max_length=240, description="who knows what as the scene starts")
     beats: str = Field(min_length=8, max_length=400, description="what happens, in two or three sentences")
-    ends_on: str = Field(min_length=3, max_length=200, description="the moment the scene ends on")
+    # A scene is only what its people say, so an action has no way onto the screen: "Sal's pen along the bar" and
+    # "the plates ringing" never aired (the rehearsal of 2026-11-14), and "Sal reads the last clause twice" was said.
+    ends_on: str = Field(min_length=3, max_length=200,
+                         description="the moment the scene ends on: a line someone says, or a look on a face; never "
+                                     "an action, since a scene is only what its people say")
 
 
 class Episode(BaseModel):
@@ -125,8 +130,9 @@ turning point; keep what the episodes so far have established, and pick up what 
 
 _EPISODE = _RULES + """
 Plan TONIGHT'S EPISODE: {scenes} scenes, each on one set with two or three characters (the one at the set's
-mark a first), cutting between the storylines. For each: who knows what as it starts, what happens, what it ends
-on. It must first answer the LAST CLIFFHANGER, if there is one, early in the episode. The last scene ends on the
+mark a first), cutting between the storylines. For each: who knows what as it starts (where each of them is, and
+what each knows and only suspects), what happens, what it ends on: a line or a look, never an action, since a scene
+is only what its people say and no stage direction reaches the screen. It must first answer the LAST CLIFFHANGER, if there is one, early in the episode. The last scene ends on the
 episode's cliffhanger: give the question the town will ask, and the exact closing line, said by a character in that
 scene. Then a short summary of what happens, for the episodes to come. Then {spares} SPARES: short side
 scenes that may air between the fifth scene and the last, or not at all, so nothing in them may change the story or
@@ -136,7 +142,8 @@ with a subject of its own."""
 
 
 def _people(series: Series) -> str:
-    return "\n".join(f"  - {p.character} ({p.household}), played by {p.actor}" for p in series.cast)
+    return ("\n".join(f"  - {p.character} ({p.household}), played by {p.actor}" for p in series.cast)
+            + (f"\n  {series.ties}" if series.ties else ""))
 
 
 def _sets(series: Series) -> str:
@@ -371,7 +378,9 @@ def brief_for(world: World, series: Series, brief: str) -> str:
             if key.startswith("x") else f"SCENE {int(key) + 1} of {len(ep['scenes'])}, at {name} ({blurb})")
     out = (f"{head}. In it: {', '.join(sc['characters'])}, in that order across the set. "
            + (f"As it starts: {sc['knows']} " if sc.get("knows") else "")
-           + f"What happens: {sc['beats']}" + (f" It ends on: {sc['ends_on']}" if sc.get("ends_on") else ""))
+           + f"What happens: {sc['beats']}"
+           + (f" It ends on: {sc['ends_on']} (the last line says it or carries it: only what is said reaches the "
+              "screen)" if sc.get("ends_on") else ""))
     if last:
         out += (f" This is the LAST scene of the episode: it ends on the cliffhanger, {ep['said_by']} saying, "
                 f"word for word, \"{ep['last_line']}\" as the very last line, with nothing after it")
@@ -404,13 +413,61 @@ def after(seg, world: World, series: Series) -> None:
         ep["written"][key] = said[:WRITTEN_CHARS]
 
 
+_YOU_OR_I = re.compile(r"\b(I|I'm|I'd|I'll|I've|me|my|mine|you|you're|your|yours|we|we're|us|our)\b", re.IGNORECASE)
+
+
+def _direction(text: str, first: str) -> bool:
+    """A stage direction written as a line: "Sal reads the last clause twice: ..." (the speaker's own name and a
+    verb), or "Sliding it back under the teapot, where she'll never look." (a doing word to start, and nobody
+    talking to anybody), both from the 2026-11-14 night and rehearsal."""
+    if first and re.match(rf"{re.escape(first)}\s+[a-z]+s\b", text):
+        return True
+    m = re.match(r"([A-Z][a-z]+ing) (?:it|them|him|her|his|its|their|the|a|an|one)\b", text)    # not "Coming up."
+    return bool(m) and m.group(1).lower() not in _NOT_DOING and not _YOU_OR_I.search(text) and not re.search(
+        r"[?!]", text)
+
+
+# -ing words that start real lines ("Morning, Sal", "Nothing to say?", "Bring it here").
+_NOT_DOING = {"morning", "evening", "nothing", "something", "anything", "everything", "darling", "thing", "king",
+              "bring", "sing", "ring", "sling", "string", "swing", "wing", "spring", "sting", "fling", "cling",
+              "pudding", "wedding", "building", "ceiling", "shilling", "going", "being", "talking", "speaking"}
+
+
+def tidy(script, allowed: list[str], cast: list[str]) -> None:
+    """Mend what the scene writer gets wrong in the lines themselves, before the check (2026-11-14 rehearsal): a
+    whole scene written "Queenie: Well, go on then" (the name goes, and a name that isn't the line's own speaker
+    takes the line), directions in brackets or as lines of their own (dropped), and a speaker calling themselves
+    by name ("Harriet, you can't call Davey charming", said by Harriet to Tristan, who answers "I said it kindly":
+    the name goes, since the line was hers and only the name was wrong)."""
+    firsts = {c.split()[0]: c for c in cast}
+    kept = []
+    for l in script.lines:
+        text = re.sub(r"\s*(\([^)]*\)|\[[^\]]*\]|\*[^*]*\*)\s*", " ", l.text).strip()
+        m = re.match(r"([A-Z][a-z]+)(?: [A-Z][a-z]+)?\s*:\s*", text)
+        if m and m.group(1) in firsts:
+            text = text[m.end():]
+            if firsts[m.group(1)] in allowed:
+                l.guest_name = firsts[m.group(1)]
+        name = (l.guest_name or "").strip()
+        first = name.split()[0] if name else ""
+        if not text or _direction(text, first):
+            continue
+        own = re.match(rf"{re.escape(first)}\s*,\s*", text) if first else None
+        if own and text[own.end():]:
+            text = text[own.end()].upper() + text[own.end() + 1:]
+        l.text = text
+        kept.append(l)
+    script.lines = kept
+
+
 def check(seg, script, world: World, series: Series) -> None:
-    """Every line is one of the scene's characters, and at least two of them speak."""
+    """Every line is one of the scene's characters, and at least two of them speak (after `tidy`)."""
     ep = tonight(world, series)
     found = _scene(ep, series, seg.brief) if ep else None
     if found is None:
         return
     allowed = set(found[0]["characters"])
+    tidy(script, list(found[0]["characters"]), list(series.characters))
     names = [(l.guest_name or "").strip() for l in script.lines]
     if any(name not in allowed for name in names):
         raise llm.LLMError(f"a line in {seg.brief} is spoken by someone not in it: {set(names) - allowed}")
@@ -468,7 +525,10 @@ exactly on what it ends on. About 12 to 20 lines. These are characters played by
 of the town, and the town's news is not their business unless THIS ITEM says so. The street has its own places (The
 Mermaid, The Loft, the quay, the net loft): never name the town's real pubs, shops, clubs or people from the
 briefing. A side scene keeps to its own beats, with no topical joke of its own: the side scenes are written at the
-same time, and on the first run three of them made the same one. thread_id is null.
+same time, and on the first run three of them made the same one. A line's text is only the words said: never the
+speaker's name in front of it, never an action or a direction ("Sliding it back under the teapot" is not a line),
+never the speaker calling themselves by name. Someone who has already spoken in the scene doesn't greet anyone
+after; family call each other as THE CHARACTERS say. thread_id is null.
 headline = what happens in the scene, under 10 words. lower_third = "{title}".
 """
 

@@ -138,7 +138,11 @@ def _series():
                          ("marina_loft", ("Harriet Lockwood", "Tristan Lockwood"), "a new dish Tristan doesn't like"),
                          ("marina_kitchen", ("Queenie Kernick", "Kerra Kernick"), "a box of old photographs"),
                          ("marina_row", ("Tristan Lockwood", "Davey Kernick"), "the gulls, awkwardly")),
-                  ident="Now on Channel 8: Marina Row.")
+                  ident="Now on Channel 8: Marina Row.",
+                  # Davey called his mother "Queenie", and a recipe of Queenie's mother's became "Mum's" (2026-11-14).
+                  ties=("The Kernicks: Queenie is Davey's mother and Kerra's grandmother; Davey is Kerra's father. "
+                        "Davey calls Queenie \"Mum\", Kerra calls her \"Gran\" and calls Davey \"Dad\"; Queenie's own "
+                        "mother was Davey's gran."))
 
 
 MARINA_ROW = _series()

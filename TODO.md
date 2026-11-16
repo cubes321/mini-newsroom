@@ -164,9 +164,14 @@ bottom with the date.
     First evening on air with the model, 2026-11-14 from 18:15, on a copy of the town (`data/creative-trial/air`;
     the real town holds no aired episode): the creative editor sent the arc back once, passed the episode and
     marked it fair (recorded that night). Fixed after it: an arc's turning point is asked for short and cut at a
-    word (0f28f04, 86e582c); an aired episode is stamped on the episode itself (1a5e063). Open, from the
-    editor's remarks at the offline rehearsal the same day: scenes that lose track of who is speaking, stage
-    directions spoken aloud, and planned closing gestures that never air.
+    word (0f28f04, 86e582c); an aired episode is stamped on the episode itself (1a5e063). Done 2026-11-16,
+    from the editor's remarks at the offline rehearsal the same day: `soap.tidy` mends a scene before the check
+    (a "Queenie: ..." name in front of a line goes, and takes the line if it names someone else; directions in
+    brackets, "Sal reads the last clause twice" and "Sliding it back under the teapot" are dropped; a speaker
+    calling themselves by name loses the name), replayed over the 47 logged scenes: 5 changed, none for the worse;
+    the writers are told the Kernicks' ties (`Series.ties`: Davey calls Queenie "Mum"), and a scene ends on a line
+    or a look, never an action, since only what is said reaches the screen (the planner and each scene's brief).
+    The prompt rules are not yet seen with the model.
     Its "scene" item is the drama engine for the TV movie, the sitcom and the anthology.
   - **Factual**, 20:40 to 21:00 (planned with the user 2026-11-14, docs/FACTUAL.md):
     - Two series alternate by Channel 8 night: *Tideline* (working title), coastal wildlife presented by a new
