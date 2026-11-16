@@ -732,24 +732,41 @@ def _gesture(who: str, look: Look | None, mouth: float, t: float) -> tuple[str, 
     return "", 0.0
 
 
+def _slant(top: int, bottom: int, x_top: int, x_bottom: int, w: int) -> list[tuple[int, int, int]]:
+    """Row spans of a forearm `w` wide, from x_top at row `top` to x_bottom at row `bottom` - 1."""
+    n = max(1, bottom - 1 - top)
+    return [(r, x0, x0 + w - 1) for r in range(top, bottom)
+            for x0 in [x_top + round((x_bottom - x_top) * (r - top) / n)]]
+
+
 def _hand(p: _Pen, L: Look, up: float, t: float, beat: float) -> None:
-    """A hand coming up into frame on the near side, a cuff of the top below it; every other
-    gesture an index finger points."""
+    """A hand raised beside the chest on the side they face, the forearm slanting down to the elbow at
+    the edge of the frame: an open palm, fingers up, or every third gesture a finger pointing the way
+    they face. Until 2026-11-16 it was a stub rising straight up the middle of the body, a knob of skin
+    on a column of sleeve, which some viewers read rudely; the slant and the fingers make it a hand."""
     n = int((t + beat) // HAND_EVERY_S)
-    dx = 3 if n % 2 else 5
-    hy = 37 - round(10 * up)
-    if hy >= 36:
+    hy = 37 - round(15 * up)                                  # the top of the hand: row 22 at full height
+    if hy >= 34:
         return
-    edge = _dark(L.top, OUTLINE_K)
-    p(edge, dx - 1, hy + 3, 6, 37 - hy - 3)
-    p.rows(L.top, [(r, dx, dx + 3) for r in range(hy + 3, 37)])
-    skin, skin_edge = L.skin, _dark(L.skin, OUTLINE_K)
-    p(skin_edge, dx - 1, hy - 1, 6, 5)
-    p.rows(skin, [(r, dx, dx + 3) for r in range(hy, hy + 3)])
-    p(_dark(skin, 0.82), dx, hy + 2, 4, 1)                    # the knuckles' shadow
-    if n % 3 == 2:
-        p(skin_edge, dx + 2, hy - 4, 3, 4)
-        p(skin, dx + 3, hy - 3, 1, 3)                         # the pointing finger
+    hx = 4 if n % 2 else 5                                    # the hand's inner edge
+    sleeve = _mix(L.top, (255, 255, 255), 0.14)               # an arm in front catches more light than the body
+    arm = _slant(hy + 4, 37, hx + 1, 9, 4)
+    _outline(p, arm, _dark(L.top, OUTLINE_K), bottom_open=True)
+    p.rows(sleeve, arm)
+    skin, skin_edge, shade = L.skin, _dark(L.skin, OUTLINE_K), _dark(L.skin, 0.8)
+    if n % 3 == 2:                                            # a fist, the index finger out towards the other
+        p(skin_edge, hx - 1, hy, 7, 6)
+        p(skin, hx, hy + 1, 5, 4)
+        p(shade, hx, hy + 3, 5, 1)                            # the curled fingers
+        p(skin_edge, hx + 5, hy, 4, 3)
+        p(skin, hx + 5, hy + 1, 3, 1)                         # the pointing finger
+    else:                                                     # an open palm, fingers up, the thumb out inward
+        p(skin_edge, hx - 1, hy - 1, 7, 7)
+        p(skin, hx, hy, 5, 5)
+        for fx in (hx + 1, hx + 3):
+            p(shade, fx, hy, 1, 2)                            # between the fingers
+        p(skin_edge, hx - 3, hy + 2, 3, 3)
+        p(skin, hx - 2, hy + 3, 2, 1)                         # the thumb
 
 
 # ------------------------------------------------------------------ poses
@@ -833,10 +850,15 @@ def _arms(p: _Pen, L: Look, arms: str, rise: float) -> None:
             box(edge, x0, 17, 6, 20); box(near, x0 + 1, 18, 4, 19)
             box(skin_edge, x0 - 1, 11, 8, 7); box(skin, x0, 12, 6, 5)
             box(_dark(skin, 0.75), x0 + 2, 12, 1, 2); box(_dark(skin, 0.75), x0 + 4, 12, 1, 2)   # fingers
-    elif arms == "chin":              # a fist under the chin, the forearm up the chest
-        box(edge, -1, 17, 7, 20); box(near, 0, 18, 5, 19)
+    elif arms == "chin":              # a fist under the chin, the forearm slanting up from the elbow at the side:
+        arm = _slant(18, 37, 0, 8, 5)                         # until 2026-11-16 it rose straight up the middle,
+        for r, a, b in arm:                                   # and some viewers read that rudely
+            box(edge, a - 1, r, b - a + 3, 1)
+        for r, a, b in arm:
+            box(near, a, r, b - a + 1, 1)
         box(skin_edge, -2, 13, 8, 6); box(skin, -1, 14, 6, 4)
-        box(_dark(skin, 0.8), -1, 16, 6, 1)                   # the curled fingers
+        for fx in (0, 2, 4):
+            box(_dark(skin, 0.8), fx, 16, 1, 2)               # the curled fingers, one by one
     elif arms == "neck":              # a hand behind the head, the elbow up and out
         box(edge, 9, 6, 6, 17); box(near, 10, 7, 4, 15)
         box(edge, 3, 4, 11, 5); box(near, 4, 5, 9, 3)        # the forearm, behind the head (drawn first)
