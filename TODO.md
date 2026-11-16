@@ -297,7 +297,18 @@ bottom with the date.
         bike's brakes in seven items) and links that contradict the items around them ("third leg done" before the
         third meeting). The editor's "two interviews cut off mid-line" was its own reading: `creative._words` cut
         each item at 2,500 characters mid-word; now `_trim` cuts at whole lines and keeps the start and the end.
-        Rehearsal total 143 calls, $1.64 Claude.
+        Then a running summary (the same day): every brief says what's done and what's still to come in the leg
+        (`day_so_far`), the earlier items are seen in full from the cache (the archive keeps 400 characters, which
+        also limited `_not_again`), and what has come up in three items or more is named to be left alone
+        (`said_enough`). Leg 4 on it (4 December): the editor no longer found the day going backwards or ending early,
+        but the boots came up in nine items of ten although named from the fourth: the leg's travel line ("boots,
+        not the good shoes") was in every brief, as leg 3's brakes had been. Now only the opening has the whole line
+        and the rest get how she travels (`how`); the stop's first-person note is hers to tell in her own words (it
+        went out word for word); a resident knows nothing of who she met at earlier stops (Gwen quoted Wynn). Those
+        three not yet seen with the model. Still open, the editor's fourth review running: each stop is a road item,
+        an arrival and a meeting, so a place is arrived at more than once; it asks for fewer linking items (a
+        format change for the user: the road item could end on the arrival, or the opening take the first stop).
+        Rehearsal total 159 calls, $1.74 Claude.
       - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).

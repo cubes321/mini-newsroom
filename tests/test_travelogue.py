@@ -374,3 +374,63 @@ def test_a_sentence_already_said_today_goes_and_only_the_close_knows_how_the_day
     assert leg["ends"] not in tv.for_prompt(w) and leg["ends"] in tv.brief_for(w, "{close}")
     assert "nothing of how the day ends" in tv.brief_for(w, "{open}") and "No hello" in tv.brief_for(w, "{close}")
     assert "Nobody makes up news" in tv._RULES
+
+
+def test_each_brief_says_what_is_done_and_what_is_still_to_come():
+    """A road item said "third leg done" before the third meeting (rehearsal, 2026-11-16)."""
+    leg = {"stops": [{"place": f"Stop {k}", "meet": f"Person {k}"} for k in "ABC"], "travel": "a borrowed bike"}
+    r2 = tv.day_so_far(leg, "r2")
+    done, to_come = r2.split("Still to come: ")
+    assert "meeting Person B there" in done and "meeting Person C there" in to_come and "the goodbye" in to_come
+    assert "the leg isn't over until the goodbye" in r2
+    assert "done: nothing yet" in tv.day_so_far(leg, "open")
+    wait = tv.day_so_far(leg, "x4")
+    assert "meeting Person C there" in wait.split("Still to come")[0] and "Still to come: the goodbye" in wait
+    assert "Still to come: nothing" in tv.day_so_far(leg, "close")
+
+
+def test_what_has_come_up_in_three_items_is_named_but_not_names_the_vehicle_or_waiting():
+    """The bike's brakes came up in seven items of leg 3 (rehearsal, 2026-11-16)."""
+    leg = {"stops": [{"place": "the Crown", "meet": "Ellis Porrett"}], "travel": "a borrowed bike with untested brakes"}
+    said = ["The brakes squeal and the gulls watch. Ellis waves. I'm waiting on the bike.",
+            "Those brakes again, and a gull on the bike. Ellis laughs. Still waiting.",
+            "The brakes held! Ellis, the bike, waiting, waiting.", "Nothing about it here."]
+    enough = tv.said_enough(said, leg)
+    assert "brake" in enough and "gull" not in enough                    # gulls came up in two items
+    assert not {"bike", "elli", "ellis", "waiting", "wait"} & set(enough)
+
+
+def test_items_see_earlier_items_in_full_from_the_cache(channel, monkeypatch, nowhere, tmp_path):
+    """The archive keeps an item's first 400 characters; what a meeting established comes later in it."""
+    from newsroom.config import CONFIG
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    import dataclasses
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    long_line = "word " * 120 + "and the brakes were tested on the hill."
+    (cache / "h1.json").write_text(json.dumps({"lines": [{"text": long_line}]}), encoding="utf-8")
+    monkeypatch.setattr("newsroom.config.CONFIG", dataclasses.replace(
+        CONFIG, paths=dataclasses.replace(CONFIG.paths, cache=cache)))
+    w.archive.append({"date": w.last_date, "show": "coastroad", "type": "interview", "headline": "h",
+                      "text": long_line[:400], "hash": "h1", "aired": False, "ts": 0})
+    assert "the brakes were tested on the hill" in tv.for_prompt(w)
+
+
+def test_only_the_opening_hears_the_legs_joke_and_the_plans_notes_are_hers_to_tell(channel, monkeypatch, nowhere):
+    """Leg 4's "boots, not the good shoes" went to every item, and the boots came up in nine of ten; the plan's
+    first-person note went out word for word; and Gwen quoted Wynn, whom she never met (rehearsal, 2026-11-16)."""
+    assert tv.how({"travel": "On foot from the lighthouse gate, down the estuary path - boots, not the good shoes"}) \
+        == "On foot from the lighthouse gate"
+    assert tv.how({"travel": "A borrowed bike along the coast road \u2014 one gear"}) == "A borrowed bike along the coast road"
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    leg = tv.series(w)["legs"][1]
+    leg["travel"] = "the bus, which stops for everyone, rattling"
+    w.travelogue["legs"][-1]["n"] = 2
+    assert "rattling" in tv.brief_for(w, "{open}")
+    assert all("rattling" not in tv.brief_for(w, t) for t in ("{r1}", "{x1}", "{a2}")) and "rattling" not in tv.for_prompt(w)
+    assert "in her own words (the plan's note, not to be read out)" in tv.brief_for(w, "{a2}")
+    assert "knows nothing of who she met there" in tv.brief_for(w, "{m2}")

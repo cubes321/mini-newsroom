@@ -66,7 +66,7 @@ AIRS_AT = "20:40"
 BOOK_FROM = "18:30"
 TASK = "travelogue" if "travelogue" in CONFIG.llm.routes else "chamber"
 IDENT = "The Coast Road, with Lorna Quayle. On Channel 8."
-SAID_CHARS = 420
+SAID_CHARS = 3000                       # each item said so far, in full (a meeting is about 2,000)
 TOKEN = re.compile(r"\{(open|close|a[0-9]+|m[0-9]+|r[0-9]+|x[0-9]+)\}")
 # Where the stops may be: the town's places out and about (not the studios, the council chamber or the police).
 STOP_BACKDROPS = ("harbour", "slipway", "fish_quay", "lighthouse", "lifeboat_station", "seafront", "coast_road",
@@ -390,7 +390,116 @@ def _place(backdrop: str) -> str:
     return locations.get(backdrop).name
 
 
+def _said_today(world: World) -> list[str]:
+    """Each item written today, in order, in full: from its cache entry, since the archive keeps only its first 400
+    characters (and an item's later lines are where a meeting establishes things: the brakes tested on the hill)."""
+    from newsroom.config import CONFIG
+
+    with world.lock:
+        entries = [a for a in world.archive if a["date"] == world.last_date and a.get("show") == SHOW
+                   and a["type"] != T.ad_break.value]
+    out = []
+    for a in entries:
+        words = ""
+        if a.get("hash"):
+            try:
+                seg = json.loads((CONFIG.paths.cache / f"{a['hash']}.json").read_text(encoding="utf-8"))
+                words = " ".join(l.get("text", "") for l in seg.get("lines", []) if l.get("text"))
+            except (OSError, ValueError):
+                pass
+        out.append(words or a.get("text") or "")
+    return out
+
+
+ORDER_STEPS = ("open", *(t for k in range(1, STOPS + 1) for t in (f"a{k}", f"m{k}") + ((f"r{k}",) if k < STOPS else ())),
+               "close")
+
+
+def how(leg: dict) -> str:
+    """How she travels, without the leg's joke: "On foot from the lighthouse gate" of "On foot from the lighthouse gate,
+    down the estuary path... boots, not the good shoes". The whole line is the opening's; given to every item, the
+    boots came up in nine items of ten, and leg 3's brakes in seven (rehearsal, 2026-11-16)."""
+    return re.split(r"\s*[,;:–—]\s*|\s+-\s+", leg["travel"].strip(), maxsplit=1)[0].rstrip(".")
+
+
+def _step(leg: dict, tok: str) -> str:
+    stops = leg["stops"]
+    if tok == "open":
+        return f"setting off from {stops[0]['place']}"
+    if tok == "close":
+        return f"the goodbye at {stops[-1]['place']}"
+    k = int(tok[1:])
+    st = stops[k - 1]
+    return {"a": f"arriving at {st['place']}", "m": f"meeting {st['meet']} there",
+            "r": f"the way from {st['place']} to {stops[min(k, STOPS - 1)]['place']}"}[tok[0]]
+
+
+def day_so_far(leg: dict, tok: str) -> str:
+    """Where the leg has got to at this item, worked out from the plan: what's done and what's still to come, in order.
+    Without it a road item said "third leg done" before the third meeting (rehearsal, 2026-11-16). The spare
+    waiting moments come after the last meeting, before the goodbye."""
+    waiting = tok.startswith("x")
+    at = len(ORDER_STEPS) - 1 if waiting else ORDER_STEPS.index(tok)   # a wait: everything but the goodbye is done
+    done = [_step(leg, t) for t in ORDER_STEPS[:at]]
+    to_come = [_step(leg, t) for t in ORDER_STEPS[at if waiting else at + 1:]]
+    return ("THE DAY SO FAR: done: " + ("; ".join(done) if done else "nothing yet") + ". Now: "
+            + ("a moment while she waits" if waiting else _step(leg, tok)) + ". Still to come: "
+            + ("; ".join(to_come) if to_come else "nothing: this is the end of the leg") + ". Nothing still to come "
+            "has happened yet: nobody still to come has been met, no place still to come reached, and the leg isn't "
+            "over until the goodbye")
+
+
+# Words that say nothing about what has been made much of.
+_PLAIN = set("""a about above after again all also always am an and any are aren't around as at away back bad be been
+before being best better big bit both but by came can can't come could day did didn't do does doesn't doing done don't
+down each even ever every far few first for from get gets getting go goes going gone good got had has hasn't have
+haven't he her here him his home how i i'd i'll i'm i've if in into is isn't it it's its just keep know last least left
+let like little long look looks made make many may me might more most much must my never new next no not nothing now of
+off oh old on once one only or other our out over own people place put quite really right round said same say says see
+seen she should since so some something still such take tell than that that's the their them then there there's these
+they they're thing things think this those though through time times to today told too took two under until up us very
+want was wasn't way we we're we've well went were what when where which while who why will with without won't would
+yes yet you you'd you'll you're you've your years year bit lot lots love lovely mind away even going because already
+nobody somebody anybody everyone everybody someone anyone need needs needed feel feeling felt past behind ahead stand
+standing minute minute hour morning afternoon evening kind sort enough maybe perhaps rather thank thanks hello goodbye
+sure once twice three four five six seven eight nine hundred whole half another along across between almost just
+wait waiting waited wait stop asked asking hoping hope plan leave proper making else fair give against coming week
+street hand water town""".split())                     # waiting is the series' own subject: never "enough"
+
+
+_VEHICLES = {"bike", "bicycle", "ferry", "boat", "bus", "coach", "train", "tram", "foot", "walk", "walking", "cart",
+             "tractor", "van", "lift", "punt", "dinghy", "rowing", "barge", "horse", "pony", "trap", "taxi", "car"}
+
+
+def said_enough(said: list[str], leg: dict) -> list[str]:
+    """What has come up in three items or more today: the bike's brakes came up in seven items of one leg (rehearsal,
+    2026-11-16), and told only not to repeat a phrase, the writers kept finding new ways to say it. People's and places'
+    own names are left out, and the leg's way of travelling, which every item is about."""
+    names = {w for st in leg["stops"] for w in re.findall(r"[a-z']+", (st["place"] + " " + st["meet"]).lower())}
+    names |= {w for w in re.findall(r"[a-z']+", (HOST + " " + TITLE).lower())}
+    names |= {w.rstrip("s") for w in names if len(w) > 4}                # "Ellis", as the words are stemmed
+    # The way she travels, but only the thing itself: leg 3's "a borrowed bike... brakes I've been told to test" is
+    # where the brakes came from, and they were what came up in seven items.
+    names |= set(re.findall(r"[a-z]+", leg["travel"].lower())) & _VEHICLES
+    counts: dict[str, int] = {}
+    for text in said:
+        for w in {x.rstrip("s") if len(x) > 4 else x for x in re.findall(r"\b[a-z]{4,}\b(?!')", text.lower())}:
+            if w not in _PLAIN and w not in names:
+                counts[w] = counts.get(w, 0) + 1
+    return sorted((w for w, c in counts.items() if c >= 3), key=lambda w: (-counts[w], w))[:8]
+
+
 def brief_for(world: World, brief: str) -> str:
+    """The item's brief, and where the leg has got to (`day_so_far`)."""
+    tok = _token(brief)
+    out = _brief(world, brief)
+    if tok is None:
+        return out
+    entry, s = booked(world)
+    return f"{out}. {day_so_far(s['legs'][entry['n'] - 1], tok)}"
+
+
+def _brief(world: World, brief: str) -> str:
     entry, s = booked(world)
     tok = _token(brief)
     if tok is None:
@@ -417,34 +526,34 @@ def brief_for(world: World, brief: str) -> str:
         st = it["stop"]
         came = ("" if it["k"] == 1 else
                 " The way here was the item before: she has just got here, and doesn't tell the journey again.")
-        return (f"STOP {it['k']} of {STOPS}: Lorna arrives at {st['place']} and tells us about it to camera: "
-                f"{st['what']}{came} {st['meet']} doesn't speak in this item: meeting them is the next one. Only "
-                "Lorna speaks, five to eight lines")
+        # The plan's note is in her voice, and went out word for word (rehearsal, 2026-11-16): hers to tell.
+        return (f"STOP {it['k']} of {STOPS}: Lorna arrives at {st['place']} and tells us about it to camera, in her "
+                f"own words (the plan's note, not to be read out): {st['what']}{came} {st['meet']} doesn't speak in "
+                "this item: meeting them is the next one. Only Lorna speaks, five to eight lines")
     if it["kind"] == "meet":
         st = it["stop"]
         return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She is already here and "
                 "has told us about the place in the item before: straight into the talk, with no arriving again and "
                 f"no describing the place again. Twelve to sixteen lines, every one either Lorna (guest_name "
-                f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does")
+                f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does. "
+                f"{st['meet']} wasn't at the earlier stops and knows nothing of who she met there")
     if it["kind"] == "road":
         frm, to = leg["stops"][it["k"] - 1], it["to"]
-        return (f"ON THE WAY from {frm['place']} to {to['place']} ({leg['travel']}): she has left {frm['place']} and "
+        return (f"ON THE WAY from {frm['place']} to {to['place']} ({how(leg)}): she has left {frm['place']} and "
                 f"is not at {to['place']} yet, so no arriving and nothing about it as if she were there (her arrival "
                 "is the next item): the journey so far, what she sees on the way, and what she's hoping for. Only "
                 "Lorna speaks, five to eight lines")
-    return ("WHILE SHE WAITS (" + leg["travel"] + "): " + WAITING[(it["k"] - 1) % len(WAITING)]
+    return ("WHILE SHE WAITS (" + how(leg) + "): " + WAITING[(it["k"] - 1) % len(WAITING)]
             + ". Only Lorna speaks, five to seven lines; nothing said earlier today again")
 
 
 def for_prompt(world: World) -> str:
     entry, s = booked(world)
     leg = s["legs"][entry["n"] - 1]
-    with world.lock:
-        said = [a for a in world.archive if a["date"] == world.last_date and a.get("show") == SHOW
-                and a["type"] != T.ad_break.value]
+    said = _said_today(world)
     earlier = [x for x in s["legs"][:entry["n"] - 1]]
     out = (f"THE SERIES: {TITLE}: \"{s['title']}\", with {HOST} ({HOST_SHORT})\n"
-           f"TODAY: leg {entry['n']} of {LEGS}, \"{leg['title']}\", by {leg['travel']}: "
+           f"TODAY: leg {entry['n']} of {LEGS}, \"{leg['title']}\", by {how(leg)}: "
            # Not how it ends: that is the close's (its brief has it), and with it in every prompt the opening gave
            # the ending away (rehearsal, 2026-11-16).
            + "; then ".join(f"{st['place']} (meeting {st['meet']}, {st['role']})" for st in leg["stops"]) + ".")
@@ -452,8 +561,13 @@ def for_prompt(world: World) -> str:
         out += "\nTHE LEGS BEFORE: " + "; ".join(f"{i + 1}. {l['title']} (ended: {l['ends']})"
                                                  for i, l in enumerate(earlier))
     if said:
-        out += ("\nSAID ALREADY TODAY, in order (never again: not a joke, not a story, not a phrase, and not the way an "
-                "item opens):\n" + "\n".join(f"  - {a['text'][:SAID_CHARS]}" for a in said))
+        # In full: what an item established (the brakes tested, the auction over) is what the next must keep to.
+        out += ("\nSAID ALREADY TODAY, in order, in full (never again: not a joke, not a story, not a phrase, and not "
+                "the way an item opens; and keep to what it established):\n"
+                + "\n".join(f"  - {t[:SAID_CHARS]}" for t in said))
+        if enough := said_enough(said, leg):
+            out += ("\nMADE MUCH OF ALREADY (each has come up in three items or more today: leave it alone now, "
+                    f"unless this item is about it): {', '.join(enough)}")
     return out
 
 
@@ -528,10 +642,9 @@ def _words_of(sentence: str) -> str:
 def _not_again(world: World, script) -> None:
     """A sentence said word for word in an earlier item today goes: told not to, the meeting at the Crown still
     opened with the arrival's "Right, I've made it to the back room of the Crown" (rehearsal, 2026-11-16). Only
-    sentences of five words or more, so "Thank you." and "Right." may come round."""
-    with world.lock:
-        said = {_words_of(x) for a in world.archive if a["date"] == world.last_date and a.get("show") == SHOW
-                for x in re.split(r"(?<=[.!?])\s+", a.get("text") or "")}
+    sentences of five words or more, so "Thank you." and "Right." may come round. Each earlier item in full
+    (`_said_today`): the archive's own text stops at 400 characters."""
+    said = {_words_of(x) for text in _said_today(world) for x in re.split(r"(?<=[.!?])\s+", text)}
     kept = []
     for l in script.lines:
         sentences = re.split(r"(?<=[.!?])\s+", l.text.strip())
