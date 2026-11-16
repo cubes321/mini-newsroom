@@ -138,7 +138,7 @@ def test_a_turn_that_fails_is_tried_once_more_later_and_then_the_day_has_no_meet
     assert "no minutes" in meeting.show(m)
 
 
-def test_the_worker_holds_it_after_any_booking_that_is_due(table, monkeypatch):
+def _pool(monkeypatch, next_show_in_s):
     from newsroom import adverts, annals, continuity, prune, workers
     from newsroom.buffer import Buffer
 
@@ -151,13 +151,41 @@ def test_the_worker_holds_it_after_any_booking_that_is_due(table, monkeypatch):
     monkeypatch.setattr(desk, "should_plan", lambda w: False)
     monkeypatch.setattr(senior, "should_review", lambda w: False)
     monkeypatch.setattr(workers.world_mod, "save", lambda *a, **k: None)
-    seen = _stub(monkeypatch)
+    monkeypatch.setattr(schedule, "show_end", lambda ts: ts + next_show_in_s)
     booked = []
     monkeypatch.setattr(workers, "IDLE_JOBS", [(lambda w: not booked, lambda w: booked.append("kettle"))])
+    return w, pool, booked
+
+
+def test_the_worker_holds_it_after_a_booking_whose_programme_is_close(table, monkeypatch):
+    w, pool, booked = _pool(monkeypatch, next_show_in_s=10 * 60)
+    seen = _stub(monkeypatch)
     pool._idle_work()
     assert booked == ["kettle"] and not seen                                 # the booking first
     pool._idle_work()
     assert len(seen) == 1 and len(meeting.today(w)["turns"]) == 1            # then the meeting, a turn a tick
+
+
+def test_the_worker_holds_it_before_bookings_while_the_next_programme_is_far_off(table, monkeypatch):
+    """A Channel 8 start at 18:15 booked The Kettle's On and Wits before the meeting, and the meeting's actions for
+    that night reached only the 18:30 bookings (2026-11-14)."""
+    w, pool, booked = _pool(monkeypatch, next_show_in_s=45 * 60)
+    seen = _stub(monkeypatch)
+    while meeting.due(w):
+        pool._idle_work()
+        assert not booked                                                    # the meeting, every turn and the minutes
+    assert meeting.today(w)["minutes"] and len(seen) == 2 * meeting.ROUNDS + 1
+    pool._idle_work()
+    assert booked == ["kettle"]                                              # then the booking, which hears it
+
+
+def test_a_failed_meeting_turn_never_holds_the_bookings_back(table, monkeypatch):
+    w, pool, booked = _pool(monkeypatch, next_show_in_s=45 * 60)
+    _stub(monkeypatch, fail=(1,))
+    pool._idle_work()                                                        # the first turn fails
+    assert not meeting.due(w)                                                # and waits out its gap
+    pool._idle_work()
+    assert booked == ["kettle"]
 
 
 # ------------------------------------------------------------------ where the minutes go

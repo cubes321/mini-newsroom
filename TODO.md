@@ -270,9 +270,12 @@ bottom with the date.
     town (seven actions, all for Channel 8, and two canon notes, which reached the desk). About $0.10 a meeting,
     against the estimate of $0.25 a day. Found and fixed: nobody could move a story waiting in the pool when a
     memo asked for it (6535c73, 2026-11-15); the senior editor said "Morning" at 22:08, the prompt having said
-    "the afternoon" whatever the hour (6b3ba34, 2026-11-15, not yet seen by the models). Open: a Channel 8
-    start books The Kettle's On and Wits before the meeting is held, so its actions for that night reach only
-    the 18:30 bookings. Left: names and faces for the two editors; the meeting on screen.
+    "the afternoon" whatever the hour (6b3ba34, 2026-11-15, not yet seen by the models). Fixed 2026-11-16: a
+    Channel 8 start booked The Kettle's On and Wits before the meeting was held, so its actions for that night
+    reached only the 18:30 bookings; now the meeting goes ahead of Channel 8's bookings while the next programme is
+    more than half an hour off (`workers.MEETING_LEAD_S`), and after them nearer to air (each also books on demand,
+    and a failed turn's twenty-minute wait lets them through). Left: names and faces for the two editors; the
+    meeting on screen.
 - [ ] **The Kettle's On**, built 2026-11-13 (`entertainment/kettle.py`): Channel 8's teatime magazine, 19:00 to 20:00. Maggie Truscott (`kettle_a`, the Cannery café's cook, measures nothing) and Nigel Spargo
   (`kettle_b`, a retired chemistry teacher, weighs everything); one booking from 17:00 (the cook and the dish, a sofa
   guest, the phone-in's subject and caller kinds, the noticeboard) and four experts on the phones in turn (the garden,

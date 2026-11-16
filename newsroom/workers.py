@@ -115,6 +115,9 @@ _recent_repeats: deque[str] = deque(maxlen=12)
 # Bookings from outside this package (entertainment/): (due(world), book(world)), one per idle tick,
 # after Channel 7's own.
 IDLE_JOBS: list[tuple] = []
+# The editors' meeting goes ahead of those bookings while the next programme is further off than this: its five
+# calls take a few minutes, and the bookings then hear what it agreed (_idle_work).
+MEETING_LEAD_S = 30 * 60
 
 
 def repeatable(c: Segment) -> bool:
@@ -441,13 +444,22 @@ class WorkerPool:
                 rundown.commission(self.world, sid)   # tonight's running order: a theme, a subject per item
                 world_mod.save(self.world)
                 return
+            # The editors' daily meeting, from four: one editor's turn a tick, then the minutes. Ahead of another
+            # channel's bookings while the next programme is more than MEETING_LEAD_S away, so they hear what it
+            # agreed: a Channel 8 start at 18:15 booked The Kettle's On and Wits first, and the meeting's actions for
+            # that night reached only the 18:30 bookings (2026-11-14). Closer to air the bookings go first, so a late
+            # start never holds a programme for it; and every one of them books on demand if idle time hasn't.
+            now = schedule.now()
+            meet_first = schedule.show_end(now) - now > MEETING_LEAD_S
+            if meet_first and meeting.due(self.world):
+                meeting.step(self.world)
+                world_mod.save(self.world)
+                return
             for due, book in IDLE_JOBS:           # another channel's bookings (entertainment/)
                 if due(self.world):
                     book(self.world)
                     world_mod.save(self.world)
                     return
-            # The editors' daily meeting, from four: one editor's turn a tick, then the minutes. After any booking
-            # already due, so a late start never holds a programme for it.
             if meeting.due(self.world):
                 meeting.step(self.world)
                 world_mod.save(self.world)

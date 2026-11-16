@@ -13,8 +13,9 @@ all that crossed was the town's talk (talk.py). The meeting has four jobs:
 - a joint look at the day, kept as minutes the owner can read in the morning.
 
 It is a real exchange: each editor speaks as themselves, on their own model, two rounds, and then the minutes are
-written. One call per idle tick (workers._idle_work), from MEET_FROM, after any booking already due, so it never
-holds a programme. A turn that fails is tried once more; then the day has no meeting and nothing changes.
+written. One call per idle tick (workers._idle_work), from MEET_FROM: after Channel 7's bookings, and ahead of
+Channel 8's while the next programme is more than half an hour off (workers.MEETING_LEAD_S), so they hear what it
+agreed; nearer to air after them, so it never holds a programme. A turn that fails is tried once more; then the day has no meeting and nothing changes.
 
 **Seats, not channels.** This module knows who sits at the table (SEATS) and nothing of the other channel's code:
 the creative editor's seat is registered from outside (entertainment.attend(), on both channels' nights). With one
