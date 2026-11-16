@@ -116,8 +116,8 @@ KETTLE_SHOW = "kettle"             # The Kettle's On's show id in the archive (e
 
 def kettle(world, today: date) -> str | None:
     """Channel 8's latest The Kettle's On that aired in the last TALK_DAYS, as a sentence: who cooked what, and who
-    was on the sofa with their story, each only if its item went out (the archive keeps an item's brief before its
-    tokens are filled: "THE RECIPE, part one" and "ON THE SOFA"). A stand-in night is nobody's talk: its cook and
+    was on the sofa with their story, each only if its item went out (stamped on the booking as it airs, or for an
+    older night in the archive, which keeps an item's brief before its tokens are filled). A stand-in night is nobody's talk: its cook and
     sofa guest come round again. Read from the world alone (world.kettles)."""
     for k in reversed(getattr(world, "kettles", None) or []):
         try:
@@ -129,12 +129,14 @@ def kettle(world, today: date) -> str | None:
                 return None
             if k.get("stand_in"):
                 continue
+            # The booking's own stamps (kettle.aired); the archive only for a night aired before them, since a
+            # Channel 7 night can fill the whole archive before the talk is wanted.
             briefs = [e.get("brief") or "" for e in world.aired_archive()
                       if e.get("show") == KETTLE_SHOW and e.get("date") == k["date"]]
             said = []
-            if any(b.startswith("THE RECIPE") for b in briefs):
+            if k.get("dish_aired") or any(b.startswith("THE RECIPE") for b in briefs):
                 said.append(f"{k['dish']['cook']} made {k['dish']['dish'][0].lower() + k['dish']['dish'][1:]}")
-            if any(b.startswith("ON THE SOFA") for b in briefs):
+            if k.get("sofa_aired") or any(b.startswith("ON THE SOFA") for b in briefs):
                 s = k["sofa"]
                 said.append(f"{s['name']} was on the sofa ({s['about'].rstrip('.')})")
             if said:

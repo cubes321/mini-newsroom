@@ -103,3 +103,11 @@ def test_the_coast_road_is_talk_once_as_a_whole_series_when_its_last_leg_has_air
     assert talk.coast_road(_road_town(aired_legs=5), TODAY) is None                  # still on the road
     assert talk.coast_road(_road_town(last=TODAY), TODAY) is None                    # the last leg is tonight's
     assert talk.coast_road(_road_town(last=TODAY - timedelta(days=3)), TODAY) is None
+
+
+def test_the_kettles_on_talk_lasts_when_a_channel_seven_night_has_filled_the_archive():
+    """A Channel 7 night writes up to about a thousand archive entries, the archive's whole length: the stamps on the
+    booking (kettle.aired) are what the next day's talk reads."""
+    w = _kettle_town(items=())
+    w.kettles[-1].update(dish_aired=True, sofa_aired=True)
+    assert "Tegan Moyle made saffron buns" in talk.kettle(w, TODAY) and "on the sofa" in talk.kettle(w, TODAY)

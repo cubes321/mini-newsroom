@@ -81,12 +81,16 @@ Harriet's aprons.
 
 - **Planning**, from 18:30, on the "soap" route (Sonnet): every six aired episodes an arc (two or three storylines,
   a beat an episode); each night the episode: six scenes (set, characters, who knows what, what happens, what it
-  ends on), five or six spare side scenes that change nothing, the cliffhanger's question and the exact closing line
+  ends on: a line or a look, never an action, since only what is said reaches the screen), five or six spare side
+  scenes that change nothing, the cliffhanger's question and the exact closing line
   and who says it, and a summary. It answers the last aired cliffhanger first. A plan naming anyone outside the
   cast, or a set we don't have, gives way to the stand-in (the bible's first night).
 - **On air**, 20:20 to 20:40: the titles, five scenes, then the spare minutes as side scenes (three, then a break,
   then quiet moments in turn), and the sixth scene, the cliffhanger, last, at the end of the slot. Each scene is
-  written live (Haiku) to its plan and to what the scenes before it say; every line is a character. No captions,
+  written live (Haiku) to its plan and to what the scenes before it say; every line is a character, and the
+  writers are told the Kernicks' family ties. Before a scene airs `soap.tidy` mends its lines: a speaker's name
+  written in front of a line goes, directions in brackets or as lines of their own are dropped, and a speaker
+  calling themselves by name loses the name; the planned closing line is never touched. No captions,
   ticker or clock; each scene on its own set with its cast on their marks, in their actors' looks and voices.
 - **Fiction**: no character becomes a resident, no headline or story comes of it, and its archive entries keep
   only that they aired. Its actors are residents, with their own voices.

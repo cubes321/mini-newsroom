@@ -148,7 +148,8 @@ starts. A **route map**, the coast drawn in code with the journey dotted along i
 It's optional.
 
 **Canon.** The residents met get memories as usual. A finished series is remembered as one entry ("Lorna Quayle's
-coast road, six legs"), which Channel 7's Last Ferry can bring the host back to talk about.
+coast road, six legs"), which Channel 7's Last Ferry can bring the host back to talk about. Built 2026-11-16 as town
+talk (`talk.coast_road`): once every leg has aired, one line for the whole journey, for two days after the last.
 
 ## How it's built (Tideline, 2026-11-14)
 

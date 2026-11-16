@@ -372,3 +372,22 @@ def test_the_recipe_items_read_their_figures_off_the_card_and_the_booking_knows_
 def test_the_presenters_keep_their_own_pasts():
     rules = kettle.SYSTEMS[T.call]
     assert "only the pasts given here" in rules and "never take a guest's history" in rules
+
+
+def test_the_recipe_and_the_sofa_are_stamped_on_the_booking_as_they_air(channel, monkeypatch):
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    kettle.commission(w)
+    hook = player.AIRED_HOOKS["kettle"]
+    hook(Segment(slot_id=3, type=T.interview, show="kettle", brief=kettle._EXPERT), w)
+    assert not kettle.tonight(w).get("dish_aired") and not kettle.tonight(w).get("sofa_aired")
+    hook(Segment(slot_id=4, type=T.interview, show="kettle", brief=kettle._RECIPE_1), w)
+    hook(Segment(slot_id=9, type=T.interview, show="kettle", brief=kettle._SOFA), w)
+    assert kettle.tonight(w)["dish_aired"] and kettle.tonight(w)["sofa_aired"]
+
+
+def test_undo_takes_the_aired_hook_off():
+    undo = entertainment.use()
+    assert "kettle" in player.AIRED_HOOKS
+    undo()
+    assert "kettle" not in player.AIRED_HOOKS

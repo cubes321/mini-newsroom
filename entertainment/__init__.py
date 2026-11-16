@@ -142,7 +142,7 @@ def use():
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
                     writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS,
-                    player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED):
+                    player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED, player.AIRED_HOOKS):
             reg.pop(quiz.SHOW, None)
             reg.pop(kettle.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
@@ -172,6 +172,7 @@ def _kettle(kettle) -> None:
     writers.PROMPT_HOOKS[kettle.SHOW] = kettle.for_prompt
     writers.CAPTION_HOOKS[kettle.SHOW] = kettle.caption
     writers.STUDIO_HOOKS[kettle.SHOW] = kettle.studio            # the expert answers the calls
+    player.AIRED_HOOKS[kettle.SHOW] = kettle.aired               # the dish and the sofa, stamped for the town's talk
     writers.CALLED[kettle.SHOW] = kettle.CALLED
     writers.TEMPLATE_HOOKS[kettle.SHOW] = kettle.template
     writers.BOOKED_SHOWS.add(kettle.SHOW)                      # its guests are booked: no loose ends on the sofa

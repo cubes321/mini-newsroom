@@ -416,16 +416,23 @@ def after(seg, world: World, series: Series) -> None:
 _YOU_OR_I = re.compile(r"\b(I|I'm|I'd|I'll|I've|me|my|mine|you|you're|your|yours|we|we're|us|our)\b", re.IGNORECASE)
 
 
-def _direction(text: str, first: str) -> bool:
+def _direction(text: str, first: str, asked: bool = False) -> bool:
     """A stage direction written as a line: "Sal reads the last clause twice: ..." (the speaker's own name and a
     verb), or "Sliding it back under the teapot, where she'll never look." (a doing word to start, and nobody
-    talking to anybody), both from the 2026-11-14 night and rehearsal."""
-    if first and re.match(rf"{re.escape(first)}\s+[a-z]+s\b", text):
+    talking to anybody), both from the 2026-11-14 night and rehearsal. Not "Sal is..." or "Queenie knows best, and
+    you know it" (an auxiliary, or a line spoken to someone), and not an answer to a question ("What are you
+    doing?" "Putting the bins out."): `asked`, the line before ends in a question mark."""
+    m = re.match(rf"{re.escape(first)}\s+([a-z]+s)\b", text) if first else None
+    if m and m.group(1) not in _AUXILIARY and not _YOU_OR_I.search(text):
         return True
+    if asked:
+        return False
     m = re.match(r"([A-Z][a-z]+ing) (?:it|them|him|her|his|its|their|the|a|an|one)\b", text)    # not "Coming up."
     return bool(m) and m.group(1).lower() not in _NOT_DOING and not _YOU_OR_I.search(text) and not re.search(
         r"[?!]", text)
 
+
+_AUXILIARY = {"is", "was", "has", "does", "says"}
 
 # -ing words that start real lines ("Morning, Sal", "Nothing to say?", "Bring it here").
 _NOT_DOING = {"morning", "evening", "nothing", "something", "anything", "everything", "darling", "thing", "king",
@@ -433,15 +440,19 @@ _NOT_DOING = {"morning", "evening", "nothing", "something", "anything", "everyth
               "pudding", "wedding", "building", "ceiling", "shilling", "going", "being", "talking", "speaking"}
 
 
-def tidy(script, allowed: list[str], cast: list[str]) -> None:
+def tidy(script, allowed: list[str], cast: list[str], keep: str = "") -> None:
     """Mend what the scene writer gets wrong in the lines themselves, before the check (2026-11-14 rehearsal): a
     whole scene written "Queenie: Well, go on then" (the name goes, and a name that isn't the line's own speaker
     takes the line), directions in brackets or as lines of their own (dropped), and a speaker calling themselves
     by name ("Harriet, you can't call Davey charming", said by Harriet to Tristan, who answers "I said it kindly":
-    the name goes, since the line was hers and only the name was wrong)."""
+    the name goes, since the line was hers and only the name was wrong). `keep`: the episode's planned closing
+    line, which is never touched."""
     firsts = {c.split()[0]: c for c in cast}
     kept = []
     for l in script.lines:
+        if keep and l.text.strip() == keep.strip():
+            kept.append(l)
+            continue
         text = re.sub(r"\s*(\([^)]*\)|\[[^\]]*\]|\*[^*]*\*)\s*", " ", l.text).strip()
         m = re.match(r"([A-Z][a-z]+)(?: [A-Z][a-z]+)?\s*:\s*", text)
         if m and m.group(1) in firsts:
@@ -450,7 +461,8 @@ def tidy(script, allowed: list[str], cast: list[str]) -> None:
                 l.guest_name = firsts[m.group(1)]
         name = (l.guest_name or "").strip()
         first = name.split()[0] if name else ""
-        if not text or _direction(text, first):
+        asked = bool(kept) and kept[-1].text.rstrip().endswith("?")
+        if not text or _direction(text, first, asked):
             continue
         own = re.match(rf"{re.escape(first)}\s*,\s*", text) if first else None
         if own and text[own.end():]:
@@ -467,7 +479,7 @@ def check(seg, script, world: World, series: Series) -> None:
     if found is None:
         return
     allowed = set(found[0]["characters"])
-    tidy(script, list(found[0]["characters"]), list(series.characters))
+    tidy(script, list(found[0]["characters"]), list(series.characters), ep["last_line"] if found[2] else "")
     names = [(l.guest_name or "").strip() for l in script.lines]
     if any(name not in allowed for name in names):
         raise llm.LLMError(f"a line in {seg.brief} is spoken by someone not in it: {set(names) - allowed}")

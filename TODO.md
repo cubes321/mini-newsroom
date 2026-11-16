@@ -314,7 +314,8 @@ bottom with the date.
     the better (Ruby's thanks, two "Brenda, ..." callers, Joan's "Tam, can the support boat...", Gail's) and one
     worse (a garbled script that put "Tam, you've heard the worry" in front of Tam's own answer).
   - Done 2026-11-16, **town talk** (`talk.kettle`): who cooked what and who was on the sofa, each once its item
-    aired, for two days; not a stand-in night.
+    aired (stamped on the booking by `kettle.aired`, since a Channel 7 night can fill the 1,000-entry archive
+    before the talk is wanted), for two days; not a stand-in night.
   - Done 2026-11-16, from the creative editor's remarks (2026-11-14), not yet seen with the model: **the recipe
     card** (the booking's `dish.card`, every quantity, then the oven, temperature and time; both recipe items
     read their figures off it, and the editor's digest has it) after Nigel asked for 250 g of flour and the cook

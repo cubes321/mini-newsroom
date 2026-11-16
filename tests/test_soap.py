@@ -300,7 +300,7 @@ def test_a_scenes_doubled_names_directions_and_self_address_are_mended_before_it
     soap.commission(w, M)
     _stub(monkeypatch, _scene_reply([
         {"speaker": "guest", "guest_name": "Sal Annear", "text": "Sal: You've heard, then."},
-        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Davey: Heard what? (He puts the glass down.)"},
+        {"speaker": "guest", "guest_name": "Sal Annear", "text": "Davey: Heard what, Sal. (He puts the glass down.)"},
         {"speaker": "guest", "guest_name": "Sal Annear", "text": "Sal reads the last clause twice: the moorings."},
         {"speaker": "guest", "guest_name": "Davey Kernick", "text": "Sliding it back under the beer mat, where she'll "
                                                                     "never look."},
@@ -311,7 +311,7 @@ def test_a_scenes_doubled_names_directions_and_self_address_are_mended_before_it
     writers.script_segment(seg, w)
     assert [(l.guest_name, l.text) for l in seg.lines] == [
         ("Sal Annear", "You've heard, then."),
-        ("Davey Kernick", "Heard what?"),                                     # the name took the line, the aside went
+        ("Davey Kernick", "Heard what, Sal."),                                     # the name took the line, the aside went
         ("Sal Annear", "The petition takes your moorings, Davey."),
         ("Davey Kernick", "Coming up. Over my dead body."),
         ("Sal Annear", "Morning, then.")]
@@ -326,3 +326,18 @@ def test_the_writers_are_told_family_ties_and_that_a_scene_ends_on_a_line_or_a_l
     assert "never an action" in soap.Scene.model_fields["ends_on"].description
     assert "only what is said reaches the screen" in soap.brief_for(w, M, "{s2}")
     assert 'Davey calls Queenie "Mum"' in soap.for_prompt(w, M)
+
+
+def test_tidy_keeps_answers_auxiliaries_and_the_planned_last_line():
+    from newsroom.models import PanelScript
+
+    def mend(lines, keep=""):
+        s = PanelScript.model_validate({"headline": "Sal and Queenie", "lower_third": "Marina Row", "thread_id": None, "lines": [
+            {"speaker": "guest", "guest_name": who, "text": t} for who, t in lines]})
+        soap.tidy(s, ["Sal Annear", "Queenie Kernick"], CHARS, keep)
+        return [l.text for l in s.lines]
+    said = [("Sal Annear", "What are you doing out here?"), ("Queenie Kernick", "Putting the bins out."),
+            ("Sal Annear", "Sal is not daft, Queenie."), ("Queenie Kernick", "Queenie knows best, and you know it."),
+            ("Sal Annear", "Sal reads the letter twice.")]
+    assert mend(said) == [t for _, t in said[:4]]                         # only the real direction goes
+    assert mend(said, keep="Sal reads the letter twice.") == [t for _, t in said]   # the planned last line stays

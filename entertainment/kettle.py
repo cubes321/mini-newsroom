@@ -490,6 +490,18 @@ def _cast(world: World, k: dict) -> None:
         world.ensure_person(name, role, "resident", gender=gender or None, age=age or None, accent="british")
 
 
+def aired(seg, world: World) -> None:
+    """player.AIRED_HOOKS: the recipe or the sofa went out, so tonight's booking says so, for the town's talk the next
+    day (newsroom/talk.py). On the booking, not the archive: a Channel 7 night writes up to about a thousand entries,
+    the archive's whole length, so the morning after its Kettle's On items would have gone."""
+    k = tonight(world)
+    brief = seg.brief or ""
+    key = "dish_aired" if brief.startswith("THE RECIPE") else "sofa_aired" if brief.startswith("ON THE SOFA") else None
+    if k is not None and key and not k.get(key):
+        with world.lock:
+            k[key] = True
+
+
 def studio(world: World) -> str:
     """The guest in the studio during a call: tonight's expert (writers.STUDIO_HOOKS)."""
     return booked(world)["expert"]["name"]

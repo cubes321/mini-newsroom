@@ -236,7 +236,8 @@ aired episodes for weeks.
 
 Once a day the two editors meet (`newsroom/meeting.py`; the user's idea, 2026-11-14): Channel 7's senior editor and
 Channel 8's creative editor, each speaking as themselves on their own model (Sonnet and Opus), two rounds, and then
-the minutes (Sonnet). One call per idle tick from 16:00, after any booking already due.
+the minutes (Sonnet). One call per idle tick from 16:00: after Channel 7's bookings, and ahead of Channel 8's while
+the next programme is more than half an hour off (so they hear what it agreed), after them nearer to air.
 
 - **Its four jobs:** keep the channels out of each other's way (a resident in a hard news story is not tonight's
   jolly guest; code hands both editors the residents on both channels), pass stories between them, guard the shared
