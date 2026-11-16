@@ -49,6 +49,9 @@ SEATS: dict[str, int] = {}
 # Shows played bare, as a drama is: no lower thirds, no ticker, no clock, and their headlines never join the ticker
 # of the shows after them (entertainment/: Channel 8's soap).
 BARE_SHOWS: set[str] = set()
+# Shows whose headlines give the result away, as a quiz round's does ("Pot Luck round goes to The Crown at Saltby",
+# on the ticker as the round began, 2026-11-16): each joins the ticker once its item has finished (entertainment/: Wits).
+TICKER_AFTER: set[str] = set()
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
 # A show's own say over the view, by show id: (segment, view, line index) -> None, after the engine has set it (Channel 8's
@@ -223,7 +226,7 @@ class Player:
             self.programmes_at = now
         if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
-            if seg.headline and seg.show not in BARE_SHOWS:
+            if seg.headline and seg.show not in BARE_SHOWS and seg.show not in TICKER_AFTER:
                 self.ticker.append((seg.show, seg.headline))
             if seg.type is SegmentType.weather:
                 self.last_weather = seg
@@ -305,6 +308,8 @@ class Player:
                 self.buffer.forget(seg.slot_id)
             else:
                 self._confirm_aired(seg)
+                if seg.headline and seg.show in TICKER_AFTER and seg.show not in BARE_SHOWS:
+                    self.ticker.append((seg.show, seg.headline))       # now it has happened
                 self.buffer.forget(seg.slot_id - FORGET_BEHIND)
                 self.next_slot = seg.slot_id + 1
                 self.played += 1

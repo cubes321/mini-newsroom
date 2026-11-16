@@ -560,3 +560,29 @@ def test_the_two_teams_never_give_the_same_wrong_answer(monkeypatch):
             row = quiz._round(q, n)
             if not x["right"] and not x["stolen"]:
                 assert f'saying "{x["wrong"][0]}"' in row and f'saying "{x["wrong"][1]}"' in row
+
+
+def test_a_rounds_headline_joins_the_ticker_once_the_round_is_over(channel, monkeypatch):
+    """2026-11-16, the first real Channel 8 evening: each round's headline is its result ("Pot Luck round goes to
+    The Crown at Saltby"), and it was on the ticker as the round began."""
+    from newsroom.buffer import Buffer
+    from newsroom.models import Line
+    from newsroom.player import Player
+
+    w = world_mod.seed()
+    monkeypatch.setattr(schedule, "now", lambda: _at(20, 14))
+    pl = Player(Buffer(), w, producer=None, audio=False)
+    seg = Segment(slot_id=51, type=T.interview, show=quiz.SHOW, brief="{r6}", target_s=80,
+                  headline="Pot Luck round goes to The Crown at Saltby",
+                  lines=[Line(speaker="anchor", text="Round six, pot luck.", duration_s=2.0, mouth_env=[0.5] * 40)])
+    pl._start(seg, _at(20, 14))
+    assert all(h != seg.headline for _, h in pl.ticker)                       # not while the round is on
+    pl._finish(_at(20, 15))
+    assert (quiz.SHOW, seg.headline) in pl.ticker                             # then, as what happened
+
+
+def test_leaving_channel_8_takes_wits_off_the_after_the_round_list():
+    undo = entertainment.use()
+    assert quiz.SHOW in player.TICKER_AFTER
+    undo()
+    assert quiz.SHOW not in player.TICKER_AFTER
