@@ -434,3 +434,25 @@ def test_only_the_opening_hears_the_legs_joke_and_the_plans_notes_are_hers_to_te
     assert all("rattling" not in tv.brief_for(w, t) for t in ("{r1}", "{x1}", "{a2}")) and "rattling" not in tv.for_prompt(w)
     assert "in her own words (the plan's note, not to be read out)" in tv.brief_for(w, "{a2}")
     assert "knows nothing of who she met there" in tv.brief_for(w, "{m2}")
+
+
+def test_lornas_biscuit_is_the_first_openings_alone_and_the_day_so_far_is_not_read_out(channel, monkeypatch, nowhere):
+    """Leg 5 of the rehearsal (2026-11-16): the biscuit at every stop, four times, and the links reading the route aloud."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    other = tv.series(w)["legs"][0]["stops"][0]["meet"]
+    _stub(monkeypatch, _said([(tv.HOST, "Fourteen minutes for a biscuit, once. Anyway, the tea room."),
+                              (other, "A biscuit? We do biscuits."), (tv.HOST, "No biscuits for me."),
+                              (other, "Suit yourself."), (tv.HOST, "Lovely view.")]))
+    seg = Segment(slot_id=8, type=T.interview, show="coastroad", brief="{m1}", target_s=150)
+    writers.script_segment(seg, w)
+    said = [(l.guest_name, l.text) for l in seg.lines]
+    assert (tv.HOST, "Anyway, the tea room.") in said and (other, "A biscuit? We do biscuits.") in said
+    assert not any(n == tv.HOST and "biscuit" in t.lower() for n, t in said)
+    _stub(monkeypatch, _said([(tv.HOST, t) for t in ("Hello, and welcome.", "Fourteen minutes for a biscuit, once.",
+                                                     "So, every slow way there is.", "Off we go.")]))
+    seg = Segment(slot_id=1, type=T.interview, show="coastroad", brief="{open}", target_s=50, part="open")
+    writers.script_segment(seg, w)
+    assert any("biscuit" in l.text for l in seg.lines)                      # leg 1's opening keeps it
+    assert "never for saying: no reading out what's ahead" in tv.brief_for(w, "{r1}")

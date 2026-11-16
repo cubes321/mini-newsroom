@@ -308,7 +308,12 @@ bottom with the date.
         three not yet seen with the model. Still open, the editor's fourth review running: each stop is a road item,
         an arrival and a meeting, so a place is arrived at more than once; it asks for fewer linking items (a
         format change for the user: the road item could end on the arrival, or the opening take the first stop).
-        Rehearsal total 159 calls, $1.74 Claude.
+        Leg 5 on those (6 December): no object in nine items any more (the most, "cold", eight, at a winter
+        swimmers' stop), and the plan's note read out in four runs of eight words at one stop against fourteen.
+        Fixed after it: the day so far is for knowing, not saying (the links read the route aloud), and a sentence of
+        Lorna's about the biscuit goes anywhere but leg 1's opening (`_no_biscuit`: four on leg 5). Still open: the
+        close skipped the booked ending once, and the links, which the editor still finds repeating each other.
+        Rehearsal total $1.86 Claude.
       - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).

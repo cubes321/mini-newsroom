@@ -442,7 +442,10 @@ def day_so_far(leg: dict, tok: str) -> str:
     at = len(ORDER_STEPS) - 1 if waiting else ORDER_STEPS.index(tok)   # a wait: everything but the goodbye is done
     done = [_step(leg, t) for t in ORDER_STEPS[:at]]
     to_come = [_step(leg, t) for t in ORDER_STEPS[at if waiting else at + 1:]]
-    return ("THE DAY SO FAR: done: " + ("; ".join(done) if done else "nothing yet") + ". Now: "
+    # For her to know, not to say: with the stops still to come in every brief, the links read the route aloud ("the
+    # next stop is... and after that...", leg 5 of the rehearsal, 2026-11-16).
+    return ("THE DAY SO FAR (for knowing where she is, never for saying: no reading out what's ahead): done: "
+            + ("; ".join(done) if done else "nothing yet") + ". Now: "
             + ("a moment while she waits" if waiting else _step(leg, tok)) + ". Still to come: "
             + ("; ".join(to_come) if to_come else "nothing: this is the end of the leg") + ". Nothing still to come "
             "has happened yet: nobody still to come has been met, no place still to come reached, and the leg isn't "
@@ -635,6 +638,21 @@ def _keep_to_the_record(world: World, script) -> None:
         script.guest_memory = None
 
 
+def _no_biscuit(script) -> None:
+    """Her own old waiting story is the first leg's opening's and nowhere else's (the rule), and on leg 5 of the
+    rehearsal (2026-11-16) she told it at every stop, four times: a sentence of hers about the biscuit goes."""
+    kept = []
+    for l in script.lines:
+        if (l.guest_name or "").strip() == HOST:
+            sentences = re.split(r"(?<=[.!?])\s+", l.text.strip())
+            left = [x for x in sentences if not re.search(r"\bbiscuits?\b", x, re.IGNORECASE)]
+            if not left:
+                continue
+            l.text = " ".join(left)
+        kept.append(l)
+    script.lines = kept
+
+
 def _words_of(sentence: str) -> str:
     return " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
 
@@ -668,6 +686,8 @@ def check(seg, script, world: World) -> None:
     it = _item(entry, s, tok)
     _keep_to_the_record(world, script)
     _not_again(world, script)
+    if not (entry["n"] == 1 and it["kind"] == "open"):
+        _no_biscuit(script)
     if it["kind"] != "meet" and sum((l.guest_name or "").strip() == HOST for l in script.lines) >= 3:
         script.lines = [l for l in script.lines if (l.guest_name or "").strip() == HOST]
     names = {(l.guest_name or "").strip() for l in script.lines}
