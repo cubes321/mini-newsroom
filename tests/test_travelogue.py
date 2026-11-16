@@ -138,10 +138,10 @@ def test_the_next_leg_follows_the_last_aired_one(channel, monkeypatch, nowhere):
     w = _world("2026-11-20")
     _stub(monkeypatch)
     tv.commission(w)
-    seg = Segment(slot_id=3, type=T.interview, show="coastroad", brief="{a2}", target_s=60)
+    seg = Segment(slot_id=3, type=T.interview, show="coastroad", brief="{m2}", target_s=60)
     tv.aired(seg, w)
-    assert not tv.tonight(w)["aired"]                     # not the leg's first stop
-    seg.brief = "{a1}"
+    assert not tv.tonight(w)["aired"]                     # not the leg's first meeting
+    seg.brief = "{m1}"
     tv.aired(seg, w)
     assert tv.tonight(w)["aired"]
     w.last_date = "2026-11-24"
@@ -158,7 +158,7 @@ def test_every_item_is_on_location_filmed_by_day_with_lorna_and_the_stops_reside
     tv.commission(w)
     leg = tv.series(w)["legs"][0]
     _stub(monkeypatch, fail=True)
-    for tok in ("{open}", "{a1}", "{m1}", "{r1}", "{x1}", "{close}"):
+    for tok in ("{open}", "{m1}", "{r1}", "{x1}", "{close}"):
         seg = Segment(slot_id=3, type=T.interview, show="coastroad", brief=tok, target_s=60,
                       part={"{open}": "open", "{close}": "close"}.get(tok, ""))
         writers.script_segment(seg, w)
@@ -242,7 +242,7 @@ def test_the_last_leg_keeps_its_slot_all_night_once_its_first_stop_has_aired(cha
     w.travelogue["legs"] = [{"date": f"2026-11-{k:02d}", "made": made, "n": k, "aired": True} for k in range(1, 6)]
     _aired_wild(w, "2026-12-08")
     assert tv.commission(w)["n"] == 6
-    tv.aired(Segment(slot_id=3, type=T.interview, show="coastroad", brief="{a1}", target_s=60), w)
+    tv.aired(Segment(slot_id=3, type=T.interview, show="coastroad", brief="{m1}", target_s=60), w)
     assert tv.finished(w) and tv.rotation(date(2026, 12, 10)) == "coastroad"
     assert tv.rotation(date(2026, 12, 12)) is None
 
@@ -255,7 +255,7 @@ def test_every_item_of_every_leg_goes_through_the_real_path(n, channel, monkeypa
     tv.commission(w)
     tv.tonight(w)["n"] = n
     _stub(monkeypatch, fail=True)
-    toks = ["{open}", "{close}"] + [f"{{{k}{i}}}" for k in "am" for i in range(1, tv.STOPS + 1)] + ["{r1}", "{r2}", "{x5}"]
+    toks = ["{open}", "{close}"] + [f"{{m{i}}}" for i in range(1, tv.STOPS + 1)] + ["{r1}", "{r2}", "{x5}"]
     for tok in toks:
         assert tv.brief_for(w, tok)
         seg = Segment(slot_id=3, type=T.interview, show="coastroad", brief=tok, target_s=60,
@@ -280,7 +280,7 @@ def test_a_piece_to_camera_from_the_model_writes_lorna_no_memory(channel, monkey
             "lines": [{"speaker": "guest", "guest_name": tv.HOST, "text": t} for t in ("Here.", "There.", "Look.", "Right.")]})
     _stub(monkeypatch, reply)
     before = (len(w.person_by_name(tv.HOST).memories), w.person_by_name(tv.HOST).role)
-    seg = Segment(slot_id=4, type=T.interview, show="coastroad", brief="{a2}", target_s=60)
+    seg = Segment(slot_id=4, type=T.interview, show="coastroad", brief="{r1}", target_s=60)
     writers.script_segment(seg, w)
     assert {l.guest_name for l in seg.lines} == {tv.HOST}
     assert (len(w.person_by_name(tv.HOST).memories), w.person_by_name(tv.HOST).role) == before
@@ -326,7 +326,8 @@ def test_a_sentence_giving_someone_family_off_their_record_goes(channel, monkeyp
 
 
 def test_a_piece_lorna_gives_alone_loses_someone_elses_lines_not_the_whole_piece(channel, monkeypatch, nowhere):
-    """The rehearsal's arrival at the quay rail had the next resident speaking in it, and the template aired."""
+    """The rehearsal's arrival at the quay rail had the next resident speaking in it, and the template aired. (The
+    road item ends on the arrival since the arrival items went.)"""
     w = _world()
     _stub(monkeypatch)
     tv.commission(w)
@@ -334,7 +335,7 @@ def test_a_piece_lorna_gives_alone_loses_someone_elses_lines_not_the_whole_piece
     _stub(monkeypatch, _said([(tv.HOST, "Here's the quay rail."), (nxt, "Morning, Lorna."),
                               (tv.HOST, "That's Ellis, off his shift."), (tv.HOST, "The boxes are going over."),
                               (tv.HOST, "On we go.")]))
-    seg = Segment(slot_id=6, type=T.interview, show="coastroad", brief="{a2}", target_s=60)
+    seg = Segment(slot_id=6, type=T.interview, show="coastroad", brief="{r1}", target_s=60)
     writers.script_segment(seg, w)
     assert [l.text for l in seg.lines] == ["Here's the quay rail.", "That's Ellis, off his shift.",
                                            "The boxes are going over.", "On we go."]
@@ -348,9 +349,10 @@ def test_each_item_knows_where_she_is_in_the_leg(channel, monkeypatch, nowhere):
     tv.commission(w)
     stops = tv.series(w)["legs"][0]["stops"]
     road = tv.brief_for(w, "{r1}")
-    assert f"from {stops[0]['place']} to {stops[1]['place']}" in road and "is not at" in road and "no arriving" in road
-    assert "doesn't tell the journey again" in tv.brief_for(w, "{a2}") and f"{stops[1]['meet']} doesn't speak" in \
-        tv.brief_for(w, "{a2}")
+    assert f"from {stops[0]['place']} to {stops[1]['place']}" in road and "ending as she gets there" in road
+    assert f"{stops[1]['meet']} doesn't speak" in road
+    assert f"{stops[0]['meet']} doesn't speak" in tv.brief_for(w, "{open}")
+    assert stops[0]["what"] in tv.brief_for(w, "{open}")                  # the opening arrives at the first stop
     assert "no arriving again" in tv.brief_for(w, "{m2}") and "no arriving again" in tv.brief_for(w, "{close}")
     assert "The day only moves on" in tv._RULES
 
@@ -381,11 +383,11 @@ def test_each_brief_says_what_is_done_and_what_is_still_to_come():
     leg = {"stops": [{"place": f"Stop {k}", "meet": f"Person {k}"} for k in "ABC"], "travel": "a borrowed bike"}
     r2 = tv.day_so_far(leg, "r2")
     done, to_come = r2.split("Still to come: ")
-    assert "meeting Person B there" in done and "meeting Person C there" in to_come and "the goodbye" in to_come
+    assert "meeting Person B at Stop B" in done and "meeting Person C at Stop C" in to_come and "the goodbye" in to_come
     assert "the leg isn't over until the goodbye" in r2
     assert "done: nothing yet" in tv.day_so_far(leg, "open")
     wait = tv.day_so_far(leg, "x4")
-    assert "meeting Person C there" in wait.split("Still to come")[0] and "Still to come: the goodbye" in wait
+    assert "meeting Person C at Stop C" in wait.split("Still to come")[0] and "Still to come: the goodbye" in wait
     assert "Still to come: nothing" in tv.day_so_far(leg, "close")
 
 
@@ -431,8 +433,8 @@ def test_only_the_opening_hears_the_legs_joke_and_the_plans_notes_are_hers_to_te
     leg["travel"] = "the bus, which stops for everyone, rattling"
     w.travelogue["legs"][-1]["n"] = 2
     assert "rattling" in tv.brief_for(w, "{open}")
-    assert all("rattling" not in tv.brief_for(w, t) for t in ("{r1}", "{x1}", "{a2}")) and "rattling" not in tv.for_prompt(w)
-    assert "in her own words (the plan's note, not to be read out)" in tv.brief_for(w, "{a2}")
+    assert all("rattling" not in tv.brief_for(w, t) for t in ("{r1}", "{x1}", "{m2}")) and "rattling" not in tv.for_prompt(w)
+    assert "in her own words (the plan's note, not to be read out)" in tv.brief_for(w, "{r1}")
     assert "knows nothing of who she met there" in tv.brief_for(w, "{m2}")
 
 
@@ -456,3 +458,30 @@ def test_lornas_biscuit_is_the_first_openings_alone_and_the_day_so_far_is_not_re
     writers.script_segment(seg, w)
     assert any("biscuit" in l.text for l in seg.lines)                      # leg 1's opening keeps it
     assert "never for saying: no reading out what's ahead" in tv.brief_for(w, "{r1}")
+
+
+
+def test_a_leg_is_seven_planned_items_with_no_arrival_items():
+    """The user, 2026-11-16: every stop had a road item, an arrival and a meeting, and the editor found each place
+    arrived at two or three times, five reviews running."""
+    planned = [i.brief for i in tv.show_def().pattern if isinstance(getattr(i, "brief", None), str)]
+    assert planned == ["{open}", "{m1}", "{r1}", "{m2}", "{r2}", "{m3}"]
+    assert [i.brief for i in tv.show_def().closing] == ["{close}"]
+    assert tv.ORDER_STEPS == ("open", "m1", "r1", "m2", "r2", "m3", "close")
+
+
+def test_the_goodbye_is_the_closes_alone(channel, monkeypatch, nowhere):
+    """Leg 6 of the rehearsal (2026-11-16): the last stop's note was the ending itself, and the road there thanked us
+    for coming along and said farewell a meeting early."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    assert "This is the last stop, but not the end" in tv.brief_for(w, "{r2}")
+    assert "last stop" not in tv.brief_for(w, "{r1}")
+    _stub(monkeypatch, _said([(tv.HOST, t) for t in (
+        "Down the hill to the harbour steps.", "Full circle, and the ferry's coming in.",
+        "Thanks for coming along the coast road with me.", "Until next time.", "The step is cold.")]))
+    seg = Segment(slot_id=9, type=T.interview, show="coastroad", brief="{r2}", target_s=80)
+    writers.script_segment(seg, w)
+    assert [l.text for l in seg.lines] == ["Down the hill to the harbour steps.", "Full circle, and the ferry's coming in.",
+                                           "The step is cold."]

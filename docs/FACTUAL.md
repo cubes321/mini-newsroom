@@ -202,8 +202,14 @@ building).
   - The first draft hung stops on dated news ("the crane booked for the seventeenth", "Monday's committee"). The legs
     air over a month, so the planner is now told nothing may hang on a date. The draft is kept as
     `lorna_quayle.draft1.json`; the route now saved is "Six Slow Ways and a Tin of Parkin".
-- **A leg on air** runs: the opening, then three stops (Lorna arriving to camera, then meeting the stop's resident)
-  with the road between them, the waiting moments for spare minutes (three, then a break), and the close at dusk.
+- **A leg on air** runs: the opening, which arrives at the first stop, then a meeting with each stop's resident, with
+  the road between them ending on the arrival at the next stop; the waiting moments for spare minutes (three, then a
+  break), and the close at dusk. Seven planned items: until 2026-11-16 each stop also had an arrival item, and the
+  creative editor found every place arrived at two or three times, five reviews running; the user cut them.
+  - Each brief says where the leg has got to, what's done and what's still to come (for knowing, not saying); the
+    writers see the earlier items in full, and what has come up in three items is named to be left alone. In code: a
+    sentence giving someone a relative their record doesn't have goes, as does one said word for word earlier, and
+    Lorna's biscuit outside leg 1's opening.
   - It's filmed by day, with no LIVE tag, in its own view (`scenes.SCENES["road"]`, `player.VIEW_HOOKS`): Lorna in
     her raincoat, and the resident taking the frame when they speak.
   - The check hook keeps a to-camera piece Lorna's alone, and a meeting to Lorna and that stop's resident. It also

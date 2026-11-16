@@ -313,7 +313,15 @@ bottom with the date.
         Fixed after it: the day so far is for knowing, not saying (the links read the route aloud), and a sentence of
         Lorna's about the biscuit goes anywhere but leg 1's opening (`_no_biscuit`: four on leg 5). Still open: the
         close skipped the booked ending once, and the links, which the editor still finds repeating each other.
-        Rehearsal total $1.86 Claude.
+        **The arrival items cut** (the user, 2026-11-16): a leg is now seven planned items, the opening arriving at
+        the first stop and each road item ending on the arrival at the next (`show_def`, `ORDER_STEPS`; a leg is
+        stamped aired by its first meeting). Leg 6 on it (8 December, the last leg of the route): the first review
+        with no place arrived at twice. It found the farewell a meeting early: the last stop's note was the ending
+        itself ("Full circle... finish the last of the parkin"), and the road there thanked us for coming along.
+        Fixed after it: the road to the last stop is told it arrives and nothing more, and a sentence of Lorna's that
+        signs off goes from any item but the close and the meetings (`_no_goodbye`); not yet seen with the model,
+        and the route is finished, so the next chance is a new host's route. Still open: link material repeating
+        (downhill, knees, the ferry coming in, three or four times on leg 6). Rehearsal total $1.95 Claude.
       - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).

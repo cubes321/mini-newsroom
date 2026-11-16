@@ -15,10 +15,12 @@ waiting stories. It is canon: the residents she meets are the town's, and rememb
   resident to meet. A route saved by `python -m entertainment.travelogue --plan` (data/travelogue/<host>.json) is
   used as it stands, so the user can read it first; if neither exists the call is made at the first booking. If it
   fails, a stand-in route made in code takes its place.
-- **A leg** is the opening, three stops (Lorna arriving to camera, then meeting the stop's resident), the road
-  between them, waiting moments for spare minutes (three, then a break, round again), and the close at dusk. It is
-  filmed by day, with no LIVE tag, in its own view (scenes.SCENES["road"], player.VIEW_HOOKS).
-- **Aired** is stamped when a leg's first stop goes out (player.AIRED_HOOKS); the next leg follows the last aired
+- **A leg** is the opening, which arrives at the first stop, then a meeting with each stop's resident and between
+  them the road, which ends on the arrival at the next stop; waiting moments for spare minutes (three, then a break,
+  round again), and the close at dusk. (Until 2026-11-16 each stop had an arrival item of its own, and every place
+  was arrived at two or three times; the user cut them.) Each brief says where the leg has got to (`day_so_far`). It
+  is filmed by day, with no LIVE tag, in its own view (scenes.SCENES["road"], player.VIEW_HOOKS).
+- **Aired** is stamped when a leg's first meeting goes out (player.AIRED_HOOKS); the next leg follows the last aired
   one. After the sixth, the series is over and Tideline has the slot every night until the user picks a new host.
 - **The alternation** (`schedule.ROTATIONS`, which wildlife.py's slot shares): on a Channel 8 night the slot goes to
   whichever series aired less recently before today, by the world's records, not the weekday, since the channels
@@ -289,8 +291,9 @@ def booked(world: World) -> tuple[dict, dict]:
 
 
 def aired(seg, world: World) -> None:
-    """player.AIRED_HOOKS: the leg's first stop went out: the next booking moves on to the leg after."""
-    if seg.brief != "{a1}":
+    """player.AIRED_HOOKS: the leg's first meeting went out: the next booking moves on to the leg after. (The first
+    stop's arrival item until 2026-11-16, when the arrival items went and the opening took the first stop.)"""
+    if seg.brief != "{m1}":
         return
     entry = tonight(world)
     if entry and not entry.get("aired"):
@@ -411,8 +414,8 @@ def _said_today(world: World) -> list[str]:
     return out
 
 
-ORDER_STEPS = ("open", *(t for k in range(1, STOPS + 1) for t in (f"a{k}", f"m{k}") + ((f"r{k}",) if k < STOPS else ())),
-               "close")
+ORDER_STEPS = ("open", *(t for k in range(1, STOPS + 1) for t in (f"m{k}",) + ((f"r{k}",) if k < STOPS else ())),
+               "close")                     # as show_def: no arrival items since 2026-11-16
 
 
 def how(leg: dict) -> str:
@@ -425,13 +428,14 @@ def how(leg: dict) -> str:
 def _step(leg: dict, tok: str) -> str:
     stops = leg["stops"]
     if tok == "open":
-        return f"setting off from {stops[0]['place']}"
+        return f"setting off, at {stops[0]['place']}"
     if tok == "close":
         return f"the goodbye at {stops[-1]['place']}"
     k = int(tok[1:])
     st = stops[k - 1]
-    return {"a": f"arriving at {st['place']}", "m": f"meeting {st['meet']} there",
-            "r": f"the way from {st['place']} to {stops[min(k, STOPS - 1)]['place']}"}[tok[0]]
+    nxt = stops[min(k, STOPS - 1)]['place']
+    return {"a": f"arriving at {st['place']}", "m": f"meeting {st['meet']} at {st['place']}",
+            "r": f"the way from {st['place']} to {nxt}, arriving there"}[tok[0]]
 
 
 def day_so_far(leg: dict, tok: str) -> str:
@@ -511,13 +515,18 @@ def _brief(world: World, brief: str) -> str:
     leg, n = it["leg"], entry["n"]
     if it["kind"] == "open":
         prev = "" if n == 1 else f" Last time she got to: {s['legs'][n - 2]['ends']}."
-        return (f"THE OPENING of leg {n} of {LEGS}, \"{leg['title']}\": Lorna to camera at {leg['stops'][0]['place']}: "
+        first = leg["stops"][0]
+        # The opening is the first stop's arrival too, since 2026-11-16 (the user): a road item, an arrival and a
+        # meeting at every stop arrived at each place two or three times, five reviews running.
+        return (f"THE OPENING of leg {n} of {LEGS}, \"{leg['title']}\": Lorna to camera at {first['place']}: "
                 f"\"Hello, and welcome to {TITLE}\", where she is and how she's going today: {leg['travel']}."
                 + (f" Her reason for the journey: {s['why']}" if n == 1 else prev)
-                + " She is setting off: not the stops ahead one by one, and nothing of how the day ends. Only Lorna "
-                  "speaks, five to eight lines")
+                + f" Then the place itself, in her own words (the plan's note, not to be read out): {first['what']} "
+                  f"{first['meet']} doesn't speak in this item: meeting them is the next one. Not the stops ahead one "
+                  "by one, and nothing of how the day ends. Only Lorna speaks, six to nine lines")
     # Where she is in the leg, item by item: told only "ON THE ROAD to the quay rail", the writer had her there
     # already, the arrival arrived again, and the meeting opened by arriving a third time (rehearsal, 2026-11-16).
+    # Since then the road item ends on the arrival, and there is no arrival item.
     if it["kind"] == "close":
         nxt = f" Next time: {s['legs'][n]['title']}." if n < LEGS else " That's the whole journey: the last leg."
         last = leg["stops"][-1]
@@ -525,27 +534,25 @@ def _brief(world: World, brief: str) -> str:
                 f"meeting {last['meet']}: no arriving again and nothing about the place that's been said; a line "
                 f"back over the day, then: {leg['ends']}{nxt} No hello: a goodbye, without saying when. Only Lorna "
                 "speaks, five to seven lines")
-    if it["kind"] == "arrive":
-        st = it["stop"]
-        came = ("" if it["k"] == 1 else
-                " The way here was the item before: she has just got here, and doesn't tell the journey again.")
-        # The plan's note is in her voice, and went out word for word (rehearsal, 2026-11-16): hers to tell.
-        return (f"STOP {it['k']} of {STOPS}: Lorna arrives at {st['place']} and tells us about it to camera, in her "
-                f"own words (the plan's note, not to be read out): {st['what']}{came} {st['meet']} doesn't speak in "
-                "this item: meeting them is the next one. Only Lorna speaks, five to eight lines")
     if it["kind"] == "meet":
         st = it["stop"]
-        return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She is already here and "
-                "has told us about the place in the item before: straight into the talk, with no arriving again and "
+        return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She has just got here and "
+                "told us about the place in the item before: straight into the talk, with no arriving again and "
                 f"no describing the place again. Twelve to sixteen lines, every one either Lorna (guest_name "
                 f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does. "
                 f"{st['meet']} wasn't at the earlier stops and knows nothing of who she met there")
     if it["kind"] == "road":
         frm, to = leg["stops"][it["k"] - 1], it["to"]
-        return (f"ON THE WAY from {frm['place']} to {to['place']} ({how(leg)}): she has left {frm['place']} and "
-                f"is not at {to['place']} yet, so no arriving and nothing about it as if she were there (her arrival "
-                "is the next item): the journey so far, what she sees on the way, and what she's hoping for. Only "
-                "Lorna speaks, five to eight lines")
+        # The plan's note is in her voice, and went out word for word (rehearsal, 2026-11-16): hers to tell.
+        return (f"ON THE WAY from {frm['place']} to {to['place']} ({how(leg)}), ending as she gets there: she has "
+                f"left {frm['place']}; what she sees on the way, briefly; then she arrives, and tells us about "
+                f"{to['place']} in her own words (the plan's note, not to be read out): {to['what']} {to['meet']} "
+                "doesn't speak in this item: meeting them is the next one. Only Lorna speaks, six to nine lines"
+                # The last stop's note can be the ending itself ("Full circle... finish the last of the parkin"),
+                # and arriving there, leg 6 said its goodbye a meeting early (rehearsal, 2026-11-16).
+                + (". This is the last stop, but not the end: the meeting and the goodbye are still to come, so she "
+                   "arrives and nothing more: no summing up, no thanks, no farewell, and nothing finished yet"
+                   if it["k"] == STOPS - 1 else ""))
     return ("WHILE SHE WAITS (" + how(leg) + "): " + WAITING[(it["k"] - 1) % len(WAITING)]
             + ". Only Lorna speaks, five to seven lines; nothing said earlier today again")
 
@@ -653,6 +660,25 @@ def _no_biscuit(script) -> None:
     script.lines = kept
 
 
+FAREWELL = re.compile(r"\b(?:thanks?|thank you)\s+(?:so much\s+)?for\s+(?:coming|watching|joining|travelling|"
+                      r"tagging)\b|\buntil next time\b|\bsee you next time\b|\bgoodbye\b|\bgoodnight\b",
+                      re.IGNORECASE)
+
+
+def _no_goodbye(script) -> None:
+    """The goodbye is the close's: on leg 6 of the rehearsal (2026-11-16) the road to the last stop thanked us for
+    coming along and said farewell a meeting early. A sentence of Lorna's that signs off goes from any other item."""
+    kept = []
+    for l in script.lines:
+        if (l.guest_name or "").strip() == HOST:
+            left = [x for x in re.split(r"(?<=[.!?])\s+", l.text.strip()) if not FAREWELL.search(x)]
+            if not left:
+                continue
+            l.text = " ".join(left)
+        kept.append(l)
+    script.lines = kept
+
+
 def _words_of(sentence: str) -> str:
     return " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
 
@@ -688,6 +714,8 @@ def check(seg, script, world: World) -> None:
     _not_again(world, script)
     if not (entry["n"] == 1 and it["kind"] == "open"):
         _no_biscuit(script)
+    if it["kind"] not in ("close", "meet"):                 # a meeting may thank its resident
+        _no_goodbye(script)
     if it["kind"] != "meet" and sum((l.guest_name or "").strip() == HOST for l in script.lines) >= 3:
         script.lines = [l for l in script.lines if (l.guest_name or "").strip() == HOST]
     names = {(l.guest_name or "").strip() for l in script.lines}
@@ -814,8 +842,8 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
     elif it["kind"] == "close":
         said = [f"And that's where I've got to: {leg['ends']}.", "My feet have opinions about it.", "Until next time.",
                 "Keep waiting. It's worth it."]           # a panel script needs four lines
-    elif it["kind"] == "arrive":
-        said = [f"Here we are: {it['stop']['place']}.", *_STAND_IN[1:]]
+    elif it["kind"] == "road":
+        said = [f"On to {it['to']['place']}.", *_STAND_IN[1:3], f"And here we are: {it['to']['place']}."]
     else:
         said = list(_STAND_IN)
     return PanelScript(lines=[PanelLine(speaker="guest", guest_name=HOST, text=x) for x in said],
@@ -827,16 +855,17 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
 
 def show_def() -> Show:
     items: list = []
+    # No arrival items since 2026-11-16 (the user): the opening arrives at the first stop, and each road item ends on
+    # the arrival at the next.
     for k in range(1, STOPS + 1):
-        items.append(I(T.interview, brief="{a%d}" % k, target_s=60.0))
         items.append(I(T.interview, brief="{m%d}" % k, target_s=150.0))
         if k < STOPS:
-            items.append(I(T.interview, brief="{r%d}" % k, target_s=60.0))
+            items.append(I(T.interview, brief="{r%d}" % k, target_s=80.0))
     spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(SPARES // 3)),
                      target_s=50.0) for k in range(3))
     return Show(
         SHOW, TITLE.upper(), "COAST ROAD", (214, 160, 40),
-        pattern=(T.bumper, I(T.interview, "open", brief="{open}", target_s=50.0), *items, *spares, T.ad_break),
+        pattern=(T.bumper, I(T.interview, "open", brief="{open}", target_s=70.0), *items, *spares, T.ad_break),
         loop_from=2 + len(items),
         closing=(I(T.interview, "close", brief="{close}", target_s=45.0),),
         target_s={T.bumper: 10.0, T.interview: 90.0, T.ad_break: 60.0},
