@@ -118,7 +118,12 @@ def redirect_paths(args: argparse.Namespace) -> None:
     # --log-llm too: a test run's calls in the real data/llm_calls muddle a night's costs
     os.environ["NEWSROOM_LLM_CALLS"] = str(scratch / "llm_calls")
     os.environ["NEWSROOM_LOGS"] = str(scratch / "logs")             # a test run's log stays with its copy
-    log.info("scratch run in %s (copied from %s)", scratch, world)
+    # Its own kill switch: F12 in a test window wrote data/control.txt and held a real station running beside it
+    # (found 2026-11-16). Reach this one with NEWSROOM_CONTROL=<scratch>/control.txt python -m newsroom.control,
+    # or set NEWSROOM_CONTROL before the run to choose the file.
+    os.environ.setdefault("NEWSROOM_CONTROL", str(scratch / "control.txt"))
+    log.info("scratch run in %s (copied from %s); its kill switch is %s", scratch, world,
+             os.environ["NEWSROOM_CONTROL"])
 
 
 LOG_FORMAT = "%(asctime)s %(levelname)-5s %(name)s: %(message)s"

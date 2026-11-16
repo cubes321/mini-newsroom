@@ -333,3 +333,25 @@ def test_the_advert_scene_draws_with_and_without_an_owner(pool, world):
                  {"business": "Okonkwo's Taxis", "tagline": "Home", "where": "Ring 441", "owner": "Kenji Okonkwo",
                   "owner_id": "guest"}):
         scenes.render(c, View(mode="advert", advert=card, backdrop="harbour", speaker="guest", mouth=0.5), 0.5)
+
+
+def test_a_seed_the_content_check_refuses_is_skipped_and_its_owner_never_cast(pool, world, monkeypatch):
+    import dataclasses
+
+    from newsroom import safety
+
+    monkeypatch.setattr(safety, "CONFIG", dataclasses.replace(
+        CONFIG, safety=dataclasses.replace(CONFIG.safety, extra_terms=["hardware"])))   # Fowle & Sons Hardware
+    safety._pattern.cache_clear()
+    monkeypatch.setattr(adverts, "_refused", set())
+    try:
+        ticks = 0
+        while adverts.seed_one(world):
+            ticks += 1
+            assert ticks < 100, "seed_one went round on the same refused seed"
+        refused = {a for a, s in adverts.SEEDS.items() if safety.check(safety.strings(s))}
+        assert refused and adverts._refused == refused
+        assert len(pool) == len(adverts.SEEDS) - len(refused)
+        assert world.person_by_name("Jasper Fowle") is None          # build never ran, so he wasn't cast
+    finally:
+        safety._pattern.cache_clear()

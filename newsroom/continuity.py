@@ -249,6 +249,7 @@ def bake_ident(show: str, n: int) -> Item:
 def _read_card(item_id: str, kind: str, title: str, shown: list[str], spoken: list[str] | None = None,
                show: str = "news") -> Segment:
     """A slide with `shown` on it, the announcer reading `spoken` (the slide's own lines by default)."""
+    safety.require([title, *shown], f"the slide of {item_id}")     # shown, never voiced: tts never sees it
     folder = pool().dir
     voiced = [_voice(t, folder / f"{item_id}_{i:02d}.wav")[1] for i, t in enumerate(spoken or shown)]
     return _segment(kind, voiced, show, title=title, lines=shown)
@@ -343,6 +344,13 @@ def bake_notice(key: str) -> Item:
     return Item(id=f"notice_{key}", kind="notice", segment=_read_card(f"notice_{key}", "notice", title, lines))
 
 
+# Items with a line the content check refused (safety.py), by the key bake_one tried them under: not tried
+# again this run. Their words are the station's own, so a second try would be refused the same way, and
+# bake_one runs ahead of the desk and the editors in the idle work: on a scratch test (2026-11-16) one
+# notice was retried every second and nothing after it in the idle work ever ran.
+_refused: set[str] = set()
+
+
 def bake_one(world=None, now: float | None = None) -> bool:
     """Bake the one most-needed item, if any (one per idle tick: each is a few TTS lines).
     Order: this show's idents, the programme card, today's tides, then the notices."""
@@ -357,19 +365,21 @@ def bake_one(world=None, now: float | None = None) -> bool:
         mtime = stem.stat().st_mtime if stem.exists() else 0.0
         for n in range(len(IDENT_LINES[s])):
             it = p.get(f"ident_{s}_{n}")
-            if it is None or it.source_mtime != mtime:
-                return _add(p, lambda: bake_ident(s, n))
+            if (it is None or it.source_mtime != mtime) and f"ident_{s}_{n}" not in _refused:
+                return _add(p, lambda: bake_ident(s, n), f"ident_{s}_{n}")
     nxt = upcoming(now)
-    if nxt and not any(it.kind == "programmes" and it.valid_until == nxt[0][0] for it in p.items()):
+    card = f"programmes_until_{nxt[0][0]:.0f}" if nxt else ""
+    if nxt and card not in _refused and not any(it.kind == "programmes" and it.valid_until == nxt[0][0]
+                                                for it in p.items()):
         _expire(p, now)
-        return _add(p, lambda: bake_programmes(now, world))
+        return _add(p, lambda: bake_programmes(now, world), card)
     today = datetime.fromtimestamp(now).date()
-    if p.get(f"tides_{today:%Y%m%d}") is None:
+    if p.get(f"tides_{today:%Y%m%d}") is None and f"tides_{today:%Y%m%d}" not in _refused:
         _expire(p, now)
-        return _add(p, lambda: bake_tides(today))
+        return _add(p, lambda: bake_tides(today), f"tides_{today:%Y%m%d}")
     for key in NOTICES:
-        if p.get(f"notice_{key}") is None:
-            return _add(p, lambda: bake_notice(key))
+        if p.get(f"notice_{key}") is None and f"notice_{key}" not in _refused:
+            return _add(p, lambda: bake_notice(key), f"notice_{key}")
     return False
 
 
@@ -525,9 +535,18 @@ def bake_community(world, now: float) -> Item | None:
     return Item(id=item_id, kind="notice", valid_from=now, valid_until=_at(day, 0) + 86400, segment=card)
 
 
-def _add(p: Pool, bake) -> bool:
+def _add(p: Pool, bake, refuse_as: str = "") -> bool:
+    """Bake and add one item. Given `refuse_as`, an item the content check refuses is noted under that key
+    and never tried again this run (True all the same: the idle tick was spent on it)."""
     t0 = time.perf_counter()
-    it = bake()
+    try:
+        it = bake()
+    except safety.Unsafe as e:
+        if not refuse_as:
+            raise
+        _refused.add(refuse_as)
+        log.warning("continuity %s not made, and not tried again this run: %s", refuse_as, e)
+        return True
     p.add(it)
     log.info("continuity %s baked (%d in the pool, %.1fs)", it.id, len(p), time.perf_counter() - t0)
     return True

@@ -298,3 +298,39 @@ def test_channel_eights_card_after_its_closedown_names_no_documentary_and_is_bak
         assert sum(i.kind == "programmes" for i in cont.items()) == 1          # once, not every tick
     finally:
         undo()
+
+
+def test_an_item_the_content_check_refuses_is_tried_once_and_the_rest_still_bake(cont, monkeypatch):
+    """A word in the station's own notices: on a scratch test (2026-11-16) the lost-property notice was refused
+    every idle second, and the desk and the editors behind it in the idle work never had a turn."""
+    import dataclasses
+
+    from newsroom import safety
+    from newsroom.config import CONFIG
+
+    monkeypatch.setattr(safety, "CONFIG", dataclasses.replace(
+        CONFIG, safety=dataclasses.replace(CONFIG.safety, extra_terms=["harbour", "evening"])))   # "evening": spoken in an ident, never shown
+    safety._pattern.cache_clear()
+    monkeypatch.setattr(continuity, "_refused", set())
+    stub, asked = tts.synthesize, []
+
+    def checked(text, voice, out, **kw):              # as tts.synthesize: the last look before it is spoken
+        asked.append(text)
+        safety.require(text, f"a line for {voice}")
+        return stub(text, voice, out, **kw)
+    monkeypatch.setattr(tts, "synthesize", checked)
+    try:
+        now, ticks = _ts("19:20"), 0
+        while continuity.bake_one(world_mod.seed(), now):
+            ticks += 1
+            assert ticks < 100, "bake_one went round on the same refused item"
+        made = {i.id for i in cont.items()}
+        assert "notice_lost_property" not in made     # its title, "HARBOUR OFFICE", is refused on the slide
+        assert "notice_library" not in made           # "the old harbour photographs", on its slide too
+        assert "ident_magazine_0" not in made         # "Channel 7, this evening.", refused at the voice
+        assert {"ident_magazine_1", "notice_recycling", "notice_lifeboat", "tides_20261027"} <= made
+        assert continuity._refused == {"ident_magazine_0", "notice_lost_property", "notice_library"}
+        assert sum("evening" in t for t in asked) == 1             # the ident's line, asked for once
+        assert not any("harbour" in t.lower() for t in asked)      # the slides were refused before any voice
+    finally:
+        safety._pattern.cache_clear()

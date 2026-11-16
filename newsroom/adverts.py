@@ -303,11 +303,21 @@ def build(ad_id: str, script: AdvertScript, world: World, *, seed: bool = False)
     return Advert(id=ad_id, script=script, seed=seed, made=date.today().isoformat(), voice=vo, segment=seg)
 
 
+# Seeds with a line the content check refused: not tried again this run, or the idle work would retry
+# the same words every tick and never reach anything after it (as continuity.bake_one once did).
+_refused: set[str] = set()
+
+
 def seed_one(world: World) -> bool:
     """Voice one hand-written advert the pool doesn't have yet. False when they are all there."""
     p = pool()
     for ad_id, script in SEEDS.items():
-        if ad_id not in p:
+        if ad_id not in p and ad_id not in _refused:
+            # The whole script, before build casts its owner: the card's words are shown, never voiced.
+            if bad := safety.check(safety.strings(script)):
+                _refused.add(ad_id)
+                log.warning("advert %s has %r in it; not voiced, and not tried again this run", ad_id, bad)
+                return True
             t0 = time.perf_counter()
             p.add(build(ad_id, script, world, seed=True))
             log.info("advert %s voiced in %.1fs (%d in the pool)", ad_id, time.perf_counter() - t0, len(p))

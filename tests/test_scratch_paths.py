@@ -17,7 +17,7 @@ import json, sys
 from newsroom.__main__ import parse_args, redirect_paths
 redirect_paths(parse_args(["--scratch", "--log-llm"]))
 from newsroom.config import CONFIG
-print(json.dumps({k: str(getattr(CONFIG.paths, k)) for k in ("world", "cache", "tipline", "ads", "llm_calls")}))
+print(json.dumps({k: str(getattr(CONFIG.paths, k)) for k in ("world", "cache", "tipline", "ads", "llm_calls", "control")}))
 """
 
 
@@ -29,6 +29,7 @@ def test_a_scratch_run_logs_its_calls_in_its_own_folder():
     try:
         assert scratch.name.startswith("newsroom-scratch-")
         assert paths["llm_calls"] == scratch / "llm_calls"
+        assert paths["control"] == scratch / "control.txt"     # F12 in a test window held a real station (2026-11-16)
         assert all(p.is_relative_to(scratch) for p in paths.values())
     finally:
         if scratch.name.startswith("newsroom-scratch-"):

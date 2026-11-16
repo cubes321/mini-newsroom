@@ -72,9 +72,24 @@ Related: [STREAMING.md](STREAMING.md) (OBS, Twitch, restarts, titles), [CREDITS.
 
 ## Week 2: Mon 16 to Sun 22 November, the pieces land
 
-- [ ] The kill switch (`python -m newsroom.control testcard|air`, F12) and the content filter are
+- [x] The kill switch (`python -m newsroom.control testcard|air`, F12) and the content filter are
       committed (both are, since 8 November; on-screen text is checked too since the 9th). Try both on a
-      `--scratch` run.
+      `--scratch` run. Tried 16 November, two four-minute template runs (`NEWSROOM_LLM=off`, `NEWSROOM_CONTROL`
+      on a temp file):
+  - **Kill switch:** `testcard` at 10:37:41 cut Have Your Say mid-call to the test card ("We'll be back
+    shortly") in the same second; `air` at 10:38:41 came back with the next slot, the cut call never resumed.
+    No filler, no errors.
+  - **Filter**, with "harbour" added in memory for the run: a template bulletin with the word was refused at
+    the voice (`tts.synthesize`), marked failed and skipped on air, with no gap. **Found and fixed the same
+    day:** a refused line in the station's own continuity (here the lost-property notice, "the Harbour
+    Office") was retried every idle second, and since `continuity.bake_one` runs first in the idle work, the
+    desk, the senior editor, adverts and specials never had a turn. Now a refused ident, card or notice is
+    noted and not tried again that run, and so is a refused seed advert (checked whole before its owner is
+    cast); a continuity slide's own words, its title too, are checked as well, since they are never voiced.
+    Re-run the same way: each refused once, the desk and editors reached as usual.
+  - **Found and fixed the same day:** `--scratch` didn't move `data/control.txt`, so F12 in a scratch
+    window held a real station running at the same time. A scratch run now has its own `control.txt`,
+    named in its first log line; set `NEWSROOM_CONTROL` to it to use `newsroom.control` on that run.
 - [x] Stream restarts at `[stream] restart_at = ["00:00","09:00","19:00"]` are committed; a failed one is
       tried again at the next break ([STREAMING.md](STREAMING.md#stream-restarts-each-saved-part-under-12-hours)).
 - [x] **A new music bed rendered in code** (`jingle.bed("vibes")`, 44.1 kHz stereo, 80 s), picked by ear on
