@@ -50,6 +50,8 @@ PREVIOUSLY = 3                     # aired episodes the planner and the writers 
 WRITTEN_CHARS = 700                # each scene written so far tonight, as the later scenes see it
 TOKEN = re.compile(r"\{([sx])([0-9]+)\}")        # {s3}: the plan's third scene; {x2}: its second spare
 SPARES = 6                         # short side scenes for the minutes the plan leaves (the loop: three, then adverts)
+SPARE_LAPS = 4                     # the loop's laps, three spares each: x1 to x12
+QUIET_NEEDED = 3 * SPARE_LAPS - 5  # quiet moments a series gives, so a plan with its fewest spares (5) never repeats one
 
 
 @dataclass(frozen=True)
@@ -362,9 +364,14 @@ def _scene(ep: dict, series: Series, brief: str) -> tuple[dict, str, bool] | Non
     if n < len(spares):
         return spares[n], f"x{n}", False
     # In turn, so the plan running out doesn't put the same two at the same bar three times (the first model run).
-    sid, who, about = series.quiet[(n - len(spares)) % len(series.quiet)]
+    # A series gives enough for the slot (QUIET_NEEDED); past them the list comes round again, asked to differ: on
+    # 2026-11-16 Marina Row's four came round and "the weather and the boats" at The Mermaid aired twice.
+    i = n - len(spares)
+    sid, who, about = series.quiet[i % len(series.quiet)]
+    again = ("a different moment from the one on this set earlier tonight, nothing in it said again; "
+             if i >= len(series.quiet) else "")
     return ({"set": sid, "characters": list(who), "knows": "", "ends_on": "", "beats": f"A quiet moment: {about}; "
-             "nothing in the story changes or is given away"}, f"x{n}", False)
+             f"{again}nothing in the story changes or is given away"}, f"x{n}", False)
 
 
 def brief_for(world: World, series: Series, brief: str) -> str:
@@ -513,7 +520,7 @@ def show(series: Series) -> Show:
     scenes = tuple(I(T.interview, brief="{s%d}" % (k + 1), target_s=170.0) for k in range(SCENES - 1))
     # The spare minutes: three side scenes, then a break, as a lap; each lap's spares are new ones (x1-x3, x4-x6,
     # then quiet moments), so the order never wraps onto a planned scene or airs a spare twice.
-    spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(4)), target_s=100.0)
+    spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(SPARE_LAPS)), target_s=100.0)
                    for k in range(3))
     return Show(
         series.id, series.title.upper(), series.title.upper(), series.colour,

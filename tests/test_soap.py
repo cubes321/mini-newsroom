@@ -341,3 +341,33 @@ def test_tidy_keeps_answers_auxiliaries_and_the_planned_last_line():
             ("Sal Annear", "Sal reads the letter twice.")]
     assert mend(said) == [t for _, t in said[:4]]                         # only the real direction goes
     assert mend(said, keep="Sal reads the letter twice.") == [t for _, t in said]   # the planned last line stays
+
+
+def test_a_long_night_never_airs_the_same_quiet_moment_twice(channel, monkeypatch):
+    """2026-11-16, the first real Channel 8 evening: the plan gave five spares, Marina Row had four quiet moments,
+    and the tenth spare came round to the first: "the weather and the boats" at The Mermaid aired twice."""
+    assert len(M.quiet) >= soap.QUIET_NEEDED
+    w = world_mod.seed()
+    _stub(monkeypatch)
+    soap.commission(w, M)
+    ep = soap.booked(w, M)
+    assert len(ep["spares"]) == 5                                             # the fewest a plan gives
+    briefs = [b for item in soap.show(M).pattern if getattr(item, "brief", None) and isinstance(item.brief, tuple)
+              for b in item.brief]
+    scenes = [soap._scene(ep, M, b) for b in briefs]
+    quiet = [sc for sc, key, _ in scenes if int(key[1:]) >= len(ep["spares"])]          # past the plan's own
+    assert len(quiet) == 3 * soap.SPARE_LAPS - 5
+    assert len({q["beats"] for q in quiet}) == len(quiet)
+    assert not any("earlier tonight" in q["beats"] for q in quiet)
+
+
+def test_a_series_with_few_quiet_moments_asks_the_one_that_comes_round_to_differ(channel, monkeypatch):
+    from dataclasses import replace
+
+    few = replace(M, quiet=M.quiet[:2])
+    w = world_mod.seed()
+    _stub(monkeypatch)
+    soap.commission(w, M)
+    ep = soap.booked(w, M)
+    first, again = soap._scene(ep, few, "{x6}")[0], soap._scene(ep, few, "{x8}")[0]
+    assert first["set"] == again["set"] and "earlier tonight" in again["beats"] and "earlier" not in first["beats"]

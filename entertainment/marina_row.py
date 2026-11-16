@@ -138,7 +138,13 @@ def _series():
                   quiet=(("marina_mermaid", ("Sal Annear", "Davey Kernick"), "the weather and the boats"),
                          ("marina_loft", ("Harriet Lockwood", "Tristan Lockwood"), "a new dish Tristan doesn't like"),
                          ("marina_kitchen", ("Queenie Kernick", "Kerra Kernick"), "a box of old photographs"),
-                         ("marina_row", ("Tristan Lockwood", "Davey Kernick"), "the gulls, awkwardly")),
+                         ("marina_row", ("Tristan Lockwood", "Davey Kernick"), "the gulls, awkwardly"),
+                         # Four more (2026-11-16): with four, a long night came round to the first and the
+                         # weather at The Mermaid aired twice. soap.QUIET_NEEDED says how many a night can use.
+                         ("marina_kitchen", ("Queenie Kernick", "Davey Kernick"), "what to have for tea"),
+                         ("marina_mermaid", ("Sal Annear", "Queenie Kernick"), "the crossword, and who's been in"),
+                         ("marina_loft", ("Harriet Lockwood", "Kerra Kernick"), "the end of a slow shift"),
+                         ("marina_row", ("Sal Annear", "Tristan Lockwood"), "the weather coming in")),
                   ident="Now on Channel 8: Marina Row.",
                   # Davey called his mother "Queenie", and a recipe of Queenie's mother's became "Mum's" (2026-11-14).
                   ties=("The Kernicks: Queenie is Davey's mother and Kerra's grandmother; Davey is Kerra's father. "
