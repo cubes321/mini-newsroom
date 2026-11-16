@@ -282,8 +282,31 @@ def _words(world: World, show_id: str, day: str) -> tuple[str, int, bool]:
         said = _cached_words(world, e.get("hash")) or e.get("text") or ""     # the archive's own 400; none for a drama
         kept = kept or bool(said)
         head = e.get("headline") or e.get("brief") or e.get("type") or "item"
-        out.append(f"[{head}]\n{said[:cap] if said else '(its words were not kept)'}")
+        out.append(f"[{head}]\n{_trim(said, cap) if said else '(its words were not kept)'}")
     return "\n\n".join(out), len(entries), kept
+
+
+def _trim(said: str, cap: int) -> str:
+    """An item's words within `cap`, cut at whole lines: its start, then its end, with the lines left out between
+    them marked. Cut at a character, a sixteen-line meeting stopped mid-word, and the editor reported two interviews
+    "cut off mid-line" on air that had ended whole (rehearsal, 2026-11-16); nor did it ever see how one ended."""
+    if len(said) <= cap:
+        return said
+    lines = said.split("\n")
+    head, tail, used = [], [], 0
+    for i, l in enumerate(lines):                      # the start, to about two thirds of the room
+        if used + len(l) > cap * 2 // 3 and head:
+            break
+        head.append(l)
+        used += len(l) + 1
+    for l in reversed(lines[len(head):]):               # then the end, in what's left
+        if used + len(l) > cap and tail:
+            break
+        tail.insert(0, l)
+        used += len(l) + 1
+    gap = len(lines) - len(head) - len(tail)
+    return "\n".join(head + ([f"[... {gap} line{'s' * (gap != 1)} not shown here; they went out as written ...]"]
+                             if gap else []) + tail)
 
 
 def _aired_days(world: World, e: Entry) -> list[str]:

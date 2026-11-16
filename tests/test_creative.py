@@ -375,3 +375,14 @@ def test_a_route_planned_ahead_is_read_whatever_the_clock(editor, monkeypatch):
     monkeypatch.setattr(llm, "complete_json", complete_json)
     assert creative.vet(w, "coastroad", "route", "a route") is None and seen == []      # at air time: not read
     assert creative.vet(w, "coastroad", "route", "a route", margin=False) is None and seen == [creative.Verdict]
+
+
+def test_a_long_item_is_trimmed_at_whole_lines_keeping_its_start_and_its_end():
+    """Cut at a character, a sixteen-line meeting stopped mid-word, and the editor reported interviews "cut off
+    mid-line" that had ended whole (rehearsal, 2026-11-16)."""
+    said = "\n".join(f"Speaker {k}: " + "word " * 30 + f"end of line {k}." for k in range(16))
+    out = creative._trim(said, 1000)
+    assert len(out) <= 1100 and out.startswith("Speaker 0:") and out.endswith("end of line 15.")
+    assert "not shown here; they went out as written" in out
+    assert all(l.endswith((".", "...]")) for l in out.split("\n"))
+    assert creative._trim("short", 1000) == "short"

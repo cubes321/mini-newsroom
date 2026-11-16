@@ -289,8 +289,15 @@ bottom with the date.
         there at the close), and the road no longer arrives early; the day only moves forward; a piece she gives
         alone loses another speaker's lines instead of going to the template; a sentence said word for word earlier
         today goes (`_not_again`: the meeting at the Crown repeated the arrival's first sentence; one a leg in the
-        replay); only the close sees how the leg ends; no made-up results or plans (a darts win of 7-2). The last
-        four not yet seen with the model. Rehearsal total 131 calls, $1.55 Claude.
+        replay); only the close sees how the leg ends; no made-up results or plans (a darts win of 7-2). Leg 3
+        rehearsed on all of it (2 December): no template; the opening kept the ending to itself and the close had
+        no hello; no made-up results in the editor's remarks; the family cut took one sentence (a husband for Ruth
+        Callow); no sentence came round word for word, and no one else spoke in Lorna's own pieces, so those two
+        repairs weren't needed (both are in the tests). Still open: the same idea said again in other words (the
+        bike's brakes in seven items) and links that contradict the items around them ("third leg done" before the
+        third meeting). The editor's "two interviews cut off mid-line" was its own reading: `creative._words` cut
+        each item at 2,500 characters mid-word; now `_trim` cuts at whole lines and keeps the start and the end.
+        Rehearsal total 143 calls, $1.64 Claude.
       - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).
