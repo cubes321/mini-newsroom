@@ -70,8 +70,9 @@ def test_the_inquirys_other_voices_are_never_its_guest(monkeypatch):
                   brief="the other side: a resident or a campaigner who sees it differently from THE GUEST")
     writers.script_segment(seg, w)
     assert len(asked) == 2 and "NOT Ivy Marchetti: they are THE GUEST" in asked[1]
-    assert "NOT Ivy Marchetti in this item" in asked[0]                  # told before the first attempt too
-    assert "not THE QUESTIONS PAT PUTS to THE GUEST" in asked[0]
+    last = asked[0].rsplit("\n\n", 1)[-1]                               # told before the first attempt too, last
+    assert last.startswith("THIS ITEM, once more: the other side") and "NOT Ivy Marchetti: they are THE GUEST" in last
+    assert "THE QUESTIONS" not in last                                  # named last, it sat THE GUEST in the chair
     assert writers._last_interview["inquiry"]["name"] == "Ruth Abney"
     assert schedule.get("inquiry").briefs[T.interview][0].startswith("the other side")
 
@@ -97,16 +98,16 @@ def test_the_inquirys_stock_item_stays_on_the_story():
     assert s.headline == "Who Pays for the Wall?: the questions still open"
 
 
-def test_asked_again_and_still_the_inquirys_guest_the_other_voice_is_dropped(monkeypatch):
+def test_asked_again_and_still_the_inquirys_guest_the_item_is_a_template(monkeypatch):
     """On 2026-10-31 Helen Strand sat in four of the six "other" chairs: told NOT her, the model named her
-    again, and the second answer wasn't checked. Now the retry names someone else on the story, and a
-    second booking of THE GUEST is a failed item."""
+    again, and the second answer wasn't checked. A booking of THE GUEST that survives every ask is a failed
+    item. On 2026-11-15 the last ask was what Gerald Thorne had said that night, which booked him again: THE
+    GUEST out of place is never asked about as a returning guest."""
     w = world_mod.seed()
     tid = w.update_thread(None, "Harbour wall report due Friday", "so far")
-    crane = w.ensure_person("Dougal Crane", "harbour engineer")
-    w.thread(tid).people = [w.person_by_name("Ivy Marchetti").id, crane.id]
     w.inquiries = [{"date": w.last_date, "thread_id": tid, "title": "Who Pays for the Wall?", "angle": "a",
                     "questions": ["q1", "q2"], "guest": "Ivy Marchetti"}]
+    w.remember_guest("Ivy Marchetti", "The Inquiry", "won't quote a figure until it's checked", None)
     monkeypatch.setattr(writers, "_recent_guests", writers.deque(maxlen=8))
     asked = []
 
@@ -120,8 +121,36 @@ def test_asked_again_and_still_the_inquirys_guest_the_other_voice_is_dropped(mon
     seg = Segment(slot_id=42, type=T.interview, show="inquiry", part="other", target_s=210,
                   brief="someone who knows how this works")
     writers.script_segment(seg, w)
-    assert len(asked) == 2 and "Dougal Crane (harbour engineer) is on this story" in asked[1]
+    assert len(asked) == 3 and not any("has been on before" in u for u in asked)
+    assert asked[2].rsplit("\n\n", 1)[-1].startswith("Again: THIS ITEM, once more: someone who knows how this works")
+    assert seg.headline.endswith("the questions still open")            # the template
     assert all(l.guest_name != "Ivy Marchetti" for l in seg.lines)
+
+
+def test_a_recent_guest_turned_away_from_the_inquiry_is_not_swapped_for_its_guest(monkeypatch):
+    """On 2026-11-15, told only "NOT Brenda Fisk: a guest very recently", the model booked THE GUEST, Gerald
+    Thorne, instead. The re-ask says not THE GUEST either, and not the one just turned away."""
+    w = world_mod.seed()
+    tid = w.update_thread(None, "Harbour wall report due Friday", "so far")
+    w.inquiries = [{"date": w.last_date, "thread_id": tid, "title": "Who Pays for the Wall?", "angle": "a",
+                    "questions": ["q1", "q2"], "guest": "Ivy Marchetti"}]
+    monkeypatch.setattr(writers, "_recent_guests", writers.deque(["Brenda Fisk"], maxlen=8))
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate({
+            "headline": "Who pays for the wall", "lower_third": "The Inquiry",
+            "guest_name": "Brenda Fisk" if len(asked) == 1 else "Ruth Abney", "guest_role": "tailor", "guest_gender": "f",
+            "lines": [{"speaker": "mag_a", "text": "Who pays?"}, {"speaker": "guest", "text": "Not the shops."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=44, type=T.interview, show="inquiry", part="other", target_s=210,
+                  brief="someone whose work or home it touches every day")
+    writers.script_segment(seg, w)
+    again = asked[1].rsplit("\n\n", 1)[-1]
+    assert len(asked) == 2 and "NOT Ivy Marchetti: they are THE GUEST" in again
+    assert "already on The Inquiry tonight: Ivy Marchetti, Brenda Fisk." in again
+    assert not seg.fallback and writers._last_interview["inquiry"]["name"] == "Ruth Abney"
 
 
 def test_the_inquirys_stock_film_stays_on_the_story():

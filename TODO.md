@@ -661,27 +661,38 @@ bottom with the date.
   - Also: the tests refuse to start once newsroom has been imported (6be9259), after a test run overwrote the
     real town (recovered); the editors' meeting is told when it is held late (6b3ba34); a timed-out Opus call
     is sent once (34aa3f1).
-- [ ] Watch the first night on those fixes (none has run on a real night yet), in the log:
-  - "moved in the pool:" and "brought out of the pool today": a memo's re-dating carried out.
-  - "nothing has changed for any story on the board since it was planned; no call": how many rounds are
-    skipped, and whether the board goes stale for it.
-  - "senior editor: N news piece(s) on the town's stories since the last memo, fewer than 6, and the same day:
-    no review until the town moves": how many reviews a night makes now.
-  - "is to close on ..., not before" and "is to close once its ending for ... has been reported": each held
-    story is covered and then closed by the desk's next round, and none stays resolving until it fades.
-  - The editors' meeting on a late start: no "Morning", and nothing about "this afternoon".
-  - The harbour church (`church`), offered to every writer since 2026-11-15: what gets set there, and whether
-    a story invents things the picture doesn't have. The Kettle's On on its own set, on the next Channel 8 evening.
-  - Parallax, on by default since 2026-11-15: the drifting location items in the recordings, and STATS' p99.
-    Channel 8 has never aired with it (The Coast Road's stops have layers): drawn offscreen at the window's
-    size on both channels, not yet on air there. `--no-parallax` puts a run back to stills.
-  - The Kettle's On's new order, on the next Channel 8 evening: the dish out at about 19:57 and not cut by the
-    hour, the sofa guest at about 19:17, and whether "part two" still talks as if no time had passed.
-  - The pictures, back in shadow on Channel 7 nights: the sheet, and that ComfyUI started and stayed polite.
-  - As on every night, how the thread and guest changes land. On the 2026-11-14 night: "continues thread" 8
-    (the title match), "story desk merged" 5 (are the merges right, and do they keep up?), "from ...'s loose
-    end" 6 (does the desk make news of a loose end, and is it news?), "has been on before" 26 (how often a
-    writer rebooks a remembered guest; each costs a second call).
+- [x] **The Channel 7 night of 2026-11-15, reviewed 2026-11-16**, the first on the 2026-11-15 fixes
+  (station-2026-11-15-1951.log, 19:51 to 07:51 on the real town): 692 segments, no filler, worst p99 14.2 ms,
+  15 recordings all with sound and no silence over 5 s, the annals page for 15 November written, about $0.80 on
+  Anthropic (two Opus calls for the meeting, a few cents). The fixes held:
+  - The pool: 14 re-datings carried out from memos (t474 and t476 moved twice in the night).
+  - Held closes: t349, t520 and t526 waited for Monday's coverage and closed at 06:58. t517 was held again to
+    27 November with a NEXT beginning "Closed:" while it is still resolving (look at that wording). t462 is due
+    Tuesday 17.
+  - 7 desk rounds made no call; 5 senior reviews and 1 skip ("no review until the town moves").
+  - The meeting on a late start said "Evening" and nothing about the afternoon.
+  - Parallax on air: the 06:04 fish quay's boats and van moved about 10 px in 4 s; p99 as before.
+  - Pictures in shadow: about 90 (all three 15 November pages and the breakfast page looked at), none failed;
+    a few odd briefs (darts on a pool table, a juggler with a chainsaw, a fender like a sock).
+  - "continues thread" 5, "story desk merged" 11, loose ends 10, "has been on before" 44 (26 the night before;
+    each costs a second call).
+  - Found and fixed 2026-11-16: The Inquiry (a stand-in, Gerald Thorne, as the station started at 19:51) aired five
+    13-second template interviews and a template film: the model booked THE GUEST for the other items, copying
+    the night's studio interviews above the ban. Two asks made it worse: "NOT Brenda Fisk: a guest very recently"
+    alone sent it back to Thorne, and the last ask was what Thorne had said that night. 6 November lost four the same
+    way with a commissioned guest. Now the item is restated at the very end of the prompt (`_not_the_guest`), the
+    re-ask after any rebooking keeps THE GUEST's ban, THE GUEST out of place is never asked about as a returning
+    guest, and one last ask replaces it. Replayed on Haiku from the night's own prompts: THE GUEST 0-2 in 27 first
+    time, against 6 in 18 as it was; ending the note on "THE QUESTIONS PAT PUTS to THE GUEST" brought it back to 8.
+- [ ] Still to watch from that list:
+  - The Inquiry on the fix (from 2026-11-16): "booked THE GUEST ... asking once more" and "using template (booked
+    THE GUEST" in the log. Dolores Finch came up in a third of the replayed answers, and she sits on The Panel.
+  - The harbour church (`church`): offered to every writer since 2026-11-15, chosen by none on 2026-11-15.
+  - The breakfast ticker at 06:04 still carried the evening's weather ("Calm Evening, Clear Spells Overnight").
+  - On the next Channel 8 evening: The Kettle's On on its own set and its new order (the dish out at about 19:57
+    and not cut by the hour, the sofa guest at about 19:17, whether "part two" talks as if no time had passed),
+    and parallax there for the first time (The Coast Road's stops have layers).
+  - The meeting told Channel 8 it "hasn't been on the air yet": true of the real town, which hasn't aired Channel 8.
 
 - [x] Not doing (the user, 2026-11-07): the current routing stays (Haiku live, DeepSeek Flash back office,
   Sonnet senior editor and fallback). A quick side-by-side that day, six live prompts from the town: Haiku

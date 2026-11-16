@@ -991,15 +991,13 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         quiet = _quiet_threads(world, recent | set(done), auction)
         if quiet:
             user += "\n\n" + quiet
+    not_the_guest = ""
     if show.id == inquiry.SHOW:
         user += "\n\n" + inquiry.for_prompt(world)
         guest = (inquiry.tonight(world) or {}).get("guest")
         if guest and (part == "other" or seg_type is SegmentType.feature):
             # Asked after the fact, the model booked THE GUEST again three times in one half hour (2026-10-31).
-            user += (f"\n\nNOT {guest} in this item: {guest} is THE GUEST, who has their own parts in the studio. "
-                     "guest_name is the person THIS ITEM describes, by name.")
-            if part == "other":           # THE QUESTIONS are put to THE GUEST, so the model sat them in the chair
-                user += " Pat asks them about what THIS ITEM says, not THE QUESTIONS PAT PUTS to THE GUEST."
+            not_the_guest = _not_the_guest(world, guest, brief, seg_type)
     if show.id == panel.SHOW:
         user += "\n\n" + panel.for_prompt(world)
     if show.id == chamber.SHOW:
@@ -1078,7 +1076,25 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                                 "that's all for tonight (no programme follows: name none)")
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
         user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
+    if not_the_guest:                     # last, after the night's items with THE GUEST in the armchair
+        user += "\n\n" + not_the_guest
     return system, user
+
+
+def _not_the_guest(world: World, guest: str, brief: str, seg_type: SegmentType, also: tuple[str, ...] = ()) -> str:
+    """The Inquiry's item that isn't THE GUEST's, restated at the very end of its prompt. On 2026-11-15 the model
+    booked Gerald Thorne for six of them, copying the night's studio interviews listed above it; replayed, the
+    item said again last booked THE GUEST 0 times in 27, against 6 in 18 as it was. The wording matters: the same
+    note ending "not THE QUESTIONS PAT PUTS to THE GUEST", and saying "guest_name is NOT", booked them 8 in 27.
+    Nobody already on tonight either (`also`: whoever the model just booked)."""
+    on = list(dict.fromkeys(n for n in (guest, *world.guests_today(inquiry.SHOW), *also) if n))
+    note = (f"THIS ITEM, once more: {brief.rstrip('.') or 'a film on the story'}. Its guest is NOT {guest}: they are "
+            f"THE GUEST, whose parts in the studio are their own. Nor anyone already on The Inquiry tonight: "
+            f"{', '.join(on)}. If THIS ITEM describes a councillor or an official, book a different one (the town "
+            "council in the briefing lists them) or a new person with a full name and a role of your own.")
+    if seg_type is SegmentType.interview:
+        note += " Pat welcomes this new guest by name."
+    return note
 
 
 # --------------------------------------------------------------- templates
@@ -1533,11 +1549,12 @@ def script_segment(seg: Segment, world: World) -> Segment:
             rebooked = None
         if rebooked:                      # the prompt asks for fresh guests; models forget, so ask again once
             log.info("%s slot %d: %s was just on; asking for another guest", seg.type.value, seg.slot_id, rebooked)
+            # On The Inquiry, "NOT them: a guest very recently" alone sent the model back to THE GUEST: Brenda
+            # Fisk's and Nora Ellison's items were templates by the next ask (2026-11-15). So THE GUEST's ban comes too.
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
                      if couch and rebooked.lower() == couch["name"].lower()
-                     else f"NOT {rebooked}: they are THE GUEST, with their own parts tonight. Book the person "
-                          "THIS ITEM describes." + _other_voice(world, taken)
-                     if taken and rebooked.lower() == taken.lower()
+                     else _not_the_guest(world, taken, seg.brief, seg.type, also=(rebooked,))
+                     if taken
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             user += "\n\n" + again        # and every later ask keeps it
             script = llm.complete_json(seg.type.value, schema, system, user)
@@ -1545,8 +1562,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
         # they said, so they don't contradict themselves (the offered return visit had it already).
         # Not on Rock Pool: told what a returning grown-up said on the other shows, the children's visitors brought it
         # in (Bea Kowalczyk wanting a second engine, 2026-11-13), and it cost a second call for eleven of twelve.
+        # Never THE GUEST out of place: told what Gerald Thorne had said that night, the model booked him again,
+        # and five of The Inquiry's other interviews went to templates (2026-11-15). That one is asked again below.
         known = None if cont or booked or show.id == "rockpool" else _remembered(script, world, {seg.work.get("return_guest"),
-                                                                        couch and couch["name"],
+                                                                        couch and couch["name"], taken,
                                                                         (seg.work.get("planned") or {}).get("guest")})
         if known:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
@@ -1556,18 +1575,19 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
             # Asked about one guest, the model may book another: on 2026-11-03, asked about Tam Buchanan it
             # put THE GUEST back in the chair, four times. Then the script before the ask stands.
-            # Unless the one before was THE GUEST, out of place: then anyone else is the better script (on
-            # 2026-11-06 a film asked about Ivy Marchetti booked Dev Ramachandran, and Ivy's went to a template).
             now_booked = (getattr(script, "guest_name", None) or "").strip().lower()
-            if taken and known.name.lower() == taken.lower() and now_booked and now_booked != taken.lower():
-                log.info("%s slot %d: asked about %s, it booked %s instead; keeping that", seg.type.value,
-                         seg.slot_id, known.name, getattr(script, "guest_name", None))
-            elif now_booked != known.name.lower():
+            if now_booked != known.name.lower():
                 log.info("%s slot %d: asked about %s, it booked %s; keeping the script before", seg.type.value,
                          seg.slot_id, known.name, getattr(script, "guest_name", None))
                 script = before
             elif end:
                 seg.work["loose_end_of"] = known.name
+        # Still THE GUEST, out of place: one last ask, with the item restated last (on 2026-11-06 a film asked
+        # once more booked Dev Ramachandran instead of Ivy Marchetti, and it aired).
+        if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
+            log.info("%s slot %d: booked THE GUEST, %s, again; asking once more", seg.type.value, seg.slot_id, taken)
+            script = llm.complete_json(seg.type.value, schema, system, user + "\n\nAgain: " + _not_the_guest(
+                world, taken, seg.brief, seg.type))
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
             user += ("\n\nKeep every word suitable for daytime television: no swearing, no slurs. Channel 7 "
@@ -1772,18 +1792,6 @@ def _rebooked(script, world: World, taken: str | None = None, show: str = "") ->
         return None
     been = {g.lower() for g in [*_recent_guests, *world.guests_today(show)]}
     return name if name.lower() in been | {(taken or "").lower()} - {""} else None
-
-
-def _other_voice(world: World, guest: str) -> str:
-    """Someone on tonight's Inquiry story who isn't THE GUEST and hasn't just been on, to name when the
-    model books THE GUEST for an item that isn't theirs: "NOT them" alone wasn't enough (2026-10-31)."""
-    tid = (inquiry.tonight(world) or {}).get("thread_id")
-    t = world.thread(tid) if tid else None
-    skip = {guest.lower()} | {g.lower() for g in _recent_guests}
-    for p in (world.person(pid) for pid in (t.people if t else [])):
-        if p and p.name.lower() not in skip:
-            return f" {p.name} ({p.role}) is on this story and hasn't been on tonight: book them, or another named person."
-    return ""
 
 
 def _remembered(script, world: World, skip: set) -> Person | None:
