@@ -10,6 +10,7 @@ Its soap, Marina Row, is talked about too: an aired episode's cliffhanger, the q
 answer (soap below). So is its wildlife series, Tideline: what Rowan Polglase showed, and the number he gave
 (wildlife below). That one is canon: the seal pups in the coves really are there. And its teatime magazine, The
 Kettle's On: who cooked what, and who was on the sofa (kettle below).
+And its travelogue, The Coast Road, once a host's whole journey has aired (coast_road below).
 
 Read from the world alone (`world.quizzes`, `world.soaps`, the archive): this module knows nothing of
 the other channel's code, and a station that never runs it has no talk.
@@ -143,7 +144,31 @@ def kettle(world, today: date) -> str | None:
     return None
 
 
+def coast_road(world, today: date) -> str | None:
+    """Channel 8's travelogue, once a host's whole journey has aired: one entry for the series, for TALK_DAYS after
+    its last leg, not a line a leg. Read from the world alone (world.travelogue: each series' route, and each leg
+    with the series it belongs to, its number and whether its first stop went out)."""
+    tv = getattr(world, "travelogue", None) or {}
+    for s in reversed(tv.get("series") or []):
+        try:
+            route = s["legs"]
+            legs = [l for l in tv.get("legs") or [] if l.get("made") == s["made"] and l.get("aired")]
+            if not route or len({l["n"] for l in legs}) < len(route):
+                continue                       # still on the road, or never finished
+            day = date.fromisoformat(max(l["date"] for l in legs))
+            gap = (today - day).days
+            if gap < 1 or gap > TALK_DAYS:
+                return None
+            start, end = route[0]["stops"][0]["place"], route[-1]["stops"][-1]["place"]
+            return (f"The Coast Road, the travelogue on Channel 8, finished on {day:%A}: {s['host']}'s whole journey "
+                    f"round the coast, \"{s['title']}\", in {len(route)} legs from {start} to {end}.")
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue                           # an entry saved in an older shape: no talk from it
+    return None
+
+
 def line(world, today: date) -> str:
     """The briefing's town-talk line, with its newline, or nothing."""
-    said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today), kettle(world, today)) if s]
+    said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today), kettle(world, today),
+                        coast_road(world, today)) if s]
     return f"{LABEL}{' '.join(said)}\n" if said else ""

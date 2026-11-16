@@ -634,7 +634,9 @@ filmed. Every line is speaker "guest" with guest_name the person speaking: "{HOS
 resident by their exact name. It was FILMED EARLIER, BY DAY: never "tonight", "this evening", "good evening" or
 "live", and no clock times. Warm and funny, never cruel: she laughs with people, not at them. Places and people from
 TODAY and the briefing only; no new history for anyone the town knows, and nothing new about Lorna's own family or
-past. Every item is new: nothing from SAID ALREADY TODAY again, no joke, no story, no phrase, and each opens its own
+past. A resident she meets talks about what they do and what they've seen; they have no family on air (no sister,
+brother, husband, wife, children or grandchildren) unless the briefing gives them one: the first run gave Stan Tully a
+sister he never had ("a cot for my sister's first"). Every item is new: nothing from SAID ALREADY TODAY again, no joke, no story, no phrase, and each opens its own
 way. Not news: thread_id is null. headline = what happens, in under 10 words. lower_third = "{TITLE}".
 """
 

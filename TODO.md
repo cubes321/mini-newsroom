@@ -227,8 +227,12 @@ bottom with the date.
       - One scratch run: leg 1 aired cleanly. Fixed after it: the biscuit story in every item, and the day's auction
         figures (untried).
       - Done 2026-11-15: the ident, on Rock Pool's toy arrangement, kept by ear (`bumper_coastroad.wav`).
-      - Left: her look on Channel 7 (only her voice follows her there); the route map; the finished series as one
-        town-talk entry; a new host when the six legs are done. The "no new history" rule failed once with the model (Stan Tully's cot).
+      - Done 2026-11-16: the finished series as one town-talk entry (`talk.coast_road`: once every leg of a host's
+        route has aired, for two days after the last), and the rule against new history names family outright,
+        after the first run gave Stan Tully a sister he never had ("a cot for my sister's first"; not yet seen with
+        the model).
+      - Left: her look on Channel 7 (only her voice follows her there); the route map; a new host when the six legs
+        are done.
   - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.

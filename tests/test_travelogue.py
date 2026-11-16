@@ -284,3 +284,9 @@ def test_a_piece_to_camera_from_the_model_writes_lorna_no_memory(channel, monkey
     writers.script_segment(seg, w)
     assert {l.guest_name for l in seg.lines} == {tv.HOST}
     assert (len(w.person_by_name(tv.HOST).memories), w.person_by_name(tv.HOST).role) == before
+
+
+def test_a_resident_lorna_meets_has_no_family_on_air_unless_the_briefing_gives_one():
+    """The first run gave Stan Tully a sister he never had ("a cot for my sister's first")."""
+    from entertainment import travelogue
+    assert "no family on air (no sister" in travelogue._RULES and "unless the briefing gives them one" in travelogue._RULES

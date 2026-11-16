@@ -81,3 +81,25 @@ def test_last_nights_kettles_on_is_talk_once_its_items_aired():
     assert talk.kettle(_kettle_town(stand_in=True), TODAY) is None
     assert talk.kettle(_kettle_town(night=TODAY), TODAY) is None                     # tonight's: not yet
     assert talk.kettle(_kettle_town(night=TODAY - timedelta(days=3)), TODAY) is None
+
+
+def _road_town(aired_legs=6, last=TODAY - timedelta(days=1)):
+    w = world_mod.seed()
+    w.last_date = TODAY.isoformat()
+    route = [{"title": f"Leg {i + 1}", "stops": [{"place": f"Stop {i + 1}.{k + 1}"} for k in range(3)]}
+             for i in range(6)]
+    w.travelogue = {"series": [{"host": "Lorna Quayle", "made": "2026-11-14#Lorna Quayle",
+                                "title": "Six Slow Ways and a Tin of Parkin", "legs": route}],
+                    "legs": [{"date": (last - timedelta(days=2 * (5 - i))).isoformat(), "made": "2026-11-14#Lorna Quayle",
+                              "n": i + 1, "aired": i < aired_legs} for i in range(6)]}
+    return w
+
+
+def test_the_coast_road_is_talk_once_as_a_whole_series_when_its_last_leg_has_aired():
+    said = talk.coast_road(_road_town(), TODAY)
+    assert said == ("The Coast Road, the travelogue on Channel 8, finished on Sunday: Lorna Quayle's whole journey "
+                    "round the coast, \"Six Slow Ways and a Tin of Parkin\", in 6 legs from Stop 1.1 to Stop 6.3.")
+    assert said in talk.line(_road_town(), TODAY)
+    assert talk.coast_road(_road_town(aired_legs=5), TODAY) is None                  # still on the road
+    assert talk.coast_road(_road_town(last=TODAY), TODAY) is None                    # the last leg is tonight's
+    assert talk.coast_road(_road_town(last=TODAY - timedelta(days=3)), TODAY) is None
