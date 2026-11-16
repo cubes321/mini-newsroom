@@ -1,40 +1,70 @@
-# New shows for channel 7
+# The schedules, and Channel 7's shows
 
-Agreed in a brainstorm on 2026-10-30. The day had two long stretches of rolling news, 09:00 to 18:45
-and 20:00 to 22:00 (apart from the 21:00 documentary). Seven shows go into them. Three other ideas,
-*The Kettle's On*, *Harbour Row* and *Wexley Wits*, belong on the entertainment channel instead (see
-`docs/ENGINE.md`).
+Both channels' grids as they stand, then Channel 7's shows. The shows were agreed in a brainstorm on 2026-10-30:
+the day had two long stretches of rolling news, 09:00 to 18:45 and 20:00 to 22:00 (apart from the 21:00
+documentary), and seven shows went into them. Three other ideas, *The Kettle's On*, *Harbour Row* (now *Marina
+Row*) and *Wexley Wits*, went to the entertainment channel instead (see `docs/ENGINE.md`).
 
 Each show is a `schedule.Show`: a running order of item types, a cast, a set and a tone. A show costs
 little when it reuses what exists. Most of the cost is in the things marked **new** below: an item
 type, a set, a presenter (a look on a contact sheet, a voice by ear) or a source of facts.
 
-## A day's schedule
+## The schedules (as of 2026-11-16)
+
+The code is the source of truth: `SCHEDULE` in `newsroom/schedule.py` for Channel 7 and in
+`entertainment/__init__.py` for Channel 8, each a list of (start, show id) in which the last start at or before
+the time wins, so a show runs until the next different id. `python -m newsroom.schedule` prints Channel 7's.
+The station puts out one channel at a time: `entertainment.use()` swaps Channel 8's grid in for the night.
+
+### Channel 7: around the clock
 
 | Time | Show | Notes |
 |---|---|---|
-| 06:00 | *Morning Tide* | as now |
+| 00:00 | Overnight | the test card and repeats; specials air here, and the desk keeps working |
+| 06:00 | *Morning Tide* | breakfast on the sofa |
 | 09:00 | News | |
-| 10:00 | **Have Your Say** | the news phone-in, an hour |
+| 10:00 | **Have Your Say** | Jonah Pike's news phone-in, an hour |
 | 11:00 | News | |
-| 13:00 | **Quayside** | business, half an hour |
+| 13:00 | **Quayside** | business and the fish auction, half an hour |
 | 13:30 | News | |
-| 15:00 | **Out and About** | travel, culture and food, 45 minutes |
+| 15:00 | **Out and About** | Meg Trethewey: travel, culture and food, 45 minutes |
 | 15:45 | News | |
-| 16:00 | **Rock Pool** | children's TV, 45 minutes |
+| 16:00 | **Rock Pool** | Poppy Tregenza and Gully, children's TV, 45 minutes |
 | 16:45 | News | |
-| 18:45 | *Full Time* | as now |
-| 19:00 | *Coastwide* | as now |
-| 20:00 | **The Inquiry** | investigations, half an hour |
-| 20:30 | **The Panel** | the debate, half an hour |
-| 21:00 | News | the documentary airs at the first bumper, as now |
-| 22:00 | *The Last Ferry* | as now |
-| 23:00 | News | |
+| 18:45 | *Full Time* | local sport, a quarter of an hour |
+| 19:00 | *Coastwide* | the magazine |
+| 20:00 | **The Inquiry** | Pat Holloway, investigations, half an hour |
+| 20:30 | **The Panel** | Dana Ferris and three panellists, half an hour |
+| 21:00 | News | the documentary airs at the first bumper |
+| 22:00 | *The Last Ferry* | the late chat show |
+| 23:00 | News | the late news |
 
-On a council night **The Chamber** takes 20:00 to 21:00 instead of *The Inquiry* and *The Panel*.
+Days that differ:
+
+- **Council nights** (every other Thursday, `council.py`): **The Chamber** takes 20:00 to 21:00 instead of
+  *The Inquiry* and *The Panel*.
+- **Sundays**: the 21:00 documentary is **The Week in Port Wexley**; on 31 December it is **The Year**.
+- **Bonfire Night**: *Coastwide*'s hour is a special on location, with the fireworks overhead from 19:30 to
+  19:50 (`schedule.SPECIAL_NIGHTS`).
+- **Christmas Eve, Christmas Day and Boxing Day**: a grid of their own (`christmas.py`).
 
 Rolling news still fills about five hours of the day, and the breaks between shows keep the bulletins
 coming.
+
+### Channel 8 (WTV): evenings only
+
+| Time | Show | Notes |
+|---|---|---|
+| 00:00 | Closedown | the test card and bumpers |
+| 19:00 | *The Kettle's On* | the teatime magazine, an hour |
+| 20:00 | *Wexley Wits* | the quiz, 20 minutes |
+| 20:20 | *Marina Row* | the soap, 20 minutes |
+| 20:40 | *Tideline* or *The Coast Road* | 20 minutes: coastal wildlife, or Lorna Quayle's travelogue |
+| 21:00 | Closedown | "back tomorrow at seven" |
+
+The 20:40 slot rotates (`schedule.ROTATIONS`, `travelogue.rotation`): whichever of the two aired less recently
+goes on, and once a leg of *The Coast Road* is booked for the night it keeps the slot. Channel 8 has no special
+days. Its shows are described in `docs/ENGINE.md` ("Channel 8's evening") and their own docs.
 
 ## The shows
 
