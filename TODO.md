@@ -260,6 +260,29 @@ bottom with the date.
       two. The editor sent back four of the five plans it read, each for a real continuity fault; watch that
       rate on air, since a send-back costs a Sonnet re-plan.
     - Since 2026-11-15 a timed-out Opus call is sent once, not twice (34aa3f1: `max_retries = 0`).
+    - **Rehearsed with the real models 2026-11-16** on a copy of the real town (data/creative-trial/rehearsal-1116:
+      its `rehearsal.py` stages night1, meeting, night2, light, road, tideline; logs and llm_calls beside it), 118
+      calls, about $1.52 ($1.47 Claude). What the 11-16 fixes did:
+      - Marina Row: none of the 12 scenes needed `soap.tidy` (no names in front of lines, no directions): the
+        rules held at the source. Closing gestures weren't flagged. Still open: lines given to the wrong
+        character where nothing in the text says whose they are (scene 6, "He's stopped scrubbing, Sal. Look at
+        him." in Davey's mouth), and secrets the plan keeps leaking in the live writing (the editor's remark, twice).
+      - Tideline: the count is Rowan's alone on the corrected wording (the 28th: "the count stayed with Rowan
+        alone"); the first wording, which gave residents the number to agree with, had all three say it. "The Grey
+        estuary" is the backdrop's own name and stands; the planner is now told it. A daytime close's "Goodnight"
+        becomes "Goodbye". Still open: the neighbour sight leaks into every item, and counters and skippers come
+        round again despite the notes.
+      - The Kettle's On: the weights weren't flagged (the card held). Four calls gave callers the expert's lines:
+        `_guest_of`'s 11-16 rule now needs "Thanks" or a greeting before the expert's name (a bare "Lowenna, the
+        bay tree is..." was her own answer), unnamed lines that speak to the caller by name are the expert's,
+        and the expert's name alone as a line goes; replayed over all 151 older call scripts, the one intended
+        line changes. The presenters are kept off council business (an opening plugged a petition). Marked weak:
+        the expert's own items (letters, myths, weekend jobs) take the time from the sofa and the calls (11 of 24),
+        which is the user's 11-15 shape: a decision for the user.
+      - The Coast Road: the "no family" rule did not hold on Haiku ("my wife's dresser"); and the editor found the
+        leg tripping over itself (an arrival twice at a stop, the clock going backwards between items). Brenda
+        Fisk's hems and Stan's eleven boats, which it questioned, are canon.
+      - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).
   - **The editors' meeting** (the user, 2026-11-14; built that day, `newsroom/meeting.py`; docs/ENGINE.md): once a

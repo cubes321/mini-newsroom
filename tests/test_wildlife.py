@@ -265,10 +265,11 @@ def test_good_evening_and_tonight_become_daytime_words(channel, monkeypatch):
     wildlife.commission(w)
     seg = Segment(slot_id=3, type=T.links, show="tideline", brief="{open}", target_s=45, part="open")
     seg.lines = [Line(speaker="naturalist", text="Good evening, and welcome to Tideline."),
-                 Line(speaker="naturalist", text="The tide is making slowly tonight, this evening.")]
+                 Line(speaker="naturalist", text="The tide is making slowly tonight, this evening."),
+                 Line(speaker="naturalist", text="Goodnight from the Salting.")]
     wildlife.after(seg, w)
     assert [l.text for l in seg.lines] == ["Hello, and welcome to Tideline.",
-                                           "The tide is making slowly today, today."]
+                                           "The tide is making slowly today, today.", "Goodbye from the Salting."]
 
 
 @pytest.mark.parametrize("sight", [s for s in seasons.SIGHTS if s.creature], ids=lambda s: s.id)
@@ -333,8 +334,8 @@ def test_a_resident_the_town_knows_keeps_their_own_role(channel, monkeypatch):
 
 
 def test_the_opening_gives_no_count_and_a_resident_agrees_with_rowans(channel, monkeypatch):
-    """The rehearsal (2026-11-14): an opening said "six little egrets" before the booked eight and named the pool
-    "the Grey estuary"; a resident said 276 against Rowan's 280."""
+    """The rehearsal (2026-11-14): an opening said "six little egrets" before the booked eight; a resident said 276
+    against Rowan's 280. The next (2026-11-16): the planner made up "the Wexley estuary" for the Grey estuary."""
     w = _world()
     _stub(monkeypatch)
     ep = wildlife.commission(w)
@@ -342,5 +343,6 @@ def test_the_opening_gives_no_count_and_a_resident_agrees_with_rowans(channel, m
     assert "No number or count" in opening and "by that name and no other" in opening
     meets = [wildlife.brief_for(w, "{m%d}" % k) for k in range(1, wildlife.MEETS + 1)]
     assert ep["count"] is not None                         # the egrets on this date: the test has a count to check
-    assert any(f"it is {ep['count']} {ep['counted']}, as Rowan gave it" in b for b in meets)
+    assert any("they give no number or count of it at all" in b for b in meets)    # told it, all three said "eight"
+    assert str(ep["count"]) not in " ".join(meets)
     assert "never a new name for a pool" in writers.SHOW_SYSTEMS["tideline"][T.links]

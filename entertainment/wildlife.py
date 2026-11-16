@@ -63,7 +63,8 @@ SAID_CHARS = 420                         # each earlier item as the later ones s
 # Filmed by day: what slips through anyway is put into the daytime (the first model run had "Good evening, and welcome
 # to Tideline", a resident's "Good evening to you too, Rowan" and "the tide is making slowly tonight").
 DAYTIME = ((re.compile(r"\bgood evening\b", re.I), "hello"), (re.compile(r"\bthis evening\b", re.I), "today"),
-           (re.compile(r"\btonight\b", re.I), "today"))
+           (re.compile(r"\btonight\b", re.I), "today"),
+           (re.compile(r"\bgood ?night\b", re.I), "goodbye"))       # a close filmed by day said "Goodnight" (11-16)
 ON_AIR_FEET = 0.6                        # the creature's feet this far down the hide: clear of the ticker (on-air frames)
 TOKEN = re.compile(r"\{(open|close|w[0-9]+|m[0-9]+|x[0-9]+)\}")
 # Who has something to say about the coast's wildlife: the counters and watchers first (WILD), then the people who
@@ -261,7 +262,9 @@ def commission(world: World) -> dict:
     near_at = SEQUENCES - 1                               # the neighbour's sequence: the third of four
     started = time.monotonic()
     # What the planner is asked, apart from the town's briefing: the creative editor reads this much of it too.
-    asked = (f"THE SIGHT: {_sight_text(lead, n)}"
+    # The place by the town's own name: unnamed, the planner made up "the Wexley estuary" for the Grey estuary, and
+    # the writers then said both (rehearsal, 2026-11-16).
+    asked = (f"THE SIGHT: {_sight_text(lead, n)} The place is {_place(lead)}: no other name for it."
              + (f"\n\nTHE NEIGHBOUR (sequence {near_at}, no number): {near.what}. {near.note}" if near else
                 "\n\nTHE NEIGHBOUR: none tonight; every sequence is about THE SIGHT.")
              + "\n\nTHE SEASON (what is about this month):\n" + "\n".join(f"  - {s.what}" for s in season)
@@ -447,9 +450,9 @@ def brief_for(world: World, brief: str) -> str:
                 "next time, without saying when or what's next")
     if it["kind"] == "meet":
         m = it["meet"]
-        # The count, for agreeing with: given none, a resident said 276 against Rowan's 280 (rehearsal, 2026-11-14).
-        n = (f" They needn't give the count again, but if it comes up it is {ep['count']} {ep['counted']}, as Rowan "
-             "gave it: they agree with it, with no other figure for it"
+        # The count is Rowan's alone: a resident said 276 against his 280 (rehearsal, 2026-11-14), and told the number
+        # to agree with, all three residents said "eight" again (rehearsal, 2026-11-16).
+        n = (" The count is Rowan's, given already: they give no number or count of it at all"
              if ep.get("count") is not None and s.id == ep["sight"] else "")
         return (f"ROWAN MEETS {m['name']} ({m['role']}) out at {place}, about {s.what}: {m['talk']} They talk as "
                 f"people do outdoors, side by side, looking at the same thing.{n}")

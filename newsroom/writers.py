@@ -1643,7 +1643,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
                       guest_name=(name := _guest_of(l, script, stayed, studio, before)),
                       guest_role=role(name) if l.speaker == "guest" else None,
                       mood=getattr(l, "mood", None))
-                 for before, l in zip([None, *script.lines], script.lines) if l.text.strip()]
+                 for before, l in zip([None, *script.lines], script.lines) if l.text.strip()
+                 and not _just_their_name(l, script)]
     ration_moods(seg.lines)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
@@ -1818,6 +1819,14 @@ def _remembered_note(p: Person) -> tuple[str, dict | None]:
     return note, end
 
 
+def _just_their_name(line, script) -> bool:
+    """A guest line that is only its own speaker's name: the name field written into the text ("Lowenna Chenoweth",
+    spoken as a line, twice on The Kettle's On, 2026-11-14 and 11-16). Not a caller giving theirs when asked."""
+    name = (getattr(line, "guest_name", None) or "").strip()
+    return (line.speaker == "guest" and bool(name) and line.text.strip().rstrip(".").strip().lower() == name.lower()
+            and name.lower() != (getattr(script, "caller_name", "") or "").strip().lower())
+
+
 def _addressed(text: str, names: list[str]) -> str | None:
     """Which of `names` (first names) a line speaks to last: "That's fair, Harold. Nora, you've heard
     plenty of that" is to Nora. A name followed by a comma, full stop, question or exclamation mark."""
@@ -1849,18 +1858,25 @@ def _guest_of(line, script, stayed: str | None = None, studio: str | None = None
                 to = (_addressed(before.text, names)
                       if unnamed and before is not None and before.speaker != "guest" else None)
                 own = re.search(rf"\b{re.escape(names[0])}\b", line.text)    # "Ivy's a good harbourmaster": a caller
-                if not own and (opens or to == names[0]):
+                # Spoken to the caller anywhere in the line ("A moss killer in the spring, Jean, not now", "And Wendy,
+                # don't leave the greenhouse shut"): nobody speaks to themselves (rehearsal, 2026-11-16). Not the
+                # caller giving their own name ("It's Wendy, ringing from Tregenna Hill").
+                intro = re.search(rf"(?:it's|it is|i'm|i am|this is|name's|name is|called)\s+{re.escape(names[1])}\b",
+                                  line.text, re.IGNORECASE)
+                to_caller = not intro and bool(re.search(rf"\b{re.escape(names[1])}\b(?=\s*[,.?!])", line.text))
+                if not own and (opens or to == names[0] or to_caller):
                     return studio
             return script.caller_name
         guest = studio.lower().split()
         # The full name, the surname, or the first name alone ("Ivy"): Jonah's on first-name terms.
         if not (said == guest or said[-1] == guest[-1] or said == guest[:1]):
             return script.caller_name
-        # Named for the studio guest but opening on their own first name: "Thanks, Sam. That's a relief" was the
-        # caller's goodbye, and The Kettle's On's vet would have thanked himself (2026-11-14). Nobody opens a line
-        # by speaking to themselves.
-        if re.match(rf"(?:(?:thanks|thank you|cheers|hello|hi|hiya|oh|right|well|so)\W+)?"
-                    rf"{re.escape(studio.split()[0])}\s*[,.?!]", line.text.strip(), re.IGNORECASE):
+        # Named for the studio guest but thanking or greeting them by name: "Thanks, Sam. That's a relief" was the
+        # caller's goodbye, and The Kettle's On's vet would have thanked himself (2026-11-14). Only with the thanks or
+        # the greeting: a bare "Lowenna, the bay tree is a Mediterranean plant..." was her own answer with her name
+        # put in front (rehearsal, 2026-11-16), as was "Tam, you've heard the worry" (2026-11-08).
+        if re.match(rf"(?:thanks|thank you|cheers|ta|hello|hi|hiya)\W+{re.escape(studio.split()[0])}\s*[,.?!]",
+                    line.text.strip(), re.IGNORECASE):
             return script.caller_name
         return studio
     if stayed:

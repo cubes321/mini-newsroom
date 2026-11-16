@@ -200,7 +200,18 @@ def test_the_studio_guests_unnamed_answer_is_theirs_not_the_callers(monkeypatch)
         {"speaker": "guest", "text": "Helen, can the costing come out before the vote?", "guest_name": "Helen Strand"},
         {"speaker": "guest", "text": "It can, Walter, by Friday.", "guest_name": "Helen Strand"},
         {"speaker": "guest", "text": "Thanks, Helen. That's all I wanted.", "guest_name": "Helen Strand"},
-        {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, walter, helen, walter]
+        {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, helen, helen, walter]
+    # A bare name in front is her own answer with her name put there ("Lowenna, the bay tree is a Mediterranean
+    # plant", 2026-11-16); unnamed lines that speak to the caller are hers, the caller giving their own name isn't;
+    # and her name alone as a line is the name field written into the text, and goes.
+    assert said_by([
+        {"speaker": "host_b", "text": "Line six, you're on."},
+        {"speaker": "guest", "text": "Hello Jonah, it's Walter, from Quay Lane."},
+        {"speaker": "guest", "text": "Helen Strand", "guest_name": "Helen Strand"},
+        {"speaker": "guest", "text": "Helen, the ban is the council's to lift.", "guest_name": "Helen Strand"},
+        {"speaker": "guest", "text": "And Walter, write to us before Thursday."},
+        {"speaker": "guest", "text": "A letter by Friday, Walter, not a phone call."},
+        {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, helen, helen, helen]
 
 
 def test_someone_who_rang_before_may_ring_again(monkeypatch):

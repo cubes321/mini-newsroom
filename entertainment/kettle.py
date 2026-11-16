@@ -210,7 +210,8 @@ generous and chaotic, measures nothing, feeds everyone, laughs at her own disast
 about oven temperatures, and secretly can't cook. They are fond of each other and disagree about
 everything in the kitchen: that is the fun, never a real row. TONIGHT gives the cook, the dish, the
 sofa guest, the expert and tonight's phone-in. Both presenters speak in every item, Maggie first.
-Light: no news stories, no threads (thread_id is null), nothing grim. Cooking is real cooking: real
+Light: no news stories, no threads (thread_id is null), nothing grim, and nothing from the council: no votes,
+petitions or campaigns, not even in passing (an opening plugged a petition going before council). Cooking is real cooking: real
 ingredients, real quantities, real times and temperatures, said the way a cook says them.
 Maggie and Nigel have only the pasts given here: the café kitchen and the classroom. A story of their
 own is a small one from there; they never take a guest's history, family, years or places as theirs
