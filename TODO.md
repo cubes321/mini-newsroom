@@ -281,7 +281,16 @@ bottom with the date.
         which is the user's 11-15 shape: a decision for the user.
       - The Coast Road: the "no family" rule did not hold on Haiku ("my wife's dresser"); and the editor found the
         leg tripping over itself (an arrival twice at a stop, the clock going backwards between items). Brenda
-        Fisk's hems and Stan's eleven boats, which it questioned, are canon.
+        Fisk's hems and Stan's eleven boats, which it questioned, are canon. Fixed the same day, and leg 2 rehearsed
+        on the fix (the 30th): a sentence giving someone a relative their record doesn't have is cut in code
+        (`travelogue._keep_to_the_record`: two cut on leg 2, and family no longer in the editor's remarks; replayed
+        on leg 1, only the wife's dresser went, leaving Lorna's "A dresser, in a boat?" with less behind it); each
+        item is told where she is in the leg (on the way and not there yet; just arrived; already there; still
+        there at the close), and the road no longer arrives early; the day only moves forward; a piece she gives
+        alone loses another speaker's lines instead of going to the template; a sentence said word for word earlier
+        today goes (`_not_again`: the meeting at the Crown repeated the arrival's first sentence; one a leg in the
+        replay); only the close sees how the leg ends; no made-up results or plans (a darts win of 7-2). The last
+        four not yet seen with the model. Rehearsal total 131 calls, $1.55 Claude.
       - The meeting, the vets and the reviews ran cleanly; the editor sent back four of five plans again.
     - Left: sending back the soap's live scenes; a week-ahead slate once the comedy and the drama exist; a nightly
       planner for The Coast Road's legs (its route is saved, so this series is reviewed but not vetted).

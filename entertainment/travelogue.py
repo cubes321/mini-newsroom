@@ -400,25 +400,38 @@ def brief_for(world: World, brief: str) -> str:
     if it["kind"] == "open":
         prev = "" if n == 1 else f" Last time she got to: {s['legs'][n - 2]['ends']}."
         return (f"THE OPENING of leg {n} of {LEGS}, \"{leg['title']}\": Lorna to camera at {leg['stops'][0]['place']}: "
-                f"\"Hello, and welcome to {TITLE}\", where she is, where today's leg goes and how: {leg['travel']}."
+                f"\"Hello, and welcome to {TITLE}\", where she is and how she's going today: {leg['travel']}."
                 + (f" Her reason for the journey: {s['why']}" if n == 1 else prev)
-                + " Only Lorna speaks, five to eight lines")
+                + " She is setting off: not the stops ahead one by one, and nothing of how the day ends. Only Lorna "
+                  "speaks, five to eight lines")
+    # Where she is in the leg, item by item: told only "ON THE ROAD to the quay rail", the writer had her there
+    # already, the arrival arrived again, and the meeting opened by arriving a third time (rehearsal, 2026-11-16).
     if it["kind"] == "close":
         nxt = f" Next time: {s['legs'][n]['title']}." if n < LEGS else " That's the whole journey: the last leg."
-        return (f"THE CLOSE of leg {n}, Lorna to camera in the last of the light: {leg['ends']}{nxt} A goodbye "
-                "without saying when. Only Lorna speaks, five to seven lines")
+        last = leg["stops"][-1]
+        return (f"THE CLOSE of leg {n}, Lorna to camera in the last of the light, still at {last['place']} after "
+                f"meeting {last['meet']}: no arriving again and nothing about the place that's been said; a line "
+                f"back over the day, then: {leg['ends']}{nxt} No hello: a goodbye, without saying when. Only Lorna "
+                "speaks, five to seven lines")
     if it["kind"] == "arrive":
         st = it["stop"]
+        came = ("" if it["k"] == 1 else
+                " The way here was the item before: she has just got here, and doesn't tell the journey again.")
         return (f"STOP {it['k']} of {STOPS}: Lorna arrives at {st['place']} and tells us about it to camera: "
-                f"{st['what']} Only Lorna speaks, five to eight lines")
+                f"{st['what']}{came} {st['meet']} doesn't speak in this item: meeting them is the next one. Only "
+                "Lorna speaks, five to eight lines")
     if it["kind"] == "meet":
         st = it["stop"]
-        return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} Twelve to sixteen lines, "
-                f"every one either Lorna (guest_name \"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and "
-                "they talk more than she does")
+        return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She is already here and "
+                "has told us about the place in the item before: straight into the talk, with no arriving again and "
+                f"no describing the place again. Twelve to sixteen lines, every one either Lorna (guest_name "
+                f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does")
     if it["kind"] == "road":
-        return (f"ON THE ROAD to {it['to']['place']}: Lorna to camera on the way ({leg['travel']}): the journey so "
-                "far, and what she's hoping for at the next stop. Only Lorna speaks, five to eight lines")
+        frm, to = leg["stops"][it["k"] - 1], it["to"]
+        return (f"ON THE WAY from {frm['place']} to {to['place']} ({leg['travel']}): she has left {frm['place']} and "
+                f"is not at {to['place']} yet, so no arriving and nothing about it as if she were there (her arrival "
+                "is the next item): the journey so far, what she sees on the way, and what she's hoping for. Only "
+                "Lorna speaks, five to eight lines")
     return ("WHILE SHE WAITS (" + leg["travel"] + "): " + WAITING[(it["k"] - 1) % len(WAITING)]
             + ". Only Lorna speaks, five to seven lines; nothing said earlier today again")
 
@@ -432,8 +445,9 @@ def for_prompt(world: World) -> str:
     earlier = [x for x in s["legs"][:entry["n"] - 1]]
     out = (f"THE SERIES: {TITLE}: \"{s['title']}\", with {HOST} ({HOST_SHORT})\n"
            f"TODAY: leg {entry['n']} of {LEGS}, \"{leg['title']}\", by {leg['travel']}: "
-           + "; then ".join(f"{st['place']} (meeting {st['meet']}, {st['role']})" for st in leg["stops"])
-           + f". It ends: {leg['ends']}")
+           # Not how it ends: that is the close's (its brief has it), and with it in every prompt the opening gave
+           # the ending away (rehearsal, 2026-11-16).
+           + "; then ".join(f"{st['place']} (meeting {st['meet']}, {st['role']})" for st in leg["stops"]) + ".")
     if earlier:
         out += "\nTHE LEGS BEFORE: " + "; ".join(f"{i + 1}. {l['title']} (ended: {l['ends']})"
                                                  for i, l in enumerate(earlier))
@@ -460,14 +474,89 @@ def after(seg, world: World) -> None:
     seg.work["road"] = {"other": it["stop"]["meet"] if it["kind"] == "meet" else None}
 
 
+FAMILY = re.compile(r"\bmy (?:late |old |dear )?(wife|husband|missus|hubby|sister|brother|son|daughter|kids|children|"
+                    r"grandson|granddaughter|grandkids|grandchildren|mum|mother|dad|father|nan|gran|grandad|grandpa|"
+                    r"grandfather|grandmother|aunt|auntie|uncle|cousin|niece|nephew|partner|fianc[eé]e?|twin)s?\b",
+                    re.IGNORECASE)
+
+
+def _new_family(world: World, name: str, text: str) -> str | None:
+    """A relative `name` speaks of that their record never mentions ("my wife's dresser": Stan Tully has a mother on
+    record, and no wife), or None. Their role and what they've said on air are the record."""
+    p = world.person_by_name(name)
+    record = " ".join([p.role, *(m.get("said", "") for m in p.memories)]).lower() if p else ""
+    if name == HOST:
+        record += " " + HOST_ABOUT.lower()
+    for m in FAMILY.finditer(text):
+        words = next((g for g in _KIN if m.group(1).lower() in g), {m.group(1).lower()})
+        if not any(re.search(rf"\b{re.escape(w)}s?\b", record) for w in words):
+            return m.group(0)
+    return None
+
+
+# The same relative by other words: "my mum" for a record that says "named after his mother".
+_KIN = ({"wife", "missus"}, {"husband", "hubby"}, {"mum", "mother"}, {"dad", "father"},
+        {"nan", "gran", "grandmother"}, {"grandad", "grandpa", "grandfather"}, {"kids", "children", "son", "daughter"},
+        {"grandkids", "grandchildren", "grandson", "granddaughter"}, {"aunt", "auntie"})
+
+
+def _keep_to_the_record(world: World, script) -> None:
+    """The rule against new family didn't hold on the model (a sister for Stan Tully on the first run, a wife at the
+    rehearsal of 2026-11-16), and an aired line is canon: a sentence that gives a speaker a relative their record
+    doesn't have goes, and a line with nothing left goes with it. The resident's memory of the item too."""
+    kept = []
+    for l in script.lines:
+        name = (l.guest_name or "").strip()
+        sentences = re.split(r"(?<=[.!?])\s+", l.text.strip())
+        left = [x for x in sentences if not _new_family(world, name, x)]
+        if len(left) != len(sentences):
+            log.info("coast road: %s's line lost %d sentence(s) giving them family off the record", name,
+                     len(sentences) - len(left))
+        if left:
+            l.text = " ".join(left)
+            kept.append(l)
+    script.lines = kept
+    memo = getattr(script, "guest_memory", None)
+    if memo and script.guest_name and _new_family(world, script.guest_name, memo):
+        script.guest_memory = None
+
+
+def _words_of(sentence: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
+
+
+def _not_again(world: World, script) -> None:
+    """A sentence said word for word in an earlier item today goes: told not to, the meeting at the Crown still
+    opened with the arrival's "Right, I've made it to the back room of the Crown" (rehearsal, 2026-11-16). Only
+    sentences of five words or more, so "Thank you." and "Right." may come round."""
+    with world.lock:
+        said = {_words_of(x) for a in world.archive if a["date"] == world.last_date and a.get("show") == SHOW
+                for x in re.split(r"(?<=[.!?])\s+", a.get("text") or "")}
+    kept = []
+    for l in script.lines:
+        sentences = re.split(r"(?<=[.!?])\s+", l.text.strip())
+        left = [x for x in sentences if len(_words_of(x).split()) < 5 or _words_of(x) not in said]
+        if left:
+            l.text = " ".join(left)
+            kept.append(l)
+    script.lines = kept
+
+
 def check(seg, script, world: World) -> None:
-    """Lorna alone to camera, or Lorna and the stop's resident; the memory is the resident's, never one an item."""
+    """Lorna alone to camera, or Lorna and the stop's resident; the memory is the resident's, never one an item.
+    Nobody gains family off the record (`_keep_to_the_record`). A piece Lorna gives alone that has someone else
+    speaking loses their lines (the rehearsal's arrival at the quay rail had Ellis Porrett in it, and went to the
+    template), so long as enough of hers are left."""
     entry = tonight(world)
     tok = _token(seg.brief)
     if not entry or tok is None:
         return
     s = next(x for x in state(world)[0] if x["made"] == entry["made"])
     it = _item(entry, s, tok)
+    _keep_to_the_record(world, script)
+    _not_again(world, script)
+    if it["kind"] != "meet" and sum((l.guest_name or "").strip() == HOST for l in script.lines) >= 3:
+        script.lines = [l for l in script.lines if (l.guest_name or "").strip() == HOST]
     names = {(l.guest_name or "").strip() for l in script.lines}
     if it["kind"] == "meet":
         other = it["stop"]["meet"]
@@ -630,9 +719,13 @@ This is part of THE COAST ROAD, a travelogue on Channel 8: {HOST}, {HOST_SHORT},
 every slow way there is. Her own old waiting story (the ferry office and the biscuit) belongs to the first leg's
 opening and nowhere else: the waiting stories from now on are other people's. No figures or news of the day from the
 briefing (the auction's takings and prices, votes, fixtures, anything due on a date): it airs days after it was
-filmed. Every line is speaker "guest" with guest_name the person speaking: "{HOST}" for her, and the
+filmed. Nobody makes up news either: no results, scores, league places, surveys, repairs or plans the briefing
+doesn't give (a darts win of 7-2 and a survey of the slip were invented at a rehearsal); what residents say is about
+what they do and what they've seen. Every line is speaker "guest" with guest_name the person speaking: "{HOST}" for her, and the
 resident by their exact name. It was FILMED EARLIER, BY DAY: never "tonight", "this evening", "good evening" or
-"live", and no clock times. Warm and funny, never cruel: she laughs with people, not at them. Places and people from
+"live", and no clock times. The day only moves on: each item is later than everything in SAID ALREADY TODAY, so
+nothing happens earlier in the day than it already has (once the auction is over it stays over, and a "first boat"
+can't come in after the afternoon). Warm and funny, never cruel: she laughs with people, not at them. Places and people from
 TODAY and the briefing only; no new history for anyone the town knows, and nothing new about Lorna's own family or
 past. A resident she meets talks about what they do and what they've seen; they have no family on air (no sister,
 brother, husband, wife, children or grandchildren) unless the briefing gives them one: the first run gave Stan Tully a

@@ -290,3 +290,87 @@ def test_a_resident_lorna_meets_has_no_family_on_air_unless_the_briefing_gives_o
     """The first run gave Stan Tully a sister he never had ("a cot for my sister's first")."""
     from entertainment import travelogue
     assert "no family on air (no sister" in travelogue._RULES and "unless the briefing gives them one" in travelogue._RULES
+
+
+def _said(lines, **kw):
+    def reply(schema):
+        return schema.model_validate({
+            "headline": "Lorna on the road", "lower_third": "The Coast Road", "thread_id": None,
+            "guest_name": tv.HOST, "guest_role": "comedian", "lines": [
+                {"speaker": "guest", "guest_name": who, "text": t} for who, t in lines], **kw})
+    return reply
+
+
+def test_a_sentence_giving_someone_family_off_their_record_goes(channel, monkeypatch, nowhere):
+    """The rehearsal of 2026-11-16: "I built the whole front of my wife's dresser" for Stan Tully, whose record has a
+    mother (his tug is named after her) and no wife. The rule in the prompt didn't hold."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    other = tv.series(w)["legs"][0]["stops"][0]["meet"]
+    w.person_by_name(other).memories.append({"date": "2026-11-01", "show": "x", "said": "named the boat after his mother"})
+    _stub(monkeypatch, _said([
+        (tv.HOST, "What did you do while you waited?"),
+        (other, "Joinery, mostly. I built the whole front of my wife's dresser off this very slip."),
+        (tv.HOST, "In a boat?"),
+        (other, "My mum taught me patience. She named the tide clock."),
+        (other, "My sister's boy rows now."),
+        (tv.HOST, "Lovely.")], guest_memory="built my wife's dresser while waiting"))
+    seg = Segment(slot_id=5, type=T.interview, show="coastroad", brief="{m1}", target_s=150)
+    writers.script_segment(seg, w)
+    said = [(l.guest_name, l.text) for l in seg.lines]
+    assert (other, "Joinery, mostly.") in said                                   # the wife's sentence went
+    assert (other, "My mum taught me patience. She named the tide clock.") in said   # a mother is on record
+    assert not any("sister" in t for _, t in said)                               # the whole line went
+    assert not any("dresser" in m["said"] for m in w.person_by_name(other).memories)
+
+
+def test_a_piece_lorna_gives_alone_loses_someone_elses_lines_not_the_whole_piece(channel, monkeypatch, nowhere):
+    """The rehearsal's arrival at the quay rail had the next resident speaking in it, and the template aired."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    nxt = tv.series(w)["legs"][0]["stops"][1]["meet"]
+    _stub(monkeypatch, _said([(tv.HOST, "Here's the quay rail."), (nxt, "Morning, Lorna."),
+                              (tv.HOST, "That's Ellis, off his shift."), (tv.HOST, "The boxes are going over."),
+                              (tv.HOST, "On we go.")]))
+    seg = Segment(slot_id=6, type=T.interview, show="coastroad", brief="{a2}", target_s=60)
+    writers.script_segment(seg, w)
+    assert [l.text for l in seg.lines] == ["Here's the quay rail.", "That's Ellis, off his shift.",
+                                           "The boxes are going over.", "On we go."]
+
+
+def test_each_item_knows_where_she_is_in_the_leg(channel, monkeypatch, nowhere):
+    """Told only "ON THE ROAD to the quay rail", the writer had her there already; the arrival and the meeting both
+    arrived again (rehearsal, 2026-11-16)."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    stops = tv.series(w)["legs"][0]["stops"]
+    road = tv.brief_for(w, "{r1}")
+    assert f"from {stops[0]['place']} to {stops[1]['place']}" in road and "is not at" in road and "no arriving" in road
+    assert "doesn't tell the journey again" in tv.brief_for(w, "{a2}") and f"{stops[1]['meet']} doesn't speak" in \
+        tv.brief_for(w, "{a2}")
+    assert "no arriving again" in tv.brief_for(w, "{m2}") and "no arriving again" in tv.brief_for(w, "{close}")
+    assert "The day only moves on" in tv._RULES
+
+
+def test_a_sentence_already_said_today_goes_and_only_the_close_knows_how_the_day_ends(channel, monkeypatch, nowhere):
+    """Rehearsal, 2026-11-16: the meeting at the Crown opened with the arrival's own sentence, word for word, and the
+    opening, which saw the leg's ending in every prompt, gave it away."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    leg = tv.series(w)["legs"][0]
+    w.archive.append({"date": w.last_date, "show": "coastroad", "type": "interview", "headline": "arrives",
+                      "text": "Right, I've made it to the back room of the Crown. Right.", "aired": False, "ts": 0})
+    other = leg["stops"][0]["meet"]
+    _stub(monkeypatch, _said([(tv.HOST, "Right, I've made it to the back room of the Crown. Jan, how long?"),
+                              (other, "Since I could reach the oche."), (tv.HOST, "Right."),
+                              (other, "Practice, love.")]))
+    seg = Segment(slot_id=7, type=T.interview, show="coastroad", brief="{m1}", target_s=150)
+    writers.script_segment(seg, w)
+    assert [l.text for l in seg.lines][:3] == ["Jan, how long?", "Since I could reach the oche.", "Right."]
+    assert leg["ends"] not in tv.for_prompt(w) and leg["ends"] in tv.brief_for(w, "{close}")
+    assert "nothing of how the day ends" in tv.brief_for(w, "{open}") and "No hello" in tv.brief_for(w, "{close}")
+    assert "Nobody makes up news" in tv._RULES
