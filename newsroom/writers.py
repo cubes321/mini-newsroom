@@ -1084,8 +1084,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
 def _not_the_guest(world: World, guest: str, brief: str, seg_type: SegmentType, also: tuple[str, ...] = ()) -> str:
     """The Inquiry's item that isn't THE GUEST's, restated at the very end of its prompt. On 2026-11-15 the model
     booked Gerald Thorne for six of them, copying the night's studio interviews listed above it; replayed, the
-    item said again last booked THE GUEST 0 times in 27, against 6 in 18 as it was. The wording matters: the same
-    note ending "not THE QUESTIONS PAT PUTS to THE GUEST", and saying "guest_name is NOT", booked them 8 in 27.
+    item said again last booked THE GUEST 2 times in 63, against 6 in 18 as it was (films: 1 in 22; said twice, as
+    the last ask does, 0 in 8 on the two that wouldn't move). The wording matters: the same note ending "not THE
+    QUESTIONS PAT PUTS to THE GUEST", and saying "guest_name is NOT", booked them 8 in 27.
     Nobody already on tonight either (`also`: whoever the model just booked)."""
     on = list(dict.fromkeys(n for n in (guest, *world.guests_today(inquiry.SHOW), *also) if n))
     note = (f"THIS ITEM, once more: {brief.rstrip('.') or 'a film on the story'}. Its guest is NOT {guest}: they are "

@@ -664,15 +664,17 @@ bottom with the date.
 - [x] **The Channel 7 night of 2026-11-15, reviewed 2026-11-16**, the first on the 2026-11-15 fixes
   (station-2026-11-15-1951.log, 19:51 to 07:51 on the real town): 692 segments, no filler, worst p99 14.2 ms,
   15 recordings all with sound and no silence over 5 s, the annals page for 15 November written, about $0.80 on
-  Anthropic (two Opus calls for the meeting, a few cents). The fixes held:
+  Anthropic (an estimate, scaled by tokens from the 14th's $0.70; two Opus calls for the meeting, a few cents).
+  The fixes held:
   - The pool: 14 re-datings carried out from memos (t474 and t476 moved twice in the night).
   - Held closes: t349, t520 and t526 waited for Monday's coverage and closed at 06:58. t517 was held again to
     27 November with a NEXT beginning "Closed:" while it is still resolving (look at that wording). t462 is due
     Tuesday 17.
-  - 7 desk rounds made no call; 5 senior reviews and 1 skip ("no review until the town moves").
+  - 7 desk rounds made no call (whether the board went stale for it isn't checked yet); 5 senior reviews and 1
+    skip ("no review until the town moves").
   - The meeting on a late start said "Evening" and nothing about the afternoon.
   - Parallax on air: the 06:04 fish quay's boats and van moved about 10 px in 4 s; p99 as before.
-  - Pictures in shadow: about 90 (all three 15 November pages and the breakfast page looked at), none failed;
+  - Pictures in shadow: 73 (53 in the evening, 20 at breakfast; every page looked at), none failed;
     a few odd briefs (darts on a pool table, a juggler with a chainsaw, a fender like a sock).
   - "continues thread" 5, "story desk merged" 11, loose ends 10, "has been on before" 44 (26 the night before;
     each costs a second call).
@@ -682,9 +684,12 @@ bottom with the date.
     alone sent it back to Thorne, and the last ask was what Thorne had said that night. 6 November lost four the same
     way with a commissioned guest. Now the item is restated at the very end of the prompt (`_not_the_guest`), the
     re-ask after any rebooking keeps THE GUEST's ban, THE GUEST out of place is never asked about as a returning
-    guest, and one last ask replaces it. Replayed on Haiku from the night's own prompts: THE GUEST 0-2 in 27 first
-    time, against 6 in 18 as it was; ending the note on "THE QUESTIONS PAT PUTS to THE GUEST" brought it back to 8.
+    guest, and one last ask replaces it. Replayed on Haiku from the night's own prompts: THE GUEST 2 times in 63
+    interviews first time, against 6 in 18 as it was; films 1 in 22; the last ask 0 in 8 on the two prompts that
+    wouldn't move. Every replayed item stayed on t484. Ending the note on "THE QUESTIONS PAT PUTS to THE GUEST"
+    brought it back to 8 in 27. Invented guests: 1 in 9 first time, 4 in 8 on the last ask (each joins the town).
 - [ ] Still to watch from that list:
+  - Whether the board goes stale when the desk skips a round with nothing to do (7 skips on 2026-11-15).
   - The Inquiry on the fix (from 2026-11-16): "booked THE GUEST ... asking once more" and "using template (booked
     THE GUEST" in the log. Dolores Finch came up in a third of the replayed answers, and she sits on The Panel.
   - The harbour church (`church`): offered to every writer since 2026-11-15, chosen by none on 2026-11-15.
