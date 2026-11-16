@@ -348,3 +348,27 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
         assert out is not None and _at(19, 54) <= out <= _at(19, 58), factor
         assert sofa is not None and _at(19, 12) <= sofa <= _at(19, 22), factor
         assert ended is not None and abs(ended - _at(20)) <= 60, factor
+
+
+def test_the_recipe_items_read_their_figures_off_the_card_and_the_booking_knows_tonights_date(monkeypatch):
+    """A rehearsal (2026-11-14): Nigel asked for 250 g of flour, then the cook gave 150 g; a notice said a cat was
+    missing since a Monday two days ahead of the programme."""
+    w = world_mod.seed()
+    w.last_date = "2026-11-14"
+    b = _booking()
+    b.dish.card = ["225 g plain flour", "110 g cold butter", "2 eggs", "Oven 190C, 35 minutes"]
+    seen = _stub(monkeypatch, b)
+    kettle.commission(w)
+    system = seen[0][2]
+    assert "Saturday 14 November" in system and "{today}" not in system and "card:" in system
+    for brief in (kettle._RECIPE_1, kettle._RECIPE_2):
+        said = kettle.brief_for(w, brief)
+        assert "THE RECIPE CARD" in said and "225 g plain flour; 110 g cold butter" in said and "{" not in said
+    assert "card: 225 g plain flour" in kettle.digest(w, "2026-11-14").replace("The card", "card")
+    w.kettles[-1]["dish"].pop("card")                       # a booking from before the card
+    assert "said once and never changed" in kettle.brief_for(w, kettle._RECIPE_1)
+
+
+def test_the_presenters_keep_their_own_pasts():
+    rules = kettle.SYSTEMS[T.call]
+    assert "only the pasts given here" in rules and "never take a guest's history" in rules

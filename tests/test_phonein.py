@@ -192,6 +192,15 @@ def test_the_studio_guests_unnamed_answer_is_theirs_not_the_callers(monkeypatch)
         {"speaker": "host_b", "text": "Helen, is that a promise?"},
         {"speaker": "guest", "text": "Ha, I'd rather hear it from the bulletin."},
         {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, helen, walter]
+    # Named for her but opening on her own name: the caller. The Kettle's On's vet would have said "Thanks, Sam" to
+    # himself (2026-11-14), and Have Your Say's "Brenda, I'm sure you'll be fair" was the caller's (2026-11-04).
+    assert said_by([
+        {"speaker": "host_b", "text": "Line five, you're on."},
+        {"speaker": "guest", "text": "Morning Jonah, it's Walter."},
+        {"speaker": "guest", "text": "Helen, can the costing come out before the vote?", "guest_name": "Helen Strand"},
+        {"speaker": "guest", "text": "It can, Walter, by Friday.", "guest_name": "Helen Strand"},
+        {"speaker": "guest", "text": "Thanks, Helen. That's all I wanted.", "guest_name": "Helen Strand"},
+        {"speaker": "host_b", "text": "Thanks for ringing."}]) == [walter, walter, helen, walter]
 
 
 def test_someone_who_rang_before_may_ring_again(monkeypatch):

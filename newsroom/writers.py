@@ -1854,7 +1854,15 @@ def _guest_of(line, script, stayed: str | None = None, studio: str | None = None
             return script.caller_name
         guest = studio.lower().split()
         # The full name, the surname, or the first name alone ("Ivy"): Jonah's on first-name terms.
-        return studio if said == guest or said[-1] == guest[-1] or said == guest[:1] else script.caller_name
+        if not (said == guest or said[-1] == guest[-1] or said == guest[:1]):
+            return script.caller_name
+        # Named for the studio guest but opening on their own first name: "Thanks, Sam. That's a relief" was the
+        # caller's goodbye, and The Kettle's On's vet would have thanked himself (2026-11-14). Nobody opens a line
+        # by speaking to themselves.
+        if re.match(rf"(?:(?:thanks|thank you|cheers|hello|hi|hiya|oh|right|well|so)\W+)?"
+                    rf"{re.escape(studio.split()[0])}\s*[,.?!]", line.text.strip(), re.IGNORECASE):
+            return script.caller_name
+        return studio
     if stayed:
         return stayed if (name or "").strip().lower() == stayed.lower() else script.guest_name
     return name or getattr(script, "guest_name", None)

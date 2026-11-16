@@ -8,7 +8,8 @@ and the story desk never sees it, so no thread grows from it.
 
 Its soap, Marina Row, is talked about too: an aired episode's cliffhanger, the question and never the
 answer (soap below). So is its wildlife series, Tideline: what Rowan Polglase showed, and the number he gave
-(wildlife below). That one is canon: the seal pups in the coves really are there.
+(wildlife below). That one is canon: the seal pups in the coves really are there. And its teatime magazine, The
+Kettle's On: who cooked what, and who was on the sofa (kettle below).
 
 Read from the world alone (`world.quizzes`, `world.soaps`, the archive): this module knows nothing of
 the other channel's code, and a station that never runs it has no talk.
@@ -109,7 +110,40 @@ def wildlife(world, today: date) -> str | None:
     return None
 
 
+KETTLE_SHOW = "kettle"             # The Kettle's On's show id in the archive (entertainment/kettle.py)
+
+
+def kettle(world, today: date) -> str | None:
+    """Channel 8's latest The Kettle's On that aired in the last TALK_DAYS, as a sentence: who cooked what, and who
+    was on the sofa with their story, each only if its item went out (the archive keeps an item's brief before its
+    tokens are filled: "THE RECIPE, part one" and "ON THE SOFA"). A stand-in night is nobody's talk: its cook and
+    sofa guest come round again. Read from the world alone (world.kettles)."""
+    for k in reversed(getattr(world, "kettles", None) or []):
+        try:
+            day = date.fromisoformat(k["date"])
+            gap = (today - day).days
+            if gap < 1:
+                continue
+            if gap > TALK_DAYS:
+                return None
+            if k.get("stand_in"):
+                continue
+            briefs = [e.get("brief") or "" for e in world.aired_archive()
+                      if e.get("show") == KETTLE_SHOW and e.get("date") == k["date"]]
+            said = []
+            if any(b.startswith("THE RECIPE") for b in briefs):
+                said.append(f"{k['dish']['cook']} made {k['dish']['dish'][0].lower() + k['dish']['dish'][1:]}")
+            if any(b.startswith("ON THE SOFA") for b in briefs):
+                s = k["sofa"]
+                said.append(f"{s['name']} was on the sofa ({s['about'].rstrip('.')})")
+            if said:
+                return f"The Kettle's On, the teatime show on Channel 8, {day:%A}: {', and '.join(said)}."
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue                       # an entry saved in an older shape: no talk from it
+    return None
+
+
 def line(world, today: date) -> str:
     """The briefing's town-talk line, with its newline, or nothing."""
-    said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today)) if s]
+    said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today), kettle(world, today)) if s]
     return f"{LABEL}{' '.join(said)}\n" if said else ""

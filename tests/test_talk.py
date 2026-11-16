@@ -54,3 +54,30 @@ def test_it_is_talk_for_two_days_and_never_before_it_has_been_on():
     w = _town()
     w.quizzes.append({"date": "2026-11-08"})                                    # an entry in a shape it can't read
     assert talk.quiz(w, TODAY).startswith("Wexley Wits")
+
+
+def _kettle_town(night=TODAY - timedelta(days=1), items=("THE RECIPE, part one: {cook}", "ON THE SOFA: {sofa}."),
+                 stand_in=False):
+    w = world_mod.seed()
+    w.last_date = TODAY.isoformat()
+    w.kettles.append({"date": night.isoformat(), "stand_in": stand_in, "calls": 3, "question": "Garlic?",
+                      "dish": {"dish": "Saffron buns", "cook": "Tegan Moyle", "cook_role": "cook", "why": "winter"},
+                      "sofa": {"name": "Ivy Penhallow", "role": "widow", "about": "a jumper for every lifeboat crew."},
+                      "expert": {"name": "Sam Lander"}, "callers": [], "notices": []})
+    for b in items:
+        w.archive.append({"date": night.isoformat(), "day": 15, "type": "interview", "headline": "x",
+                          "thread_id": None, "people": [], "text": "x", "show": "kettle", "brief": b, "hash": ""})
+    return w
+
+
+def test_last_nights_kettles_on_is_talk_once_its_items_aired():
+    said = talk.kettle(_kettle_town(), TODAY)
+    assert said == ("The Kettle's On, the teatime show on Channel 8, Sunday: Tegan Moyle made saffron buns, and Ivy "
+                    "Penhallow was on the sofa (a jumper for every lifeboat crew).")
+    assert said in talk.line(_kettle_town(), TODAY)
+    only_dish = talk.kettle(_kettle_town(items=("THE RECIPE, part one: {cook}",)), TODAY)
+    assert "saffron buns" in only_dish and "sofa" not in only_dish                    # the sofa never went out
+    assert talk.kettle(_kettle_town(items=()), TODAY) is None                        # booked, never on air
+    assert talk.kettle(_kettle_town(stand_in=True), TODAY) is None
+    assert talk.kettle(_kettle_town(night=TODAY), TODAY) is None                     # tonight's: not yet
+    assert talk.kettle(_kettle_town(night=TODAY - timedelta(days=3)), TODAY) is None

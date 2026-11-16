@@ -292,11 +292,20 @@ bottom with the date.
     mustard sofa, the kettle on the range, a plain wall for the caller's box. Registered for the run by
     `entertainment.use()`; the breakfast sofa no longer stands in. Not yet seen on air.
   - Done 2026-11-15: **its ident**, on Out and About's folk arrangement, kept by ear (`bumper_kettle.wav`).
-  - An expert's unnamed line can still go to the caller (`writers._guest_of`'s guess, Have Your Say's too): one in
-    about eight on the second run.
-  - Town talk: the dish or the sofa guest in Channel 7's briefing the next day, as the quiz result is.
-  - From the creative editor's remarks at the offline rehearsal (2026-11-14): the hosts contradict the recipe's
-    weights.
+  - Done 2026-11-16, **who says a call's lines**: replayed over all 151 logged call scripts (57 of them The
+    Kettle's On's since the 11-14 fixes), only one expert line was left unnamed, and `_guest_of` already gave it
+    to the expert. The fault left was the other way: a line named for the studio guest that opens on their own
+    first name ("Thanks, Sam. That's a relief") is the caller's now. Six lines changed in the replay, five for
+    the better (Ruby's thanks, two "Brenda, ..." callers, Joan's "Tam, can the support boat...", Gail's) and one
+    worse (a garbled script that put "Tam, you've heard the worry" in front of Tam's own answer).
+  - Done 2026-11-16, **town talk** (`talk.kettle`): who cooked what and who was on the sofa, each once its item
+    aired, for two days; not a stand-in night.
+  - Done 2026-11-16, from the creative editor's remarks (2026-11-14), not yet seen with the model: **the recipe
+    card** (the booking's `dish.card`, every quantity, then the oven, temperature and time; both recipe items
+    read their figures off it, and the editor's digest has it) after Nigel asked for 250 g of flour and the cook
+    gave 150 g; a dish that cooks in forty minutes to an hour (a slow braise didn't fit the hour); **the
+    presenters' pasts** (Maggie was given Lowenna's "forty years on the Salting" and a guest's mother); and the
+    booking is told tonight's date, after a notice said "missing since Monday 16 November" on the 14th.
 - [ ] Wexley Wits, next:
   - On air 2026-11-14 at 20:00, seven rounds (the Channel 8 evening on a copy of the town); the creative editor
     marked it fair. The wrong word the user heard at its start was in the ident, not the programme, where Clive

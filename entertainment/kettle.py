@@ -45,7 +45,7 @@ NUMBER = "oh one six three two, nine six oh, eight eight eight"   # the drama ra
 TASK = "kettle" if "kettle" in CONFIG.llm.routes else "chamber"
 REST_DAYS = 28                          # a dish, a cook or a sofa guest isn't booked again within this
 SO_FAR_CHARS = 200
-TOKEN = re.compile(r"\{(cook|dish|sofa|expert|says|question|notices|caller)\}")
+TOKEN = re.compile(r"\{(cook|dish|card|sofa|expert|says|question|notices|caller)\}")
 CALLS_ASKED = 24                        # problems the booking is asked for, one a call: the hour took nineteen
 CALLS_KEPT = 30
 
@@ -99,14 +99,14 @@ THINGS = {
 
 _RECIPE_1 = ("THE RECIPE, part one: {cook} at the counter with Maggie and Nigel, making {dish}: why this dish, "
              "the ingredients, and the first steps until it goes in the oven or the pan. Maggie throws things in by "
-             "eye, Nigel wants the weights; the cook settles it")
+             "eye, Nigel wants the weights; the cook settles it from the card. {card}")
 # On the first scratch run (2026-11-13) part two opened with part one's first line and went through the
 # ingredients again. Since 2026-11-15 it is the last thing in the hour, before the goodnight (SHOW_DEF.closing).
 _RECIPE_2 = ("THE RECIPE, part two, at the end of the hour: the dish went in at the start of the programme and has "
              "been cooking through it. Part one has already done the ingredients and the method, so "
              "none of that again: it starts with {dish} coming out of the oven or from under the grill. {cook} "
              "finishes it and serves up; Maggie and Nigel taste it and give their verdicts (Nigel's is precise, "
-             "Maggie's is a noise of joy); the cook's tip for doing it at home")
+             "Maggie's is a noise of joy); the cook's tip for doing it at home. {card}")
 _SOFA = ("ON THE SOFA: {sofa}. Maggie and Nigel chat with them about it, with a cup of tea: warm and a bit nosy, "
          "the details people like")
 # The expert's way of talking ({says}) is given here and nowhere else: in every expert item's brief it was said in
@@ -212,6 +212,9 @@ everything in the kitchen: that is the fun, never a real row. TONIGHT gives the 
 sofa guest, the expert and tonight's phone-in. Both presenters speak in every item, Maggie first.
 Light: no news stories, no threads (thread_id is null), nothing grim. Cooking is real cooking: real
 ingredients, real quantities, real times and temperatures, said the way a cook says them.
+Maggie and Nigel have only the pasts given here: the café kitchen and the classroom. A story of their
+own is a small one from there; they never take a guest's history, family, years or places as theirs
+(not "forty years on the allotment" because the expert has them, not the cook's mother as Maggie's).
 """
 
 SYSTEMS = {
@@ -266,6 +269,11 @@ class Dish(BaseModel):
     cook_age: str = Field(default="", max_length=6, description="young, middle or old")
     why: Annotated[str, _clip_words(160)] = Field(      # cut, not failed: a long one cost a second call (2026-11-14)
         min_length=3, max_length=160, description="why this dish tonight: the season, a story, a family recipe")
+    # The figures said on air, read off one card: in a rehearsal (2026-11-14) Nigel asked for 250 g of flour and the
+    # cook then gave 150 g, on a show built on Nigel's weighing. Empty for a booking made before there was a card.
+    card: Annotated[list[str], creative._first(16)] = Field(
+        default_factory=list, description="the recipe card: each ingredient with its exact quantity, one a line, "
+                                          "then the oven or hob, the temperature and the time")
 
 
 class Sofa(BaseModel):
@@ -297,9 +305,13 @@ You book THE KETTLE'S ON, a homely teatime magazine on a small-town TV station's
 FICTIONAL town in the briefing, presented by Maggie Truscott and Nigel Spargo from a studio kitchen.
 Book tonight's show:
 - dish: ONE dish a local cook makes at the counter in about ten minutes of television: real food with
-  real ingredients, suited to the season (it is {month}), homely more than fancy. The cook is from town:
-  someone in PEOPLE who cooks (a café, a pub kitchen, a bakery), or a new resident with a cook's job; why
-  this dish tonight in a line.
+  real ingredients, suited to the season (it is {month}), homely more than fancy. It goes in the oven or
+  on the hob at the top of the hour and comes out at the end, so it cooks in forty minutes to an hour,
+  nothing that wants all afternoon. The cook is from town: someone in PEOPLE who cooks (a café, a pub
+  kitchen, a bakery), or a new resident with a cook's job; why this dish tonight in a line. card: the
+  recipe card, the only figures anyone says on air: each ingredient with its exact quantity (grams,
+  millilitres, spoons or a count), one a line, then a last line with the oven or hob, its temperature
+  and the time.
 - sofa: ONE guest with a nice story, never news: a long marriage, a record, a rescue, a hobby, a reunion,
   a first. Someone from PEOPLE, or a new resident.
 - question: tonight's phone-in in THE EXPERT's field, as Maggie would put it to viewers, right for the
@@ -311,7 +323,8 @@ Book tonight's show:
   same cure; at most three touching the season's big worry). The caller and their problem as a
   description, never a name: "someone whose bay tree in a pot has gone brown on one side".
 - notices: three or four community notices: a jumble sale, a choir wanting tenors, a lost cat, a coffee
-  morning, a talk at the library; what, when and where, from the town's places in the briefing.
+  morning, a talk at the library; what, when and where, from the town's places in the briefing. Tonight is
+  {today}: an event is on a day after tonight, and a lost pet went missing on a day before it.
 None of RECENT SHOWS again: no dish, cook or sofa guest from there. Everything is fiction. Return ONLY JSON.
 """
 
@@ -355,6 +368,8 @@ def commission(world: World) -> dict:
     ex = expert(world)
     recent = _recent(world)
     month = date.fromisoformat(world.last_date).strftime("%B")
+    day = date.fromisoformat(world.last_date)
+    today = f"{day:%A} {day.day} {month}"           # a notice said "missing since Monday 16 November" on the 14th
     user = (f"BRIEFING\n{world.summary_for_editor()}\n\nPEOPLE:\n"
             + "\n".join(f"  - {p.name}, {p.role}" for p in _people(world))
             + f"\n\nTHE EXPERT tonight: {ex['name']}, {ex['role']} ({ex['topic']})."
@@ -364,7 +379,8 @@ def commission(world: World) -> dict:
             + creative.for_planner(world, SHOW))
     try:
         b = llm.complete_json(TASK, KettleBooking,
-                              _SYSTEM.replace("{month}", month).replace("{calls}", str(CALLS_ASKED)), user)
+                              _SYSTEM.replace("{month}", month).replace("{today}", today)
+                              .replace("{calls}", str(CALLS_ASKED)), user)
     except llm.LLMError as e:
         log.warning("kettle: no booking (%s); the stand-in takes tonight", e)
         b = None
@@ -383,7 +399,8 @@ def digest(world: World, day: str) -> str:
         return ""
     d, s, ex = k["dish"], k["sofa"], k.get("expert") or {}
     callers = k.get("callers") or []
-    return (f"The recipe: {d['dish']} by {d['cook']}, {d['cook_role']} ({d.get('why', '')}).\n"
+    card = f" The card: {'; '.join(d['card'])}." if d.get("card") else ""
+    return (f"The recipe: {d['dish']} by {d['cook']}, {d['cook_role']} ({d.get('why', '')}).{card}\n"
             f"The sofa: {s['name']}, {s['role']}: {s['about']}\n"
             f"The phones, with {ex.get('name', 'the expert')} on {ex.get('topic', 'their subject')} (in turn, not "
             f"the booking's choice): {k['question']} The booking gave {len(callers)} callers' problems, one a call, "
@@ -505,6 +522,12 @@ def brief_for(world: World, brief: str) -> str:
             return f"{k['dish']['cook']} ({k['dish']['cook_role']})"
         if tok == "dish":
             return f"{k['dish']['dish']} ({k['dish']['why']})"
+        if tok == "card":
+            card = [c.strip() for c in k["dish"].get("card") or [] if c.strip()]
+            if not card:
+                return "Each quantity, temperature and time is said once and never changed."
+            return ("THE RECIPE CARD, the only figures anyone says (Nigel reads his weights off it; no other "
+                    "quantity, temperature or time, and none of these changed): " + "; ".join(card) + ".")
         if tok == "sofa":
             s = k["sofa"]
             return f"{s['name']}, {s['role']}: {s['about']}"
