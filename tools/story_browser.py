@@ -17,8 +17,9 @@ What it shows, all read from the files the station keeps:
 **Strictly read-only.** It never imports newsroom (`world.load()` seeds a missing town and rolls the day, and
 `world.save` is a call away), opens nothing for writing, and serves only on 127.0.0.1. It can run beside a station
 that is on air: the station rewrites data/world.json by writing a .tmp and replacing the file, and on Windows that
-replace fails while any other process has the file open (tried 2026-11-18; FILE_SHARE_DELETE doesn't help). So the
-world is read as seldom and as briefly as possible: a stat first, a read only when the file has changed and at most
+replace fails while any other process has the file open (tried 2026-11-18; FILE_SHARE_DELETE doesn't help). The
+station loses that save, and if it was the save just after an item was scripted (workers.generate), that item fails and
+its slot falls back. So the world is read as seldom and as briefly as possible: a stat first, a read only when the file has changed and at most
 every couple of seconds, the whole file in one read with the handle closed before it is parsed. A read that meets a
 half-written file is tried again, and after that the last good copy is shown, with a note.
 """
@@ -913,7 +914,8 @@ def desk_page(files: Files, town: Town, q: dict) -> str:
                    f"<div class=card><pre class=memo>{esc(w['senior_memo'])}</pre></div>")
     out.append("<h2>The story desk's rounds</h2>")
     for n in reversed(w.get("desk_notes", [])):
-        planned = ", ".join(thread_link(town, t) for t in n.get("planned") or [])
+        planned = ", ".join(thread_link(town, t) if t in town.threads or t in town.pieces else esc(t)
+                            for t in n.get("planned") or [])      # an id the desk named that never stuck: no link
         out.append(f"<div class=card><b>{esc(n.get('at', ''))}</b> <span class=muted>{n.get('new', 0)} new, "
                    f"{n.get('merges', 0)} merged</span><div>{esc(n.get('note', ''))}</div>"
                    + (f"<div class=muted>Planned: {planned}</div>" if planned else "") + "</div>")
