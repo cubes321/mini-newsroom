@@ -673,8 +673,8 @@ said once is not announced again, and never contradicted."""
 # Where a piece sits in its show, by show, type and running-order part (a close gets _CLOSE). Left to
 # guess, the middle pieces opened and closed the show: on 2026-10-28 all twelve of Coastwide's middle
 # links welcomed viewers, and Full Time's rugby on 2026-10-29 said goodbye with ten minutes to go.
-_MIDDLE = ("PLACE IN THE SHOW: the MIDDLE of {title}, already under way: no welcome or good evening, and "
-           "no goodbye or goodnight{extra}. ")
+_MIDDLE = ("PLACE IN THE SHOW: the MIDDLE of {title}, already under way: no welcome or hello to the viewers (no "
+           "good morning, good afternoon or good evening), and no goodbye or goodnight{extra}. ")
 _ROLLING = ("PLACE IN THE SHOW: one item in the rolling news, which runs on all day and evening: no "
             "sign-off from anyone, presenter or guest (no goodnight, goodbye or see you tomorrow). The "
             "next item follows straight on.")
@@ -744,8 +744,35 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
                      for p in ("", "cont", "couch")}
        for t in (SegmentType.links, SegmentType.interview, SegmentType.vox_pop)},
     ("news", SegmentType.bulletin): {"": _ROLLING},
-    ("news", SegmentType.interview): {"": _ROLLING},
+    # Every news field report, sport desk and interview opened "Good evening" (2026-11-18, two weeks of the cache).
+    **{("news", t): {"": _ROLLING + " No hello either (no good evening or good morning): it follows on from the "
+                             "item before" + ("; welcoming the guest and thanking them is fine."
+                                              if t is SegmentType.interview else ".")}
+       for t in (SegmentType.field_report, SegmentType.sport, SegmentType.interview)},
+    # Morning Tide's news on the hour and half hour greets the viewers just tuning in, as breakfast TV does.
+    ("breakfast", SegmentType.bulletin): {"": "PLACE IN THE SHOW: the news on the hour or half hour in Morning Tide, "
+                                              "already under way: a quick good morning is fine; no goodbye."},
 }
+
+# The pieces that are not in a show's running order, or that it never writes: no place in the show.
+_NO_PLACE = {SegmentType.bumper, SegmentType.ad_break, SegmentType.testcard, SegmentType.repeat,
+             SegmentType.teletext, SegmentType.breaking, SegmentType.documentary, SegmentType.film,
+             SegmentType.advert, SegmentType.continuity, SegmentType.filler}
+
+
+def _place(show: schedule.Show, seg_type: SegmentType, part: str) -> str:
+    """Where a piece sits in its show: _PLACE's word for it, or else, in a show with an opening of its own, the
+    middle of it (not its opening or its close). Until 2026-11-18 a piece _PLACE didn't name had none: in two
+    weeks of the cache over 1,100 middle pieces in seven shows opened "Good morning" or "Good evening" (all of
+    Coastwide's interviews, features and vox pops; 353 of Morning Tide's 376 sofa chats; every field report in
+    the news), the news's sport said "goodnight from the corner", and The Last Ferry's guests said goodnight
+    with the show running on."""
+    place = _PLACE.get((show.id, seg_type), {}).get(part)
+    if place is not None or part in ("open", "close") or seg_type in _NO_PLACE or not show.opens:
+        return place or ""
+    guest = seg_type in (SegmentType.interview, SegmentType.call)
+    return _MIDDLE.format(title=_title(show), extra="; welcoming the guest or caller on and thanking them is fine"
+                          if guest else "")
 
 # The programme is named: Pat is "presenter, Coastwide" in the briefing, and every goodbye of The Inquiry
 # from 2026-10-31 to 11-02 thanked viewers for watching Coastwide.
@@ -1063,7 +1090,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += ("\n\nVIEWER TIPS from the tip-line (unconfirmed; use at most one, as a short item, and set "
                  "tip_used to its number; otherwise tip_used is null):\n"
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
-    place = _PLACE.get((show.id, seg_type), {}).get(part)
+    place = _place(show, seg_type, part)
     if place:
         user += "\n\n" + place.rstrip()
     if part == "close":

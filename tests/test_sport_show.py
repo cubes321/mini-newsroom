@@ -51,7 +51,7 @@ def test_each_sports_desk_piece_knows_its_place_in_full_time():
     assert "MIDDLE of Full Time" in places[""] and "welcome to Full Time" not in places[""]
     assert "END of Full Time" in places["close"] and "PLACE IN THE SHOW" not in places["close"]
     _, news = writers.build_prompt(SegmentType.sport, w, target_s=60, show=schedule.get("news"))
-    assert "PLACE IN THE SHOW" not in news
+    assert "rolling news" in news and "Full Time" not in news.split("PLACE IN THE SHOW")[1]
 
 
 def test_the_template_is_fran_with_the_real_result():
