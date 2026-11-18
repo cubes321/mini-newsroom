@@ -16,6 +16,8 @@ docs/STREAMING.md OBS and audio.
 - Shells started by the Claude desktop app don't have the user-level API keys; copy them in from the User
   environment without printing them, or the station quietly runs on templates. Long runs go in their own
   window (`explorer.exe <a .cmd>`), not the app's terminal, which dies with an app restart.
+- To look at the town's stories, use `uv run python tools/story_browser.py` (http://127.0.0.1:8766), not a station
+  run: it is read-only, never imports newsroom, and is safe beside a station on air (`--world` for a backup).
 - Nothing in `data/` is tracked (see .gitignore). Other sessions often share this checkout: commit by explicit
   paths, never `git add -A`, and leave alone changes that aren't yours.
 
