@@ -197,7 +197,9 @@ def write(world, day: date) -> dict:
     folder().mkdir(parents=True, exist_ok=True)
     tmp = path(day).with_suffix(".tmp")
     tmp.write_text(json.dumps(page, indent=1, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path(day))
+    from .world import replace_file
+
+    replace_file(tmp, path(day))                     # a page rewritten while the story browser reads it
     log.info("annals: %s written: %d stories from %d pieces, %d keepsakes", day.isoformat(), len(page["stories"]),
              page["pieces"], len(page["clips"]))
     return page

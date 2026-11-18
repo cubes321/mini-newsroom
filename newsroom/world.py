@@ -1346,7 +1346,27 @@ def save(w: World | None = None, path: Path | None = None) -> None:
         tmp = path.with_suffix(".tmp")
         tmp.write_text(text, encoding="utf-8")
         backup(path)                          # the day's first save keeps the town as it stood before it
-        tmp.replace(path)
+        replace_file(tmp, path)
+
+
+REPLACE_TRIES = 8                             # about 1.4 s of waiting in all before a save gives up
+
+
+def replace_file(tmp: Path, dest: Path) -> None:
+    """`tmp.replace(dest)`, tried again for a moment if another program has `dest` open. On Windows a replace
+    fails with PermissionError while any reader holds the file, however it opened it (tried 2026-11-18 with
+    tools/story_browser.py: FILE_SHARE_DELETE doesn't help). That save was lost, and when it was the one in
+    workers.generate just after a script was written, the exception failed the item and its slot fell back.
+    A reader holds the file for milliseconds, so the first retry nearly always gets through."""
+    for n in range(REPLACE_TRIES):
+        try:
+            tmp.replace(dest)
+            return
+        except PermissionError:
+            if n == REPLACE_TRIES - 1:
+                raise
+            log.info("%s is open elsewhere; trying the save again", dest.name)
+            time.sleep(0.05 * (n + 1))
 
 
 # ------------------------------------------------------------------- backups
