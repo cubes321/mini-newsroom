@@ -127,3 +127,12 @@ def test_the_late_show_has_its_own_set_and_the_host_sits_at_the_desk(monkeypatch
     assert drawn == ["studio_late", "studio_interview"]
     alone = View(mode="studio", set="interview", show="late", people=[("late_host", None)])
     assert scenes._interview_marks(alone)[0][2] == scenes.locations.MARKS["studio_late"]["host"]
+
+
+def test_the_hand_draws_at_every_height_as_it_rises_and_falls():
+    """Just under the shoulder (the top of the hand at row 33) the forearm has no rows; it drew nothing
+    and raised IndexError, a failed frame at the start and end of every gesture (the 2026-11-18 night)."""
+    for gesture in range(3):                                   # palm, fingers up, pointing
+        for i in range(101):
+            c = pygame.Surface((100, 100))
+            sprites._hand(sprites._Pen(c, 50, 0, 1, 1), LOOKS["anchor"], i / 100, gesture * sprites.HAND_EVERY_S, 0.0)

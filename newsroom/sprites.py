@@ -366,7 +366,10 @@ BODY = [(17, -10, 9), (18, -12, 11)] + [(r, -13, 12) for r in range(19, 37)]
 
 
 def _outline(p: _Pen, spans, col: RGB, bottom_open: bool = False) -> None:
-    """A one-unit border round a shape given as row spans (drawn first, then the shape over it)."""
+    """A one-unit border round a shape given as row spans (drawn first, then the shape over it). A shape
+    with no rows has no border: the forearm just under the shoulder, as the hand starts to rise."""
+    if not spans:
+        return
     last = spans[-1][0]
     for dy, a, b in spans:
         p(col, a - 1, dy, b - a + 3)
