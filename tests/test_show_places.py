@@ -31,6 +31,16 @@ def test_the_last_ferrys_desk_pieces_leave_the_goodnight_to_the_end():
     assert "PLACE IN THE SHOW" not in _user(SegmentType.links, "late", "close", hh=22, mm=55)
 
 
+def test_the_last_ferrys_guests_and_night_owls_leave_the_goodnight_to_the_end_too():
+    """On 2026-11-18 Ruth Carrow's chat at 22:05 ended "Good night, Port Wexley" with the show running on."""
+    for seg_type, part in ((SegmentType.interview, ""), (SegmentType.interview, "cont"),
+                           (SegmentType.interview, "couch"), (SegmentType.vox_pop, "")):
+        assert "MIDDLE of The Last Ferry" in _user(seg_type, "late", part, hh=22, mm=5)
+    assert "thanking them is fine" in _user(SegmentType.interview, "late", "couch", hh=22, mm=5)
+    assert "OPENS" not in _user(SegmentType.monologue, "late", "open", hh=22, mm=0)
+    assert "PLACE IN THE SHOW" not in _user(SegmentType.interview, "late", "close", hh=22, mm=55)
+
+
 def test_the_rolling_news_never_signs_off():
     for seg_type in (SegmentType.bulletin, SegmentType.interview):
         assert "rolling news" in _user(seg_type, "news", hh=20, mm=30)

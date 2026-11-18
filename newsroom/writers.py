@@ -736,9 +736,13 @@ _PLACE: dict[tuple[str, SegmentType], dict[str, str]] = {
     },
     ("inquiry", SegmentType.interview): {"": _MIDDLE.format(title="The Inquiry", extra="")},
     ("inquiry", SegmentType.feature): {"": _MIDDLE.format(title="The Inquiry", extra="")},
-    ("late", SegmentType.links): {
-        "": _MIDDLE.format(title="The Last Ferry", extra=": Vincent says goodnight at the end of the show"),
-    },
+    # Every piece but the monologue and the close, in every part: on 2026-11-18 a returning guest's chat at 22:05
+    # opened "Good evening" and ended "Good night, Port Wexley", and the vox pop after it said good evening again.
+    **{("late", t): {p: _MIDDLE.format(title="The Last Ferry", extra=": Vincent says goodnight at the end of the "
+                                       "show" + ("; welcoming the guest on and thanking them is fine"
+                                                 if t is SegmentType.interview else ""))
+                     for p in ("", "cont", "couch")}
+       for t in (SegmentType.links, SegmentType.interview, SegmentType.vox_pop)},
     ("news", SegmentType.bulletin): {"": _ROLLING},
     ("news", SegmentType.interview): {"": _ROLLING},
 }
