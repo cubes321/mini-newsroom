@@ -206,6 +206,9 @@ building).
   the road between them ending on the arrival at the next stop; the waiting moments for spare minutes (three, then a
   break), and the close at dusk. Seven planned items: until 2026-11-16 each stop also had an arrival item, and the
   creative editor found every place arrived at two or three times, five reviews running; the user cut them.
+  - Since 2026-11-19 a meeting is 210 s (eighteen to twenty-two lines) and a road item 100 s: at 150 and 80 s the
+    planned items came to about twelve minutes of twenty, and eight waiting moments filled the rest ("waits on the
+    Saltby slip" three times, and the editor's "weak"). Now about three; their kinds still differ, but two of three were titled alike in rehearsal.
   - Each brief says where the leg has got to, what's done and what's still to come (for knowing, not saying); the
     writers see the earlier items in full, and what has come up in three items is named to be left alone. In code: a
     sentence giving someone a relative their record doesn't have goes, as does one said word for word earlier, and

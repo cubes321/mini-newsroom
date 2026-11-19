@@ -63,6 +63,10 @@ HOST_ABOUT = ("a comedian and singer, the town's best-known; her running story i
 HOST_SHORT = "a comedian and singer, the town's best-known, whose running story is waiting"
 LEGS = 6
 STOPS = 3
+# 2026-11-19: with meetings of 150 s and roads of 80 the leg came to twelve minutes of twenty, and eight waiting
+# moments filled the rest ("waits on the Saltby slip" three times); longer meetings and roads leave about three.
+MEETING_S = 210.0
+ROAD_S = 100.0
 SPARES = 12
 AIRS_AT = "20:40"
 BOOK_FROM = "18:30"
@@ -538,7 +542,7 @@ def _brief(world: World, brief: str) -> str:
         st = it["stop"]
         return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She has just got here and "
                 "told us about the place in the item before: straight into the talk, with no arriving again and "
-                f"no describing the place again. Twelve to sixteen lines, every one either Lorna (guest_name "
+                f"no describing the place again. Eighteen to twenty-two lines, every one either Lorna (guest_name "
                 f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does. "
                 f"{st['meet']} wasn't at the earlier stops and knows nothing of who she met there")
     if it["kind"] == "road":
@@ -547,7 +551,7 @@ def _brief(world: World, brief: str) -> str:
         return (f"ON THE WAY from {frm['place']} to {to['place']} ({how(leg)}), ending as she gets there: she has "
                 f"left {frm['place']}; what she sees on the way, briefly; then she arrives, and tells us about "
                 f"{to['place']} in her own words (the plan's note, not to be read out): {to['what']} {to['meet']} "
-                "doesn't speak in this item: meeting them is the next one. Only Lorna speaks, six to nine lines"
+                "doesn't speak in this item: meeting them is the next one. Only Lorna speaks, seven to ten lines"
                 # The last stop's note can be the ending itself ("Full circle... finish the last of the parkin"),
                 # and arriving there, leg 6 said its goodbye a meeting early (rehearsal, 2026-11-16).
                 + (". This is the last stop, but not the end: the meeting and the goodbye are still to come, so she "
@@ -858,9 +862,9 @@ def show_def() -> Show:
     # No arrival items since 2026-11-16 (the user): the opening arrives at the first stop, and each road item ends on
     # the arrival at the next.
     for k in range(1, STOPS + 1):
-        items.append(I(T.interview, brief="{m%d}" % k, target_s=150.0))
+        items.append(I(T.interview, brief="{m%d}" % k, target_s=MEETING_S))
         if k < STOPS:
-            items.append(I(T.interview, brief="{r%d}" % k, target_s=80.0))
+            items.append(I(T.interview, brief="{r%d}" % k, target_s=ROAD_S))
     spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(SPARES // 3)),
                      target_s=50.0) for k in range(3))
     return Show(
@@ -927,7 +931,7 @@ def register():
     writers.CHECK_HOOKS[SHOW] = check
     writers.AFTER_HOOKS[SHOW] = after
     writers.CAPTION_HOOKS[SHOW] = caption
-    writers.LINE_CAPS[SHOW] = 24
+    writers.LINE_CAPS[SHOW] = 28
     for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS):
         reg.add(SHOW)
     undo_creative = enrol()
