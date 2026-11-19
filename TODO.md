@@ -233,7 +233,10 @@ bottom with the date.
         the model).
       - Left: her look on Channel 7 (only her voice follows her there); the route map; a new host when the six legs
         are done.
-  - **A gameshow with prizes**, 18:00: one or two original formats first, simple, to iron out the bugs.
+  - **High Water**, the gameshow, 18:00 (planned and its rules approved 2026-11-19; docs/ENGINE.md "High Water"):
+    two residents climb the harbour steps against the tide, Des Kneebone hosting, prizes from the town's advertisers.
+    In order: the game engine and its tests; the booking, items and checks, rehearsed offline; the gauge, Des's look,
+    the set, his voice and the ident (each approved); the town talk and a scratch Channel 8 run.
   - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
   - **Late-night drama**, 22:30 to 23:00: an anthology of self-contained tales first; series later.

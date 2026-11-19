@@ -160,7 +160,7 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 
 | Time | Show | Built on |
 |---|---|---|
-| 18:00 | **A gameshow with prizes** (until Cartoon Time is back, the hour) | Wits' pattern: rules and scores in code |
+| 18:00 | **High Water**, the gameshow, half an hour (planned 2026-11-19: "High Water" below) | Wits' pattern: rules and scores in code |
 | 18:30 | **The Slipway**, the teen magazine, half an hour (built 2026-11-19, `entertainment/slipway.py`), in Cartoon Time's place: good cartoons are hard to render | The Kettle's On's booking and items |
 | 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
 | 20:00 | Wexley Wits | |
@@ -192,6 +192,41 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
   apart from it. Its cast, actors, places and opening storylines are in docs/MARINA_ROW.md, the series bible.
 - **Head-and-shoulders figures first** (stage A): soap scenes are mostly two or three people across a bar or a
   kitchen table. Walking full figures (stage B) come once the story engine has worked on air.
+
+## High Water, the gameshow (planned 2026-11-19)
+
+Channel 8's 18:00 half hour, agreed with the user on 2026-11-19 (the format, the host and the contestants chosen from
+three each, the rules approved as below). With it and The Slipway the channel has three full hours, 18:00 to 21:00.
+
+- **The format**: push your luck against the tide. Two residents a night climb the harbour steps, twelve of them up
+  the harbour wall, with a prize on steps 3, 6 and 9, each donated by one of the town's advertisers, and the star
+  prize, a weekend away, at the top.
+- **A turn**: PADDLE, an easy question (right: up one step; wrong: stay); SWIM, a hard one (right: up two; wrong: slip
+  down one); or MAKE FAST, no question: bank the best prize at or below their step, theirs whatever happens, at the
+  cost of the turn. A prize reached but not made fast is in hand.
+- **The tide**: after each round (two turns each) it rises one to three steps, the rolls bigger as it comes in, from
+  low water two steps below the bottom step. One that reaches a climber washes them off: they lose what's in hand,
+  keep what's banked, and start again one step above the water, so nobody goes home early and the half hour is never
+  short. Two additions in the build, the same evening (`entertainment/highwater.py`): washed off, a climber sits out
+  their next turn, and only a prize they climb onto again from there is in hand. Without them, 2,000 played games
+  showed the water lifting climbers past prizes into their hands: being washed off cost nothing, and nobody went home
+  with less than step 6. Now someone is washed off on about three nights in four, a prize is lost to it on one in
+  three, the star prize is won about half the time, and the prizes taken home spread (none 26%, steps 3, 6 and 9
+  19%, 43%, 11%).
+- **The spring tide**: after four rounds the higher climber plays for the star prize, two of three swim questions.
+  The other keeps the best of what they banked and have in hand.
+- **In code, as Wits' darts**: each climber's chance of a right answer (from their role) and their temperament
+  (cautious, banking early; bold, swimming and banking late) play the whole game at booking time; the writer writes
+  each round to it, and a check holds every answer and step to the script.
+- **The host**: Des Kneebone, sixties, thirty summers at the Saltby pier theatre: a bow tie, catchphrases, terrible
+  puns, soft on a losing contestant. A presenter, never a resident: a look on a contact sheet, a voice by ear.
+- **On screen**: a tide gauge drawn in code (the steps, the prizes beside them, a marker each, the water rising),
+  moving on Des's words as Wits' board follows Clive's; a set of the harbour steps at dusk (ComfyUI, a contact sheet).
+- **The town**: the winner and the prize go to Channel 7's town talk the next day; the creative editor gives notes.
+- **Built in this order**: the game engine and its tests (no model); the booking (two residents not on Channel 8
+  lately, paddle and swim questions with answers, prizes from the advertisers), the items and their checks,
+  rehearsed offline; the gauge, Des's look, the set, his voice and the ident, each for the user's approval; the town
+  talk and a scratch Channel 8 run.
 
 ## The soap engine, built (2026-11-13)
 
