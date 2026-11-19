@@ -95,7 +95,7 @@ def _aired_episode(w, monkeypatch, words=True):
 # ------------------------------------------------------------------ the registry
 
 def test_the_programmes_enrol_and_the_undo_leaves_nothing(channel):
-    assert set(creative.SHOWS) == {"marina", "tideline", "coastroad", "kettle", "wits", "slipway"}
+    assert set(creative.SHOWS) == {"marina", "tideline", "coastroad", "kettle", "wits", "slipway", "highwater"}
     assert {k for k, e in creative.SHOWS.items() if e.vetted} == {"marina", "tideline", "coastroad"}
     assert workers.IDLE_JOBS[0][0] is creative.urgent_due and workers.IDLE_JOBS[-1][0] is creative.later_due
 

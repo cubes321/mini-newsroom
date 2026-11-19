@@ -218,6 +218,7 @@ class World:
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}
     kettles: list[dict] = field(default_factory=list)     # The Kettle's On (entertainment/kettle.py): {date, dish, sofa, expert, ...}
     slipways: list[dict] = field(default_factory=list)    # The Slipway (entertainment/slipway.py): {date, feature, howto, pupil, ...}
+    highwaters: list[dict] = field(default_factory=list)  # High Water (entertainment/highwater_show.py): {date, climbers, game, prizes, ...}
     # Channel 8's dramas (entertainment/soap.py), by series id: {arc, episodes}. Fiction: no reader of the town's
     # news looks here; talk.py takes a cliffhanger from an episode once it has aired.
     soaps: dict[str, dict] = field(default_factory=dict)
@@ -1177,6 +1178,12 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("slip_b", "bm_pengilly"),
                   ["twenty-two, a planner", "makes lists and reads the rules out", "worries about safety",
                    "secretly the more competitive"], speed=1.0, lang="b"),
+        # Channel 8's gameshow, High Water (entertainment/highwater_show.py), 18:00, from 2026-11-19: a voice of his own
+        # (spoken by Kokoro until a DramaBox design is chosen by ear), as The Slipway's pair.
+        Character("hw_host", "Des Kneebone", "host, High Water (Channel 8's gameshow)",
+                  CONFIG.tts.voices.get("hw_host", "bm_kneebone"),
+                  ["thirty summers at the Saltby pier theatre", "a bow tie and a catchphrase for everything",
+                   "terrible puns", "soft on a losing contestant"], speed=0.98, lang="b"),
         # Channel 8's wildlife series, Tideline (entertainment/wildlife.py), 20:40: look and voice chosen 2026-11-14.
         Character("naturalist", "Rowan Polglase", "presenter, Tideline (Channel 8's wildlife series)",
                   CONFIG.tts.voices.get("naturalist", "bm_polglase"),

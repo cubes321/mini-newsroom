@@ -213,6 +213,18 @@ three each, the rules approved as below). With it and The Slipway the channel ha
   with less than step 6. Now someone is washed off on about three nights in four, a prize is lost to it on one in
   three, the star prize is won about half the time, and the prizes taken home spread (none 26%, steps 3, 6 and 9
   19%, 43%, 11%).
+- **Changed the same evening, with the user** (the first rehearsal's rounds ran 130 s, and the game filled about 17
+  minutes of the 30): THREE turns each a round, the prizes on steps 4, 8 and 11, low water one step below the bottom
+  step and stronger rolls; Des has a word with each climber before they choose; and **the Harbourmaster's round** at
+  halfway, the user's pick of four: five quick-fire questions on Port Wexley, raced for, a right answer winning a
+  **life ring** (one each), thrown when the tide reaches its holder, who stays put with all they have. Over 3,000
+  played games: someone washed off on 61% of nights, a ring thrown on 56%, a prize lost on 20%, the star prize won 47%,
+  home with nothing 20%, step 4 15%, step 8 47%, step 11 17%.
+- **The half hour** (the user's two picks, the same evening, when the game still filled 17 minutes and the loop five
+  chats): one MEET THE CLIMBER item each, and three ad breaks of two minutes, as a commercial half hour has (an ad
+  break now takes one advert for each 30 s of its target, never fewer than two: everyone else's are a minute, and two).
+  Every round airs however long they run (`Show.whole_order`). At the third rehearsal's lengths: the rounds about 13
+  minutes, the meets 2, the opening, spring tide and result about 4, adverts 6, and three short chats.
 - **The spring tide**: after four rounds the higher climber plays for the star prize, two of three swim questions.
   The other keeps the best of what they banked and have in hand.
 - **In code, as Wits' darts**: each climber's chance of a right answer (from their role) and their temperament

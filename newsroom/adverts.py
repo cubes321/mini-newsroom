@@ -46,7 +46,9 @@ log = logging.getLogger(__name__)
 # one per advert, as local adverts often are. Never the owner's own voice.
 VO_VOICES = ["bm_lewis", "af_nicole", "bm_daniel", "af_kore", "bf_emma", "am_puck"]
 MAX_S = 32.0                         # a model-written advert voiced longer than this is dropped
-BREAK_ADS = 2                        # adverts in a planned break (about a minute)
+BREAK_ADS = 2                        # adverts in a planned break (about a minute), the fewest
+BREAK_S_PER_AD = 30.0                # a break planned longer takes one more advert for each of these (High Water's two-
+                                     # minute breaks, 2026-11-19: four); a minute's break is still two
 COLOURS = [(200, 60, 60), (40, 130, 150), (210, 150, 40), (90, 140, 70), (130, 70, 150), (220, 110, 50),
            (50, 90, 160), (170, 60, 110)]
 
@@ -242,7 +244,8 @@ def break_segment(seg: Segment, ads_pool: AdPool | None = None) -> Segment:
     own backdrop and end card from where it starts. An empty pool makes an empty break, which
     the player passes straight over."""
     p = ads_pool or pool()
-    ads = [ad for ad in (p.pick() for _ in range(BREAK_ADS)) if ad is not None]
+    n = max(BREAK_ADS, round((seg.target_s or 0) / BREAK_S_PER_AD))
+    ads = [ad for ad in (p.pick() for _ in range(n)) if ad is not None]
     lines, cues, at = [], [], 0.0
     for ad in ads:
         cues += [c.model_copy(update={"at_s": c.at_s + at}) for c in ad.cues]

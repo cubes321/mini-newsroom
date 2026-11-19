@@ -10,7 +10,8 @@ the test card until seven the next evening, as small channels did, with no repea
 (those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
 the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time was to come back at 18:30 once the
 bank had films, but good cartoons are hard to render, and The Slipway, the teen magazine (slipway.py), has the half
-hour since 2026-11-19 (the user). Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
+hour since 2026-11-19 (the user), and High Water, the gameshow (highwater.py, highwater_show.py), the half hour
+before it. Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
 planned with the user 2026-11-14), at 20:40, before the closedown at 21:00, in turn with The Coast Road, the travelogue
 (travelogue.py), through schedule.ROTATIONS.
 """
@@ -31,13 +32,14 @@ CLOSEDOWN = Show(
     pattern=(T.bumper, T.testcard), loop_from=1,
     target_s={T.bumper: 14.0, T.testcard: 300.0},
 )
-CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at half past six, with "
-                  "The Slipway. From all of us at WTV, goodnight.")
+CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at six, with High "
+                  "Water. From all of us at WTV, goodnight.")
 
 # The channel's day: (start, show id), as schedule.SCHEDULE. One episode a night: two Wits slots back
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "closedown"),
+    (18, "highwater"),          # High Water, the gameshow (highwater_show.py): half an hour (the user, 2026-11-19)
     ("18:30", "slipway"),       # The Slipway, the teen magazine (slipway.py): half an hour, in Cartoon Time's place (2026-11-19)
     (19, "kettle"),             # The Kettle's On (kettle.py): the hour
     (20, "wits"),
@@ -63,7 +65,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, backdrops, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import creative, kettle, oche, quiz, slipway, soap, travelogue, wildlife, wits
+    from . import creative, highwater_show, kettle, oche, quiz, slipway, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -79,6 +81,7 @@ def use():
     schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME             # off the schedule until the bank has films
     schedule.SHOWS[kettle.SHOW] = kettle.SHOW_DEF
     schedule.SHOWS[slipway.SHOW] = slipway.SHOW_DEF
+    schedule.SHOWS[highwater_show.SHOW] = highwater_show.SHOW_DEF
     schedule.SHOWS[CLOSEDOWN.id] = CLOSEDOWN
     # A new file: bumper_cartoons.wav says "channel seven", and a bumper is only rebaked for new music.
     assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons_8.wav",
@@ -86,7 +89,7 @@ def use():
     assets.IDENT_MUSIC[CARTOON_TIME.id] = "rockpool"          # until Cartoon Time has music of its own
     # A new file for new words (bumper_closedown.wav says "with Cartoon Time", bumper_closedown_kettle.wav "at seven,
     # with The Kettle's On"; a bumper is only rebaked for new music).
-    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown_slipway.wav", CLOSEDOWN_TEXT)
+    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown_highwater.wav", CLOSEDOWN_TEXT)
     assets.IDENT_MUSIC[CLOSEDOWN.id] = quiz.SHOW
     assets.IDENT_VOICES[CLOSEDOWN.id] = continuity.VOICE      # the continuity announcer says goodnight
     locations.MARKS[wits.SET] = wits.MARKS
@@ -96,6 +99,7 @@ def use():
     workers.IDLE_JOBS.append((quiz.should_commission, quiz.commission))
     _kettle(kettle)
     _slipway(slipway)
+    _highwater(highwater_show)
     undo_soap = soap.register(MARINA_ROW)
     undo_wildlife = wildlife.register()
     undo_travelogue = travelogue.register()
@@ -121,7 +125,7 @@ def use():
     writers.UNFILED_SHOWS.add(quiz.SHOW)
     # The creative editor (creative.py): the soap, Tideline and The Coast Road enrolled themselves above; the two
     # light shows here. Its idle jobs go in last, so its catch-up is ahead of every booking and its reviews behind.
-    undo_enrolled = (kettle.enrol(), quiz.enrol(), slipway.enrol())
+    undo_enrolled = (kettle.enrol(), quiz.enrol(), slipway.enrol(), highwater_show.enrol())
     undo_creative = creative.install()
     undo_seat = attend()
 
@@ -139,6 +143,8 @@ def use():
         locations.BY_ID.pop(kettle.SET, None)                  # The Kettle's On's set, registered by _kettle
         locations.BY_ID.pop(slipway.SET, None)                 # The Slipway's, by _slipway
         backdrops.PAINTERS.pop(slipway.SET, None)
+        locations.BY_ID.pop(highwater_show.SET, None)          # High Water's, by _highwater
+        backdrops.PAINTERS.pop(highwater_show.SET, None)
         assets.IDENTS.clear(), assets.IDENTS.update(saved[3])
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
@@ -154,10 +160,12 @@ def use():
             reg.pop(quiz.SHOW, None)
             reg.pop(kettle.SHOW, None)
             reg.pop(slipway.SHOW, None)
+            reg.pop(highwater_show.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS, player.TICKER_AFTER):
             reg.discard(quiz.SHOW)
             reg.discard(kettle.SHOW)
             reg.discard(slipway.SHOW)
+            reg.discard(highwater_show.SHOW)
     return undo
 
 
@@ -216,6 +224,38 @@ def _slipway(slipway) -> None:
     writers.CHECK_HOOKS[slipway.SHOW] = slipway.check           # an item's guest is the one it books
     writers.BOOKED_SHOWS.add(slipway.SHOW)                     # its guests are booked: no loose ends
     writers.UNFILED_SHOWS.add(slipway.SHOW)                    # never news
+
+
+def _highwater(show) -> None:
+    """High Water's registrations (undone with the others by use()'s undo)."""
+    from newsroom import assets, backdrops, locations, player, scenes, workers, writers
+    from newsroom.config import CONFIG
+
+    assets.IDENTS[show.SHOW] = (assets.CONFIG.paths.assets / "bumper_highwater.wav", show.IDENT)
+    assets.IDENT_MUSIC[show.SHOW] = "phonein"                  # bright piano, until it is chosen by ear
+    # Des says it: his Kokoro stand-in until his voice is chosen, when the file must be deleted to be baked again.
+    assets.IDENT_VOICES[show.SHOW] = CONFIG.tts.voices.get(show.HOST, "bm_kneebone")
+    # Its own set, for this run only, painted as the harbour until its art is made and approved.
+    h = locations.get(show.STAND_IN_PAINTER)
+    locations.BY_ID[show.SET] = locations.Location(show.SET, show.SET_NAME, show.SET_BLURB, h.kind, h.sky, h.ground,
+                                                   water=h.water, interior=h.interior)
+    locations.MARKS[show.SET] = dict(show.MARKS)
+    backdrops.PAINTERS[show.SET] = backdrops.PAINTERS[show.STAND_IN_PAINTER]
+    scenes.SHOW_SETS[show.SHOW] = show.SET
+    player.SEATS[show.SHOW] = 2                                # both climbers beside Des all show
+    workers.IDLE_JOBS.append((show.should_commission, show.commission))
+    writers.SHOW_SYSTEMS[show.SHOW] = show.SYSTEMS
+    writers._PLACE.update(show.PLACE)
+    writers.BRIEF_HOOKS[show.SHOW] = show.brief_for
+    writers.PROMPT_HOOKS[show.SHOW] = show.for_prompt
+    writers.SEAT_HOOKS[show.SHOW] = show.seats
+    writers.CAPTION_HOOKS[show.SHOW] = show.caption
+    writers.TEMPLATE_HOOKS[show.SHOW] = show.template
+    writers.CHECK_HOOKS[show.SHOW] = show.check                # every question asked, in order
+    writers.LINE_CAPS[show.SHOW] = 40                          # a round: eight turns, the tide and the summing up
+    writers.BOOKED_SHOWS.add(show.SHOW)
+    writers.DEBATE_SHOWS.add(show.SHOW)                        # two climbers, each line naming its speaker
+    writers.UNFILED_SHOWS.add(show.SHOW)                       # never news
 
 
 _RIGHT = ("That's right!", "Correct!", "Yes! Two points.", "Spot on.")

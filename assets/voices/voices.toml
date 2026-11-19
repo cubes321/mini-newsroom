@@ -461,3 +461,9 @@ description = "PROVISIONAL, no clip yet: a British woman of twenty-one with a li
 person = 'Elis Pengilly'
 kokoro = 'bm_lewis'
 description = "PROVISIONAL, no clip yet: a British man of twenty-two with a soft West Country accent, a teen show's presenter: careful, dry, quietly competitive"
+
+# Channel 8's High Water (2026-11-19): Des Kneebone, a name of his own with no clip yet, as The Slipway's pair.
+[bm_kneebone]
+person = 'Des Kneebone'
+kokoro = 'bm_george'
+description = "PROVISIONAL, no clip yet: a British man in his sixties with a warm West Country accent, an end-of-pier entertainer turned gameshow host: big, theatrical, twinkling"

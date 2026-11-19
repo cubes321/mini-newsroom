@@ -58,8 +58,8 @@ def test_channel_eight_opens_at_seven_with_the_kettles_on_and_undo_takes_it_off(
     try:
         assert schedule.show_at(seven).id == "kettle" and schedule.show_end(seven) == _at(20, 0)
         assert schedule.show_at(_at(20, 10)).id == "wits"
-        assert schedule.next_start("closedown", _at(3, 0)) == "18:30"          # The Slipway since 2026-11-19
-        assert "The Slipway" in entertainment.CLOSEDOWN_TEXT and "Cartoon" not in entertainment.CLOSEDOWN_TEXT   # first on the next evening
+        assert schedule.next_start("closedown", _at(3, 0)) == "18:00"          # High Water since 2026-11-19
+        assert "High Water" in entertainment.CLOSEDOWN_TEXT and "Cartoon" not in entertainment.CLOSEDOWN_TEXT   # first on the next evening
         assert scenes.SHOW_SETS["kettle"] == kettle.SET == "studio_kettle" and player.SEATS["kettle"] == 1
         assert set(locations.MARKS[kettle.SET]) == {"host", "panel_1", "panel_2"}  # its own set since 2026-11-15
         assert locations.BY_ID[kettle.SET].kind == "studio"                       # so no writer is offered it
