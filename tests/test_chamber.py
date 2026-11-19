@@ -71,6 +71,22 @@ def test_on_a_council_night_the_chamber_has_eight_till_nine(monkeypatch):
     assert chamber.should_commission(w, _at(19)) and not chamber.should_commission(w, _at(20, 5))
 
 
+def test_channel_8_on_a_council_night_books_no_sitting_and_no_phone_in(monkeypatch):
+    """2026-11-19: a Channel 8 evening on a council night booked The Chamber's agenda and votes at 18:30 for an
+    hour it doesn't have; Have Your Say's booking had the same hole for a Channel 8 morning."""
+    import entertainment
+    from newsroom import phonein
+    w = _town()
+    monkeypatch.setenv("NEWSROOM_COUNCIL_NIGHT", "1")
+    assert chamber.should_commission(w, _at(19)) and phonein.should_commission(w, _at(9))     # Channel 7 books both
+    undo = entertainment.use()
+    try:
+        assert not chamber.should_commission(w, _at(19)) and not phonein.should_commission(w, _at(9))
+    finally:
+        undo()
+    assert chamber.should_commission(w, _at(19))
+
+
 def test_the_council_is_seated_in_a_town_saved_before_it():
     w = world_mod.seed()
     w.people = [p for p in w.people if p.name not in NAMES]

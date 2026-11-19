@@ -55,9 +55,12 @@ def tonight(world: World) -> dict | None:
 
 
 def should_commission(world: World, now: float | None = None) -> bool:
+    """Only when The Chamber is what airs at eight on the channel that's on: Channel 8 runs on a council night
+    too, and on 2026-11-19 it booked an agenda, votes and all, for a sitting it had no hour for."""
     now = now or schedule.now()
     return (council.council_night(date.fromtimestamp(now)) and tonight(world) is None
-            and _at(CONFIG.chamber.commission_from, now) <= now < _at(CONFIG.chamber.airs_at, now))
+            and _at(CONFIG.chamber.commission_from, now) <= now < _at(CONFIG.chamber.airs_at, now)
+            and schedule.show_at(_at(CONFIG.chamber.airs_at, now)).id == SHOW)
 
 
 def candidates(world: World) -> list[Thread]:
@@ -99,7 +102,9 @@ def commission(world: World) -> dict:
         return _record(world, None)
     ids = [m.thread_id for m in agenda.motions]
     if len(set(ids)) < len(ids) or not set(ids) <= {t.id for t in pool}:
-        log.warning("chamber: agenda named %s, not four different stories from the list; the stand-in takes tonight", ids)
+        off = sorted(set(ids) - {t.id for t in pool})
+        why = f"{', '.join(off)} not on the list" if off else "a story twice"
+        log.warning("chamber: agenda named %s, %s; the stand-in takes tonight", ids, why)
         return _record(world, None)
     if bad := safety.check(safety.strings(agenda)):   # a motion's wording becomes its story's status, read on teletext
         log.warning("chamber: the agenda has %r in it; the stand-in takes tonight", bad)

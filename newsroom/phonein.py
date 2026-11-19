@@ -59,7 +59,8 @@ def today(world: World) -> dict | None:
 
 def should_commission(world: World, now: float | None = None) -> bool:
     now = now or schedule.now()
-    return today(world) is None and _at(CONFIG.phonein.commission_from, now) <= now < _at(CONFIG.phonein.airs_at, now)
+    return (today(world) is None and _at(CONFIG.phonein.commission_from, now) <= now < _at(CONFIG.phonein.airs_at, now)
+            and schedule.show_at(_at(CONFIG.phonein.airs_at, now)).id == SHOW)   # not on Channel 8's morning
 
 
 def _stories(world: World) -> list[Thread]:
