@@ -242,6 +242,19 @@ residents, and the town hears about what airs.
 Channel 7's town talk picks up what the town would be saying about Channel 8
 (the quiz result, the soap's cliffhanger) without ever treating it as news.
 
+| | |
+|---|---|
+| ![The Kettle's On](docs/screenshots/kettle.png) | ![Tonight's cook](docs/screenshots/kettle_cook.png) |
+| Maggie and Nigel in *The Kettle's On* kitchen with tonight's cook | Nigel and Gwen Pascoe, a baker from the Harrow Street market |
+| ![Wexley Wits](docs/screenshots/wits.png) | ![The darts round](docs/screenshots/wits_darts.png) |
+| The Harbour Lights against the Cannery Tap on *Wexley Wits* | The darts round, every dart scored in code |
+| ![Marina Row](docs/screenshots/marina_kitchen.png) | ![The Row at dusk](docs/screenshots/marina_quay.png) |
+| *Marina Row*: Queenie's kitchen, behind the net loft | The Row at dusk |
+| ![The Mermaid](docs/screenshots/marina_pub.png) | ![The Loft](docs/screenshots/marina_restaurant.png) |
+| The Mermaid, the Row's pub | The Loft, the new restaurant in a converted net loft |
+| ![The Coast Road](docs/screenshots/coastroad.png) | ![The Coast Road at dusk](docs/screenshots/coastroad_dusk.png) |
+| Lorna Quayle meets the Saltby foot ferry's deckhand on *The Coast Road* | The end of the first leg, at the Saltby slip |
+
 ## Run it
 
 Needs Python 3.12 (Kokoro doesn't install on 3.13), [uv](https://docs.astral.sh/uv/),
