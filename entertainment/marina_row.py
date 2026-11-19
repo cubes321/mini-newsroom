@@ -120,6 +120,13 @@ STAND_IN = (
       "worse."),
      ("marina_mermaid", ("Sal Annear", "Queenie Kernick"), "Queenie tells Sal she will never sell; Sal says nothing "
       "about what she has seen."),
+     # Three more when the episode went from six scenes to nine (2026-11-19); the last is still the bins.
+     ("marina_loft", ("Harriet Lockwood", "Kerra Kernick"), "Harriet shows Kerra how she wants the tables laid for "
+      "Friday; Kerra asks her not to say anything to anyone on the Row."),
+     ("marina_kitchen", ("Davey Kernick", "Queenie Kernick"), "Davey asks whether Queenie has answered Harriet; she "
+      "says it's in hand and asks what he wants for his tea."),
+     ("marina_mermaid", ("Tristan Lockwood", "Sal Annear"), "Tristan asks Sal to leave the petition on the bar; Sal "
+      "says she'll think about it, and puts it under the till."),
      ("marina_row", ("Queenie Kernick", "Harriet Lockwood"), "Queenie, out with the bins, sees her granddaughter "
       "through The Loft's window in one of Harriet's aprons.")),
     # Spares: side scenes for spare minutes, changing nothing.

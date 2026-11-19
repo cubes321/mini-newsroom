@@ -80,9 +80,9 @@ Harriet's aprons.
 ## How it airs (entertainment/soap.py, built 2026-11-13)
 
 - **Planning**, from 18:30, on the "soap" route (Sonnet): every six aired episodes an arc (two or three storylines,
-  a beat an episode); each night the episode: six scenes (set, characters, who knows what, what happens, what it
-  ends on: a line or a look, never an action, since only what is said reaches the screen), five or six spare side
-  scenes that change nothing, the cliffhanger's question and the exact closing line
+  a beat an episode); each night the episode: nine scenes (six until 2026-11-19; set, characters, who knows what, what happens, what it
+  ends on: a line or a look, never an action, since only what is said reaches the screen), nine spare side scenes asked
+  (five accepted; six asked until 2026-11-19) that change nothing, the cliffhanger's question and the exact closing line
   and who says it, and a summary. It answers the last aired cliffhanger first. A plan naming anyone outside the
   cast, or a set we don't have, gives way to the stand-in (the bible's first night).
 - **On air**, 20:20 to 20:40: the titles, five scenes, then the spare minutes as side scenes (three, then a break,

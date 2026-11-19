@@ -82,7 +82,7 @@ def _aired_episode(w, monkeypatch, words=True):
     ep["aired"] = True
     CONFIG.paths.cache.mkdir(parents=True, exist_ok=True)
     for h, brief, lines in (("c1", "{s1}", [("Sal Annear", "You've heard, then."), ("Davey Kernick", "Heard what?")]),
-                            ("c6", "{s6}", [("Queenie Kernick", "Not one word to your father.")])):
+                            ("c6", "{s%d}" % soap.SCENES, [("Queenie Kernick", "Not one word to your father.")])):
         w.record_aired("interview", f"scene {brief}", None, "", show="marina", brief=brief, content_hash=h, fiction=True)
         path = CONFIG.paths.cache / f"{h}.json"
         path.unlink(missing_ok=True)

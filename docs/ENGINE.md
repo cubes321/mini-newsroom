@@ -164,7 +164,7 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 | 18:30 | Cartoon Time, back once the bank has films | the content bank |
 | 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
 | 20:00 | Wexley Wits | |
-| 20:20 | **The soap**, 20 minutes: titles, five or six scenes, the cliffhanger and credits, no break | the scene engine |
+| 20:20 | **The soap**, 20 minutes: titles, nine planned scenes asked at 100 s, which Haiku writes at 60-77 (six of 170 s until 2026-11-19, which aired at about 65 s; twelve rehearsed shorter still), all of them aired before the close (`Show.whole_order`), side scenes and a break for the spare minutes, the cliffhanger last | the scene engine |
 | 20:40 | **Factual**: *Tideline*, coastal wildlife with Rowan Polglase (built 2026-11-14, `entertainment/wildlife.py`), alternating with a town celebrity's travelogue (docs/FACTUAL.md) | The Kettle's On's booking, the soap's episode shape |
 | 21:00 | **The TV movie**, an hour | the scene engine |
 | 22:00 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |

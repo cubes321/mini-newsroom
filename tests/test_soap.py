@@ -49,17 +49,21 @@ def test_a_long_turning_point_is_asked_short_given_room_and_only_then_cut_at_a_w
 
 
 def _episode(**kw):
-    sets = ["marina_mermaid", "marina_loft", "marina_kitchen", "marina_row", "marina_mermaid", "marina_row"]
+    sets = ["marina_mermaid", "marina_loft", "marina_kitchen", "marina_row", "marina_mermaid", "marina_loft",
+            "marina_kitchen", "marina_mermaid", "marina_row"]
     who = [["Sal Annear", "Davey Kernick"], ["Harriet Lockwood", "Kerra Kernick"],
            ["Queenie Kernick", "Davey Kernick", "Kerra Kernick"], ["Davey Kernick", "Tristan Lockwood"],
-           ["Sal Annear", "Queenie Kernick"], ["Queenie Kernick", "Harriet Lockwood"]]
+           ["Sal Annear", "Queenie Kernick"], ["Harriet Lockwood", "Kerra Kernick"],
+           ["Davey Kernick", "Queenie Kernick"], ["Tristan Lockwood", "Sal Annear"],
+           ["Queenie Kernick", "Harriet Lockwood"]]
+    assert len(sets) == len(who) == soap.SCENES
     return soap.Episode.model_validate({
         "title": "The Apron", "cliffhanger": "Will Queenie tell Davey?", "last_line": "Not one word to your father.",
         "said_by": "Queenie Kernick", "summary": "Davey hears of the petition; Queenie sees Kerra at The Loft.",
         "scenes": [{"set": s, "characters": w, "knows": "nobody knows yet", "beats": f"beat of scene {i + 1}",
                     "ends_on": f"end of scene {i + 1}"} for i, (s, w) in enumerate(zip(sets, who))],
         "spares": [{"set": "marina_mermaid", "characters": ["Sal Annear", "Tristan Lockwood"], "knows": "nothing new",
-                    "beats": f"spare beat {i + 1}", "ends_on": "a laugh"} for i in range(5)], **kw})
+                    "beats": f"spare beat {i + 1}", "ends_on": "a laugh"} for i in range(soap.SPARES_MIN)], **kw})
 
 
 def _stub(monkeypatch, scene=None, fail=False):
@@ -127,7 +131,7 @@ def test_the_last_scene_carries_the_cliffhanger_line_and_each_scene_its_place(ch
     soap.commission(w, M)
     first = soap.brief_for(w, M, "{s1}")
     assert "The Mermaid" in first and "Sal Annear, Davey Kernick" in first and "beat of scene 1" in first
-    last = soap.brief_for(w, M, "{s6}")
+    last = soap.brief_for(w, M, "{s%d}" % soap.SCENES)
     assert "LAST scene" in last and "Not one word to your father." in last
 
 
@@ -166,7 +170,7 @@ def test_with_the_model_down_a_scene_is_still_tonights_people_and_the_town_is_un
     soap.commission(w, M)
     people, headlines = len(w.people), list(w.headlines)
     _stub(monkeypatch, fail=True)
-    seg = Segment(slot_id=9, type=T.interview, show="marina", brief="{s6}", target_s=170)
+    seg = Segment(slot_id=9, type=T.interview, show="marina", brief="{s%d}" % soap.SCENES, target_s=100)
     writers.script_segment(seg, w)
     assert {l.guest_name for l in seg.lines} <= {"Queenie Kernick", "Harriet Lockwood"}
     assert seg.lines[-1].text == "Not one word to your father." and seg.lines[-1].guest_name == "Queenie Kernick"
@@ -283,7 +287,7 @@ def test_spare_minutes_go_to_side_scenes_then_quiet_moments_never_a_planned_scen
     soap.commission(w, M)
     spare = soap.brief_for(w, M, "{x2}")
     assert "SHORT SIDE SCENE" in spare and "spare beat 2" in spare and "LAST scene" not in spare
-    quiets = [soap.brief_for(w, M, "{x%d}" % k) for k in (6, 7, 8)]          # the plan gave five
+    quiets = [soap.brief_for(w, M, "{x%d}" % (soap.SPARES_MIN + k)) for k in (1, 2, 3)]   # past the plan's own
     assert all("quiet moment" in q for q in quiets) and len({q.split(". In it:")[0] for q in quiets}) == 3
     _stub(monkeypatch, fail=True)
     seg = Segment(slot_id=12, type=T.interview, show="marina", brief="{x3}", target_s=100)
@@ -351,12 +355,12 @@ def test_a_long_night_never_airs_the_same_quiet_moment_twice(channel, monkeypatc
     _stub(monkeypatch)
     soap.commission(w, M)
     ep = soap.booked(w, M)
-    assert len(ep["spares"]) == 5                                             # the fewest a plan gives
+    assert len(ep["spares"]) == soap.SPARES_MIN                                # the fewest a plan gives
     briefs = [b for item in soap.show(M).pattern if getattr(item, "brief", None) and isinstance(item.brief, tuple)
               for b in item.brief]
     scenes = [soap._scene(ep, M, b) for b in briefs]
     quiet = [sc for sc, key, _ in scenes if int(key[1:]) >= len(ep["spares"])]          # past the plan's own
-    assert len(quiet) == 3 * soap.SPARE_LAPS - 5
+    assert len(quiet) == 3 * soap.SPARE_LAPS - soap.SPARES_MIN
     assert len({q["beats"] for q in quiet}) == len(quiet)
     assert not any("earlier tonight" in q["beats"] for q in quiet)
 
@@ -369,5 +373,27 @@ def test_a_series_with_few_quiet_moments_asks_the_one_that_comes_round_to_differ
     _stub(monkeypatch)
     soap.commission(w, M)
     ep = soap.booked(w, M)
-    first, again = soap._scene(ep, few, "{x6}")[0], soap._scene(ep, few, "{x8}")[0]
+    n = soap.SPARES_MIN
+    first, again = soap._scene(ep, few, "{x%d}" % (n + 1))[0], soap._scene(ep, few, "{x%d}" % (n + 3))[0]
     assert first["set"] == again["set"] and "earlier tonight" in again["beats"] and "earlier" not in first["beats"]
+
+
+def test_every_planned_scene_airs_before_the_cliffhanger_even_when_the_scenes_run_long(channel):
+    """2026-11-19: nine scenes of about 100 s, and the producer closes a show for time. Scenes running half as long
+    again would have cut the last planned ones; a soap's whole order airs (Show.whole_order), then the cliffhanger."""
+    from newsroom.buffer import Buffer
+    from newsroom.producer import Producer
+
+    for factor in (1.0, 1.5):
+        p = Producer(Buffer(), 600, start_ts=_at(20, 20))
+        briefs = []
+        for _ in range(60):
+            ts = p.cursor_ts
+            seg = p.plan_one()
+            if seg.show != "marina":
+                break
+            briefs.append(seg.brief)
+            p.cursor_ts = ts + seg.target_s * (1.0 if seg.type in (T.bumper, T.ad_break) else factor)
+        planned = [b for b in briefs if b and b.startswith("{s")]
+        assert planned == ["{s%d}" % k for k in range(1, soap.SCENES + 1)], (factor, briefs)
+        assert briefs[-1] == "{s%d}" % soap.SCENES

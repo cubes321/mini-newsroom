@@ -69,6 +69,12 @@ class Producer:
         return cur
 
     @staticmethod
+    def _closes_from(show: schedule.Show) -> int:
+        """The first place in the order where the show may close: after its opening two, or, for a show whose
+        whole order must air (a soap's scenes), not before the loop."""
+        return max(2, show.loop_from) if show.whole_order else 2
+
+    @staticmethod
     def _continues(show: schedule.Show, pos: int) -> bool:
         """The item at `pos` carries on the one before: a guest's second part, or the break before it."""
         item = show.item(pos)
@@ -87,7 +93,7 @@ class Producer:
         self._item_pos = None                     # the item's place in the show's order: None for the closing
         if self._closing:
             return self._closing.pop(0)
-        if show.closing and not self._closed and self._pos >= 2 and (self.cursor_ts >= self._ends or (
+        if show.closing and not self._closed and self._pos >= self._closes_from(show) and (self.cursor_ts >= self._ends or (
                 not self._continues(show, self._pos)           # a guest's second part is never cut
                 and self.cursor_ts + self._run_s(show) / 2 + show.closing_s >= self._ends)):
             log.info("schedule: %s closing from slot %d", show.id, self.next_slot)

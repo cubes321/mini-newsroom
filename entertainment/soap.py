@@ -42,16 +42,27 @@ from . import creative
 
 log = logging.getLogger(__name__)
 
-SCENES = 6
+SCENES = 9                         # 2026-11-19: six of 170 s aired at about 65 s each, and stock quiet moments filled
+                                   # the minutes left. Rehearsed: nine gave 556 and 695 s of story on two plans; twelve
+                                   # gave 547-591 s, as Haiku writes each beat in six to eleven lines and stops
+SCENE_S = 100.0                    # asked 250 words, Haiku writes 110-160 (60-77 s a scene); 200 asked gave fewer
+# The plan's call: Sonnet thinks at effort high, and thinking counts against max_tokens. A six-scene plan ran out at
+# 16,000 and was cut off mid-JSON (2026-11-19); nine took 15,082 of them. Its own room, so twelve don't run out.
+PLAN_TOKENS = 32000
+PLAN_TIMEOUT_S = 420.0
+SPARE_S = 60.0                     # a side scene
 ARC_EPISODES = 6
 BOOK_FROM = "18:30"
 TASK = "soap" if "soap" in CONFIG.llm.routes else "senior_editor"     # Sonnet, either way, as config.toml stands
 PREVIOUSLY = 3                     # aired episodes the planner and the writers are reminded of
 WRITTEN_CHARS = 700                # each scene written so far tonight, as the later scenes see it
 TOKEN = re.compile(r"\{([sx])([0-9]+)\}")        # {s3}: the plan's third scene; {x2}: its second spare
-SPARES = 6                         # short side scenes for the minutes the plan leaves (the loop: three, then adverts)
+SPARES = 9                         # short side scenes for the minutes the plan leaves (the loop: three, then adverts):
+                                   # nine asked since 2026-11-19 (six before), so the series' stock quiet moments (the
+                                   # editor's banned weather and photographs) are reached less; the rehearsal gave eight
+SPARES_MIN = 5                     # the fewest accepted: a plan with fewer isn't thrown away for a second Sonnet call
 SPARE_LAPS = 4                     # the loop's laps, three spares each: x1 to x12
-QUIET_NEEDED = 3 * SPARE_LAPS - 5  # quiet moments a series gives, so a plan with its fewest spares (5) never repeats one
+QUIET_NEEDED = 3 * SPARE_LAPS - SPARES_MIN   # quiet moments a series gives, so a plan with its fewest spares never repeats one
 
 
 @dataclass(frozen=True)
@@ -116,7 +127,7 @@ class Episode(BaseModel):
                                                                      "character in the last scene, that leaves it")
     said_by: str = Field(description="who says the last line: an exact name from the last scene")
     summary: str = Field(min_length=20, max_length=600, description="what happens, for the episodes to come")
-    spares: list[Scene] = Field(min_length=5, max_length=SPARES,
+    spares: list[Scene] = Field(min_length=SPARES_MIN, max_length=SPARES,
                                 description="short side scenes that change nothing in the story, for spare minutes")
 
 
@@ -137,7 +148,7 @@ what each knows and only suspects), what happens, what it ends on: a line or a l
 is only what its people say and no stage direction reaches the screen. It must first answer the LAST CLIFFHANGER, if there is one, early in the episode. The last scene ends on the
 episode's cliffhanger: give the question the town will ask, and the exact closing line, said by a character in that
 scene. Then a short summary of what happens, for the episodes to come. Then {spares} SPARES: short side
-scenes that may air between the fifth scene and the last, or not at all, so nothing in them may change the story or
+scenes that may air before the last scene, or not at all, so nothing in them may change the story or
 give anything away: a joke in the pub, an old grievance, a small kindness, someone's hobby. They must not
 contradict the scenes around them. Each on a different set or with different people from the one before, each
 with a subject of its own."""
@@ -286,11 +297,12 @@ def commission(world: World, series: Series) -> dict:
             + f"\n\nTonight is {date.fromisoformat(world.last_date):%A %d %B}.")
     system = _EPISODE.format(title=series.title, bible=series.bible, scenes=SCENES, spares=SPARES)
     try:
-        ep = llm.complete_json(TASK, Episode, system, user)
+        ep = llm.complete_json(TASK, Episode, system, user, max_tokens=PLAN_TOKENS, timeout_s=PLAN_TIMEOUT_S)
         _check(ep, series)
         ep = creative.redraft(world, series.id, "episode", ep, text=_episode_text, context=user, started=started,
                               check=lambda e: _check(e, series),
-                              again=lambda more: llm.complete_json(TASK, Episode, system, user + more))
+                              again=lambda more: llm.complete_json(TASK, Episode, system, user + more,
+                                                                   max_tokens=PLAN_TOKENS, timeout_s=PLAN_TIMEOUT_S))
         plan, stand_in = ep.model_dump(), False
     except llm.LLMError as e:
         log.warning("soap: no episode (%s); the stand-in takes tonight", e)
@@ -517,17 +529,18 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
 
 def show(series: Series) -> Show:
     """Titles, the scenes, adverts for any spare minutes, and the cliffhanger scene last, at the end of the slot."""
-    scenes = tuple(I(T.interview, brief="{s%d}" % (k + 1), target_s=170.0) for k in range(SCENES - 1))
+    scenes = tuple(I(T.interview, brief="{s%d}" % (k + 1), target_s=SCENE_S) for k in range(SCENES - 1))
     # The spare minutes: three side scenes, then a break, as a lap; each lap's spares are new ones (x1-x3, x4-x6,
     # then quiet moments), so the order never wraps onto a planned scene or airs a spare twice.
-    spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(SPARE_LAPS)), target_s=100.0)
+    spares = tuple(I(T.interview, brief=tuple("{x%d}" % (k + 1 + 3 * lap) for lap in range(SPARE_LAPS)), target_s=SPARE_S)
                    for k in range(3))
     return Show(
         series.id, series.title.upper(), series.title.upper(), series.colour,
         pattern=(T.bumper, *scenes, *spares, T.ad_break),
         loop_from=SCENES,                 # the spares and the break
-        closing=(I(T.interview, brief="{s%d}" % SCENES, target_s=170.0),),
-        target_s={T.bumper: 10.0, T.interview: 170.0, T.ad_break: 60.0},
+        whole_order=True,                 # every planned scene airs, however long they ran
+        closing=(I(T.interview, brief="{s%d}" % SCENES, target_s=SCENE_S),),
+        target_s={T.bumper: 10.0, T.interview: SCENE_S, T.ad_break: 60.0},
         cast=("guest",), lead="guest", cast_by_type={T.interview: ("guest",)},
         station=f"{series.title}, the soap on Channel 8, Port Wexley's second channel",
         tone=series.tone, light=False, repeats_overnight=False,
@@ -540,7 +553,7 @@ a character speaking in the scene, speaker "guest" with guest_name their exact n
 names. No presenter, no narrator, no stage directions, no captions. Real dialogue: people interrupt, dodge, say less
 than they mean and give themselves away; soap-sized feelings in everyday words; British, West Country where it
 suits. Keep to what the scenes already written tonight say, and to the plan: start where THIS ITEM starts, and end
-exactly on what it ends on. About 12 to 20 lines. These are characters played by actors: none of them is a resident
+exactly on what it ends on. A scene of the plan runs about 14 to 22 lines; a short side scene 8 to 12. These are characters played by actors: none of them is a resident
 of the town, and the town's news is not their business unless THIS ITEM says so. The street has its own places (The
 Mermaid, The Loft, the quay, the net loft): never name the town's real pubs, shops, clubs or people from the
 briefing. A side scene keeps to its own beats, with no topical joke of its own: the side scenes are written at the
@@ -583,12 +596,12 @@ def register(series: Series):
     writers.CHECK_HOOKS[sh.id] = lambda seg, script, world: check(seg, script, world, series)
     writers.AFTER_HOOKS[sh.id] = lambda seg, world: after(seg, world, series)
     player.AIRED_HOOKS[sh.id] = lambda seg, world: stamp(seg, world, series)
-    writers.LINE_CAPS[sh.id] = 24
+    writers.LINE_CAPS[sh.id] = 28
     for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS, writers.FICTION_SHOWS):
         reg.add(sh.id)
     undo_creative = creative.register(
         sh.id, series.title, kind="fiction", vetted=True, airs_at=series.airs_at,
-        brief=(f"{series.bible} Twenty minutes a Channel 8 night: six planned scenes written live from the plan, side "
+        brief=(f"{series.bible} Twenty minutes a Channel 8 night: {SCENES} planned scenes written live from the plan, side "
                "scenes for the spare minutes, and a cliffhanger the town talks about the next day."),
         decides=("each scene's set and characters, who knows what as it starts, what happens and what it ends on; the "
                  "cliffhanger question and its closing line; the side scenes"),
