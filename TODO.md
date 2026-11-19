@@ -239,7 +239,13 @@ bottom with the date.
   - **Late-night drama**, 22:30 to 23:00: an anthology of self-contained tales first; series later.
   - **The TV movie**, 21:00 to 22:00: a bank of movies planned ahead and played out live by the engine in full-
     figure format (the soap's stage B, walking figures). Later, blockbusters rendered offline for special nights.
-  - Cartoon Time back at 18:30 once the bank has films; the closedown at 23:00, midnight once the last hour has
+  - **The Slipway**, 18:30, built 2026-11-19 in Cartoon Time's place (`entertainment/slipway.py`): Tegan Trevenna and
+    Elis Pengilly (looks A and A on data/contact-sheets/2026-11-19-slipway-presenters.png); the feature, a how-to,
+    Academy Corner, messages, the big question, what's on, the challenge, Quick Five. Not yet aired. Open: their
+    voices (DramaBox designs, by ear; Kokoro stands in under bf_trevenna/bm_pengilly, never a guest pool voice), the
+    set's art (the breakfast sofa's painter stands in), the ident's music (provisionally "sport"), and the
+    closedown's new words baked into bumper_closedown_slipway.wav. Cartoon Time stays on the shelf.
+  - The closedown at 23:00, midnight once the last hour has
     something good. Rotations go by Channel 8 night, not weekday, while the channels alternate.
   - **A creative editor** (the user, 2026-11-13) for the made-up shows: the soap, the factual/wildlife slot, the
     comedy and the drama. Channel 7's senior editor guards the news (facts, the town's canon, repeats). This one

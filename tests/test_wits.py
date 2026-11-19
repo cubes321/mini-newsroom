@@ -159,8 +159,8 @@ def test_the_channel_puts_wits_on_at_eight_and_undo_gives_back_channel_seven():
         # Channel 8 (2026-11-13): its own name and folder for continuity, and off air until seven the next evening
         assert channel_mod.CURRENT.number == "8" and logo.wordmark() == "CHANNEL 8 · PORT WEXLEY"
         assert continuity.FOLDER.name == "channel8" and continuity.SHOWS == ("wits",)
-        assert schedule.next_start("closedown", _at(21, 5)) == "19:00"
-        assert schedule.next_start("closedown", _at(3, 0)) == "19:00"               # one show over midnight
+        assert schedule.next_start("closedown", _at(21, 5)) == "18:30"         # The Slipway since 2026-11-19
+        assert schedule.next_start("closedown", _at(3, 0)) == "18:30"               # one show over midnight
         assert assets.IDENT_VOICES["closedown"] == continuity.VOICE
         assert not schedule.specials_air()            # no documentary or specials made on its nights
     finally:

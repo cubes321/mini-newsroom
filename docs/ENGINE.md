@@ -161,7 +161,7 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 | Time | Show | Built on |
 |---|---|---|
 | 18:00 | **A gameshow with prizes** (until Cartoon Time is back, the hour) | Wits' pattern: rules and scores in code |
-| 18:30 | Cartoon Time, back once the bank has films | the content bank |
+| 18:30 | **The Slipway**, the teen magazine, half an hour (built 2026-11-19, `entertainment/slipway.py`), in Cartoon Time's place: good cartoons are hard to render | The Kettle's On's booking and items |
 | 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
 | 20:00 | Wexley Wits | |
 | 20:20 | **The soap**, 20 minutes: titles, nine planned scenes asked at 100 s, which Haiku writes at 60-77 (six of 170 s until 2026-11-19, which aired at about 65 s; twelve rehearsed shorter still), all of them aired before the close (`Show.whole_order`), side scenes and a break for the spare minutes, the cliffhanger last | the scene engine |

@@ -217,6 +217,7 @@ class World:
     promises: list[dict] = field(default_factory=list)    # what full council voted would happen (promises.py): {id, made, thread_id, text, due, state}
     quizzes: list[dict] = field(default_factory=list)     # Wexley Wits (entertainment/quiz.py): {date, teams, rounds, scores}
     kettles: list[dict] = field(default_factory=list)     # The Kettle's On (entertainment/kettle.py): {date, dish, sofa, expert, ...}
+    slipways: list[dict] = field(default_factory=list)    # The Slipway (entertainment/slipway.py): {date, feature, howto, pupil, ...}
     # Channel 8's dramas (entertainment/soap.py), by series id: {arc, episodes}. Fiction: no reader of the town's
     # news looks here; talk.py takes a cliffhanger from an episode once it has aired.
     soaps: dict[str, dict] = field(default_factory=dict)
@@ -1165,6 +1166,17 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("kettle_b", "bm_spargo"),
                   ["a retired chemistry teacher from Greymouth Academy", "weighs everything to the gram",
                    "frets about oven temperatures", "secretly can't cook"], lang="b"),
+        # Channel 8's teen magazine, The Slipway (entertainment/slipway.py), 18:30, from 2026-11-19. Their voices are
+        # names of their own until DramaBox designs are chosen by ear: with no clip yet, Kokoro speaks for them
+        # (voices.toml). Never a guest pool voice: every resident sharing it would be recast (_recast_presenter_voices).
+        Character("slip_a", "Tegan Trevenna", "presenter, The Slipway (Channel 8's teen magazine)",
+                  CONFIG.tts.voices.get("slip_a", "bf_trevenna"),
+                  ["twenty-one, born in Port Wexley", "throws herself into everything and finishes nothing",
+                   "never reads the instructions", "laughs at herself"], speed=1.04, lang="b"),
+        Character("slip_b", "Elis Pengilly", "presenter, The Slipway (Channel 8's teen magazine)",
+                  CONFIG.tts.voices.get("slip_b", "bm_pengilly"),
+                  ["twenty-two, a planner", "makes lists and reads the rules out", "worries about safety",
+                   "secretly the more competitive"], speed=1.0, lang="b"),
         # Channel 8's wildlife series, Tideline (entertainment/wildlife.py), 20:40: look and voice chosen 2026-11-14.
         Character("naturalist", "Rowan Polglase", "presenter, Tideline (Channel 8's wildlife series)",
                   CONFIG.tts.voices.get("naturalist", "bm_polglase"),

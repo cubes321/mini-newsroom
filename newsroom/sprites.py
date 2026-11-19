@@ -151,6 +151,16 @@ LOOKS["naturalist"] = Look(skin=(222, 178, 150), hair=(232, 232, 234), top=(76, 
                            hair_style="receding", top_style="jacket", facial="beard", hat="flatcap",
                            hat_col=(120, 104, 80), extra="binoculars", extra_col=(92, 62, 40), mouth="smile",
                            brows="raised")
+# Channel 8's The Slipway (entertainment/slipway.py), chosen on a contact sheet 2026-11-19 (A of three each,
+# data/contact-sheets/2026-11-19-slipway-presenters.png):
+# Tegan Trevenna, twenty-one, the doer: sun-bleached hair pulled back, freckles, a yellow waterproof over a stripy top
+LOOKS["slip_a"] = Look(skin=(230, 188, 158), hair=(206, 170, 110), top=(240, 196, 50), under=(236, 236, 240),
+                       hair_style="ponytail", top_style="jacket", extra="stripe", extra_col=(40, 70, 140),
+                       mouth="smile", freckles=True)
+# Elis Pengilly, twenty-two, the planner: neat dark hair, round glasses, a green cardigan over a checked shirt, a pen
+LOOKS["slip_b"] = Look(skin=(214, 170, 140), hair=(40, 32, 30), top=(52, 110, 76), under=(220, 226, 236),
+                       hair_style="short", top_style="cardigan", glasses="on", extra="pen", extra_col=(30, 60, 140),
+                       mouth="line", brows="raised")
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 

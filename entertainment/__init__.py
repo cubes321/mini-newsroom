@@ -8,8 +8,9 @@ scenes.SHOW_SETS, player.SEATS), so newsroom/ never imports it. The evening is T
 (kettle.py) and Wexley Wits at 20:00 (wits.py, quiz.py); then the closedown: the announcer's goodnight once and
 the test card until seven the next evening, as small channels did, with no repeats and no SEVENTEXT
 (those are Channel 7's). New shows take hours from it as they are built. Agreed with the user 2026-11-13:
-the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time comes back at 18:30 once the bank has
-films (its shelf is empty, so its hour was the test card). Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
+the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time was to come back at 18:30 once the
+bank had films, but good cartoons are hard to render, and The Slipway, the teen magazine (slipway.py), has the half
+hour since 2026-11-19 (the user). Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
 planned with the user 2026-11-14), at 20:40, before the closedown at 21:00, in turn with The Coast Road, the travelogue
 (travelogue.py), through schedule.ROTATIONS.
 """
@@ -23,20 +24,21 @@ from newsroom.schedule import Show
 
 CHANNEL_8 = Channel(number="8", name="Channel 8", said="channel eight", wordmark="CHANNEL 8 · PORT WEXLEY")
 
-# The closedown, one show from 21:00 to seven the next evening (one id, so the test card's "programmes
-# resume at" is 19:00, not midnight): the goodnight once, then the card on a loop.
+# The closedown, one show from 21:00 to half past six the next evening (one id, so the test card's "programmes
+# resume at" is 18:30, not midnight): the goodnight once, then the card on a loop.
 CLOSEDOWN = Show(
     "closedown", "GOODNIGHT", "CHANNEL 8", (52, 56, 118),
     pattern=(T.bumper, T.testcard), loop_from=1,
     target_s={T.bumper: 14.0, T.testcard: 300.0},
 )
-CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at seven, with The "
-                  "Kettle's On. From all of us at WTV, goodnight.")
+CLOSEDOWN_TEXT = ("That's the end of tonight's programmes on Channel 8. We're back tomorrow at half past six, with "
+                  "The Slipway. From all of us at WTV, goodnight.")
 
 # The channel's day: (start, show id), as schedule.SCHEDULE. One episode a night: two Wits slots back
 # to back would run as one show (schedule.show_end looks for a different id).
 SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (0, "closedown"),
+    ("18:30", "slipway"),       # The Slipway, the teen magazine (slipway.py): half an hour, in Cartoon Time's place (2026-11-19)
     (19, "kettle"),             # The Kettle's On (kettle.py): the hour
     (20, "wits"),
     ("20:20", "marina"),        # Wits: twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
@@ -59,9 +61,9 @@ def attend():
 
 def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
-    from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
+    from newsroom import assets, backdrops, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import creative, kettle, oche, quiz, soap, travelogue, wildlife, wits
+    from . import creative, kettle, oche, quiz, slipway, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -76,13 +78,15 @@ def use():
     schedule.SHOWS[quiz.SHOW] = wits.SHOW
     schedule.SHOWS[CARTOON_TIME.id] = CARTOON_TIME             # off the schedule until the bank has films
     schedule.SHOWS[kettle.SHOW] = kettle.SHOW_DEF
+    schedule.SHOWS[slipway.SHOW] = slipway.SHOW_DEF
     schedule.SHOWS[CLOSEDOWN.id] = CLOSEDOWN
     # A new file: bumper_cartoons.wav says "channel seven", and a bumper is only rebaked for new music.
     assets.IDENTS[CARTOON_TIME.id] = (assets.CONFIG.paths.assets / "bumper_cartoons_8.wav",
                                       "It's Cartoon Time, on channel eight!")
     assets.IDENT_MUSIC[CARTOON_TIME.id] = "rockpool"          # until Cartoon Time has music of its own
-    # A new file for new words (bumper_closedown.wav says "with Cartoon Time"; a bumper is only rebaked for new music).
-    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown_kettle.wav", CLOSEDOWN_TEXT)
+    # A new file for new words (bumper_closedown.wav says "with Cartoon Time", bumper_closedown_kettle.wav "at seven,
+    # with The Kettle's On"; a bumper is only rebaked for new music).
+    assets.IDENTS[CLOSEDOWN.id] = (assets.CONFIG.paths.assets / "bumper_closedown_slipway.wav", CLOSEDOWN_TEXT)
     assets.IDENT_MUSIC[CLOSEDOWN.id] = quiz.SHOW
     assets.IDENT_VOICES[CLOSEDOWN.id] = continuity.VOICE      # the continuity announcer says goodnight
     locations.MARKS[wits.SET] = wits.MARKS
@@ -91,6 +95,7 @@ def use():
     assets.IDENTS[quiz.SHOW] = (assets.CONFIG.paths.assets / "bumper_wits.wav", wits.IDENT)
     workers.IDLE_JOBS.append((quiz.should_commission, quiz.commission))
     _kettle(kettle)
+    _slipway(slipway)
     undo_soap = soap.register(MARINA_ROW)
     undo_wildlife = wildlife.register()
     undo_travelogue = travelogue.register()
@@ -116,7 +121,7 @@ def use():
     writers.UNFILED_SHOWS.add(quiz.SHOW)
     # The creative editor (creative.py): the soap, Tideline and The Coast Road enrolled themselves above; the two
     # light shows here. Its idle jobs go in last, so its catch-up is ahead of every booking and its reviews behind.
-    undo_enrolled = (kettle.enrol(), quiz.enrol())
+    undo_enrolled = (kettle.enrol(), quiz.enrol(), slipway.enrol())
     undo_creative = creative.install()
     undo_seat = attend()
 
@@ -132,6 +137,8 @@ def use():
         schedule.SHOWS.clear(), schedule.SHOWS.update(saved[1])
         locations.MARKS.clear(), locations.MARKS.update(saved[2])
         locations.BY_ID.pop(kettle.SET, None)                  # The Kettle's On's set, registered by _kettle
+        locations.BY_ID.pop(slipway.SET, None)                 # The Slipway's, by _slipway
+        backdrops.PAINTERS.pop(slipway.SET, None)
         assets.IDENTS.clear(), assets.IDENTS.update(saved[3])
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
@@ -146,9 +153,11 @@ def use():
                     player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED, player.AIRED_HOOKS):
             reg.pop(quiz.SHOW, None)
             reg.pop(kettle.SHOW, None)
+            reg.pop(slipway.SHOW, None)
         for reg in (writers.BOOKED_SHOWS, writers.DEBATE_SHOWS, writers.UNFILED_SHOWS, player.TICKER_AFTER):
             reg.discard(quiz.SHOW)
             reg.discard(kettle.SHOW)
+            reg.discard(slipway.SHOW)
     return undo
 
 
@@ -179,6 +188,34 @@ def _kettle(kettle) -> None:
     writers.CHECK_HOOKS[kettle.SHOW] = kettle.check             # an item's guest is the one it books
     writers.BOOKED_SHOWS.add(kettle.SHOW)                      # its guests are booked: no loose ends on the sofa
     writers.UNFILED_SHOWS.add(kettle.SHOW)                     # never news
+
+
+def _slipway(slipway) -> None:
+    """The Slipway's registrations (undone with the others by use()'s undo)."""
+    from newsroom import assets, backdrops, locations, player, scenes, workers, writers
+    from newsroom.config import CONFIG
+
+    assets.IDENTS[slipway.SHOW] = (assets.CONFIG.paths.assets / "bumper_slipway.wav", slipway.IDENT)
+    assets.IDENT_MUSIC[slipway.SHOW] = "sport"                 # bright and quick, until it is chosen by ear
+    # Tegan says it: her Kokoro stand-in until her voice is chosen, when the file must be deleted to be baked again.
+    assets.IDENT_VOICES[slipway.SHOW] = CONFIG.tts.voices.get("slip_a", "bf_trevenna")
+    # Its own set, for this run only, painted as the breakfast sofa's until its art is made and approved.
+    locations.BY_ID[slipway.SET] = locations.Location(slipway.SET, slipway.SET_NAME, slipway.SET_BLURB, "studio",
+                                                      *slipway.SET_COLOURS)
+    locations.MARKS[slipway.SET] = dict(slipway.MARKS)
+    backdrops.PAINTERS[slipway.SET] = backdrops.PAINTERS[slipway.STAND_IN_PAINTER]
+    scenes.SHOW_SETS[slipway.SHOW] = slipway.SET
+    player.SEATS[slipway.SHOW] = 1                             # one guest at a time
+    workers.IDLE_JOBS.append((slipway.should_commission, slipway.commission))
+    writers.SHOW_SYSTEMS[slipway.SHOW] = slipway.SYSTEMS
+    writers._PLACE.update(slipway.PLACE)
+    writers.BRIEF_HOOKS[slipway.SHOW] = slipway.brief_for
+    writers.PROMPT_HOOKS[slipway.SHOW] = slipway.for_prompt
+    writers.CAPTION_HOOKS[slipway.SHOW] = slipway.caption
+    writers.TEMPLATE_HOOKS[slipway.SHOW] = slipway.template
+    writers.CHECK_HOOKS[slipway.SHOW] = slipway.check           # an item's guest is the one it books
+    writers.BOOKED_SHOWS.add(slipway.SHOW)                     # its guests are booked: no loose ends
+    writers.UNFILED_SHOWS.add(slipway.SHOW)                    # never news
 
 
 _RIGHT = ("That's right!", "Correct!", "Yes! Two points.", "Spot on.")
