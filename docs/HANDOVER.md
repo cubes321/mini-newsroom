@@ -1,5 +1,118 @@
 # Handover
 
+## Picking up after the Channel 7 council night of 2026-11-19
+
+The night of Thursday 19 November was a real Channel 7 run on the real town: full council, The Chamber live at
+20:00. It was started at 18:45 from `data/night_channel7.cmd`, and its pre-night backup is
+`data/world.backup-2026-11-19-pre-night.json`. Review its log first, with the usual checks below ("The overnight
+run").
+
+### What changed on 2026-11-19 (all pushed to origin/master, `64b25ed..d8c2be3`; none of it has aired)
+
+A scratch Channel 8 run that afternoon (`data/afternoon_channel8_scratch.cmd`, a temp copy of the town) led to:
+
+- **Two bugs fixed.** The Chamber and Have Your Say are booked only when their show airs on the channel that's on
+  (8f2e67e). Wits' Who Said That reads only whole sentences (6eeea8a). Wits' scoreboard no longer freezes when a
+  question is offered over and nobody takes it (d5dc5ea).
+- **Marina Row** plans 9 scenes asked at 100 s and 9 side scenes, and every planned scene airs before the
+  cliffhanger (`Show.whole_order`) (a985783). The plan call has 32k tokens, because Sonnet's thinking counts against
+  max_tokens. Haiku writes a scene's beat and stops, so the story's length comes from the number of scenes; twelve
+  rehearsed shorter than nine.
+- **The Coast Road** has 210 s meetings and 100 s roads, so a leg has about three waiting moments (d647fcd).
+- **The Kettle's On**:
+  - one call a block, the sofa guest twice, the problems spread, a pet name for each call (`PET_NAMES`) (0fe81ba);
+  - a check (`kettle.check` with `llm.AskAgain`) that asks once more for an item with the wrong guest (0fe81ba);
+  - in the last half hour, Maggie v Nigel duels and the cook at the counter take turns with the expert's spots
+    (3309fff).
+- **The Slipway**, a new teen magazine at 18:30 in Cartoon Time's place (fda616a): Tegan Trevenna (`slip_a`) and
+  Elis Pengilly (`slip_b`), with looks A and A approved on `data/contact-sheets/2026-11-19-slipway-presenters.png`.
+- **High Water**, a new gameshow at 18:00 (b6a9444, d8c2be3), described in docs/ENGINE.md, "High Water":
+  - Des Kneebone (`hw_host`) hosts; two residents climb the harbour steps against the tide;
+  - the Harbourmaster's round at halfway, for life rings;
+  - three two-minute ad breaks (`adverts.break_segment` now sizes a break by its target).
+
+Channel 8 now runs **18:00 to 21:00**: High Water, The Slipway, The Kettle's On, Wexley Wits, Marina Row, then
+Tideline or The Coast Road. The closedown says "back tomorrow at six, with High Water". Tests: 1044, all passing.
+
+### To do next, in order
+
+The GPU is shared (memory: gpu-is-shared). The Channel 7 night starts ComfyUI for its shadow pictures and stops it
+at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
+
+1. **Des Kneebone's look.** A provisional `LOOKS["hw_host"]` sits **uncommitted** in `newsroom/sprites.py`: swept
+   silver hair, a red blazer, a dark bow tie (as a `tie`). Make a contact sheet of three options, as
+   `data/creative-trial/rehearsal-1119/scripts/slipway_looks.py` did for the Slipway. Save it to
+   `data/contact-sheets/`, get the user's pick, and commit `sprites.py` by its path. A real bow tie may need a new
+   `Look` field, which must default to off: compare `python -m newsroom.sprites --sheet` before and after, with
+   `_beat` fixed (CLAUDE.md).
+2. **High Water's tide gauge**, drawn in code, as Wits' scoreboard is (`wits.draw_board` through
+   `scenes.DRESSINGS`, `quiz.board`/`quiz.view` through `player.VIEW_HOOKS`):
+   - the twelve steps, with the prizes on 4, 8 and 11 and the star prize at the top;
+   - a marker for each climber, the water level, and a life ring beside its holder;
+   - it moves on Des's lines: each turn's step on his verdict, the tide on his gauge line.
+
+   `highwater_show.missing` already finds each question's line. Put the look on a contact sheet for the user first.
+3. **The two sets**, through the ComfyUI pipeline (memory: backdrop-art-pipeline), each on a contact sheet for the
+   user:
+   - `studio_slipway`: a bright studio, a window onto the harbour, a low sofa, bean bags, a board of viewers'
+     messages. The breakfast sofa's painter stands in for it now.
+   - `set_highwater`: the harbour steps at dusk, twelve stone steps up the wall, the gauge beside them, room for Des
+     and two climbers. The harbour painter stands in for it now.
+
+   Their marks are `MARKS` in `entertainment/slipway.py` and `entertainment/highwater_show.py`; move them to fit the
+   art. Each art file is `assets/backdrops/<id>.png`.
+4. **Three voices**, designed with DramaBox for British references (memory: british-voices; Qwen VoiceDesign comes
+   out American). Three candidates each go on a listening page, opened with `explorer.exe` (the app's Browser pane
+   can't play local sound):
+   - Tegan (`bf_trevenna`): 21, a light Cornish accent, quick, about to laugh;
+   - Elis (`bm_pengilly`): 22, soft West Country, dry, careful;
+   - Des (`bm_kneebone`): sixties, a warm West Country showman.
+
+   The chosen clips go in as `assets/voices/<id>.b.wav`. Take "PROVISIONAL, no clip yet" out of their voices.toml
+   entries. Keep the ids: they are the presenters' own, so no resident is recast. A guest-pool voice would recast
+   every resident who shares it (`world._recast_presenter_voices`).
+5. **The idents, by ear**:
+   - `bumper_slipway.wav`, provisionally on the "sport" arrangement;
+   - `bumper_highwater.wav`, provisionally on "phonein";
+   - Channel 8's closedown, with new words, in `bumper_closedown_highwater.wav`.
+
+   An ident is baked only when it's missing or its music is newer. Once the voices are chosen, delete these files so
+   they bake again in the right voice.
+6. **High Water's winner in the town's talk**, as `talk.py` reads `world.kettles` for the Kettle's dish and sofa
+   guest: "Jan Pascoe won a weekend away on High Water" for a day or two after it airs. It's a small code change with
+   a test.
+7. **A scratch Channel 8 run of the whole evening.** The evening now starts at 18:00, so edit
+   `data/afternoon_channel8_scratch.ps1` to `--clock 17:45 --minutes 200`. Run it from its .cmd in its own window,
+   with OBS open. Check:
+   - **High Water**: every round airs, and only a few chats; no `asking once more`, or rare; no `using template`.
+     Check that Des's opening is in short lines and that the half hour ends near 18:30.
+   - **The Slipway**: the guests are the booked ones, Quick Five comes at most once per guest, the goodbye names The
+     Kettle's On, and it ends by 19:00.
+   - **The Kettle's On**: about 17 calls, no pet name twice, the sofa guest twice (about 19:12 and 19:26), two duels
+     and two cook visits, and the dish out at about 19:55.
+   - **Marina Row**: nine scenes, the plan's own side scenes, and at most one stock quiet moment.
+   - **The Coast Road**: about three waiting moments.
+   - The creative editor's reviews of all six programmes.
+
+### How to rehearse without a station
+
+The scripts that measured all of the above are in `data/creative-trial/rehearsal-1119/scripts/`:
+
+- `rehearse_highwater.py`, `rehearse_slipway.py`, `rehearse_lengths.py` (Marina Row and The Coast Road),
+  `rehearse_kettle.py`: each writes a show's items with the real models on a copy of the town and prints lines, words
+  and estimated airtime;
+- `hw_sim.py`: plays thousands of High Water games for the balance;
+- `hw_passrate.py`: drafts each round several times to count missing questions.
+
+To run one:
+
+- Copy a world backup to `data/creative-trial/rehearsal-1119/world.json`.
+- Point every `NEWSROOM_*` path variable into that folder (`NEWSROOM_ADS` may point at the real `data/ads`).
+- Copy the API keys in from the User environment.
+- Run with `uv run python <script>`.
+
+Each script refuses a world path without "rehearsal-1119" in it.
+
 ## Picking up on the evening of 2026-10-30
 
 Everything is on `master` (last pushed `e4a984a`). Since the 2026-10-29 DeepSeek night: the back
