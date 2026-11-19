@@ -71,3 +71,11 @@ def test_someone_else_booked_leaves_the_loose_end_waiting():
     seg = Segment(slot_id=2, type=SegmentType.interview, show="late", work={"return_guest": "Hollis Byrne"})
     _file(w, seg, _chat(name="Sadie Quill", ask=None))
     assert w.person_by_name("Hollis Byrne").loose_ends and "late" not in w.guest_returns
+
+
+def test_an_overlong_memory_is_cut_at_a_word():
+    """Wexley Wits reads memories out as Who Said That clues: 'to be pai…' went out on 2026-11-19."""
+    said = ("called out three times this week to the cannery, and wants the council to see the tide-tables "
+            "before the vote on Thursday evening, when the harbour committee sits")
+    m = _chat(memory=said).guest_memory
+    assert len(m) <= 140 and m.endswith("…") and said.startswith(m[:-1]) and said[len(m) - 1] == " "

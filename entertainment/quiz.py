@@ -286,6 +286,20 @@ def _play(booking: QuizBooking, ts: list[dict], seed: str, quotes: list | None =
     return rounds, score, tie
 
 
+QUOTE_CHARS = 170
+
+
+def _finished(said: str) -> str | None:
+    """A memory as Clive can read it: whole sentences only. One the town stored clipped ("this wee…", as went out
+    on 2026-11-19) or too long keeps the sentences that end before the cut; with none, it isn't a clue."""
+    said = said.strip()
+    if not said.endswith("…") and len(said) <= QUOTE_CHARS:
+        return said.rstrip(".")
+    head = said[:QUOTE_CHARS].rstrip("…")
+    ends = [m.end() for m in re.finditer(r"[.!?](?=\s)", head)]
+    return head[:ends[-1]].rstrip(".") if ends and ends[-1] >= 12 else None     # not a bare "Yes."
+
+
 def _quotes(world: World, ts: list[dict], booking: QuizBooking) -> list[Question]:
     """Who Said That?: six lines the week's guests said on channel 7, as the town remembers them (Person.memories),
     six different people, none of tonight's contestants, and never a line that names its speaker. A public
@@ -298,15 +312,13 @@ def _quotes(world: World, ts: list[dict], booking: QuizBooking) -> list[Question
         if p.name in playing:
             continue
         words = {w.lower() for w in re.findall(r"[A-Za-z']+", p.name) if len(w) > 2}
-        mine = [m for m in p.memories if m.get("date", "") >= since and m.get("said")
-                and not words & {w.lower() for w in re.findall(r"[A-Za-z']+", m["said"])}]
+        mine = [(m, said) for m in p.memories if m.get("date", "") >= since and m.get("said")
+                and not words & {w.lower() for w in re.findall(r"[A-Za-z']+", m["said"])}
+                and (said := _finished(m["said"]))]
         if mine:
-            m = mine[-1]
+            m, said = mine[-1]
             level = 1 if p.kind == "official" else 2 if len(p.memories) > 1 else 3
             day = date.fromisoformat(m["date"]).strftime("%A")
-            said = m["said"].rstrip(".")
-            if len(said) > 170:                              # at a word, not mid-word
-                said = said[:170].rsplit(" ", 1)[0].rstrip(",;:")
             lines.append(Question(question=f"Who said this on {m['show']} on {day}: {said}",
                                   answer=(f"{p.name}, {p.role}" if p.role and p.role != "resident" else p.name)[:80],
                                   difficulty=level))

@@ -520,6 +520,24 @@ def test_who_said_that_uses_the_weeks_guests_and_never_gives_the_name_away():
     assert "crane is rebooked for the 17th" in ours[0].question
 
 
+def test_who_said_that_reads_only_whole_sentences():
+    """2026-11-19: 'to be pai…' went out as a clue. Memories stored before the cut moved to a word end mid-word;
+    a clue keeps the sentences before the cut, or the memory isn't used."""
+    assert quiz._finished("The crane is rebooked for the 17th.") == "The crane is rebooked for the 17th"
+    assert quiz._finished("The boat is ready. She has been called three times this wee…") == "The boat is ready"
+    assert quiz._finished("She has been called out three times this week and wants to be pai…") is None
+    long = "We open at six. " + "And the queue goes right round the harbour wall past the chandler's " * 3 + "door."
+    assert quiz._finished(long) == "We open at six"
+    w = world_mod.seed()
+    w.ensure_person("Ruth Fairley", "chandler")
+    w.remember_guest("Ruth Fairley", "Coastwide", "The crane is rebooked for the 17th, so there is time.", None)
+    w.remember_guest("Ruth Fairley", "Morning Tide", "And the second crane wants to be pai…", None)
+    ts = [{"pub": "the Lugger", "name": "The Lugger", "members": ["Gav Polglase"], "strength": 1.0},
+          {"pub": "the Pilchard", "name": "The Pilchard", "members": ["Mick Jewell"], "strength": 1.0}]
+    ours = [q for q in quiz._quotes(w, ts, _booking()) if q.answer.startswith("Ruth Fairley")]
+    assert len(ours) == 1 and "on Coastwide" in ours[0].question and "pai" not in ours[0].question
+
+
 def test_the_doubles_aim_at_double_twenty_and_the_pair_with_more_take_it():
     import random
     ts = [{"name": "A", "pub": "A", "members": ["a", "b"], "strength": 1.0},

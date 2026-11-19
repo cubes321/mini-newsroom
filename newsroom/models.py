@@ -241,7 +241,8 @@ def _clip_words(n: int) -> BeforeValidator:
 
 
 Status = Annotated[str | None, _clip(160)]
-Memo = Annotated[str | None, _clip(140)]       # a guest's memory (world.Person.memories), bookkeeping too
+# A guest's memory (world.Person.memories): cut at a word, since Wexley Wits reads it out as a quote in Who Said That
+Memo = Annotated[str | None, _clip_words(140)]
 # The headline and the captions on screen, cut at a word rather than failing the script: on the 2026-10-31
 # night seven reports and vox pops failed on a location past 60 characters, three more on a headline or caption.
 Headline = Annotated[str, _clip_words(90)]
