@@ -604,3 +604,25 @@ def test_leaving_channel_8_takes_wits_off_the_after_the_round_list():
     assert quiz.SHOW in player.TICKER_AFTER
     undo()
     assert quiz.SHOW not in player.TICKER_AFTER
+
+
+def test_a_question_not_taken_up_doesnt_take_the_next_answer_as_its_bonus():
+    """2026-11-19: question 3 was wrong and not stolen; its bonus player answered question 4, and that answer was
+    read as question 3's bonus, so question 4's was never found and the board stopped until the read-out."""
+    from newsroom.models import PanelLine
+
+    qs = [{"q": "Which ferry runs to Saltby?", "who": "Craig Uren", "right": False, "bonus_who": "Kev Moyle",
+           "stolen": False, "to": 1},
+          {"q": "Who keeps the lighthouse?", "who": "Kev Moyle", "right": True, "bonus_who": None, "stolen": False,
+           "to": 0},
+          {"q": "What colour is the lifeboat?", "who": "Bev Carne", "right": True, "bonus_who": None, "stolen": False,
+           "to": 0}]
+
+    def line(who, text):
+        return PanelLine(speaker="mag_b", text=text) if who == "clive" else PanelLine(speaker="guest", guest_name=who, text=text)
+    lines = [line("clive", "Which ferry runs to Saltby?"), line("Craig Uren", "Pass."),
+             line("clive", "No. Who keeps the lighthouse?"), line("Kev Moyle", "Old Jory."),
+             line("clive", "Correct! What colour is the lifeboat?"), line("Bev Carne", "Blue and orange."),
+             line("clive", "Yes!")]
+    steps = quiz._answers(lines, {"questions": qs}, [0, 0])
+    assert steps == [[4, [quiz.OWN_POINTS, 0]], [6, [2 * quiz.OWN_POINTS, 0]]]

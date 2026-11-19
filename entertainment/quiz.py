@@ -415,14 +415,18 @@ def _answers(lines, r: dict, before: list[int], host: str = "mag_b") -> list[lis
     other team's when it is offered over. Stops at the first answer it cannot place: the read-out at the end of
     the round puts the board right whatever was missed."""
     score, out, pos = list(before), [], 0
+    qs = r.get("questions") or []
 
-    def said_by(name: str) -> int | None:
-        return next((i for i in range(pos, len(lines))
+    def said_by(name: str, end: int | None = None) -> int | None:
+        return next((i for i in range(pos, len(lines) if end is None else end)
                      if lines[i].speaker == "guest" and getattr(lines[i], "guest_name", None) == name), None)
 
-    for x in r.get("questions") or []:
-        asked = next((i for i in range(pos, len(lines)) if lines[i].speaker == host and _key(x["q"])
-                      and _key(x["q"]) in " ".join(re.sub(r"[^a-z0-9 ]", " ", lines[i].text.lower()).split())), None)
+    def asked_at(x: dict) -> int | None:
+        return next((i for i in range(pos, len(lines)) if lines[i].speaker == host and _key(x["q"])
+                     and _key(x["q"]) in " ".join(re.sub(r"[^a-z0-9 ]", " ", lines[i].text.lower()).split())), None)
+
+    for n, x in enumerate(qs):
+        asked = asked_at(x)
         if asked is not None:
             pos = asked + 1
         a = said_by(x["who"])
@@ -432,7 +436,10 @@ def _answers(lines, r: dict, before: list[int], host: str = "mag_b") -> list[lis
         if x["right"]:
             team, points = x["to"], OWN_POINTS
         else:
-            b = said_by(x["bonus_who"]) if x.get("bonus_who") else None
+            # The other team's go comes before the next question: one not taken up, and its player's answer to the
+            # next question was read as the bonus, and the board stopped there (the code's own round, 2026-11-19).
+            nxt = asked_at(qs[n + 1]) if n + 1 < len(qs) else None
+            b = said_by(x["bonus_who"], nxt) if x.get("bonus_who") else None
             if b is not None:
                 a, pos = b, b + 1
             if not x.get("stolen"):
