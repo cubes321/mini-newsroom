@@ -288,7 +288,8 @@ def test_each_lap_of_the_loop_has_its_own_expert_angle_and_every_call_is_remembe
     the same five problems: the expert's loop item had one brief, and a call saw only the last ten items."""
     show = kettle.SHOW_DEF
     n = len(show.pattern)
-    laps = [show.item(n - 1 + k * (n - show.loop_from)).brief for k in range(4)]
+    first = show.loop_from + 2                                    # the loop's first expert item (since 2026-11-19)
+    laps = [show.item(first + k * (n - show.loop_from)).brief for k in range(4)]
     assert len(set(laps)) == 4 and all("already said tonight" in b for b in laps)
     w = world_mod.seed()
     _stub(monkeypatch, _booking())
@@ -327,7 +328,7 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
     assert not any("RECIPE, part two" in b for b in briefs)                    # the dish comes out in the close
     close = [schedule.as_item(e) for e in show.closing]
     assert "RECIPE, part two" in close[0].brief and close[-1].part == "close"
-    assert [b for b in briefs if b in kettle._POSTBAG] == list(kettle._POSTBAG[:4])   # the expert's items, each once
+    assert [b for b in briefs if b in kettle._POSTBAG] == list(kettle._POSTBAG[:5])   # the expert's items, each once
     run = longest = 0
     for i in order:                                                            # a break doesn't end a run of calls
         run = run + 1 if i.type is T.call else run if i.type is T.ad_break else 0
@@ -356,7 +357,7 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
         assert out is not None and _at(19, 54) <= out <= _at(19, 58), factor
         assert sofa is not None and _at(19, 12) <= sofa <= _at(19, 22), factor
         assert again is not None and _at(19, 25) <= again <= _at(19, 42), factor
-        assert calls <= 16, (factor, calls)
+        assert calls <= 18, (factor, calls)                          # 21 on 2026-11-19, with items at about 0.7
         assert ended is not None and (abs(ended - _at(20)) <= 60 or factor < 0.85), factor   # short items: early
 
 
@@ -448,3 +449,41 @@ def test_a_spot_written_with_the_wrong_guest_is_asked_for_once_more(channel, mon
     writers.script_segment(seg, w)
     assert len(seen) == 2 and f"the guest is {who['expert']}" in seen[1][3]
     assert (seg.headline == "A spot") == (aired_by == "expert")              # else the template's (models off here)
+
+
+def test_the_last_half_hour_has_maggie_v_nigel_and_the_cook_between_the_experts_spots(channel, monkeypatch):
+    """2026-11-19 (the user): with one call a block the expert had every other item to the close, about eleven an
+    hour; now the loop's four places are the expert, Maggie v Nigel, the expert, and the cook at the counter."""
+    from newsroom.buffer import Buffer
+    from newsroom.producer import Producer
+
+    show = kettle.SHOW_DEF
+    lap = len(show.pattern) - show.loop_from
+    loop = [show.item(k) for k in range(show.loop_from, show.loop_from + 2 * lap)]       # two laps
+    kinds = [i.brief.split(":")[0] for i in loop if i.type in (T.interview, T.links)]
+    assert kinds[1] == "MAGGIE V NIGEL" and kinds[3] == "AT THE COUNTER"
+    assert [i.brief in kettle._POSTBAG for i in loop[:lap] if i.type is T.interview] == [True, True, False]
+    assert sum(i.type is T.ad_break for i in loop[:lap]) == 2 and sum(i.type is T.call for i in loop[:lap]) == 4
+    assert [i.type for i in loop if i.brief.startswith("MAGGIE V NIGEL")] == [T.links, T.links]   # no guest to get wrong
+    spots = [i.brief for i in loop if i.brief in kettle._POSTBAG]
+    assert len(spots) == len(set(spots)) == 4                                            # no angle twice in two laps
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    k = kettle.commission(w)
+    counter = kettle.brief_for(w, kettle._COOK_AGAIN[0])
+    assert "Tegan Moyle" in counter and "crab and samphire tart" in counter and "{" not in counter
+    assert kettle.guest_for(k, counter) == "Tegan Moyle"
+    assert kettle.template(T.links, w, None, "", {}, kettle._DUELS[0]).lines[0].speaker == "kettle_a"
+    # The hour, at the lengths of 2026-11-19 (calls 85 s of 120, spots about 100 of 120, the sofa about half)
+    p = Producer(Buffer(), 600, start_ts=_at(19))
+    seen = []
+    for _ in range(90):
+        ts = p.cursor_ts
+        seg = p.plan_one()
+        if seg.show != "kettle":
+            break
+        seen.append(seg.brief or "")
+        f = 1.0 if seg.type in (T.bumper, T.ad_break) else 0.71 if seg.type is T.call else 0.85
+        p.cursor_ts = ts + seg.target_s * f
+    assert sum(b in kettle._POSTBAG or b.startswith("THE EXPERT") for b in seen) <= 8
+    assert any(b.startswith("MAGGIE V NIGEL") for b in seen) and any(b.startswith("AT THE COUNTER") for b in seen)

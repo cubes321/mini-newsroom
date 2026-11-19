@@ -161,6 +161,27 @@ _POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing
 # sofa guest is about twenty minutes in and the noticeboard at the half hour, and the phones come in short blocks
 # between them, each with one of the expert's own items. The times are the targets' running total.
 _CALL = I(T.call, brief="{caller}")
+
+# Since 2026-11-19 (the user) the loop's second half is one of these, in turn, so the last half hour isn't the expert
+# on every other item: Maggie and Nigel's own kitchen duel (presenters only), and a look back in on the cook while the
+# dish cooks (the cook is otherwise only at the start and the end).
+_DUELS = tuple(b + ". Only Maggie and Nigel speak, to each other more than to camera; nothing of tonight's dish, and "
+                   "nothing a caller or the expert has said" for b in (
+    "MAGGIE V NIGEL: the perfect cup of tea. Maggie makes hers by eye and by feel, Nigel his by the gram and the "
+    "stopwatch; they taste each other's, and argue about what brewed means",
+    "MAGGIE V NIGEL: the boiled egg. Nigel's timer and his water at exactly the boil against Maggie's 'when it "
+    "rattles'; they open them up and judge",
+    "MAGGIE V NIGEL: a blind tasting. Nigel tastes three of one thing from the town's shops (butters, jams or "
+    "biscuits) with his eyes shut and tries to say which is which; Maggie keeps the score and gloats",
+    "MAGGIE V NIGEL: the cheese on toast, against the clock. Nigel measures, Maggie doesn't; they swap plates and "
+    "give marks out of ten",
+))
+_COOK_AGAIN = tuple(b + ". Figures only off the card, and nothing from the recipe so far said again. {card}" for b in (
+    "AT THE COUNTER: a look in on {cook} while {dish} cooks: how it's getting on, a story from their own kitchen, "
+    "and what they'd serve alongside it",
+    "AT THE COUNTER, again: {cook} gets something ready to go with {dish} when it comes out (a side, a dressing, or "
+    "the table), and tells Maggie and Nigel how they started cooking",
+))
 SHOW_DEF = Show(
     SHOW, "THE KETTLE'S ON", "KETTLE'S ON", (214, 120, 70),
     pattern=(
@@ -184,12 +205,19 @@ SHOW_DEF = Show(
         _CALL,
         I(T.interview, brief=_POSTBAG[2], target_s=120.0),
         _CALL,
-        I(T.interview, brief=_SOFA_2, target_s=180.0),                 # 19:36, the sofa guest again
-        # Wraps to here until the close: a break, ONE call and the expert's next item, a new one each lap (two calls a
-        # block until 2026-11-19, when 21 calls took thirty minutes of the hour).
-        T.ad_break,
+        I(T.interview, brief=_SOFA_2, target_s=180.0),                 # 19:26, the sofa guest again
+        # Wraps to here until the close, ONE call before each of: the expert's next item, Maggie v Nigel, the expert
+        # again, the cook at the counter, with a break every two; each a new one each lap (two calls a block until
+        # 2026-11-19, when 21 calls took thirty minutes of the hour; the expert after every call, until the duel and
+        # the cook joined the same evening). The expert's angles are shared out so neither place repeats one.
+        T.ad_break, _CALL,
+        I(T.interview, brief=_POSTBAG[3::2], target_s=120.0),
         _CALL,
-        I(T.interview, brief=_POSTBAG[3:], target_s=120.0),
+        I(T.links, brief=_DUELS, target_s=80.0),
+        T.ad_break, _CALL,
+        I(T.interview, brief=_POSTBAG[4::2], target_s=120.0),
+        _CALL,
+        I(T.interview, brief=_COOK_AGAIN, target_s=100.0),   # these two set where the hour ends: swept at 0.7-1.15
     ),
     loop_from=21,
     closing=(I(T.interview, brief=_RECIPE_2, target_s=160.0),          # the dish comes out
@@ -527,7 +555,7 @@ def aired(seg, world: World) -> None:
 
 def guest_for(k: dict, brief: str) -> str:
     """Whose item this is, by its brief: the cook's recipe, the sofa guest's sofa, or else the expert's."""
-    if brief.startswith("THE RECIPE"):
+    if brief.startswith(("THE RECIPE", "AT THE COUNTER")):
         return k["dish"]["cook"]
     if brief.startswith("ON THE SOFA"):
         return k["sofa"]["name"]
@@ -715,6 +743,11 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
             said = [("kettle_a", f"That's all from the kitchen. Thank you to {d['cook']}, and to {s['name']}."),
                     ("kettle_b", f"And to {e['name']}, and everyone who rang."),
                     ("kettle_a", "Pop the kettle on next time. Goodnight!")]
+        elif brief.startswith("MAGGIE V NIGEL"):
+            said = [("kettle_a", "Right, Nigel. You and me. Best of three."),
+                    ("kettle_b", "I have my scales and my stopwatch. You have nothing."),
+                    ("kettle_a", "I have thirty years, love."), ("kettle_b", "Then let the tasting decide."),
+                    ("kettle_a", "Mine's better. Look at your face."), ("kettle_b", "It's... acceptable. A draw.")]
         else:
             said = [("kettle_a", "Now, the noticeboard."),
                     *(("kettle_b" if i % 2 else "kettle_a", n[0].upper() + n[1:] + ".")
@@ -735,7 +768,14 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
                           caller_accent="british", thread_id=None)
     if seg_type is not T.interview:
         return None
-    if "RECIPE, part one" in brief:
+    if brief.startswith("AT THE COUNTER"):
+        guest, role, said = d["cook"], d["cook_role"], [
+            ("kettle_a", f"Let's have a look in on {d['cook']}. How's it coming along?"),
+            ("guest", "Nicely. Smell that? That's how you know."),
+            ("kettle_b", "I'd rather know by the thermometer."),
+            ("guest", "You'll know when it comes out, Nigel."), ("kettle_a", "I can't wait.")]
+        head = f"{d['cook']} at the counter"
+    elif "RECIPE, part one" in brief:
         guest, role, said = d["cook"], d["cook_role"], [
             ("kettle_a", f"{d['cook']}, what are we making?"),
             ("guest", f"{d['dish'][0].upper() + d['dish'][1:]}. {d['why'][0].upper() + d['why'][1:]}."),
