@@ -1628,7 +1628,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
             if bad := safety.check(safety.strings(script)):
                 raise llm.LLMError(f"the script failed the content check twice ({bad!r})")
         if show.id in CHECK_HOOKS:
-            CHECK_HOOKS[show.id](seg, script, world)      # the template stands in if it won't do
+            try:
+                CHECK_HOOKS[show.id](seg, script, world)  # the template stands in if it won't do
+            except llm.AskAgain as e:                     # ...or after one more ask, if the check says so
+                log.info("%s slot %d: %s; asking once more", seg.type.value, seg.slot_id, e)
+                script = llm.complete_json(seg.type.value, schema, system, user + f"\n\nAgain: {e}")
+                try:
+                    CHECK_HOOKS[show.id](seg, script, world)
+                except llm.AskAgain as again:
+                    raise llm.LLMError(str(again)) from again
         # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
         if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
             raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")

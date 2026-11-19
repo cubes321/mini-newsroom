@@ -72,6 +72,11 @@ class LLMUnavailable(LLMError):
     """No provider reachable (server down, model unloaded, bad key, or NEWSROOM_LLM=off)."""
 
 
+class AskAgain(LLMError):
+    """Raised by a show's check (writers.CHECK_HOOKS) for a script worth one more ask: the writer asks again with
+    this message added, and only a second failure gives way to the template. A plain LLMError goes straight to it."""
+
+
 class LLMTimeout(LLMUnavailable):
     """No reply in time. Unlike a refused connection, the provider got the request and bills it in full, and the
     SDK may have sent it again: on 2026-10-25 Kimi billed 77 k3 calls where the log showed 23. `estimate` is

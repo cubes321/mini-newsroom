@@ -309,7 +309,8 @@ def test_each_lap_of_the_loop_has_its_own_expert_angle_and_every_call_is_remembe
 def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
     """On the first night on air (2026-11-14) everything booked was over in 17 minutes and the other 43 were one
     phone-in. The dish now goes in at the top and comes out in the close, with the sofa guest and the noticeboard
-    in between and the phones in short blocks (the user, 2026-11-15)."""
+    in between and the phones in short blocks (the user, 2026-11-15). Since 2026-11-19 (the user) the sofa guest
+    comes back for a second part and the loop is one call a block: 21 calls had taken thirty minutes."""
     from newsroom.buffer import Buffer
     from newsroom.producer import Producer
 
@@ -320,7 +321,9 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
     def at(key: str) -> int:
         return next(n for n, b in enumerate(briefs) if key in b)
 
-    assert at("RECIPE, part one") < at("ON THE SOFA") < at("NOTICEBOARD") < show.loop_from
+    assert at("RECIPE, part one") < at("ON THE SOFA:") < at("NOTICEBOARD") < at("ON THE SOFA, part two") < show.loop_from
+    assert [i.type for i in [schedule.as_item(show.item(k)) for k in range(show.loop_from, show.loop_from + 3)]] == [
+        T.ad_break, T.call, T.interview]                                      # the loop: one call a block
     assert not any("RECIPE, part two" in b for b in briefs)                    # the dish comes out in the close
     close = [schedule.as_item(e) for e in show.closing]
     assert "RECIPE, part two" in close[0].brief and close[-1].part == "close"
@@ -331,9 +334,11 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
         longest = max(longest, run)
     assert longest <= 4
     # The real producer, with the items coming in short, on target and long: the dish is out by the end each time.
-    for factor in (0.85, 1.0, 1.15):
+    # 0.7 is about how the 2026-11-19 hour ran (calls of 85 s against 120).
+    for factor in (0.7, 0.85, 1.0, 1.15):
         p = Producer(Buffer(), 600, start_ts=_at(19))
-        out = sofa = ended = None
+        out = sofa = again = ended = None
+        calls = 0
         for _ in range(90):
             ts = p.cursor_ts
             seg = p.plan_one()
@@ -342,12 +347,17 @@ def test_the_hour_is_spread_out_and_the_dish_comes_out_at_the_end(channel):
                 break
             if "RECIPE, part two" in (seg.brief or ""):
                 out = ts
-            if "ON THE SOFA" in (seg.brief or ""):
+            if (seg.brief or "").startswith("ON THE SOFA:"):
                 sofa = ts
+            if (seg.brief or "").startswith("ON THE SOFA, part two"):
+                again = ts
+            calls += seg.type is T.call
             p.cursor_ts = ts + seg.target_s * (1.0 if seg.type in (T.bumper, T.ad_break) else factor)
         assert out is not None and _at(19, 54) <= out <= _at(19, 58), factor
         assert sofa is not None and _at(19, 12) <= sofa <= _at(19, 22), factor
-        assert ended is not None and abs(ended - _at(20)) <= 60, factor
+        assert again is not None and _at(19, 25) <= again <= _at(19, 42), factor
+        assert calls <= 16, (factor, calls)
+        assert ended is not None and (abs(ended - _at(20)) <= 60 or factor < 0.85), factor   # short items: early
 
 
 def test_the_recipe_items_read_their_figures_off_the_card_and_the_booking_knows_tonights_date(monkeypatch):
@@ -391,3 +401,50 @@ def test_undo_takes_the_aired_hook_off():
     assert "kettle" in player.AIRED_HOOKS
     undo()
     assert "kettle" not in player.AIRED_HOOKS
+
+
+def test_each_call_names_its_pet_and_no_two_alike(monkeypatch):
+    """2026-11-19: written one call at a time, six pets were "Biscuit" and three "Bramble"."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    k = kettle.commission(w)
+    assert "Biscuit" not in kettle.brief_for(w, "{caller}") or k["expert"]["topic"] == "pets"
+    k["expert"] = next(e for e in kettle.EXPERTS if e["topic"] == "pets")
+    k["calls"] = 0
+    names = [kettle.brief_for(w, "{caller}").split("it is ")[-1].split(":")[0] for _ in range(20)]
+    assert len(set(names)) == 20 and all(n in kettle.PET_NAMES for n in names)
+    k["expert"] = next(e for e in kettle.EXPERTS if e["topic"] == "the garden")
+    assert "If their animal has a name" not in kettle.brief_for(w, "{caller}")       # the garden has no pets
+
+
+def test_the_booking_spreads_its_problems_and_the_sofa_guest_keeps_to_the_sofa(monkeypatch):
+    """2026-11-19: four birds losing feathers among the calls, frost in four of the vet's spots, and the hosts
+    talking to the sofa guest in the recipe, her replies going out under the cook's name."""
+    assert "no kind of thing more than twice" in kettle._SYSTEM and "callers' question, not the night's theme" in kettle._SYSTEM
+    assert all("weather or the season only if this says so" in b for b in kettle._POSTBAG)
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    kettle.commission(w)
+    assert "in the studio only for the items ON THE SOFA" in kettle.for_prompt(w)
+    assert "knitted a jumper" in kettle.brief_for(w, kettle._SOFA_2)
+
+
+def _spot(guest):
+    return {"headline": "A spot", "lower_third": "The Kettle's On", "guest_name": guest, "guest_role": "someone",
+            "lines": [{"speaker": "kettle_a", "text": "Over to you."}, {"speaker": "guest", "text": "Well now."},
+                      {"speaker": "kettle_b", "text": "Exactly how much?"}, {"speaker": "guest", "text": "A pinch."}]}
+
+
+@pytest.mark.parametrize("second, aired_by", [("expert", "expert"), ("cook", "template")])
+def test_a_spot_written_with_the_wrong_guest_is_asked_for_once_more(channel, monkeypatch, second, aired_by):
+    """2026-11-19: the vet's "Maggie's disaster" spot came back as the cook's traybake, off the card, and aired."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    k = kettle.commission(w)
+    who = {"expert": k["expert"]["name"], "cook": k["dish"]["cook"]}
+    replies = iter([who["cook"], who[second]])
+    seen = _stub(monkeypatch, lambda schema: schema.model_validate(_spot(next(replies))))
+    seg = Segment(slot_id=36, type=T.interview, show="kettle", brief=kettle._POSTBAG[3], target_s=120)
+    writers.script_segment(seg, w)
+    assert len(seen) == 2 and f"the guest is {who['expert']}" in seen[1][3]
+    assert (seg.headline == "A spot") == (aired_by == "expert")              # else the template's (models off here)

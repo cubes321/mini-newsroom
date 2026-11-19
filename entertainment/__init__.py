@@ -176,6 +176,7 @@ def _kettle(kettle) -> None:
     player.AIRED_HOOKS[kettle.SHOW] = kettle.aired               # the dish and the sofa, stamped for the town's talk
     writers.CALLED[kettle.SHOW] = kettle.CALLED
     writers.TEMPLATE_HOOKS[kettle.SHOW] = kettle.template
+    writers.CHECK_HOOKS[kettle.SHOW] = kettle.check             # an item's guest is the one it books
     writers.BOOKED_SHOWS.add(kettle.SHOW)                      # its guests are booked: no loose ends on the sofa
     writers.UNFILED_SHOWS.add(kettle.SHOW)                     # never news
 

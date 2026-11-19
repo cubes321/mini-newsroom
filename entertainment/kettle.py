@@ -109,6 +109,11 @@ _RECIPE_2 = ("THE RECIPE, part two, at the end of the hour: the dish went in at 
              "Maggie's is a noise of joy); the cook's tip for doing it at home. {card}")
 _SOFA = ("ON THE SOFA: {sofa}. Maggie and Nigel chat with them about it, with a cup of tea: warm and a bit nosy, "
          "the details people like")
+# The sofa guest back for a second cup since 2026-11-19 (the user): once, they had two minutes of the hour, and the
+# calls had thirty.
+_SOFA_2 = ("ON THE SOFA, part two: {sofa}, back on the sofa for a second cup. The rest of their story: what happened "
+           "next, what it means to them now, and what's coming up for them; nothing from part one told again. "
+           "Maggie and Nigel each bring something of their own to it")
 # The expert's way of talking ({says}) is given here and nowhere else: in every expert item's brief it was said in
 # every item, and Lowenna pushed seaweed in nine spots out of ten (2026-11-14).
 _EXPERT = ("THE EXPERT on the sofa before the phones open: {expert} ({says}), on tonight's phone-in, {question}: one "
@@ -117,9 +122,12 @@ _NOTICES = ("THE NOTICEBOARD: Maggie and Nigel read out the community notices: {
             "when and where; they bicker gently about which one they're going to")
 # The expert's own items between the calls, each a different angle: with one brief, the second scratch run's hour
 # (2026-11-13) had Lowenna on "frosted dahlias, rhubarb and seaweed" five times; with six, the first night on air
-# (2026-11-14) had the postbag and Myth or True twice each. Ten: the first three have places of their own in the
+# (2026-11-14) had the postbag and Myth or True twice each. Thirteen: the first three have places of their own in the
 # hour, and the loop at its end takes the rest in turn, one a lap (Show.item).
-_POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing a caller has asked" for b in (
+# On 2026-11-19 four of the vet's eight spots were frost, from the night's question ("Frost's in: ..."): the
+# question is the callers', and a spot is about the weather or the season only if its own brief says so.
+_POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing a caller has asked; on the "
+                     "weather or the season only if this says so" for b in (
     "THE POSTBAG: {expert} answers two letters that came in on tonight's subject, with Maggie and Nigel",
     "MYTH OR TRUE: Nigel reads out three things people swear by in the expert's field, and {expert} says which "
     "are true and why",
@@ -137,10 +145,18 @@ _POSTBAG = tuple(b + ", nothing the expert has already said tonight, and nothing
     "and {expert} says why it worked and how anyone could do the same",
     "NIGEL'S EXPERIMENT: Nigel reports a careful test he ran at home in the expert's field, with his figures; "
     "{expert} says what he got right and the one thing he missed",
+    # Three more since 2026-11-19: with one call a block the loop has about eight laps, and ten briefs came round.
+    "THE MISTAKE EVERYONE MAKES: {expert} names the one mistake they see most in the expert's field and how to "
+    "put it right; Nigel admits he makes it, and Maggie claims she never has",
+    "NIGEL'S QUESTION: Nigel asks {expert} the one question in the expert's field he has always wanted answered, "
+    "and Maggie has a theory of her own before the answer",
+    "ON A SHOESTRING: {expert} on doing right by it in the expert's field for next to nothing, with what people "
+    "already have at home; Maggie has a cheaper way still",
 ))
 
 # The hour's order, spread out since 2026-11-15 (the user): on the first night on air (2026-11-14) everything
-# booked was over in 17 minutes and the other 43 were one phone-in. Now the dish goes in at the top and comes out
+# booked was over in 17 minutes and the other 43 were one phone-in. Since 2026-11-19 (the user) fewer calls: one a
+# block after the first two, and the sofa guest twice. Now the dish goes in at the top and comes out
 # as the last thing before the goodnight (the closing, so it lands at the end however long the items run), the
 # sofa guest is about twenty minutes in and the noticeboard at the half hour, and the phones come in short blocks
 # between them, each with one of the expert's own items. The times are the targets' running total.
@@ -159,21 +175,23 @@ SHOW_DEF = Show(
         I(T.interview, brief=_POSTBAG[0], target_s=120.0),
         _CALL, _CALL,
         I(T.interview, brief=_SOFA, target_s=220.0),                   # 19:17, the sofa guest
-        T.ad_break,                                                    # 19:22
-        _CALL, _CALL,
+        T.ad_break,                                                    # 19:21
+        _CALL,
         I(T.interview, brief=_POSTBAG[1], target_s=120.0),
         _CALL,
-        I(T.links, brief=_NOTICES, target_s=60.0),                     # 19:30, the noticeboard
+        I(T.links, brief=_NOTICES, target_s=60.0),                     # 19:28, the noticeboard
         T.ad_break,
-        _CALL, _CALL,
+        _CALL,
         I(T.interview, brief=_POSTBAG[2], target_s=120.0),
-        _CALL, _CALL,                                                  # to 19:42
-        # Wraps to here until the close: a break, two calls and the expert's next item, a new one each lap.
+        _CALL,
+        I(T.interview, brief=_SOFA_2, target_s=180.0),                 # 19:36, the sofa guest again
+        # Wraps to here until the close: a break, ONE call and the expert's next item, a new one each lap (two calls a
+        # block until 2026-11-19, when 21 calls took thirty minutes of the hour).
         T.ad_break,
-        _CALL, _CALL,
+        _CALL,
         I(T.interview, brief=_POSTBAG[3:], target_s=120.0),
     ),
-    loop_from=23,
+    loop_from=21,
     closing=(I(T.interview, brief=_RECIPE_2, target_s=160.0),          # the dish comes out
              I(T.links, "close", brief="Maggie and Nigel close The Kettle's On: what's left of the dish, thanks to "
                                        "the cook, the sofa guest and the expert, the number for next time's phone-in, "
@@ -317,11 +335,15 @@ Book tonight's show:
   a first. Someone from PEOPLE, or a new resident.
 - question: tonight's phone-in in THE EXPERT's field, as Maggie would put it to viewers, right for the
   time of year, and wide enough for a whole evening of different problems (the field in this season,
-  not one worry within it).
+  not one worry within it). It is the callers' question, not the night's theme: the expert's own spots
+  are on other matters.
 - callers: {calls} callers' problems, one line each, in the order they ring. The hour takes about twenty
   calls and each line is one call, used once, so no two may be alike: each about a different plant,
   animal or object, and a different trouble (never two on the same vegetable, the same weather or the
-  same cure; at most three touching the season's big worry). The caller and their problem as a
+  same cure; at most three touching the season's big worry). Spread them: no kind of thing more than twice
+  in the night (one bird and one more at most, one rabbit, one pony; two dogs, two cats), and never one
+  complaint twice under another name: a budgie, a hen, a parrot and a canary losing feathers are one
+  problem four times (2026-11-19). The caller and their problem as a
   description, never a name: "someone whose bay tree in a pot has gone brown on one side".
 - notices: three or four community notices: a jumble sale, a choir wanting tenors, a lost cat, a coffee
   morning, a talk at the library; what, when and where, from the town's places in the briefing. Tonight is
@@ -503,6 +525,27 @@ def aired(seg, world: World) -> None:
             k[key] = True
 
 
+def guest_for(k: dict, brief: str) -> str:
+    """Whose item this is, by its brief: the cook's recipe, the sofa guest's sofa, or else the expert's."""
+    if brief.startswith("THE RECIPE"):
+        return k["dish"]["cook"]
+    if brief.startswith("ON THE SOFA"):
+        return k["sofa"]["name"]
+    return k["expert"]["name"]
+
+
+def check(seg, script, world: World) -> None:
+    """writers.CHECK_HOOKS: an interview's guest is the one its brief books. On 2026-11-19 a "Maggie's disaster" spot
+    of the vet's came back as the cook's traybake, with figures off the card (400 g of hake for 800), and aired."""
+    if seg.type is not T.interview:
+        return
+    want = guest_for(booked(world), seg.brief or "")
+    got = (getattr(script, "guest_name", None) or "").strip()
+    if got.lower() != want.lower():
+        raise llm.AskAgain(f"THIS ITEM is {want}'s, so the guest is {want} (guest_name \"{want}\"), not {got or 'nobody'}"
+                           ": write THIS ITEM as it says, with them")
+
+
 def studio(world: World) -> str:
     """The guest in the studio during a call: tonight's expert (writers.STUDIO_HOOKS)."""
     return booked(world)["expert"]["name"]
@@ -561,7 +604,9 @@ def brief_for(world: World, brief: str) -> str:
         # problem, and the writer made up this caller's (leeks, four times on 2026-11-14).
         return (f"ONE CALL to the phone-in (call {n + 1} tonight). {host} takes it, {WAYS_IN[n % len(WAYS_IN)]}. "
                 f"THIS CALLER'S PROBLEM, the only one they ring about and the whole of the call: {problem(k, n)}. "
-                "Keep to it: not another plant, pet or thing, and nothing from PROBLEMS ON THE PHONES ALREADY TONIGHT")
+                "Keep to it: not another plant, pet or thing, and nothing from PROBLEMS ON THE PHONES ALREADY TONIGHT"
+                + (f". If their animal has a name, it is {pet_name(k, n)}: no other name for it"
+                   if k["expert"].get("topic") == "pets" else ""))
     return TOKEN.sub(part, brief or "")
 
 
@@ -583,6 +628,20 @@ def spares(k: dict) -> list[str]:
     had: "slugs and snails" is no spare on a night with slugs on the hostas)."""
     had = _words(" ".join(k.get("callers") or []))
     return [t for t in THINGS.get((k.get("expert") or {}).get("topic"), ()) if not _words(t) & had]
+
+
+# Each call's pet named in code: written one call at a time, six pets were "Biscuit" and three "Bramble" on
+# 2026-11-19. Mixed by the night, so the first caller's dog isn't always the same name.
+PET_NAMES = ("Biscuit", "Pickle", "Bramble", "Mabel", "Dougal", "Pepper", "Winston", "Hettie", "Rolo", "Nell",
+             "Barney", "Juniper", "Captain", "Moss", "Toffee", "Ziggy", "Percy", "Clementine", "Bosun", "Fudge",
+             "Kipper", "Dot", "Gordon", "Marmalade", "Wilf", "Sprout", "Duchess", "Pip", "Teasel", "Monty")
+
+
+def pet_name(k: dict, n: int) -> str:
+    """Call `n`'s pet's name: a different one each call, in an order of the night's own."""
+    names = list(PET_NAMES)
+    random.Random(f"kettle-pets-{k.get('date')}").shuffle(names)
+    return names[n % len(names)]
 
 
 def problem(k: dict, n: int) -> str:
@@ -609,8 +668,12 @@ def for_prompt(world: World) -> str:
                  and a["type"] != T.ad_break.value]
     rang = [p.name for p in world.people if any(m.get("show") == CALLED and m["date"] == world.last_date
                                                 for m in p.memories)]
-    out = (f"TONIGHT: {k['dish']['cook']}, {k['dish']['cook_role']}, cooks {k['dish']['dish']}. On the sofa: "
-           f"{k['sofa']['name']}, {k['sofa']['role']}. THE EXPERT on the phones: {e['name']}, {e['role']}. "
+    # "On the sofa: Brenda Fisk" in every item had the hosts turning to her in the recipe ("Brenda, you've been sat
+    # there very patiently") and her replies going out under the cook's name, the only guest an item has (2026-11-19).
+    out = (f"TONIGHT: {k['dish']['cook']}, {k['dish']['cook_role']}, cooks {k['dish']['dish']}. The sofa guest: "
+           f"{k['sofa']['name']}, {k['sofa']['role']}, in the studio only for the items ON THE SOFA: in any other "
+           "item nobody talks to them or as if they were there. "
+           f"THE EXPERT on the phones: {e['name']}, {e['role']}. "
            f"Tonight's phone-in: \"{k['question']}\". The number to ring: {NUMBER}. On a call, THE EXPERT's lines "
            f"are speaker \"guest\" with guest_name \"{e['name']}\".")
     if aired:
