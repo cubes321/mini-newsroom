@@ -72,7 +72,7 @@ def test_high_water_has_six_oclock_and_undo_takes_it_off():
         assert "highwater" in player.TICKER_AFTER          # "Ruth Hollis Wins the Star Prize": after, never ahead
     finally:
         undo()
-    assert "highwater" not in player.TICKER_AFTER
+    assert "highwater" not in player.TICKER_AFTER and "highwater" not in player.BANNER_S
     assert schedule.show_at(_at(18, 10)).id == before and hs.SET not in locations.BY_ID
 
 
@@ -339,3 +339,29 @@ def test_the_gauge_never_raises_the_tide_before_a_turn_it_could_not_place():
     steps = tg.changes(k, "{r1}", lines)
     assert steps[0][0] == 2 and steps[0][2] == 0                                   # Ann's step on the verdict
     assert [lit for _, _, lit in steps] == [0, "tide"] and steps[-1][0] == 4       # the tide waits for the last line
+
+
+def test_the_banner_clears_after_the_first_seconds_so_the_gauge_shows(channel, monkeypatch):
+    """2026-11-20, the scratch evening: the banner hid the gauge's bottom four steps, where the climbers start, all
+    night. It is on for the item's first seconds, then clears, a climber's name caption with it."""
+    from newsroom import player
+    from newsroom.buffer import Buffer
+    from newsroom.models import Line
+    from newsroom.player import Player
+
+    assert player.BANNER_S[hs.SHOW] == hs.BANNER_S
+    w = _town()
+    monkeypatch.setattr(schedule, "now", lambda: _at(18, 5))
+    pl = Player(Buffer(), w, producer=None, audio=False)
+    say = lambda who, name=None: Line(speaker=who, guest_name=name, text="Step three!", duration_s=5.0,
+                                      mouth_env=[0.5] * 100)
+    from newsroom.models import PanelScript
+    script = PanelScript(headline="Round one: Jan climbs", lower_third="High Water: Round One",
+                         lines=[{"speaker": "hw_host", "text": f"Line {i}."} for i in range(4)])
+    seg = Segment(slot_id=8, type=T.interview, show=hs.SHOW, brief="{r1}", target_s=200, headline=script.headline,
+                  lines=[say("hw_host"), say("hw_host"), say("guest", "Jan Pascoe"), say("guest", "Jan Pascoe")],
+                  cues=writers._cues_for(Segment(slot_id=8, type=T.interview, show=hs.SHOW), script))
+    pl._start(seg, _at(18, 5))
+    assert pl.view(_at(18, 5) + 1).lower_third is not None
+    pl.line_idx, pl.line_start = 3, _at(18, 5) + 15                       # a climber speaking, later on
+    assert pl.view(_at(18, 5) + 16).lower_third is None

@@ -154,7 +154,8 @@ def use():
         for reg in (scenes.SHOW_SETS, player.SEATS, writers.SHOW_SYSTEMS, writers.BRIEF_HOOKS, writers.PROMPT_HOOKS,
                     writers.SEAT_HOOKS, writers.CAPTION_HOOKS, writers.TEMPLATE_HOOKS, writers.CHECK_HOOKS,
                     writers.AFTER_HOOKS, writers.LINE_CAPS, player.OVERLAY_HOOKS, scenes.OVERLAYS,
-                    player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED, player.AIRED_HOOKS):
+                    player.VIEW_HOOKS, scenes.DRESSINGS, writers.STUDIO_HOOKS, writers.CALLED, player.AIRED_HOOKS,
+                    player.BANNER_S):
             reg.pop(quiz.SHOW, None)
             reg.pop(kettle.SHOW, None)
             reg.pop(slipway.SHOW, None)
@@ -253,6 +254,7 @@ def _highwater(show) -> None:
     player.VIEW_HOOKS[show.SHOW] = tidegauge.view
     scenes.DRESSINGS[show.SHOW] = tidegauge.draw
     player.TICKER_AFTER.add(show.SHOW)                         # a round's headline is how it went: never ahead of it
+    player.BANNER_S[show.SHOW] = show.BANNER_S                 # the banner clears, so the gauge's lower steps show
     writers.LINE_CAPS[show.SHOW] = 40                          # a round: eight turns, the tide and the summing up
     writers.BOOKED_SHOWS.add(show.SHOW)
     writers.DEBATE_SHOWS.add(show.SHOW)                        # two climbers, each line naming its speaker

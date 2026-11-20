@@ -52,6 +52,9 @@ SET_BLURB = "the harbour steps at dusk: twelve stone steps up the wall, the tide
 # registered as a studio set (never graded, no weather), as Marina Row's are. The gauge hangs on its plain low wall.
 SET_COLOURS = ((120, 80, 140), (112, 96, 106))
 MARKS = {"host": (70, 152, 2, 1), "panel_1": (186, 150, 2, -1), "panel_2": (250, 150, 2, -1)}
+# The banner is on for this long at the start of each item, then clears, so the tide gauge's lower steps show under it
+# (player.BANNER_S; 2026-11-20, the user's choice over moving the gauge up).
+BANNER_S = 6.0
 
 # Prize donors when the advert pool is empty (the tests; a new town): the town's shops of the stand-in adverts.
 DONORS = ("Fowle & Sons Hardware", "the Harbour Bell Bakery", "Gull's Rest Fish & Chips", "the Saltby Arms")

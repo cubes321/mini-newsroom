@@ -55,6 +55,9 @@ BARE_SHOWS: set[str] = set()
 # The Chamber's own: a motion's headline is the vote ("Pool Petition Motion Carried", on the ticker from Helen's first
 # line, 2026-11-19; the banner names whoever is speaking, always a councillor there).
 TICKER_AFTER: set[str] = {"chamber"}
+# Shows whose banner is on only for the first seconds of each item, by show id, as a gameshow's captions are: the set
+# has something of its own under it (High Water's tide gauge: its bottom four steps were hidden all night, 2026-11-20).
+BANNER_S: dict[str, float] = {}
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
 # A show's own say over the view, by show id: (segment, view, line index) -> None, after the engine has set it (Channel 8's
@@ -730,6 +733,8 @@ class Player:
         if as_presenter is None and v.speaker == "guest" and v.guest_name and seg.type is not SegmentType.documentary:
             p = self.world.person_by_name(v.guest_name)
             v.lower_third = (v.guest_name, line.guest_role or (p.role if p else "Port Wexley"))
+        if seg.show in BANNER_S and elapsed > BANNER_S[seg.show]:
+            v.lower_third = None                 # on at the item's start, then clear: the set has something to show
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
