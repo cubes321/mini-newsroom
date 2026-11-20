@@ -63,6 +63,8 @@ class Look:
     under_dots: RGB | None = None  # a busy shirt (paisley at this size): flecks over the shirt and collar
     waistcoat: RGB | None = None   # a three-piece: the jacket hangs open over a buttoned waistcoat
     lapels: str = ""               # wide: lapels a few units across, not a line either side of the V
+    # A gameshow host's bow tie (2026-11-20); off by default.
+    bow: bool = False              # the tie is worn as a bow at the collar, not hanging down the shirt
 
 
 def _dark(c: RGB, k: float) -> RGB:
@@ -161,6 +163,11 @@ LOOKS["slip_a"] = Look(skin=(230, 188, 158), hair=(206, 170, 110), top=(240, 196
 LOOKS["slip_b"] = Look(skin=(214, 170, 140), hair=(40, 32, 30), top=(52, 110, 76), under=(220, 226, 236),
                        hair_style="short", top_style="cardigan", glasses="on", extra="pen", extra_col=(30, 60, 140),
                        mouth="line", brows="raised")
+# Channel 8's High Water (entertainment/highwater_show.py): Des Kneebone, sixties, thirty summers at the Saltby pier
+# theatre: swept silver hair, a red blazer, a navy bow tie (A, chosen on data/contact-sheets/2026-11-20-highwater-host.png)
+LOOKS["hw_host"] = Look(skin=(228, 186, 160), hair=(214, 214, 220), top=(170, 40, 50), under=(244, 240, 232),
+                        hair_style="swept", top_style="blazer", tie=(30, 30, 60), bow=True, mouth="smile",
+                        brows="raised")
 LOOKS["guest"] = Look(skin=(225, 180, 150), hair=(160, 120, 60), top=(70, 90, 80), under=(200, 210, 190),
                       top_style="jumper")
 
@@ -453,7 +460,11 @@ def _body(p: _Pen, L: Look) -> None:
                         for d in range(a, b + 1):
                             if (d * 3 + r * 5) % 7 == 0:
                                 p(L.under_dots, d, r)
-        if L.tie and L.tie_stripes:                           # a kipper tie: wide, striped on the diagonal
+        if L.tie and L.bow:                                   # a bow tie: two wings pinched at a knot
+            p.rows(L.tie, [(17, -4, -3), (17, 2, 3), (18, -4, 3), (19, -4, -3), (19, 2, 3)])
+            p(_dark(L.tie, 0.65), -1, 18, 2, 1)
+            p(_dark(L.tie, 0.8), -4, 19, 2, 1); p(_dark(L.tie, 0.8), 2, 19, 2, 1)
+        elif L.tie and L.tie_stripes:                         # a kipper tie: wide, striped on the diagonal
             p(L.tie, -1, 17, 2, 1)
             body = [(r, -1, 0) for r in (18, 19)] + [(r, -2, 1) for r in range(20, 30)] + [(30, -1, 0)]
             cols = [c for s in L.tie_stripes for c in (L.tie, s)]
