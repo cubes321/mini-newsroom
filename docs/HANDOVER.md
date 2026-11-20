@@ -1,5 +1,63 @@
 # Handover
 
+## Picking up on the evening of 2026-11-20
+
+**Tonight** is a real Channel 7 night on the real town, started 20:51 from `data/night_channel7_nopictures.cmd`: the usual
+launcher with `$pictures = $false`, because the user wanted no ComfyUI tonight. That copy is a one-off; the normal
+`night_channel7.cmd` still makes the pictures. The backup is `data/world.backup-2026-11-20-pre-night.json`. It is the
+first airing of the news locator (b645a77). Review its log with the checks in "The overnight run" below.
+
+### What changed on 2026-11-20 (all pushed, `ba6d6de..153d902`)
+
+- **High Water's art and sound**, done and approved:
+  - Des's look, A (9a59c3d), with a new `Look.bow` that is off by default;
+  - the tide gauge, `entertainment/tidegauge.py` (4e58096);
+  - the two sets (60db5ad);
+  - the three presenters' voices and the idents (0e19fea, from the side sessions).
+- **High Water's result in the town's talk** (9e2de9d): `talk.highwater`, from a stamp `highwater_show.aired` sets.
+- **A scratch Channel 8 evening** (17:45 to 21:05 on its clock, real models, OBS; recordings
+  `E:/recordings/2026-11-20 10-40 High Water.mp4` and on) found these, all now fixed:
+  - Results ahead of play: Wits' and High Water's round results were in the banner as the round began (497a44c),
+    and High Water's were on the ticker too. The Chamber's votes were on the ticker as each motion was called
+    (a7b9be9). `player.TICKER_AFTER` holds them till the item ends, and the banner shows the item's tag instead.
+  - The banner hid the gauge's bottom four steps: High Water's banner now clears after six seconds (`player.BANNER_S`,
+    edc6b0e).
+  - The Slipway ran out of booked material at a quarter to seven and brought its guests back for a quick five.
+    Now it books ONE TO WATCH and YOU ASKED as well, the loop is Tegan and Elis's bits only, the breaks are two
+    minutes, and the line cap is 16 (8658225). Rehearsed: about four bits at last night's lengths.
+  - High Water's rounds came back terse and four chats filled the gap; the chats invented waves; the close seemed to
+    lose Hector's tap. Now a round's brief asks for about five lines a question turn, the chats get the game so far
+    (`{sofar}`), the swap to a better prize is said, and the booking asks grown-up questions with checked answers
+    (0373a26). Rehearsed: rounds of 170 to 204 s.
+  - A guest's line that started "Ruth Hollis: 1066." loses the name, on every interview-shaped script (6af3be1).
+  - The Coast Road's waits put Lorna back on the ferry after she had landed. They are now at the last stop
+    (bb61d5c).
+  - A recording's name was "The Kettle'S On" (2e422ed).
+- **The town's map**, in the side session "A defined map of Port Wexley and the coast": `newsroom/geography.py`, its
+  drawing (approved), and a route check for The Coast Road (2e4cbcf, c5fab51, a881af5). Also **the news locator**:
+  a Channel 7 item's place on the map, briefly (b645a77). See docs/ENGINE.md, "The map of the town".
+- **The Coast Road's route is planned by Sonnet** (153d902). On The Chamber's route, DeepSeek spent its whole
+  32000 tokens thinking and answered nothing. Rehearsed: a six-leg route on the map at the first try, home to the
+  town hall steps. The real town has no route yet; the one saved on 2026-11-14 goes against the map and will be
+  planned again.
+
+### To do next, in order
+
+1. **Review tonight's run**, and the review of the 2026-11-19 council night, once it's written below.
+2. **A second scratch Channel 8 evening**, to see today's fixes together: `data/afternoon_channel8_scratch.cmd`
+   (already `--clock 17:45 --minutes 200`), with OBS open. Check:
+   - **The Slipway:** five guests, each once (the feature twice, with Have a Go); about four bits; no pasty stacking;
+     no stand-in links.
+   - **High Water:** rounds near 200 s; three chats at most, none inventing a wave or a climb; the banner gone after
+     six seconds; the whole gauge in view; nothing in the banner or on the ticker before the result airs.
+   - **The Coast Road:** a route planned by Sonnet that keeps to the map; waits at the last stop.
+   - **Wexley Wits:** the banner shows the round's tag, never the score.
+3. **Not fixed:** High Water's Harbourmaster's round and its two meets run at about half their targets (90 s of
+   180, 60 of 120). The rounds and chats fill the time now.
+4. **The map's next uses**, as the user ranked them after the locator: travel news and the weather (Morning Tide's
+   travel: the coast bus round by Polgrey, the ferry and the tide; Gordon's spots), then the rest (Out and About's
+   walks, Full Time's away grounds, the callers' streets).
+
 ## Picking up after the Channel 7 council night of 2026-11-19
 
 The night of Thursday 19 November was a real Channel 7 run on the real town: full council, The Chamber live at
@@ -52,7 +110,7 @@ at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
 5. **Done 2026-11-20**: The Slipway's, High Water's and the closedown idents, rebaked in those voices and approved by ear.
    Items 4 and 5 are both in 0e19fea.
 6. (done: see 1)
-7. **A scratch Channel 8 run of the whole evening.** The evening now starts at 18:00, so edit
+7. **Done 2026-11-20** (see above): **A scratch Channel 8 run of the whole evening.** The evening now starts at 18:00, so edit
    `data/afternoon_channel8_scratch.ps1` to `--clock 17:45 --minutes 200`. Run it from its .cmd in its own window,
    with OBS open. Check:
    - **High Water**: every round airs, and only a few chats; no `asking once more`, or rare; no `using template`.
