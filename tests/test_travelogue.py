@@ -169,8 +169,10 @@ def test_every_item_is_on_location_filmed_by_day_with_lorna_and_the_stops_reside
             assert seg.work["location"] == leg["stops"][0]["backdrop"]
         else:
             assert names == {tv.HOST}
-        if tok in ("{r1}", "{x1}"):
+        if tok == "{r1}":
             assert seg.work["location"] == "slipway"           # leg 1 is by the foot ferry
+        if tok == "{x1}":                                       # a wait is at the last stop, the travelling done
+            assert seg.work["location"] == leg["stops"][-1]["backdrop"]
         if tok == "{close}":
             assert seg.work["tod"] == "dusk"
 
@@ -388,6 +390,7 @@ def test_each_brief_says_what_is_done_and_what_is_still_to_come():
     assert "done: nothing yet" in tv.day_so_far(leg, "open")
     wait = tv.day_so_far(leg, "x4")
     assert "meeting Person C at Stop C" in wait.split("Still to come")[0] and "Still to come: the goodbye" in wait
+    assert "while she waits at Stop C, the travelling done" in wait
     assert "Still to come: nothing" in tv.day_so_far(leg, "close")
 
 
@@ -485,3 +488,16 @@ def test_the_goodbye_is_the_closes_alone(channel, monkeypatch, nowhere):
     writers.script_segment(seg, w)
     assert [l.text for l in seg.lines] == ["Down the hill to the harbour steps.", "Full circle, and the ferry's coming in.",
                                            "The step is cold."]
+
+
+def test_a_wait_is_at_the_last_stop_not_on_the_way(channel, monkeypatch, nowhere):
+    """2026-11-20: told only "WHILE SHE WAITS (The Saltby foot ferry from the town quay)", the waits after she had landed
+    at the Saltby slip had her back at the town quay waiting for the boat, and "still on the boat"."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    last = tv.series(w)["legs"][0]["stops"][-1]
+    for tok in ("{x1}", "{x5}"):
+        said = tv.brief_for(w, tok)
+        assert said.startswith(f"WHILE SHE WAITS at {last['place']}, after meeting {last['meet']}")
+        assert "no boarding, no crossing" in said

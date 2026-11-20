@@ -154,7 +154,9 @@ Plan the journey:
   town knows of her: nothing new about her family or her past.
 - legs: {legs} of them, in order round the coast, starting and ending in Port Wexley. Each says how she travels, has
   {stops} stops on the town's own places (a backdrop from the list, the place as she'd name it, what happens there)
-  and ends where the next one starts.
+  and ends where the next one starts. A leg's stops are in the order she reaches them by its travel, each further on
+  than the last: never back to a place she has left. A ferry leg boards at its first stop and its later stops are
+  across the water (2026-11-20: a ferry leg from the town quay stopped at the fish quay, in town, then crossed).
 - at each stop, one resident she meets, with something of their own: a job, a place, a long wait of some kind. People
   from PEOPLE first (their exact names); keep to what PEOPLE says of them and give them no new history. A new resident
   only if nobody there fits, with a job that fits the place. Never a presenter, nobody twice in the whole journey.
@@ -374,13 +376,16 @@ def _item(entry: dict, s: dict, token: str) -> dict:
     if kind == "r":
         return {"kind": "road", "k": k, "backdrop": _road(leg["travel"]), "tod": "day", "leg": leg,
                 "to": stops[min(k, STOPS - 1)]}
-    return {"kind": "wait", "k": k, "backdrop": _road(leg["travel"]), "tod": "day", "leg": leg}
+    # At the last stop: the waits come after the last meeting. Filmed on the travel backdrop and told only how she
+    # travels, the 2026-11-20 evening's had her back at the town quay waiting for the ferry, and "still on the boat",
+    # after she had landed at the Saltby slip.
+    return {"kind": "wait", "k": k, "backdrop": stops[-1]["backdrop"], "tod": "day", "leg": leg}
 
 
 WAITING = (
     "A WAITING STORY: Lorna tells one from her collection, from someone she met on the way (not one met on camera)",
     "THE VIEW WHILE SHE WAITS: what she can see from where she's waiting, and what she makes of it",
-    "THE TIMETABLE: Lorna reads what the timetable or the sign says, and what has actually happened",
+    "THE SIGN: Lorna reads what a sign or a notice where she is says, and what actually happens there",
     "THE WAITING CLUB: a new rule for her waiting club, from today",
     "A SONG WHILE SHE WAITS: a few lines of something she makes up about the journey so far, said, not sung",
     "THE SNACK: what she brought to eat while waiting, and what's left of it",
@@ -454,7 +459,8 @@ def day_so_far(leg: dict, tok: str) -> str:
     # next stop is... and after that...", leg 5 of the rehearsal, 2026-11-16).
     return ("THE DAY SO FAR (for knowing where she is, never for saying: no reading out what's ahead): done: "
             + ("; ".join(done) if done else "nothing yet") + ". Now: "
-            + ("a moment while she waits" if waiting else _step(leg, tok)) + ". Still to come: "
+            + (f"a moment while she waits at {leg['stops'][-1]['place']}, the travelling done" if waiting
+               else _step(leg, tok)) + ". Still to come: "
             + ("; ".join(to_come) if to_come else "nothing: this is the end of the leg") + ". Nothing still to come "
             "has happened yet: nobody still to come has been met, no place still to come reached, and the leg isn't "
             "over until the goodbye")
@@ -557,7 +563,10 @@ def _brief(world: World, brief: str) -> str:
                 + (". This is the last stop, but not the end: the meeting and the goodbye are still to come, so she "
                    "arrives and nothing more: no summing up, no thanks, no farewell, and nothing finished yet"
                    if it["k"] == STOPS - 1 else ""))
-    return ("WHILE SHE WAITS (" + how(leg) + "): " + WAITING[(it["k"] - 1) % len(WAITING)]
+    last = leg["stops"][-1]
+    return (f"WHILE SHE WAITS at {last['place']}, after meeting {last['meet']}: the day's travelling is done and she is "
+            "still there, before the goodbye: no boarding, no crossing, no setting off, nowhere else; "
+            + WAITING[(it["k"] - 1) % len(WAITING)]
             + ". Only Lorna speaks, five to seven lines; nothing said earlier today again")
 
 
