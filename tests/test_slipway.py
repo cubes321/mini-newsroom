@@ -8,7 +8,7 @@ import pytest
 
 import entertainment
 from entertainment import slipway
-from newsroom import llm, locations, schedule, world as world_mod, writers
+from newsroom import backdrops, llm, locations, schedule, world as world_mod, writers
 from newsroom.models import Segment, SegmentType as T
 
 
@@ -59,6 +59,8 @@ def test_the_slipway_has_cartoon_times_half_hour_and_undo_takes_it_off():
         assert schedule.show_at(_at(18, 40)).id == "slipway" and schedule.show_end(_at(18, 40)) == _at(19, 0)
         assert schedule.show_at(_at(19, 10)).id == "kettle"                       # the Kettle keeps its hour
         assert slipway.SET in locations.BY_ID and writers.CHECK_HOOKS["slipway"] is slipway.check
+        assert (backdrops.ART_DIR / f"{slipway.SET}.png").exists()               # its art, approved 2026-11-20
+        assert slipway.SET not in backdrops.PAINTERS                             # no stand-in painter since
         w = world_mod.seed()
         assert w.character("slip_a").name == "Tegan Trevenna" and w.character("slip_b").name == "Elis Pengilly"
         # Their voices are their own, never a guest pool voice (every resident with it would be recast).

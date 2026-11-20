@@ -63,7 +63,7 @@ def attend():
 
 def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
-    from newsroom import assets, backdrops, channel, continuity, locations, player, scenes, schedule, workers, writers
+    from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
     from . import creative, highwater_show, kettle, oche, quiz, slipway, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
@@ -142,9 +142,7 @@ def use():
         locations.MARKS.clear(), locations.MARKS.update(saved[2])
         locations.BY_ID.pop(kettle.SET, None)                  # The Kettle's On's set, registered by _kettle
         locations.BY_ID.pop(slipway.SET, None)                 # The Slipway's, by _slipway
-        backdrops.PAINTERS.pop(slipway.SET, None)
         locations.BY_ID.pop(highwater_show.SET, None)          # High Water's, by _highwater
-        backdrops.PAINTERS.pop(highwater_show.SET, None)
         assets.IDENTS.clear(), assets.IDENTS.update(saved[3])
         workers.IDLE_JOBS[:] = saved[4]
         writers._PLACE.clear(), writers._PLACE.update(saved[5])
@@ -200,18 +198,17 @@ def _kettle(kettle) -> None:
 
 def _slipway(slipway) -> None:
     """The Slipway's registrations (undone with the others by use()'s undo)."""
-    from newsroom import assets, backdrops, locations, player, scenes, workers, writers
+    from newsroom import assets, locations, player, scenes, workers, writers
     from newsroom.config import CONFIG
 
     assets.IDENTS[slipway.SHOW] = (assets.CONFIG.paths.assets / "bumper_slipway.wav", slipway.IDENT)
     assets.IDENT_MUSIC[slipway.SHOW] = "sport"                 # bright and quick, until it is chosen by ear
     # Tegan says it: her Kokoro stand-in until her voice is chosen, when the file must be deleted to be baked again.
     assets.IDENT_VOICES[slipway.SHOW] = CONFIG.tts.voices.get("slip_a", "bf_trevenna")
-    # Its own set, for this run only, painted as the breakfast sofa's until its art is made and approved.
+    # Its own set, for this run only: in BY_ID and MARKS, never in locations.LOCATIONS (use()'s undo takes it out).
     locations.BY_ID[slipway.SET] = locations.Location(slipway.SET, slipway.SET_NAME, slipway.SET_BLURB, "studio",
                                                       *slipway.SET_COLOURS)
     locations.MARKS[slipway.SET] = dict(slipway.MARKS)
-    backdrops.PAINTERS[slipway.SET] = backdrops.PAINTERS[slipway.STAND_IN_PAINTER]
     scenes.SHOW_SETS[slipway.SHOW] = slipway.SET
     player.SEATS[slipway.SHOW] = 1                             # one guest at a time
     workers.IDLE_JOBS.append((slipway.should_commission, slipway.commission))
@@ -228,19 +225,17 @@ def _slipway(slipway) -> None:
 
 def _highwater(show) -> None:
     """High Water's registrations (undone with the others by use()'s undo)."""
-    from newsroom import assets, backdrops, locations, player, scenes, workers, writers
+    from newsroom import assets, locations, player, scenes, workers, writers
     from newsroom.config import CONFIG
 
     assets.IDENTS[show.SHOW] = (assets.CONFIG.paths.assets / "bumper_highwater.wav", show.IDENT)
     assets.IDENT_MUSIC[show.SHOW] = "phonein"                  # bright piano, until it is chosen by ear
     # Des says it: his Kokoro stand-in until his voice is chosen, when the file must be deleted to be baked again.
     assets.IDENT_VOICES[show.SHOW] = CONFIG.tts.voices.get(show.HOST, "bm_kneebone")
-    # Its own set, for this run only, painted as the harbour until its art is made and approved.
-    h = locations.get(show.STAND_IN_PAINTER)
-    locations.BY_ID[show.SET] = locations.Location(show.SET, show.SET_NAME, show.SET_BLURB, h.kind, h.sky, h.ground,
-                                                   water=h.water, interior=h.interior)
+    # Its own set, for this run only: in BY_ID and MARKS, never in locations.LOCATIONS (use()'s undo takes it out).
+    # A studio set though it's outdoors: the art is painted at dusk, so it is never graded or rained on.
+    locations.BY_ID[show.SET] = locations.Location(show.SET, show.SET_NAME, show.SET_BLURB, "studio", *show.SET_COLOURS)
     locations.MARKS[show.SET] = dict(show.MARKS)
-    backdrops.PAINTERS[show.SET] = backdrops.PAINTERS[show.STAND_IN_PAINTER]
     scenes.SHOW_SETS[show.SHOW] = show.SET
     player.SEATS[show.SHOW] = 2                                # both climbers beside Des all show
     workers.IDLE_JOBS.append((show.should_commission, show.commission))

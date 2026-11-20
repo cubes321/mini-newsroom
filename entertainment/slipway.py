@@ -48,13 +48,12 @@ SO_FAR_CHARS = 200
 TOKEN = re.compile(r"\{(feature|howto|steps|pupil|letters|more|question|whatson|challenge|last)\}")
 HOST_A, HOST_B = "Tegan Trevenna", "Elis Pengilly"
 
-# Its own set until its art is made and approved: the breakfast sofa's painter (a window onto the harbour) stands
-# in, under an id of its own, with marks for the pair and one guest as The Kettle's On has.
+# Its own set (assets/backdrops/studio_slipway.png, approved 2026-11-20), with marks for the pair and one guest as
+# The Kettle's On has: Tegan and Elis on the low sofa under the window, the guest in the teal bean bag at the right.
 SET = "studio_slipway"
 SET_NAME = "The Slipway's studio"
 SET_BLURB = "a bright studio with a window onto the harbour, a low sofa, bean bags and a board of viewers' messages"
 SET_COLOURS = ((70, 150, 170), (230, 120, 60))
-STAND_IN_PAINTER = "studio_sofa"
 MARKS = {"host": (122, 146, 2, 1), "panel_1": (186, 146, 2, -1), "panel_2": (272, 150, 2, -1)}
 
 _FEATURE = ("THE FEATURE: {feature}. Tegan and Elis talk to them about it: how they started, what it's like, the best "

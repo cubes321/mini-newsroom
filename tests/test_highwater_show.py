@@ -8,7 +8,7 @@ import pytest
 
 import entertainment
 from entertainment import highwater as hw, highwater_show as hs
-from newsroom import llm, locations, schedule, world as world_mod, writers
+from newsroom import backdrops, llm, locations, schedule, world as world_mod, writers
 from newsroom.models import PanelLine, Segment, SegmentType as T
 
 
@@ -62,6 +62,9 @@ def test_high_water_has_six_oclock_and_undo_takes_it_off():
         assert schedule.show_at(_at(18, 10)).id == "highwater" and schedule.show_end(_at(18, 10)) == _at(18, 30)
         assert schedule.show_at(_at(18, 40)).id == "slipway"
         assert hs.SET in locations.BY_ID and writers.CHECK_HOOKS["highwater"] is hs.check
+        assert (backdrops.ART_DIR / f"{hs.SET}.png").exists()                    # its art, approved 2026-11-20
+        # Painted at dusk, so a studio set: never graded or rained on, and no stand-in painter.
+        assert locations.BY_ID[hs.SET].kind == "studio" and hs.SET not in backdrops.PAINTERS
         assert "highwater" in writers.DEBATE_SHOWS and writers.LINE_CAPS["highwater"] == 40
         host = world_mod.seed().character("hw_host")
         assert host.name == "Des Kneebone" and host.voice == "bm_kneebone"         # his own, never a guest pool's

@@ -48,7 +48,9 @@ TOKEN = re.compile(r"\{(open|meet[12]|r[1-4]|hm|chat[12]|spring|close)\}")
 SET = "set_highwater"
 SET_NAME = "the harbour steps"
 SET_BLURB = "the harbour steps at dusk: twelve stone steps up the wall, the tide gauge beside them, the boats behind"
-STAND_IN_PAINTER = "harbour"            # until its own art is made and approved: the harbour, painted in code
+# Its own art (assets/backdrops/set_highwater.png, approved 2026-11-20), painted for its own dusk light, so it is
+# registered as a studio set (never graded, no weather), as Marina Row's are. The gauge hangs on its plain low wall.
+SET_COLOURS = ((120, 80, 140), (112, 96, 106))
 MARKS = {"host": (70, 152, 2, 1), "panel_1": (186, 150, 2, -1), "panel_2": (250, 150, 2, -1)}
 
 # Prize donors when the advert pool is empty (the tests; a new town): the town's shops of the stand-in adverts.
