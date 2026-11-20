@@ -361,6 +361,18 @@ class InterviewScript(BaseModel):
     def _guest_named(self):
         return _check_guest_named(self)
 
+    @model_validator(mode="after")
+    def _no_name_in_front(self):
+        """A guest's line that starts with their own name and a colon, as a script would set it out ("Ruth Hollis:
+        1066.", High Water's spring tide, 2026-11-20): the name goes, or the voice reads it out."""
+        for line in self.lines:
+            name = (getattr(line, "guest_name", None) or self.guest_name or "").strip()
+            if line.speaker == "guest" and name and line.text.lower().startswith(name.lower() + ":"):
+                rest = line.text[len(name) + 1:].strip()
+                if rest:
+                    line.text = rest
+        return self
+
 
 class CouchLine(GuestLine):
     guest_name: str | None = Field(default=None, max_length=40,
