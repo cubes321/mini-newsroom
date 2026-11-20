@@ -529,6 +529,19 @@ bottom with the date.
   Heard right as written, so left to Pocket: read (past), wind (wind up), tear (rip), bass the fish, a
   ribbon's bow. Pocket also says 14 hard names via assets/voices/names.toml (18faeb7).
 
+- [ ] **Try KittenTTS 2 against Pocket** (github.com/KittenML/KittenTTS, huggingface.co/KittenML/kitten-tts-2;
+  noted 2026-11-20, untested). A 1.7B model that runs on the CPU (about 6 GB RAM; `pip install kittenml`, PyTorch,
+  or the beta llama.cpp port `kitten_tts_cpp` for speed), 24 kHz like Pocket. Why it's worth a go: it clones from a
+  5-30 s clip with no transcript (Whisper fills one in, or pass `reference_text=`), so the DramaBox clips in
+  assets/voices work as they are; and it takes emotion tags (`[stern]`, `[excited]`, `[sad]`, `[tender]`... ten
+  of them, beta) and inline `<laugh>` `<sigh>` `<pause>`, which our line moods could drive. Doubts: no real-time
+  factor given for the 1.7B on a CPU (Pocket is 0.23-0.30 on one thread; the night buffer needs it well under 1);
+  none of its 115 stock voices is British, so cloning is the only way in; the weights are under the Stellon Labs
+  Community License (free under $1M revenue/funding, with an attribution clause to read before launch), not
+  Apache. Test it the 11-14 way: on the CPU, the same 5 voices x 3 lines as the ZONOS3 bake-off, blind against
+  Pocket, a Whisper dropped-word check, picks counted per voice; time it, and try a mood tag on a couple of lines.
+  Its 82M `kitten-tts-2-mini` (ONNX) is the fallback if the big one is too slow, if it can clone.
+
 - [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
   back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
   scratch town with the clock at Sunday 8 Nov: pages written, the week chosen unforced, the card, aired at 21:01
