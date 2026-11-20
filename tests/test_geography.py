@@ -120,3 +120,20 @@ def test_the_writers_who_place_things_get_the_lie_of_the_land():
     assert "LIE OF THE LAND" in report and "LIE OF THE LAND" in review
     _, bulletin = writers.build_prompt(T.bulletin, w, target_s=60, show=schedule.get("news"))
     assert "LIE OF THE LAND" not in bulletin
+
+
+def test_a_name_on_both_sides_of_the_grey_says_nothing():
+    assert g.place_for("the coast road above Saltby sands", "coast_road") is None
+    assert g.place_for("Saltby harbour wall", "harbour") is None
+    assert g.place_for("the woods behind Saltby", "woods") is None
+    assert g.place_for("the gates of Greymouth Academy", "school") == "school"       # a name inside a longer one
+    assert g.place_for("the Greymouth light", "lighthouse") == "greymouth_point"
+
+
+def test_a_leg_may_get_across_by_the_bridge_or_as_the_last_one_ended():
+    saltby = ("Saltby Days", "on foot", _leg(("Saltby green", "village"), ("the Crown at Saltby", "pub")))
+    woods = _leg(("Wexley Woods", "woods"), ("the Salting path", "estuary"))
+    assert g.check_legs([saltby, ("Over the Bridge", "the coast bus round by Polgrey", woods)]) == []
+    assert g.check_legs([(*saltby, "she catches the ferry home"), ("A Walk", "on foot", woods)]) == []
+    assert g.check_legs([saltby, ("A Walk", "on foot", woods)])
+    assert g.check_leg(_leg(("Saltby green", "village"), ("Saltby sands", "seafront")), "on foot along the sands") is None

@@ -268,12 +268,21 @@ _ALIASES = _alias_table()
 
 def place_for(text: str = "", backdrop: str = "", where: str = "") -> str | None:
     """The gazetteer's id for a place a writer named: its own id if it gave one, else the longest name in
-    `text` that the gazetteer knows, else what the backdrop alone shows; None when it can't tell."""
+    `text` that the gazetteer knows, else what the backdrop alone shows; None when it can't tell. A name
+    inside a longer one doesn't count (Greymouth in Greymouth Academy), and names on both sides of the Grey
+    say nothing ("the coast road above Saltby sands": the town's coast road, or Saltby's?)."""
     if where in BY_ID:
         return where
-    for pat, pid, _ in _ALIASES:
-        if pat.search(text or ""):
-            return pid
+    taken: list[tuple[int, int]] = []
+    found: list[str] = []
+    for pat, pid, _ in _ALIASES:                         # longest first
+        for m in pat.finditer(text or ""):
+            if not any(a < m.end() and m.start() < b for a, b in taken):
+                taken.append(m.span())
+                found.append(pid)
+    if found:
+        sides = {BY_ID[pid].side for pid in found} - {HEAD}
+        return found[0] if len(sides) <= 1 else None
     return BACKDROP_PLACE.get(backdrop or "")
 
 
@@ -326,7 +335,9 @@ NEIGHBOURS = _neighbours()
 # ------------------------------------------------------------------ a leg of the Coast Road
 
 _BY_WATER = re.compile(r"ferry|boat|crossing|row(ing|ed)? (over|across)|across the (water|grey|estuary)|"
-                       r"\bsands\b", re.I)
+                       r"(across|over) the (estuary )?sands", re.I)
+# The other way to the other side: by road, round by Polgrey Bridge.
+_ROUND = re.compile(r"\bbus\b|coach|bridge|polgrey|round by|by road|taxi|\bcar\b|\blift\b", re.I)
 
 
 @dataclass
@@ -377,20 +388,24 @@ def check_leg(stops: list[Placed], travel: str) -> str | None:
     return None
 
 
-def check_legs(legs: list[tuple[str, str, list[Placed]]]) -> list[str]:
-    """Every leg's trouble, as "leg N (title): why". A leg also starts on the side of the water where the
-    last one ended, unless it crosses first (its travel says ferry, boat or crossing)."""
-    errors, last_side = [], None
-    for n, (title, travel, stops) in enumerate(legs, 1):
+def check_legs(legs: list[tuple]) -> list[str]:
+    """Every leg's trouble, as "leg N (title): why". A leg is (title, travel, stops) or (title, travel, stops,
+    ends). A leg also starts on the side of the water where the last one ended, unless it gets across first:
+    its travel says the ferry or the road round by the bridge, or the last leg's `ends` says so."""
+    errors, last_side, last_ends = [], None, ""
+    for n, (title, travel, stops, *more) in enumerate(legs, 1):
         if why := check_leg(stops, travel):
             errors.append(f"leg {n} ({title}): {why}")
         placed = [s for s in stops if s.pid]
         if placed:
             first = BY_ID[placed[0].pid].side
-            if last_side and HEAD not in (first, last_side) and first != last_side and not _BY_WATER.search(travel):
+            across = any(p.search(t or "") for p in (_BY_WATER, _ROUND) for t in (travel, last_ends))
+            if last_side and HEAD not in (first, last_side) and first != last_side and not across:
                 errors.append(f"leg {n} ({title}): it starts on {SIDE_NAMES[first]} of the Grey, but the last leg "
-                              f"ended on {SIDE_NAMES[last_side]}, and it doesn't cross by the ferry first")
+                              f"ended on {SIDE_NAMES[last_side]}, and it doesn't get across first (the ferry, or "
+                              f"the road round by Polgrey Bridge)")
             last_side = BY_ID[placed[-1].pid].side
+        last_ends = more[0] if more else ""
     return errors
 
 

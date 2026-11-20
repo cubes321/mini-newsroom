@@ -197,7 +197,8 @@ def route_trouble(legs: list[dict]) -> list[str]:
     without the ferry, or starting on the other side of the water from where the last leg ended."""
     return geography.check_legs([
         (leg["title"], leg["travel"], [geography.Placed(s["place"], geography.place_for(
-            s["place"], s["backdrop"], s.get("where", ""))) for s in leg["stops"]]) for leg in legs])
+            s["place"], s["backdrop"], s.get("where", ""))) for s in leg["stops"]], leg.get("ends", ""))
+        for leg in legs])
 
 
 def _leg_text(i: int, leg: dict) -> str:
@@ -231,7 +232,8 @@ def plan_route(world: World, unhurried: bool = False) -> dict:
             _check(route, world)
         except llm.AskAgain as e:                       # off the map: once more, told where
             log.info("coast road: the route goes against the map (%s); asking once more", str(e)[:300])
-            route = llm.complete_json(TASK, Route, system, f"{user}\n\n{e}")
+            route = llm.complete_json(TASK, Route, system, f"{user}\n\nYOUR FIRST DRAFT of the route:\n"
+                                                         f"{_route_text(route)}\n\n{e}")
             _check(route, world)
         route = creative.redraft(world, SHOW, "route", route, text=_route_text, context=asked, margin=not unhurried,
                                  check=lambda r: _check(r, world),
