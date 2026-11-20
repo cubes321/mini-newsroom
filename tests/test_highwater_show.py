@@ -365,3 +365,41 @@ def test_the_banner_clears_after_the_first_seconds_so_the_gauge_shows(channel, m
     assert pl.view(_at(18, 5) + 1).lower_third is not None
     pl.line_idx, pl.line_start = 3, _at(18, 5) + 15                       # a climber speaking, later on
     assert pl.view(_at(18, 5) + 16).lower_third is None
+
+
+def test_the_briefs_say_only_what_happened_and_keep_one_prize_each(monkeypatch):
+    """2026-11-20, the scratch evening: the chats had waves on a night nobody got wet and a climb still to come after
+    the last round; Hector's tap, swapped for the fish supper, read as gone missing; Ruth played the spring tide "on
+    the top step" from step 8; and two rounds came back at 18 lines."""
+    from entertainment import tidegauge as tg
+
+    w = _town()
+    _stub(monkeypatch, _booking())
+    k = hs.commission(w)
+    g = k["game"]
+    chats = hs.SHOW_DEF.pattern[hs.SHOW_DEF.loop_from].brief
+    for b in chats:
+        said = hs.brief_for(w, b)
+        assert "{" not in said and f"all {hw.ROUNDS} rounds are played" in said and "spring tide" in said
+        assert "wave they'll remember" not in said
+        assert tg.for_brief(k, b) == tg.end(k)                       # the gauge as the rounds left it, every chat
+    soaked = [x for r in g["rounds"] for x in r["washed"]]
+    assert ("nobody has been washed off" in hs.brief_for(w, chats[0])) == (not soaked)
+    for n, r in enumerate(g["rounds"]):
+        asked = sum("question" in t for t in r["turns"])
+        assert f"About {5 * asked + 2 * (len(r['turns']) - asked) + 4} lines" in hs.brief_for(w, "{r%d}" % (n + 1))
+    spring = hs.brief_for(w, "{spring}")
+    step = next(x["step"] for x in g["results"] if x["who"] == g["spring"]["who"])
+    assert f"They play from step {step}" in spring and ("not the top step" in spring) == (step < hw.STEPS)
+    other = next(x for x in g["results"] if x["who"] != g["spring"]["who"])
+    assert f"{other['who']} watches from step {other['step']}" in spring    # not "from step six" from step nine
+    assert "Each takes home one prize, their best" in hs.brief_for(w, "{close}")
+
+
+def test_making_fast_over_a_smaller_prize_says_the_swap():
+    k = {"prizes": {"4": {"business": "Kettle & Sink", "prize": "a mixer tap"},
+                    "8": {"business": "Gull's Rest", "prize": "a fish supper"}}}
+    t = {"who": "Hector Lowrie", "choice": hw.FAST, "right": None, "from": 8, "to": 8, "banked": 8, "in_hand": 0}
+    said = hs._turn(k, t, 5, before=4)
+    assert "banks the step-8 prize, a fish supper from Gull's Rest, IN PLACE OF the step-4 prize, a mixer tap" in said
+    assert "IN PLACE OF" not in hs._turn(k, t, 5, before=0)

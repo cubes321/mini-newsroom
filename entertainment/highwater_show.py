@@ -43,7 +43,7 @@ REST_DAYS = 60                          # a climber doesn't climb again within t
 CHANNEL8_DAYS = 14                      # nor if they were on Channel 8 in another show this lately
 SPARE = 2                               # questions asked for beyond what the played game needs, of each kind
 MOST_ASKED = 30                         # a night needs at most 15 easy and 19 hard (5,000 played games, three turns)
-TOKEN = re.compile(r"\{(open|meet[12]|r[1-4]|hm|chat[12]|spring|close)\}")
+TOKEN = re.compile(r"\{(open|meet[12]|r[1-4]|hm|chat[12]|sofar|spring|close)\}")
 
 SET = "set_highwater"
 SET_NAME = "the harbour steps"
@@ -88,10 +88,15 @@ _SYSTEM = """\
 You set the questions and word the prizes for HIGH WATER, a gameshow on a small-town TV station's second channel, in
 the FICTIONAL town in the briefing. Des Kneebone asks the questions; two residents climb the harbour steps against the
 tide. Book:
-- paddle: {paddle} EASY questions, general knowledge most people know, with one short, settled answer.
+- paddle: {paddle} EASY questions, for grown-ups, not children: general knowledge most adults know, with one
+  short, settled answer, and a flavour of the sea, the coast or a trade where one fits. Never nursery questions (what a
+  cow says, what bees make, the colour of a banana).
 - swim: {swim} HARD questions, still fair: a keen quizzer's general knowledge, or the town's own facts from the
-  BRIEFING (the answer must be stated there).
+  BRIEFING (the answer must be stated there). Not the pub-quiz chestnuts everyone has heard (the Battle of Hastings,
+  the capital of Australia, the Night Watch).
 - spring: {spring} HARD questions for the spring tide, the star prize's: general knowledge, settled and fair.
+Check every answer: it must be right beyond argument, as asked. "The longest river in the British Isles" is the
+Shannon, not the Severn (2026-11-20, marked right on air): ask about Great Britain, or don't ask it.
 - harbour: {harbour} quick-fire questions about PORT WEXLEY itself, for the Harbourmaster's round, ONLY from facts in
   the BRIEFING (the answer must be stated there): its places, clubs, people, landmarks and doings. Short, a word or two
   to answer.
@@ -275,14 +280,19 @@ def _where(tide: int) -> str:
     return "still below the bottom step" if tide < hw.START else f"up to step {tide}"
 
 
-def _turn(k: dict, t: dict, n: int, she: dict) -> str:
+def _turn(k: dict, t: dict, n: int, before: int = 0) -> str:
+    """One turn, as given. `before`: the prize step the climber had made fast before it, if any."""
     who, frm, to = t["who"], t["from"], t["to"]
     head = f"{n}. {who.upper()}, on step {frm}"
     if t["choice"] == hw.OUT:
         return f"{head}: sits this turn out, wringing out after the soaking. Des has a word with them."
     if t["choice"] == hw.FAST:
-        return (f"{head}: MAKES FAST: banks {_prize_said(k, t['banked'])}; it's theirs now, whatever the tide does. "
-                "No question.")
+        # A climber keeps one prize, their best: on 2026-11-20 Hector made fast the tap, then the fish supper, and
+        # the close (rightly) gave him only the supper, which read as the tap gone missing.
+        swap = (f", IN PLACE OF {_prize_said(k, before)}: a climber keeps one prize, their best, so Des says the "
+                "swap" if before and before != t["banked"] else "")
+        return (f"{head}: MAKES FAST: banks {_prize_said(k, t['banked'])}{swap}; it's theirs now, whatever the tide "
+                "does. No question.")
     q = t["question"]
     kind = "PADDLES (an easy question)" if t["choice"] == hw.PADDLE else "SWIMS for it (a hard question)"
     if t["right"]:
@@ -304,7 +314,15 @@ def _stand(k: dict, after: list[dict]) -> str:
 
 def _round(k: dict, n: int) -> str:
     r = k["game"]["rounds"][n]
-    rows = [_turn(k, t, i + 1, {}) for i, t in enumerate(r["turns"])]
+    banked = ({a["who"]: a["banked"] for a in k["game"]["rounds"][n - 1]["after"]} if n else {})
+    rows = []
+    for i, t in enumerate(r["turns"]):
+        rows.append(_turn(k, t, i + 1, banked.get(t["who"], 0)))
+        banked[t["who"]] = t["banked"]
+    asked = sum("question" in t for t in r["turns"])
+    # Told only the turn's parts, rounds two and four of the 2026-11-20 evening came back at 18 lines (151 s and 145 s
+    # of a 220 s target) and the loop filled the gap with four chats; round one, each turn in full, ran 33.
+    lines = 5 * asked + 2 * (len(r["turns"]) - asked) + 4
     tide = (f"THEN THE TIDE: Des turns to the gauge, and the tide comes in {r['roll']} step"
             f"{'s' if r['roll'] > 1 else ''}, {_where(r['tide'])}.")
     for w in r["washed"]:
@@ -321,7 +339,8 @@ def _round(k: dict, n: int) -> str:
     # Told only "turn by turn", round four of the fourth rehearsal (2026-11-19) dropped a turn and its question.
     return (f"ROUND {n + 1} OF {hw.ROUNDS}: {len(rows)} TURNS, and every one of them goes out, in this order, none left "
             "out or merged (a dropped turn is a hole in the game). Des runs it turn by turn, each exactly as given, "
-            "asking every question word for word:\n" + "\n".join(rows) + f"\n{tide}\nWHERE THEY STAND, for Des to sum "
+            f"asking every question word for word. About {lines} lines: a question turn is five (Des's word with the "
+            "climber, their choice and why, the question, their answer, his verdict), never squeezed into two:\n" + "\n".join(rows) + f"\n{tide}\nWHERE THEY STAND, for Des to sum "
             f"up: {_stand(k, r['after'])}.")
 
 
@@ -364,6 +383,16 @@ def _meet(k: dict, i: int) -> str:
             f"({how}). {rest}")
 
 
+def _so_far(k: dict) -> str:
+    """The game after the last round, for the chats: where they stand, every soaking and life ring, and who's next."""
+    g = k["game"]
+    wet = [f"{w['who']} {'saved by the life ring' if w.get('ring') else 'washed off'} in round {n + 1}"
+           for n, r in enumerate(g["rounds"]) for w in r["washed"]]
+    return (f"all {hw.ROUNDS} rounds are played; {_stand(k, g['rounds'][-1]['after'])}; "
+            + ("; ".join(wet) if wet else "nobody has been washed off or soaked tonight")
+            + f"; next, {g['spring']['who']} plays the spring tide for the star prize")
+
+
 def _spring(k: dict) -> str:
     g = k["game"]
     sp, res = g["spring"], {x["who"]: x for x in g["results"]}
@@ -373,7 +402,10 @@ def _spring(k: dict) -> str:
             for i, (q, right) in enumerate(zip(sp["questions"], sp["answers"]))]
     return (f"THE SPRING TIDE: {sp['who']}, the higher climber on step {res[sp['who']]['step']}, plays for the star "
             f"prize, {k['star']['prize']} from {k['star']['business']}: three hard questions, two right to win. "
-            f"{other} watches. Each exactly as given:\n" + "\n".join(rows)
+            f"They play from step {res[sp['who']]['step']}, where they stand"
+            + (" (the top step)" if res[sp["who"]]["step"] >= hw.STEPS else f", not the top step ({hw.STEPS})")
+            + ". "
+            f"{other} watches from step {res[other]['step']}. Each exactly as given:\n" + "\n".join(rows)
             + (f"\n{sp['who']} WINS THE STAR PRIZE." if sp["won"] else f"\n{sp['who']} doesn't get the two: no star "
                "prize tonight, and Des is kind about it."))
 
@@ -383,8 +415,9 @@ def _close(k: dict) -> str:
     rows = [f"{x['who']} goes home with {_prize_said(k, x['prize'])}"
             + (f" AND the star prize, {k['star']['prize']} from {k['star']['business']}" if x["star"] else "")
             for x in g["results"]]
-    return ("THE RESULT: " + "; ".join(rows) + ". Des thanks the climbers and the donors, and says goodnight: The "
-            "Slipway is next")
+    return ("THE RESULT: " + "; ".join(rows) + ". Each takes home one prize, their best (one made fast lower down "
+            "was swapped for it, so it isn't theirs as well). Des thanks the climbers and the donors, and says "
+            "goodnight: The Slipway is next")
 
 
 def aired(seg, world: World) -> None:
@@ -414,6 +447,8 @@ def brief_for(world: World, brief: str) -> str:
         if tok.startswith("chat"):
             c = k["climbers"][int(tok[4]) - 1]
             return f"{c['name']}, {c['role']}"
+        if tok == "sofar":
+            return _so_far(k)
         if tok == "spring":
             return _spring(k)
         return _close(k)
@@ -500,7 +535,10 @@ def caption(world: World, name: str) -> str | None:
 
 # ------------------------------------------------------------------ the show
 
-_DONE = "a word between rounds, no questions and no climbing: "
+# The chats come after the last round, before the spring tide. Not told so, nor what had happened, the 2026-11-20
+# evening's had waves over the steps on a night nobody got wet, and "let's see what the tide has in store for you next".
+_DONE = ("a word with the climbers between the last round and the spring tide, no questions and no climbing. THE GAME "
+         "SO FAR, fixed, nothing added (no wave, soaking or climb that isn't here): {sofar}. ")
 SHOW_DEF = Show(
     SHOW, "HIGH WATER", "HIGH WATER", (30, 110, 170),
     pattern=(
@@ -523,10 +561,10 @@ SHOW_DEF = Show(
         I(T.interview, brief=tuple(_DONE + b for b in (
             "Des has a word with {chat1} about their life in Port Wexley and what they'd do with the star prize",
             "Des has a word with {chat2} about their life in Port Wexley and what they'd do with the star prize",
-            "Des asks both climbers about the tide: which wave they'll remember, and who's the braver",
+            "Des asks both climbers about the climb so far: the question they'll remember, and who's been the braver",
             "Des tells the climbers a terrible pier-theatre story, and they tell him one of their own",
             "Des asks {chat1} what the harbour was like when they were young, and {chat2} chips in",
-            "Des asks both climbers which prize up the steps they'd really want, and why, and they argue",
+            "Des asks both climbers which prize they'd swap theirs for, the star prize aside, and why, and they argue",
         )), target_s=110.0),
     ),
     loop_from=12,

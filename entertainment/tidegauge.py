@@ -104,7 +104,7 @@ def for_brief(k: dict, brief: str) -> dict:
         return after_round(k, hw.HARBOUR_AFTER - 1)
     if "{close}" in brief:
         return end(k, star=True)
-    if "{spring}" in brief or "{chat" in brief:
+    if "{spring}" in brief or "{chat" in brief or "{sofar}" in brief:      # every chat comes after the rounds
         return end(k)
     return start(k)
 
