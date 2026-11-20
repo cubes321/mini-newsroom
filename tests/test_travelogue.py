@@ -554,3 +554,14 @@ def test_a_saved_route_against_the_map_is_planned_again(channel, monkeypatch, tm
     w = _world()
     tv.commission(w)
     assert tv.series(w)["title"] == "Every Slow Way"
+
+
+def test_the_route_is_planned_by_sonnet_not_the_chambers_thinking_model():
+    """2026-11-20: on The Chamber's route, DeepSeek's thinking spent the whole 32000 tokens and answered nothing, about
+    six minutes a time before the fallback. Sonnet plans it, as it plans Marina Row's episodes (soap.py)."""
+    from entertainment import soap
+    from newsroom.config import CONFIG
+
+    assert tv.TASK == soap.TASK
+    assert CONFIG.llm.routes[tv.TASK] == "claude_sonnet" or "travelogue" in CONFIG.llm.routes
+    assert "LAST LEG'S LAST STOP are both in Port Wexley" in tv._SYSTEM

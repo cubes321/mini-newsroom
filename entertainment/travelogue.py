@@ -70,10 +70,10 @@ ROAD_S = 100.0
 SPARES = 12
 AIRS_AT = "20:40"
 BOOK_FROM = "18:30"
-TASK = "travelogue" if "travelogue" in CONFIG.llm.routes else "chamber"
-# The route is planned once a series. Sonnet's fallback ran out at 16000 with the map in its prompt, and planned
-# one that kept to it first time at 32000 (2026-11-20 rehearsals), as soap.py's plan does. Flash's thinking spends
-# the lot, 16000 or 32000, and answers nothing, with or without the map: a `travelogue` route to Sonnet would skip it.
+# Sonnet, as soap.py's plan is (the user, 2026-11-20). The route is planned once a series. On The Chamber's route,
+# Flash's thinking spent the lot, 16000 or 32000, and answered nothing, with or without the map: about six minutes
+# before the fallback, Sonnet, planned one that kept to the map first time at 32000 (2026-11-20 rehearsals).
+TASK = "travelogue" if "travelogue" in CONFIG.llm.routes else "senior_editor"     # Sonnet, unless routed otherwise
 PLAN_TOKENS = 32000
 PLAN_TIMEOUT_S = 420.0
 IDENT = "The Coast Road, with Lorna Quayle. On Channel 8."
@@ -165,7 +165,9 @@ Plan the journey:
   along it, in the order she reaches them by its travel, each further on than the last: never back to a place she
   has left. She crosses the Grey only by the foot ferry, from the Quay Steps (harbour) or the Saltby slip, after the
   leg's stops on that side, or round by Polgrey Bridge. A leg starts on the side of the water where the last one
-  ended. (2026-11-20: a ferry leg from the town quay stopped at the fish quay, in town, then crossed.)
+  ended. (2026-11-20: a ferry leg from the town quay stopped at the fish quay, in town, then crossed.) The journey
+  comes home: the first leg's first stop and the LAST LEG'S LAST STOP are both in Port Wexley itself, on the town's
+  side of the Grey (2026-11-20: two routes ended their last leg, "Home Round the Bridge", in Greymouth).
 - at each stop, one resident she meets, with something of their own: a job, a place, a long wait of some kind. People
   from PEOPLE first (their exact names); keep to what PEOPLE says of them and give them no new history. A new resident
   only if nobody there fits, with a job that fits the place. Never a presenter, nobody twice in the whole journey.
