@@ -71,6 +71,11 @@ SPARES = 12
 AIRS_AT = "20:40"
 BOOK_FROM = "18:30"
 TASK = "travelogue" if "travelogue" in CONFIG.llm.routes else "chamber"
+# The route is planned once a series. Sonnet's fallback ran out at 16000 with the map in its prompt, and planned
+# one that kept to it first time at 32000 (2026-11-20 rehearsals), as soap.py's plan does. Flash's thinking spends
+# the lot, 16000 or 32000, and answers nothing, with or without the map: a `travelogue` route to Sonnet would skip it.
+PLAN_TOKENS = 32000
+PLAN_TIMEOUT_S = 420.0
 IDENT = "The Coast Road, with Lorna Quayle. On Channel 8."
 SAID_CHARS = 3000                       # each item said so far, in full (a meeting is about 2,000)
 TOKEN = re.compile(r"\{(open|close|a[0-9]+|m[0-9]+|r[0-9]+|x[0-9]+)\}")
@@ -220,6 +225,10 @@ def _asked(world: World) -> str:
             + creative.for_planner(world, SHOW, series=True))
 
 
+def _ask(system: str, user: str) -> Route:
+    return llm.complete_json(TASK, Route, system, user, max_tokens=PLAN_TOKENS, timeout_s=PLAN_TIMEOUT_S)
+
+
 def plan_route(world: World, unhurried: bool = False) -> dict:
     """The series' route: the model's (or the stand-in's), not yet recorded. The creative editor reads it and may
     send it back once; `unhurried` for a route planned ahead by hand, days from air (the CLI)."""
@@ -227,17 +236,16 @@ def plan_route(world: World, unhurried: bool = False) -> dict:
     user = f"BRIEFING\n{world.summary_for_editor()}\n\n{asked}"
     system = _SYSTEM.format(host=HOST, about=HOST_ABOUT, legs=LEGS, stops=STOPS)
     try:
-        route = llm.complete_json(TASK, Route, system, user)
+        route = _ask(system, user)
         try:
             _check(route, world)
         except llm.AskAgain as e:                       # off the map: once more, told where
             log.info("coast road: the route goes against the map (%s); asking once more", str(e)[:300])
-            route = llm.complete_json(TASK, Route, system, f"{user}\n\nYOUR FIRST DRAFT of the route:\n"
-                                                         f"{_route_text(route)}\n\n{e}")
+            route = _ask(system, f"{user}\n\nYOUR FIRST DRAFT of the route:\n{_route_text(route)}\n\n{e}")
             _check(route, world)
         route = creative.redraft(world, SHOW, "route", route, text=_route_text, context=asked, margin=not unhurried,
                                  check=lambda r: _check(r, world),
-                                 again=lambda more: llm.complete_json(TASK, Route, system, user + more))
+                                 again=lambda more: _ask(system, user + more))
         return {**route.model_dump(), "stand_in": False}
     except llm.LLMError as e:
         log.warning("coast road: no route (%s); the stand-in route takes the series", e)
