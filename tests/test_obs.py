@@ -154,3 +154,16 @@ def test_an_output_is_picked_by_part_of_its_name():
     assert station.pick_output("cable", names) == names[1]
     assert station.pick_output(names[0], names) == names[0]
     assert station.pick_output("Speakers", names) is None
+
+
+def test_a_recordings_name_keeps_an_apostrophe_lower_case():
+    """2026-11-20: the Kettle's recording was saved as "The Kettle'S On"."""
+    import entertainment
+    from newsroom import obs
+
+    undo = entertainment.use()
+    try:
+        assert obs.programme("links", "kettle") == "The Kettle's On"
+        assert obs.programme("links", "highwater") == "High Water"
+    finally:
+        undo()

@@ -61,7 +61,8 @@ def programme(seg_type: str, show: str) -> str | None:
     if show in NOT_PROGRAMMES or show == "-":
         return None
     try:
-        return schedule.get(show).title.title()
+        # Each word's first letter: str.title() made "The Kettle'S On" (2026-11-20), after the apostrophe too.
+        return " ".join(w[:1].upper() + w[1:].lower() for w in schedule.get(show).title.split())
     except Exception:  # noqa: BLE001
         return show
 
