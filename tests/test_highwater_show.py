@@ -261,3 +261,22 @@ def test_a_short_question_counts_by_its_short_words_too_and_the_first_meet_is_on
     first, second = (hs.brief_for(w, f"MEET THE CLIMBER: Des meets {{meet{i}}}") for i in (1, 2))
     a, b = (c["name"] for c in k["climbers"])
     assert f"ONLY {a} is met" in first and f"{b} is met in the next" in first and f"{a}, met already" in second
+
+
+def test_the_result_once_aired_is_the_towns_talk_the_next_day(channel, monkeypatch):
+    from datetime import date, timedelta
+
+    from newsroom import player, talk
+
+    w = _town()
+    _stub(monkeypatch, _booking())
+    k = hs.commission(w)
+    assert player.AIRED_HOOKS[hs.SHOW] is hs.aired
+    tomorrow = date.fromisoformat(w.last_date) + timedelta(days=1)
+    hs.aired(Segment(slot_id=9, type=T.interview, show=hs.SHOW, brief="{spring}", target_s=100), w)
+    assert not k.get("result_aired") and talk.highwater(w, tomorrow) is None     # the result never went out
+    hs.aired(Segment(slot_id=10, type=T.interview, show=hs.SHOW, brief="{close}", target_s=75), w)
+    said = talk.highwater(w, tomorrow)
+    assert k["result_aired"] and said.startswith("High Water, the gameshow on Channel 8")
+    assert all(x["who"] in said for x in k["game"]["results"]) and said in talk.line(w, tomorrow)
+    assert talk.highwater(w, date.fromisoformat(w.last_date)) is None             # tonight's: not yet, as the town knows

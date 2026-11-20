@@ -10,7 +10,8 @@ Its soap, Marina Row, is talked about too: an aired episode's cliffhanger, the q
 answer (soap below). So is its wildlife series, Tideline: what Rowan Polglase showed, and the number he gave
 (wildlife below). That one is canon: the seal pups in the coves really are there. And its teatime magazine, The
 Kettle's On: who cooked what, and who was on the sofa (kettle below).
-And its travelogue, The Coast Road, once a host's whole journey has aired (coast_road below).
+And its travelogue, The Coast Road, once a host's whole journey has aired (coast_road below). And its gameshow,
+High Water: who went home with what, and the star prize (highwater below).
 
 Read from the world alone (`world.quizzes`, `world.soaps`, the archive): this module knows nothing of
 the other channel's code, and a station that never runs it has no talk.
@@ -169,8 +170,40 @@ def coast_road(world, today: date) -> str | None:
     return None
 
 
+def highwater(world, today: date) -> str | None:
+    """Channel 8's latest High Water that aired in the last TALK_DAYS, as a sentence: who went home with what, the star
+    prize's winner first. Only once its result went out (stamped on the booking as it airs: highwater_show.aired);
+    a game booked but never shown is nobody's talk. Read from the world alone (world.highwaters)."""
+    for k in reversed(getattr(world, "highwaters", None) or []):
+        try:
+            day = date.fromisoformat(k["date"])
+            gap = (today - day).days
+            if gap < 1:
+                continue
+            if gap > TALK_DAYS:
+                return None
+            if not k.get("result_aired"):
+                continue
+            # A stand-in night is talk too, unlike the Kettle's: its climbers, game and donors are the real ones, and
+            # only the prizes' wording is stock.
+
+            def took(r: dict) -> str:
+                said = []
+                if r["star"]:
+                    said.append(f"the star prize, {k['star']['prize']} from {k['star']['business']}")
+                if r["prize"]:
+                    p = k["prizes"][str(r["prize"])]
+                    said.append(f"{p['prize']} from {p['business']}")
+                return f"{r['who']} went home with {' and '.join(said)}" if said else f"{r['who']} went home with nothing"
+            rows = sorted(k["game"]["results"], key=lambda r: (r["star"], r["prize"]), reverse=True)
+            return f"High Water, the gameshow on Channel 8, {day:%A}: {', and '.join(took(r) for r in rows)}."
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue                           # an entry saved in an older shape: no talk from it
+    return None
+
+
 def line(world, today: date) -> str:
     """The briefing's town-talk line, with its newline, or nothing."""
     said = [s for s in (quiz(world, today), *soap(world, today), wildlife(world, today), kettle(world, today),
-                        coast_road(world, today)) if s]
+                        coast_road(world, today), highwater(world, today)) if s]
     return f"{LABEL}{' '.join(said)}\n" if said else ""

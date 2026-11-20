@@ -382,6 +382,16 @@ def _close(k: dict) -> str:
             "Slipway is next")
 
 
+def aired(seg, world: World) -> None:
+    """player.AIRED_HOOKS: the result went out, so tonight's booking says so, for the town's talk the next day
+    (newsroom/talk.py). On the booking, not the archive, as the Kettle's On's are (kettle.aired): a Channel 7 night can
+    fill the whole archive before the talk is wanted."""
+    k = tonight(world)
+    if k is not None and "{close}" in (seg.brief or "") and not k.get("result_aired"):
+        with world.lock:
+            k["result_aired"] = True
+
+
 def brief_for(world: World, brief: str) -> str:
     """An item's brief with its part of the game in full: "{r2}" becomes round two, "{close}" the result."""
     k = booked(world)

@@ -111,3 +111,35 @@ def test_the_kettles_on_talk_lasts_when_a_channel_seven_night_has_filled_the_arc
     w = _kettle_town(items=())
     w.kettles[-1].update(dish_aired=True, sofa_aired=True)
     assert "Tegan Moyle made saffron buns" in talk.kettle(w, TODAY) and "on the sofa" in talk.kettle(w, TODAY)
+
+
+def _highwater_town(night=TODAY - timedelta(days=1), aired=True, results=None):
+    w = world_mod.seed()
+    w.last_date = TODAY.isoformat()
+    w.highwaters.append({
+        "date": night.isoformat(), "stand_in": False, "result_aired": aired,
+        "prizes": {"4": {"business": "Tonkin's Bakery", "prize": "a cream tea for two"},
+                   "8": {"business": "Harbour Lights", "prize": "dinner for two"},
+                   "11": {"business": "Opie Cycles", "prize": "a new bike"}},
+        "star": {"business": "Saltby Sands Hotel", "prize": "a weekend away for two"},
+        "game": {"results": results or [{"who": "Dev Hocking", "prize": 4, "star": False, "step": 5},
+                                        {"who": "Jan Pascoe", "prize": 8, "star": True, "step": 9}]}})
+    return w
+
+
+def test_last_nights_high_water_is_talk_once_its_result_aired():
+    said = talk.highwater(_highwater_town(), TODAY)
+    assert said == ("High Water, the gameshow on Channel 8, Sunday: Jan Pascoe went home with the star prize, a weekend "
+                    "away for two from Saltby Sands Hotel and dinner for two from Harbour Lights, and Dev Hocking went "
+                    "home with a cream tea for two from Tonkin's Bakery.")
+    assert said in talk.line(_highwater_town(), TODAY)
+    nothing = talk.highwater(_highwater_town(results=[{"who": "Ray Opie", "prize": 0, "star": False, "step": 2},
+                                                      {"who": "Sue Tonkin", "prize": 11, "star": False, "step": 11}]),
+                             TODAY)
+    assert nothing.endswith("Sue Tonkin went home with a new bike from Opie Cycles, and Ray Opie went home with nothing.")
+    assert talk.highwater(_highwater_town(aired=False), TODAY) is None              # booked, never on air
+    stand_in = _highwater_town()
+    stand_in.highwaters[-1]["stand_in"] = True                                      # real climbers, stock wording
+    assert talk.highwater(stand_in, TODAY) == said
+    assert talk.highwater(_highwater_town(night=TODAY), TODAY) is None              # tonight's: not yet
+    assert talk.highwater(_highwater_town(night=TODAY - timedelta(days=3)), TODAY) is None
