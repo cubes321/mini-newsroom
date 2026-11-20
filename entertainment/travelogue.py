@@ -37,7 +37,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from newsroom import llm, schedule
+from newsroom import geography, llm, schedule
 from newsroom.config import CONFIG
 from newsroom.models import SegmentType as T
 from newsroom.schedule import Item as I, Show
@@ -121,6 +121,8 @@ def finished(world: World) -> bool:
 class Stop(BaseModel):
     backdrop: Literal[STOP_BACKDROPS] = Field(description="where it is filmed")
     place: str = Field(min_length=3, max_length=80, description="the place, as Lorna would name it")
+    where: str = Field(default="", max_length=40, description="where it is on THE COAST: the id of the place, or of "
+                                                              "the nearest one")
     what: str = Field(min_length=8, max_length=400, description="what happens there, in a sentence or two")
     meet: str = Field(min_length=3, max_length=40, description="the resident she meets: an exact name from PEOPLE, or "
                                                                 "a new resident's first name and surname")
@@ -153,10 +155,12 @@ Plan the journey:
 - title: the series' subtitle, a few words. why: her own reason for making it, in a sentence or two, from what the
   town knows of her: nothing new about her family or her past.
 - legs: {legs} of them, in order round the coast, starting and ending in Port Wexley. Each says how she travels, has
-  {stops} stops on the town's own places (a backdrop from the list, the place as she'd name it, what happens there)
-  and ends where the next one starts. A leg's stops are in the order she reaches them by its travel, each further on
-  than the last: never back to a place she has left. A ferry leg boards at its first stop and its later stops are
-  across the water (2026-11-20: a ferry leg from the town quay stopped at the fish quay, in town, then crossed).
+  {stops} stops on the town's own places (a backdrop from the list, the place as she'd name it, `where` it is on THE
+  COAST, what happens there) and ends where the next one starts. THE COAST is the map: a leg's stops run one way
+  along it, in the order she reaches them by its travel, each further on than the last: never back to a place she
+  has left. She crosses the Grey only by the foot ferry, from the Quay Steps (harbour) or the Saltby slip, after the
+  leg's stops on that side, or round by Polgrey Bridge. A leg starts on the side of the water where the last one
+  ended. (2026-11-20: a ferry leg from the town quay stopped at the fish quay, in town, then crossed.)
 - at each stop, one resident she meets, with something of their own: a job, a place, a long wait of some kind. People
   from PEOPLE first (their exact names); keep to what PEOPLE says of them and give them no new history. A new resident
   only if nobody there fits, with a job that fits the place. Never a presenter, nobody twice in the whole journey.
@@ -183,6 +187,17 @@ def _check(route: Route, world: World) -> None:
         for s in leg.stops:
             if world.presenter_named(s.meet) or s.meet.strip().lower() == HOST.lower():
                 raise llm.LLMError(f"{s.meet} is a presenter or the host, not a resident to meet")
+    if wrong := route_trouble(route.model_dump()["legs"]):
+        raise llm.AskAgain("THE ROUTE GOES AGAINST THE MAP (THE COAST): " + "; ".join(wrong)
+                           + ". Plan it again so every leg runs one way along THE COAST.")
+
+
+def route_trouble(legs: list[dict]) -> list[str]:
+    """Where a route's legs go against the gazetteer (newsroom/geography.py): back on themselves, across the Grey
+    without the ferry, or starting on the other side of the water from where the last leg ended."""
+    return geography.check_legs([
+        (leg["title"], leg["travel"], [geography.Placed(s["place"], geography.place_for(
+            s["place"], s["backdrop"], s.get("where", ""))) for s in leg["stops"]]) for leg in legs])
 
 
 def _leg_text(i: int, leg: dict) -> str:
@@ -199,6 +214,7 @@ def _route_text(route: Route) -> str:
 def _asked(world: World) -> str:
     """What the route's planner is asked, apart from the town's briefing: the creative editor reads this much too."""
     return ("PEOPLE:\n" + "\n".join(f"  - {p.name}, {p.role}" for p in _people(world))
+            + "\n\n" + geography.coast_text()
             + "\n\nBACKDROPS for the stops: " + ", ".join(STOP_BACKDROPS)
             + creative.for_planner(world, SHOW, series=True))
 
@@ -211,7 +227,12 @@ def plan_route(world: World, unhurried: bool = False) -> dict:
     system = _SYSTEM.format(host=HOST, about=HOST_ABOUT, legs=LEGS, stops=STOPS)
     try:
         route = llm.complete_json(TASK, Route, system, user)
-        _check(route, world)
+        try:
+            _check(route, world)
+        except llm.AskAgain as e:                       # off the map: once more, told where
+            log.info("coast road: the route goes against the map (%s); asking once more", str(e)[:300])
+            route = llm.complete_json(TASK, Route, system, f"{user}\n\n{e}")
+            _check(route, world)
         route = creative.redraft(world, SHOW, "route", route, text=_route_text, context=asked, margin=not unhurried,
                                  check=lambda r: _check(r, world),
                                  again=lambda more: llm.complete_json(TASK, Route, system, user + more))
@@ -234,6 +255,8 @@ def _start_series(world: World) -> dict:
         try:
             route = json.loads(path.read_text(encoding="utf-8"))
             Route.model_validate({k: route[k] for k in ("title", "why", "legs")})
+            if wrong := route_trouble(route["legs"]):
+                raise ValueError("it goes against the map: " + "; ".join(wrong))
             log.info("coast road: the route saved in %s", path)
         except (ValueError, KeyError) as e:
             log.warning("coast road: the saved route in %s won't do (%s); planning one", path, e)
@@ -791,35 +814,37 @@ def draw_scene(canvas, v, t: float) -> None:
 # ------------------------------------------------------------------ with no model
 
 def _stand_in_route() -> dict:
-    """A route made in code: the town's own places, round from Port Wexley and back."""
-    def stop(backdrop, place, what, meet, role, g, a):
-        return {"backdrop": backdrop, "place": place, "what": what, "meet": meet, "role": role, "gender": g,
-                "age": a, "talk": f"what waiting means at {place}"}
+    """A route made in code: the town's own places, round from Port Wexley and back, the way the map
+    (newsroom/geography.py) goes: over on the ferry, down the Saltby side to the lighthouse, round by Polgrey
+    Bridge, down the town's shore, out along the cliffs to Kessick Bay, and home over the hill on the bus."""
+    def stop(backdrop, where, place, what, meet, role, g, a):
+        return {"backdrop": backdrop, "where": where, "place": place, "what": what, "meet": meet, "role": role,
+                "gender": g, "age": a, "talk": f"what waiting means at {place}"}
     legs = [
         ("The First Crossing", "the Saltby foot ferry", [
-            stop("harbour", "the harbour", "where it starts", "Ruth Hallam", "boatwoman, Saltby foot ferry crew", "f", "middle"),
-            stop("slipway", "the ferry slip", "waiting for the boat", "Morag Lyle", "Saltby foot ferry deckhand", "f", "middle"),
-            stop("village", "Saltby green", "the other side", "Tom Nancarrow", "Councillor, Saltby ward", "m", "old")]),
-        ("Over the Salting", "on foot", [
-            stop("village_hall", "Saltby village hall", "the hall's tea urn", "Marian Tolley", "choir leader", "f", "old"),
-            stop("estuary", "the Salting path", "the mud at low water", "Carys Lunt", "volunteer bird counter", "f", "old"),
-            stop("tea_room", "a tea room by the path", "a pot of tea", "Agnes Penhale", "potter and mender", "f", "old")]),
+            stop("harbour", "harbour", "the Quay Steps", "where it starts", "Ruth Hallam", "boatwoman, Saltby foot ferry crew", "f", "middle"),
+            stop("slipway", "saltby_slip", "the Saltby slip", "the other side", "Morag Lyle", "Saltby foot ferry deckhand", "f", "middle"),
+            stop("village", "saltby", "Saltby green", "the village", "Tom Nancarrow", "Councillor, Saltby ward", "m", "old")]),
+        ("Down to the Light", "on foot", [
+            stop("village_hall", "saltby", "Saltby village hall", "the hall's tea urn", "Marian Tolley", "choir leader", "f", "old"),
+            stop("seafront", "saltby_sands", "Saltby sands", "the tide going out", "Ruth Ellerby", "open water swimmer", "f", "middle"),
+            stop("lighthouse", "greymouth_point", "the Greymouth light", "the view", "Eamon Trask", "retired lighthouse keeper", "m", "old")]),
+        ("Round by the Bridge", "the coast bus", [
+            stop("tea_room", "saltby", "a tea room in Saltby", "a pot of tea", "Agnes Penhale", "potter and mender", "f", "old"),
+            stop("village", "polgrey", "Polgrey Bridge", "the bus stop on the bridge", "Ned Trevena", "estuary walker", "m", "old"),
+            stop("woods", "wexley_woods", "Wexley Woods", "the footpath", "Peggy Tallack", "birdwatcher", "f", "old")]),
+        ("Market Day", "on foot", [
+            stop("estuary", "the_salting", "the Salting path", "the mud at low water", "Carys Lunt", "volunteer bird counter", "f", "old"),
+            stop("market", "harrow_street", "Harrow Street market", "the stalls", "Gwen Pascoe", "baker, Harrow Street market", "f", "middle"),
+            stop("fish_quay", "fish_quay", "the fish quay", "the auction", "Ivy Marchetti", "harbour hand", "f", "middle")]),
         ("Up the Coast Road", "a borrowed bike", [
-            stop("coast_road", "the coast road", "the long climb", "Ned Trevena", "estuary walker", "m", "old"),
-            stop("lifeboat_station", "the lifeboat station", "the crew's kettle", "Eileen Harcombe", "retired lifeboat tractor driver", "f", "old"),
-            stop("lighthouse", "the Greymouth light", "the view", "Eamon Trask", "retired lighthouse keeper", "m", "old")]),
-        ("Market Day", "the bus", [
-            stop("market", "Harrow Street market", "the stalls", "Gwen Pascoe", "baker, Harrow Street market", "f", "middle"),
-            stop("fish_quay", "the fish quay", "the auction", "Ivy Marchetti", "harbour hand", "f", "middle"),
-            stop("dining_room", "a pub dining room", "lunch", "Gideon Ashby", "landlord, the Cannery Tap", "m", "middle")]),
-        ("Inland", "the country bus", [
-            stop("farm", "a farm outside town", "the yard", "Bill Lander", "retired harbour pilot", "m", "old"),
-            stop("woods", "Wexley Woods", "the footpath", "Peggy Tallack", "birdwatcher", "f", "old"),
-            stop("village", "back at Saltby", "the bus shelter", "Jan Couch", "darts player", "m", "middle")]),
-        ("Home Again", "the last ferry", [
-            stop("seafront", "the seafront", "the benches", "Ruth Ellerby", "open water swimmer", "f", "middle"),
-            stop("main_street", "the high street", "the bus stop", "Brenda Fisk", "shopkeeper, Main Street", "f", "middle"),
-            stop("harbour", "the harbour", "where it started", "Gideon Ferrow", "jar-tower builder and comedian", "m", "middle")]),
+            stop("cannery", "cannery", "the old cannery", "the slipway", "Gideon Ashby", "landlord, the Cannery Tap", "m", "middle"),
+            stop("lifeboat_station", "lifeboat_station", "the lifeboat station", "the crew's kettle", "Eileen Harcombe", "retired lifeboat tractor driver", "f", "old"),
+            stop("coast_road", "east_cliffs", "the coast road", "the long climb", "Bill Lander", "retired harbour pilot", "m", "old")]),
+        ("Home Again", "the coast bus", [
+            stop("seafront", "kessick_bay", "Kessick Bay", "the cove", "Jan Couch", "darts player", "m", "middle"),
+            stop("main_street", "main_street", "Main Street", "the bus stop", "Brenda Fisk", "shopkeeper, Main Street", "f", "middle"),
+            stop("harbour", "harbour", "the harbour", "where it started", "Gideon Ferrow", "jar-tower builder and comedian", "m", "middle")]),
     ]
     return {"title": "Every Slow Way There Is", "why": "to collect waiting stories for her waiting club",
             "legs": [{"title": t, "travel": tr, "stops": st, "ends": f"the end of {t.lower()}"} for t, tr, st in legs]}

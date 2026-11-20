@@ -501,3 +501,56 @@ def test_a_wait_is_at_the_last_stop_not_on_the_way(channel, monkeypatch, nowhere
         said = tv.brief_for(w, tok)
         assert said.startswith(f"WHILE SHE WAITS at {last['place']}, after meeting {last['meet']}")
         assert "no boarding, no crossing" in said
+
+
+# ------------------------------------------------------------------ the map (newsroom/geography.py)
+
+def _off_the_map():
+    """The 2026-11-20 ferry leg, as the saved route of 2026-11-14 has it: the town quay, the fish quay, then over."""
+    r = _route().model_dump()
+    r["legs"][0]["travel"] = "The Saltby foot ferry from the town quay, fourteen minutes if the tide is kind"
+    for s, (backdrop, place) in zip(r["legs"][0]["stops"], (
+            ("harbour", "The ferry steps at the town quay"), ("fish_quay", "The quay rail above the auction floor"),
+            ("slipway", "The Saltby slip, with the ferry's ring worn shiny"))):
+        s.update(backdrop=backdrop, place=place)
+    for leg in r["legs"][1:]:                       # the rest stay on the Saltby side
+        for s in leg["stops"]:
+            s.update(backdrop="village", place="Saltby green")
+    return tv.Route.model_validate(r)
+
+
+def test_the_planner_is_given_the_coast_and_the_stand_in_keeps_to_it(channel):
+    w = _world()
+    assert "THE COAST, in order" in tv._asked(w) and "saltby_slip" in tv._asked(w)
+    assert tv.route_trouble(tv._stand_in_route()["legs"]) == []
+
+
+def test_a_route_against_the_map_is_asked_for_once_more(channel, monkeypatch, nowhere):
+    asked = []
+
+    def complete_json(task, schema, system, user, **kw):
+        asked.append(user)
+        return _off_the_map() if len(asked) == 1 else _route()
+    monkeypatch.setattr(llm, "complete_json", complete_json)
+    w = _world()
+    tv.commission(w)
+    assert not tv.series(w)["stand_in"] and len(asked) == 2
+    assert "THE ROUTE GOES AGAINST THE MAP" in asked[1] and "leg 1" in asked[1] and "Quay Steps" in asked[1]
+
+
+def test_a_route_against_the_map_twice_gives_way_to_the_stand_in(channel, monkeypatch, nowhere):
+    _stub(monkeypatch, lambda schema: _off_the_map())
+    w = _world()
+    tv.commission(w)
+    assert tv.series(w)["stand_in"]
+
+
+def test_a_saved_route_against_the_map_is_planned_again(channel, monkeypatch, tmp_path):
+    path = tmp_path / "lorna_quayle.json"
+    path.write_text(json.dumps({**_off_the_map().model_dump(), "title": "The Saved One", "stand_in": False}),
+                    encoding="utf-8")
+    monkeypatch.setattr(tv, "_saved_route_path", lambda: path)
+    _stub(monkeypatch)
+    w = _world()
+    tv.commission(w)
+    assert tv.series(w)["title"] == "Every Slow Way"

@@ -23,6 +23,7 @@ from typing import Callable
 
 from . import (breaking, calendar, channel, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown,
                safety, schedule, sport, tides, tipline)
+from .geography import lie_of_the_land
 from .locations import locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
@@ -1106,7 +1107,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user = user.replace(f"{_title(after)} follows at {time.strftime('%H:%M', time.localtime(end))}",
                                 "that's all for tonight (no programme follows: name none)")
     if seg_type in (SegmentType.field_report, SegmentType.feature, SegmentType.vox_pop, SegmentType.review):
-        user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}"
+        user += f"\n\nLOCATIONS (backdrop ids):\n{locations_for_prompt()}\n\n{lie_of_the_land()}"
     if not_the_guest:                     # last, after the night's items with THE GUEST in the armchair
         user += "\n\n" + not_the_guest
     return system, user

@@ -232,9 +232,11 @@ A planner has drafted the {what} below, before it airs. Read it against what the
 TOLD BEFORE, ESTABLISHED and STILL OPEN. Send it back only for something a viewer would notice: a storyline that goes
 nowhere or drops what was planted; a cliffhanger nobody would ask about; a character acting against what is
 ESTABLISHED; an angle, story or person the programme has had before; new history for a resident of the town; the
-town's news inside a drama. A plan that is merely not how you would do it passes: ok = true, no notes. If you send it
-back: at most four short notes (under fifty words each), each naming the scene, sequence or stop and what to do
-instead, and only about what this planner decides. It comes back once and then airs. Return ONLY JSON.
+town's news inside a drama; a journey against THE COAST, the town's map, when the planner was given it (a stop back
+the way she came, a place on the wrong side of the Grey, the water crossed without the ferry or Polgrey Bridge). A
+plan that is merely not how you would do it passes: ok = true, no notes. If you send it back: at most four short notes
+(under fifty words each), each naming the scene, sequence or stop and what to do instead, and only about what this
+planner decides. It comes back once and then airs. Return ONLY JSON.
 """
 
 SENT_BACK = """

@@ -314,6 +314,58 @@ the next programme is more than half an hour off (so they hear what it agreed), 
 
 `python -m newsroom.meeting minutes` prints the meeting as held; `hold --dry` holds one now without keeping it.
 
+## The map of the town, built (2026-11-20)
+
+`newsroom/geography.py` is the gazetteer: the one place that says where Port Wexley's places are from each other.
+Before it, every writer had its own lie of the land. On 2026-11-20 a Coast Road leg sailed for Saltby from the town
+quay, stopped at the fish quay in town, and only then crossed. The user approved the drawing on
+`data/contact-sheets/2026-11-20-town-map.png`, made by `tools/town_map.py` from the module.
+
+- **The shape.** It follows teletext's coast. The Grey estuary runs up from the south-west, with Port Wexley on its
+  eastern shore and Saltby straight across, eight minutes by the foot ferry (the Quay Steps to the Saltby slip).
+  - Below the town the estuary widens into the bay, between Greymouth Point and Wexley Point. The lighthouse is on
+    Greymouth Point, on the Saltby side.
+  - Above the town come the Salting and Wexley Woods, up to Polgrey Bridge at the head of the estuary. By road,
+    Saltby is five miles round each way.
+  - East along the coast: Kessick Bay, Carrow Point, Pellow Harbour. West, beyond the point: Greymouth.
+- **The data.** `PLACES` gives each place:
+  - its side of the Grey (`east`, `west`, or `head` for Polgrey);
+  - its district, a council ward or the village;
+  - the backdrop that shows it;
+  - miles east and north of the Quay Steps;
+  - `at`, the stop on the coast it is passed by;
+  - `canon`, the line in the town's stories that fixed it. An empty `canon` means it was chosen with the map.
+
+  `COAST` is the shore in order, west to east, the long way round by the head of the estuary. `LINKS` gives the
+  neighbours with miles between them. `neighbours()` turns the miles into minutes on foot, by bike, by the coast
+  bus (hourly, round by Polgrey) and by the ferry.
+- **Placing a writer's words.** `place_for(text, backdrop, where)` reads them in this order:
+  1. the gazetteer id the writer gave (`where`);
+  2. the longest place name in the text;
+  3. a backdrop that shows only one place.
+
+  A farm, a pub, a tea room or the slipway could be on either side, so a stop placed only by one of those is left
+  out of the check, not failed.
+- **The route check.** `check_legs` applies three rules:
+  - a leg's stops run one way along `COAST`;
+  - it crosses the Grey at most once, either by the ferry, after its stops on the near side have led to the
+    landing, or round by the bridge, which is the same as running one way;
+  - a leg starts on the side of the water where the last one ended, unless it crosses first.
+
+  The Coast Road (`entertainment/travelogue.py`) uses it in three places:
+  - **Its planner** is given `coast_text()` and a `where` for each stop. A route against the map is asked for once
+    more with the reasons, then gives way to the stand-in.
+  - **A saved route** (`data/travelogue/<host>.json`) that goes against the map is planned again. The route saved
+    on 2026-11-14 is one, with the ferry leg of 2026-11-20 as its first leg.
+  - **The stand-in route** keeps to the map.
+- **The other writers.** A field report, feature, vox pop or review gets `lie_of_the_land()` after LOCATIONS. That
+  is about 700 characters (about 200 tokens) on prompts of 14,000 to 16,000. It is not in the shared briefing,
+  which every prompt carries. The creative editor sends back a plan that goes against THE COAST when its planner
+  was given it.
+- **Still to square.** `travelogue.TRAVEL` films a ferry ride on the cannery `slipway`, but the ferry goes from the
+  Quay Steps. The studio weather map (`scenes.draw_weather`) is a generic shape that matches neither teletext nor
+  this map.
+
 ## The content bank, built (2026-11-07)
 
 `newsroom/bank.py` keeps finished films made offline (the shelf: data/bank and its index) and airs them
