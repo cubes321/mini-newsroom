@@ -1167,9 +1167,9 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("kettle_b", "bm_spargo"),
                   ["a retired chemistry teacher from Greymouth Academy", "weighs everything to the gram",
                    "frets about oven temperatures", "secretly can't cook"], lang="b"),
-        # Channel 8's teen magazine, The Slipway (entertainment/slipway.py), 18:30, from 2026-11-19. Their voices are
-        # names of their own until DramaBox designs are chosen by ear: with no clip yet, Kokoro speaks for them
-        # (voices.toml). Never a guest pool voice: every resident sharing it would be recast (_recast_presenter_voices).
+        # Channel 8's teen magazine, The Slipway (entertainment/slipway.py), 18:30, from 2026-11-19. Voices of their own,
+        # DramaBox designs chosen by ear 2026-11-20 (voices.toml). Never a guest pool voice: every resident sharing it
+        # would be recast (_recast_presenter_voices).
         Character("slip_a", "Tegan Trevenna", "presenter, The Slipway (Channel 8's teen magazine)",
                   CONFIG.tts.voices.get("slip_a", "bf_trevenna"),
                   ["twenty-one, born in Port Wexley", "throws herself into everything and finishes nothing",
@@ -1178,8 +1178,8 @@ def seed_characters() -> list[Character]:
                   CONFIG.tts.voices.get("slip_b", "bm_pengilly"),
                   ["twenty-two, a planner", "makes lists and reads the rules out", "worries about safety",
                    "secretly the more competitive"], speed=1.0, lang="b"),
-        # Channel 8's gameshow, High Water (entertainment/highwater_show.py), 18:00, from 2026-11-19: a voice of his own
-        # (spoken by Kokoro until a DramaBox design is chosen by ear), as The Slipway's pair.
+        # Channel 8's gameshow, High Water (entertainment/highwater_show.py), 18:00, from 2026-11-19: a voice of his own,
+        # a DramaBox design chosen by ear 2026-11-20, as The Slipway's pair.
         Character("hw_host", "Des Kneebone", "host, High Water (Channel 8's gameshow)",
                   CONFIG.tts.voices.get("hw_host", "bm_kneebone"),
                   ["thirty summers at the Saltby pier theatre", "a bow tie and a catchphrase for everything",

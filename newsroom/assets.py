@@ -135,6 +135,15 @@ def _lang(speaker: str) -> str | None:
     return next((c.lang or None for c in seed_characters() if c.id == speaker), None)
 
 
+def _voice_lang(voice: str) -> str | None:
+    """The pronunciation of the presenter with this voice, for an ident said by someone other than the show's lead
+    (IDENT_VOICES): Tegan's and Des's clips are British, and the station's "a" left their idents to Kokoro's
+    stand-ins (found 2026-11-20). A voice that is nobody's (the continuity announcer's) keeps the station's own."""
+    from .world import seed_characters
+
+    return next((c.lang or None for c in seed_characters() if c.voice == voice), None)
+
+
 def ensure_bumper(show: str = "news") -> Path:
     from . import schedule
 
@@ -153,7 +162,7 @@ def ensure_bumper(show: str = "news") -> Path:
 
         log.info("baking bumper from %s -> %s", stem.name, path.name)
         ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{key}.wav",
-                               lang=None if key in IDENT_VOICES else _lang(lead))
+                               lang=_voice_lang(voice_id) if key in IDENT_VOICES else _lang(lead))
         voice, _ = sf.read(str(ident.wav_path), dtype="float32")
         voicing = music if music in jingle.VOICINGS else "news"
         _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
@@ -169,7 +178,7 @@ def ensure_bumper(show: str = "news") -> Path:
         notes = [220.0, 261.63, 329.63, 311.13]    # A C E E-flat: low, with a bluesy turn
     sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
     ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{show}.wav",
-                           lang=None if key in IDENT_VOICES else _lang(lead))
+                           lang=_voice_lang(voice_id) if key in IDENT_VOICES else _lang(lead))
     voice, _ = sf.read(str(ident.wav_path), dtype="float32")
     gap = np.zeros(int(SR * 0.25), dtype=np.float32)
     _write(path, np.concatenate([sting, gap, voice, gap]))

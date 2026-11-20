@@ -450,20 +450,23 @@ kokoro = 'bf_emma'
 description = "A British woman in her early forties with a warm West Country accent from a Cornish seaside town, a stand-up comedian and singer: quick, dry and self-mocking, with a performer's timing and a laugh never far away (DramaBox seed 42, C of three)"
 line = "I have now been waiting for this ferry for fourteen minutes. I have been offered a biscuit. I am keeping the biscuit. That's the show, that's the whole show."
 
-# Channel 8's The Slipway (2026-11-19): names of their own, with no clip yet. Kokoro speaks for them (the stand-in
-# below) until DramaBox designs are chosen by ear; a guest pool voice would have recast every resident who shares it.
+# Channel 8's The Slipway and High Water (2026-11-19): presenters with names of their own, so no resident is recast
+# (a guest pool voice would recast everyone who shares it). Designed with DramaBox and chosen by ear on
+# data/voice-samples/channel8-presenters, 2026-11-20. "kokoro" names the stand-in.
 [bf_trevenna]
 person = 'Tegan Trevenna'
 kokoro = 'bf_lily'
-description = "PROVISIONAL, no clip yet: a British woman of twenty-one with a light Cornish accent, a teen show's presenter: quick, bright, always about to laugh"
+description = "A young British woman of twenty-one with a light Cornish accent, bright and quick, talking fast and always on the edge of a laugh, presenting a lively teenage television magazine show (DramaBox seed 42, A of three, its long pauses cut to 0.6 s)"
+line = "Oh my days, right, hello, welcome to The Slipway! I've had about four coffees, Elis has had a cup of tea and a little list, and tonight we are trying something I have absolutely never done before. What could possibly go wrong?"
 
 [bm_pengilly]
 person = 'Elis Pengilly'
 kokoro = 'bm_lewis'
-description = "PROVISIONAL, no clip yet: a British man of twenty-two with a soft West Country accent, a teen show's presenter: careful, dry, quietly competitive"
+description = "A young British man of twenty-two with a soft West Country accent, calm, dry and careful, a quiet deadpan delivery, presenting a teenage television magazine show (DramaBox seed 42, A of three, its long pauses cut to 0.6 s)"
+line = "Evening. This is The Slipway. Before Tegan starts anything she won't finish, I've made a plan. Three items, two guests, one challenge, and a list of the best chips on the front. I've checked it twice. She hasn't read it."
 
-# Channel 8's High Water (2026-11-19): Des Kneebone, a name of his own with no clip yet, as The Slipway's pair.
 [bm_kneebone]
 person = 'Des Kneebone'
 kokoro = 'bm_george'
-description = "PROVISIONAL, no clip yet: a British man in his sixties with a warm West Country accent, an end-of-pier entertainer turned gameshow host: big, theatrical, twinkling"
+description = "A British man in his sixties with a warm West Country accent, a big theatrical end-of-pier entertainer, rich and twinkling, hosting a television gameshow with gusto (DramaBox seed 42, A of three, its long pauses cut to 0.6 s)"
+line = "Good evening, ladies and gentlemen, and welcome, welcome, welcome to High Water! Two brave souls, twelve harbour steps, and one tide that waits for no man. Hold on to your hats, my lovelies, because the water's coming in!"

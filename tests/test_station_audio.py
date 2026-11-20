@@ -141,3 +141,22 @@ def test_a_bumper_speaks_in_its_presenters_own_pronunciation(music, monkeypatch)
         _stem(music / f"ident_{show}.wav", 2.0)
         assets.ensure_bumper(show)
     assert said == {"bm_lanyon": "b", "af_heart": None}
+
+
+def test_an_ident_said_by_someone_else_is_in_their_own_pronunciation(music, monkeypatch):
+    """An ident said by another voice (IDENT_VOICES: Tegan's for The Slipway, the announcer's for a closedown) was
+    voiced with the station's "a", so Tegan's and Des's British clips were never found and Kokoro's stand-ins said
+    them (found 2026-11-20). A presenter's voice takes the presenter's lang; the announcer, who is nobody's, keeps
+    the station's."""
+    said = {}
+
+    def synth(text, voice, out, speed=1.0, lang=None):
+        said[voice] = lang
+        sf.write(out, np.full(assets.SR, 0.1, dtype=np.float32), assets.SR, subtype="PCM_16")
+        return SynthResult(wav_path=out, duration_s=1.0, mouth_env=[0.5])
+    monkeypatch.setattr(tts, "synthesize", synth)
+    monkeypatch.setattr(assets, "IDENT_VOICES", {"quayside": "bf_trevenna", "news": "bf_isabella"})
+    for show in ("quayside", "news"):
+        _stem(music / f"ident_{show}.wav", 2.0)
+        assets.ensure_bumper(show)
+    assert said == {"bf_trevenna": "b", "bf_isabella": None}

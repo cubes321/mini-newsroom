@@ -202,8 +202,8 @@ def _slipway(slipway) -> None:
     from newsroom.config import CONFIG
 
     assets.IDENTS[slipway.SHOW] = (assets.CONFIG.paths.assets / "bumper_slipway.wav", slipway.IDENT)
-    assets.IDENT_MUSIC[slipway.SHOW] = "sport"                 # bright and quick, until it is chosen by ear
-    # Tegan says it: her Kokoro stand-in until her voice is chosen, when the file must be deleted to be baked again.
+    assets.IDENT_MUSIC[slipway.SHOW] = "sport"                 # Full Time's drive: chosen by ear 2026-11-20
+    # Tegan says it, in her own voice (bf_trevenna.b.wav, 2026-11-20); delete the file to bake it again.
     assets.IDENT_VOICES[slipway.SHOW] = CONFIG.tts.voices.get("slip_a", "bf_trevenna")
     # Its own set, for this run only: in BY_ID and MARKS, never in locations.LOCATIONS (use()'s undo takes it out).
     locations.BY_ID[slipway.SET] = locations.Location(slipway.SET, slipway.SET_NAME, slipway.SET_BLURB, "studio",
@@ -229,8 +229,8 @@ def _highwater(show) -> None:
     from newsroom.config import CONFIG
 
     assets.IDENTS[show.SHOW] = (assets.CONFIG.paths.assets / "bumper_highwater.wav", show.IDENT)
-    assets.IDENT_MUSIC[show.SHOW] = "phonein"                  # bright piano, until it is chosen by ear
-    # Des says it: his Kokoro stand-in until his voice is chosen, when the file must be deleted to be baked again.
+    assets.IDENT_MUSIC[show.SHOW] = "phonein"                  # Have Your Say's bright: chosen by ear 2026-11-20
+    # Des says it, in his own voice (bm_kneebone.b.wav, 2026-11-20); delete the file to bake it again.
     assets.IDENT_VOICES[show.SHOW] = CONFIG.tts.voices.get(show.HOST, "bm_kneebone")
     # Its own set, for this run only: in BY_ID and MARKS, never in locations.LOCATIONS (use()'s undo takes it out).
     # A studio set though it's outdoors: the art is painted at dusk, so it is never graded or rained on.
