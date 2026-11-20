@@ -280,3 +280,57 @@ def test_the_result_once_aired_is_the_towns_talk_the_next_day(channel, monkeypat
     assert k["result_aired"] and said.startswith("High Water, the gameshow on Channel 8")
     assert all(x["who"] in said for x in k["game"]["results"]) and said in talk.line(w, tomorrow)
     assert talk.highwater(w, date.fromisoformat(w.last_date)) is None             # tonight's: not yet, as the town knows
+
+
+def test_the_tide_gauge_follows_des_line_by_line_and_ends_where_the_game_does(channel, monkeypatch):
+    """With no model, every item of the game: the gauge's changes never go backwards, never run ahead of the turns
+    (the tide after every step), and the last state is the game's own."""
+    from entertainment import tidegauge as tg
+
+    w = _town()
+    _stub(monkeypatch, llm.LLMError("down"))
+    k = hs.commission(w)
+    names = [c["name"] for c in k["climbers"]]
+    for n, brief in enumerate(("{r1}", "{r2}", "{hm}", "{r3}", "{r4}", "{spring}")):
+        seg = Segment(slot_id=6 + n, type=T.interview, show="highwater", brief=brief, target_s=200)
+        writers.script_segment(seg, w)
+        g = seg.work["gauge"]
+        lines = [i for i, _, _ in g["steps"]]
+        assert lines == sorted(lines) and all(0 <= i < len(seg.lines) for i in lines), brief
+        if brief.startswith("{r"):
+            r = k["game"]["rounds"][int(brief[2]) - 1]
+            want = tg.after_round(k, int(brief[2]) - 1)
+            assert g["steps"][-1][1] == want, brief
+            lits = [lit for _, _, lit in g["steps"]]
+            if "tide" in lits:
+                assert all(isinstance(x, int) for x in lits[:lits.index("tide")]), brief     # the turns first
+            assert len([x for x in lits if isinstance(x, int)]) == sum("question" in t for t in r["turns"]), brief
+        if brief == "{hm}":
+            assert g["steps"][-1][1]["rings"] == [k["game"]["harbour"]["rings"][x] for x in names]
+        if brief == "{spring}":
+            assert (g["steps"][-1][1]["star"] is not None) == k["game"]["spring"]["won"]
+    # Every other item has the gauge as it stands at its point in the show, from its brief alone.
+    assert tg.for_brief(k, "{open}") == tg.start(k) and tg.for_brief(k, "{meet2}") == tg.start(k)
+    assert tg.for_brief(k, "{r3}")["rings"] == [k["game"]["harbour"]["rings"][x] for x in names]
+    assert tg.for_brief(k, "a word: {chat1}") == tg.end(k)
+
+
+def test_the_gauge_never_raises_the_tide_before_a_turn_it_could_not_place():
+    from types import SimpleNamespace as L
+
+    from entertainment import tidegauge as tg
+
+    turn = {"who": "Ann", "choice": hw.PADDLE, "right": True, "from": 1, "to": 2, "banked": 0, "in_hand": 0}
+    k = {"climbers": [{"name": "Ann"}, {"name": "Bob"}],
+         "game": {"rounds": [{"turns": [dict(turn, question={"q": "What colour is the sky on a clear day?"}),
+                                        dict(turn, who="Bob", question={"q": "Which planet has the famous rings?"})],
+                              "tide": 1, "washed": [],
+                              "after": [{"who": "Ann", "step": 2, "banked": 0}, {"who": "Bob", "step": 2, "banked": 0}]}]}}
+    lines = [L(speaker="hw_host", text="Ann: what colour is the sky on a clear day?"),
+             L(speaker="guest", text="Blue!"),
+             L(speaker="hw_host", text="Right! Up you go. Mind the tide, Bob."),      # Bob's question never asked
+             L(speaker="guest", text="Saturn?"),
+             L(speaker="hw_host", text="And that's the round.")]
+    steps = tg.changes(k, "{r1}", lines)
+    assert steps[0][0] == 2 and steps[0][2] == 0                                   # Ann's step on the verdict
+    assert [lit for _, _, lit in steps] == [0, "tide"] and steps[-1][0] == 4       # the tide waits for the last line

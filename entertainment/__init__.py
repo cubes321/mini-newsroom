@@ -253,6 +253,10 @@ def _highwater(show) -> None:
     writers.TEMPLATE_HOOKS[show.SHOW] = show.template
     writers.CHECK_HOOKS[show.SHOW] = show.check                # every question asked, in order
     player.AIRED_HOOKS[show.SHOW] = show.aired                 # the result, stamped for the town's talk
+    from . import tidegauge                                    # the gauge on the set, moving on Des's lines
+    writers.AFTER_HOOKS[show.SHOW] = tidegauge.after
+    player.VIEW_HOOKS[show.SHOW] = tidegauge.view
+    scenes.DRESSINGS[show.SHOW] = tidegauge.draw
     writers.LINE_CAPS[show.SHOW] = 40                          # a round: eight turns, the tide and the summing up
     writers.BOOKED_SHOWS.add(show.SHOW)
     writers.DEBATE_SHOWS.add(show.SHOW)                        # two climbers, each line naming its speaker

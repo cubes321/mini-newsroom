@@ -458,18 +458,23 @@ def _asked_in(q: str, line: set[str]) -> bool:
     return bool(want) and len(want & line) >= max(min(2, len(want)), -(-len(want) * 3 // 5))
 
 
-def missing(lines, qs: list[dict]) -> list[str]:
-    """The questions Des doesn't ask, each in a line of its own. In any order: two climbers' turns swapped in a round
-    change nothing in the game, and in order, the fourth rehearsal's round four failed for it (2026-11-19)."""
-    said = [_words(l.text or "", 3) for l in lines if getattr(l, "speaker", "") == HOST]
+def asked_at(lines, qs: list[dict]) -> list[int | None]:
+    """The line (its index in `lines`) where Des asks each question, each in a line of its own; None where he doesn't.
+    In any order: two climbers' turns swapped in a round change nothing in the game, and in order, the fourth
+    rehearsal's round four failed for it (2026-11-19). The check and the tide gauge (tidegauge.py) both read it."""
+    said = [(i, _words(l.text or "", 3)) for i, l in enumerate(lines) if getattr(l, "speaker", "") == HOST]
     out, used = [], set()
     for q in qs:
-        at = next((i for i in range(len(said)) if i not in used and _asked_in(q["q"], said[i])), None)
-        if at is None:
-            out.append(q["q"])
-        else:
+        at = next((i for i, words in said if i not in used and _asked_in(q["q"], words)), None)
+        out.append(at)
+        if at is not None:
             used.add(at)
     return out
+
+
+def missing(lines, qs: list[dict]) -> list[str]:
+    """The questions Des doesn't ask (asked_at)."""
+    return [q["q"] for q, at in zip(qs, asked_at(lines, qs)) if at is None]
 
 
 def check(seg, script, world: World) -> None:
