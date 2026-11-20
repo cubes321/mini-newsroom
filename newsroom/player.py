@@ -52,7 +52,9 @@ BARE_SHOWS: set[str] = set()
 # Shows whose headlines give the result away, as a quiz round's does ("Pot Luck round goes to The Crown at Saltby",
 # on the ticker as the round began, 2026-11-16): each joins the ticker once its item has finished, and never goes in the
 # banner, which carries the item's own tag instead (on from its first line, 2026-11-20) (entertainment/: Wits, High Water).
-TICKER_AFTER: set[str] = set()
+# The Chamber's own: a motion's headline is the vote ("Pool Petition Motion Carried", on the ticker from Helen's first
+# line, 2026-11-19; the banner names whoever is speaking, always a councillor there).
+TICKER_AFTER: set[str] = {"chamber"}
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
 # A show's own say over the view, by show id: (segment, view, line index) -> None, after the engine has set it (Channel 8's

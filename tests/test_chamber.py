@@ -283,3 +283,29 @@ def test_dana_hands_to_miles_from_the_press_seats_not_the_studio_wall(monkeypatc
     assert v.mode == "studio" and v.shot != "wall" and v.people == [("anchor", None)]
     assert _drawn(monkeypatch, v)[0] == ["chamber_press"]
     assert _on_air(vox, 1).mode == "field"                       # then Miles in the gallery
+
+
+def test_a_motions_vote_is_on_screen_only_once_it_has_been_taken(monkeypatch):
+    """2026-11-19, the first council night with The Chamber live: "Pool Petition Motion Carried, Officers Report in
+    December" was a debate's headline, so it was on the ticker as Helen called the motion. (The banner names whoever is
+    speaking, and in the chamber that's always a councillor.) The ticker has the vote once the debate is over."""
+    from newsroom.buffer import Buffer
+    from newsroom.models import Line
+    from newsroom.player import Player
+
+    w = world_mod.seed()
+    monkeypatch.setattr(schedule, "now", lambda: _at(20, 1))
+    pl = Player(Buffer(), w, producer=None, audio=False)
+    lines = [{"speaker": "guest", "guest_name": council.CHAIR, "text": f"Line {i}: the pool petition."} for i in range(4)]
+    script = PanelScript(headline="Pool Petition Motion Carried, Officers Report in December",
+                         lower_third="Full council: the pool petition", lines=lines)
+    seg = Segment(slot_id=88, type=T.interview, show=chamber.SHOW, target_s=150, headline=script.headline,
+                  lines=[Line(speaker="guest", guest_name=council.CHAIR, text="Item one.", duration_s=2.0,
+                              mouth_env=[0.5] * 40)],
+                  cues=writers._cues_for(Segment(slot_id=88, type=T.interview, show=chamber.SHOW), script))
+    pl._start(seg, _at(20, 1))
+    v = pl.view(_at(20, 1) + 1)
+    assert "Carried" not in " ".join(x for x in (v.lower_third or ()) if x)
+    assert all(h != seg.headline for _, h in pl.ticker)
+    pl._finish(_at(20, 4))
+    assert (chamber.SHOW, seg.headline) in pl.ticker
