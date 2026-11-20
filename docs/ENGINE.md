@@ -232,9 +232,14 @@ three each, the rules approved as below). With it and The Slipway the channel ha
   each round to it, and a check holds every answer and step to the script.
 - **The host**: Des Kneebone, sixties, thirty summers at the Saltby pier theatre: a bow tie, catchphrases, terrible
   puns, soft on a losing contestant. A presenter, never a resident: a look on a contact sheet, a voice by ear.
-- **On screen**: a tide gauge drawn in code (the steps, the prizes beside them, a marker each, the water rising),
-  moving on Des's words as Wits' board follows Clive's; a set of the harbour steps at dusk (ComfyUI, a contact sheet).
-- **The town**: the winner and the prize go to Channel 7's town talk the next day; the creative editor gives notes.
+- **On screen**: a tide gauge drawn in code (`entertainment/tidegauge.py`, built 2026-11-20). It has the steps, the
+  prize tags, a marker with each climber's initial (orange, then teal, by seat), the water, the life rings and the
+  prizes made fast, all inside `RECT` beside Des, so it shows in his close shot.
+  - It moves on Des's lines, as Wits' board follows Clive's: a step on his verdict after the answer, the tide on his
+    line about it after the last turn, and never early. The item's last line puts it right.
+  - The set of the harbour steps at dusk (ComfyUI, a contact sheet) leaves `RECT` clear.
+- **The town**: who went home with what, the star prize first, goes into the town talk for two days once the result
+  has aired (`talk.highwater`, stamped by `highwater_show.aired`); the creative editor gives notes.
 - **Built in this order**: the game engine and its tests (no model); the booking (two residents not on Channel 8
   lately, paddle and swim questions with answers, prizes from the advertisers), the items and their checks,
   rehearsed offline; the gauge, Des's look, the set, his voice and the ident, each for the user's approval; the town

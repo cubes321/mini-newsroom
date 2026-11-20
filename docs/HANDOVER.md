@@ -39,20 +39,15 @@ Tideline or The Coast Road. The closedown says "back tomorrow at six, with High 
 The GPU is shared (memory: gpu-is-shared). The Channel 7 night starts ComfyUI for its shadow pictures and stops it
 at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
 
-1. **Des Kneebone's look.** A provisional `LOOKS["hw_host"]` sits **uncommitted** in `newsroom/sprites.py`: swept
-   silver hair, a red blazer, a dark bow tie (as a `tie`). Make a contact sheet of three options, as
-   `data/creative-trial/rehearsal-1119/scripts/slipway_looks.py` did for the Slipway. Save it to
-   `data/contact-sheets/`, get the user's pick, and commit `sprites.py` by its path. A real bow tie may need a new
-   `Look` field, which must default to off: compare `python -m newsroom.sprites --sheet` before and after, with
-   `_beat` fixed (CLAUDE.md).
-2. **High Water's tide gauge**, drawn in code, as Wits' scoreboard is (`wits.draw_board` through
-   `scenes.DRESSINGS`, `quiz.board`/`quiz.view` through `player.VIEW_HOOKS`):
-   - the twelve steps, with the prizes on 4, 8 and 11 and the star prize at the top;
-   - a marker for each climber, the water level, and a life ring beside its holder;
-   - it moves on Des's lines: each turn's step on his verdict, the tide on his gauge line.
+1. **Done 2026-11-20**:
+   - Des's look: A, a red blazer and a navy bow tie, from a new `Look.bow` field that is off by default (9a59c3d);
+   - the tide gauge, `entertainment/tidegauge.py` (4e58096; its sheet is `data/contact-sheets/2026-11-20-highwater-gauge.png`);
+   - High Water's winner in the town's talk (9e2de9d).
 
-   `highwater_show.missing` already finds each question's line. Put the look on a contact sheet for the user first.
-3. **The two sets**, through the ComfyUI pipeline (memory: backdrop-art-pipeline), each on a contact sheet for the
+   Both art items were approved by the user on contact sheets.
+2. (folded into 1)
+3. **The two sets** (side session "Channel 8 sets", started 2026-11-20; High Water's must leave `tidegauge.RECT`
+   clear), through the ComfyUI pipeline (memory: backdrop-art-pipeline), each on a contact sheet for the
    user:
    - `studio_slipway`: a bright studio, a window onto the harbour, a low sofa, bean bags, a board of viewers'
      messages. The breakfast sofa's painter stands in for it now.
@@ -61,7 +56,8 @@ at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
 
    Their marks are `MARKS` in `entertainment/slipway.py` and `entertainment/highwater_show.py`; move them to fit the
    art. Each art file is `assets/backdrops/<id>.png`.
-4. **Three voices**, designed with DramaBox for British references (memory: british-voices; Qwen VoiceDesign comes
+4. **Three voices** (side session "Voices for Tegan, Elis and Des", started 2026-11-20, with the idents in 5),
+   designed with DramaBox for British references (memory: british-voices; Qwen VoiceDesign comes
    out American). Three candidates each go on a listening page, opened with `explorer.exe` (the app's Browser pane
    can't play local sound):
    - Tegan (`bf_trevenna`): 21, a light Cornish accent, quick, about to laugh;
@@ -78,9 +74,7 @@ at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
 
    An ident is baked only when it's missing or its music is newer. Once the voices are chosen, delete these files so
    they bake again in the right voice.
-6. **High Water's winner in the town's talk**, as `talk.py` reads `world.kettles` for the Kettle's dish and sofa
-   guest: "Jan Pascoe won a weekend away on High Water" for a day or two after it airs. It's a small code change with
-   a test.
+6. (done: see 1)
 7. **A scratch Channel 8 run of the whole evening.** The evening now starts at 18:00, so edit
    `data/afternoon_channel8_scratch.ps1` to `--clock 17:45 --minutes 200`. Run it from its .cmd in its own window,
    with OBS open. Check:
