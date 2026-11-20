@@ -137,3 +137,21 @@ def test_a_leg_may_get_across_by_the_bridge_or_as_the_last_one_ended():
     assert g.check_legs([(*saltby, "she catches the ferry home"), ("A Walk", "on foot", woods)]) == []
     assert g.check_legs([saltby, ("A Walk", "on foot", woods)])
     assert g.check_leg(_leg(("Saltby green", "village"), ("Saltby sands", "seafront")), "on foot along the sands") is None
+
+
+def test_the_journey_starts_and_ends_in_port_wexley():
+    home = ("Out", "the ferry", _leg(("the Quay Steps", "harbour"), ("Saltby green", "village")))
+    back = ("Home", "the coast bus", _leg(("Kessick Bay", "seafront"), ("Main Street", "main_street")))
+    away = ("East", "the coast bus", _leg(("Kessick Bay", "seafront"), ("the bus stop at Pellow Harbour", "harbour")))
+    assert g.check_legs([home, ("Round", "the coast bus round by Polgrey", _leg(("Polgrey Bridge", "village"))), back],
+                        round_trip=True) == []
+    errors = g.check_legs([home, away], round_trip=True)
+    assert len(errors) == 1 and "Pellow Harbour" in errors[0] and "not back in Port Wexley" in errors[0]
+    assert g.check_legs([home, away]) == []                                    # only when asked
+    errors = g.check_legs([("Start", "on foot", _leg(("Saltby green", "village"), ("Saltby sands", "seafront"))),
+                           back], round_trip=True)
+    assert any("starts at Saltby green" in e for e in errors)
+    unplaced = ("Home", "on foot", _leg(("Kessick Bay", "seafront"), ("a pub", "pub")))
+    assert not any("ends" in e for e in g.check_legs([home, unplaced], round_trip=True))    # can't tell: passes
+    assert all(g.in_town(p) for p in ("harbour", "harrow_street", "the_salting", "seafront"))
+    assert not any(g.in_town(p) for p in ("saltby", "kessick_bay", "polgrey", "wexley_point"))

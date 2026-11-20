@@ -350,7 +350,9 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - a leg's stops run one way along `COAST`;
   - it crosses the Grey at most once, either by the ferry, after its stops on the near side have led to the
     landing, or round by the bridge, which is the same as running one way;
-  - a leg starts on the side of the water where the last one ended, unless it crosses first.
+  - a leg starts on the side of the water where the last one ended, unless it crosses first;
+  - the journey's first stop and its last are in Port Wexley (`round_trip=True`, `in_town`). A rehearsed route on
+    2026-11-20 kept to the map but ended at Pellow Harbour.
 
   The Coast Road (`entertainment/travelogue.py`) uses it in three places:
   - **Its planner** is given `coast_text()` and a `where` for each stop. A route against the map is asked for once

@@ -400,11 +400,21 @@ def check_leg(stops: list[Placed], travel: str) -> str | None:
     return None
 
 
-def check_legs(legs: list[tuple]) -> list[str]:
+TOWN_SHORE = ("harbour", "fish_quay", "cannery", "seafront", "lifeboat_station", "the_salting")
+
+
+def in_town(pid: str) -> bool:
+    """Is this place in Port Wexley itself: a street or building in the town, or the town's own shore."""
+    return BY_ID[pid].town or pid in TOWN_SHORE
+
+
+def check_legs(legs: list[tuple], round_trip: bool = False) -> list[str]:
     """Every leg's trouble, as "leg N (title): why". A leg is (title, travel, stops) or (title, travel, stops,
     ends). A leg also starts on the side of the water where the last one ended, unless it gets across first:
-    its travel says the ferry or the road round by the bridge, or the last leg's `ends` says so."""
-    errors, last_side, last_ends = [], None, ""
+    its travel says the ferry or the road round by the bridge, or the last leg's `ends` says so. `round_trip`:
+    the journey's first stop and its last are in Port Wexley (a stop the map can't place passes)."""
+    errors = _round_trip(legs) if round_trip else []
+    last_side, last_ends = None, ""
     for n, (title, travel, stops, *more) in enumerate(legs, 1):
         if why := check_leg(stops, travel):
             errors.append(f"leg {n} ({title}): {why}")
@@ -419,6 +429,20 @@ def check_legs(legs: list[tuple]) -> list[str]:
             last_side = BY_ID[placed[-1].pid].side
         last_ends = more[0] if more else ""
     return errors
+
+
+def _round_trip(legs: list[tuple]) -> list[str]:
+    if not legs or not legs[0][2] or not legs[-1][2]:
+        return []
+    out = []
+    start, end = legs[0][2][0], legs[-1][2][-1]
+    if start.pid and not in_town(start.pid):
+        out.append(f"the journey starts at {start.label} ({BY_ID[start.pid].name}), not in Port Wexley: leg 1's first "
+                   "stop is in the town")
+    if end.pid and not in_town(end.pid):
+        out.append(f"the journey ends at {end.label} ({BY_ID[end.pid].name}), not back in Port Wexley: the last "
+                   f"leg comes home, and its last stop is in the town")
+    return out
 
 
 # ------------------------------------------------------------------ for the writers

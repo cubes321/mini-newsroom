@@ -199,11 +199,12 @@ def _check(route: Route, world: World) -> None:
 
 def route_trouble(legs: list[dict]) -> list[str]:
     """Where a route's legs go against the gazetteer (newsroom/geography.py): back on themselves, across the Grey
-    without the ferry, or starting on the other side of the water from where the last leg ended."""
+    without the ferry, starting on the other side of the water from where the last leg ended, or a journey that
+    doesn't start and end in Port Wexley."""
     return geography.check_legs([
         (leg["title"], leg["travel"], [geography.Placed(s["place"], geography.place_for(
             s["place"], s["backdrop"], s.get("where", ""))) for s in leg["stops"]], leg.get("ends", ""))
-        for leg in legs])
+        for leg in legs], round_trip=True)
 
 
 def _leg_text(i: int, leg: dict) -> str:
