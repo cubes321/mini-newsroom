@@ -46,34 +46,11 @@ at the end, so check `nvidia-smi` before loading DramaBox or a ComfyUI model.
 
    Both art items were approved by the user on contact sheets.
 2. (folded into 1)
-3. **The two sets** (side session "Channel 8 sets", started 2026-11-20; High Water's must leave `tidegauge.RECT`
-   clear), through the ComfyUI pipeline (memory: backdrop-art-pipeline), each on a contact sheet for the
-   user:
-   - `studio_slipway`: a bright studio, a window onto the harbour, a low sofa, bean bags, a board of viewers'
-     messages. The breakfast sofa's painter stands in for it now.
-   - `set_highwater`: the harbour steps at dusk, twelve stone steps up the wall, the gauge beside them, room for Des
-     and two climbers. The harbour painter stands in for it now.
-
-   Their marks are `MARKS` in `entertainment/slipway.py` and `entertainment/highwater_show.py`; move them to fit the
-   art. Each art file is `assets/backdrops/<id>.png`.
-4. **Three voices** (side session "Voices for Tegan, Elis and Des", started 2026-11-20, with the idents in 5),
-   designed with DramaBox for British references (memory: british-voices; Qwen VoiceDesign comes
-   out American). Three candidates each go on a listening page, opened with `explorer.exe` (the app's Browser pane
-   can't play local sound):
-   - Tegan (`bf_trevenna`): 21, a light Cornish accent, quick, about to laugh;
-   - Elis (`bm_pengilly`): 22, soft West Country, dry, careful;
-   - Des (`bm_kneebone`): sixties, a warm West Country showman.
-
-   The chosen clips go in as `assets/voices/<id>.b.wav`. Take "PROVISIONAL, no clip yet" out of their voices.toml
-   entries. Keep the ids: they are the presenters' own, so no resident is recast. A guest-pool voice would recast
-   every resident who shares it (`world._recast_presenter_voices`).
-5. **The idents, by ear**:
-   - `bumper_slipway.wav`, provisionally on the "sport" arrangement;
-   - `bumper_highwater.wav`, provisionally on "phonein";
-   - Channel 8's closedown, with new words, in `bumper_closedown_highwater.wav`.
-
-   An ident is baked only when it's missing or its music is newer. Once the voices are chosen, delete these files so
-   they bake again in the right voice.
+3. **Done 2026-11-20**: the two sets, `studio_slipway` and `set_highwater`, approved on contact sheets and committed in 60db5ad.
+   The marks didn't move, and the gauge sits on a plain low wall.
+4. **Done 2026-11-20**: Tegan's, Elis's and Des's own DramaBox voices (`bf_trevenna`, `bm_pengilly`, `bm_kneebone`), chosen by ear.
+5. **Done 2026-11-20**: The Slipway's, High Water's and the closedown idents, rebaked in those voices and approved by ear.
+   Items 4 and 5 are both in 0e19fea.
 6. (done: see 1)
 7. **A scratch Channel 8 run of the whole evening.** The evening now starts at 18:00, so edit
    `data/afternoon_channel8_scratch.ps1` to `--clock 17:45 --minutes 200`. Run it from its .cmd in its own window,
