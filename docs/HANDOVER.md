@@ -43,8 +43,22 @@ first airing of the news locator (b645a77). Review its log with the checks in "T
 
 ### To do next, in order
 
-1. **Review tonight's run**, and the review of the 2026-11-19 council night, once it's written below.
-2. **A second scratch Channel 8 evening**, to see today's fixes together: `data/afternoon_channel8_scratch.cmd`
+1. **Review tonight's run** (`data/logs/station-2026-11-20-2051.log`) with the checks in "The overnight run".
+2. **Fix what the 2026-11-19 council night's review found.** The station itself ran cleanly: no errors, no filler, sound
+   in every recording checked, memos, pool moves, quiet rounds and seeds all as intended. But:
+   - **The Chamber ran on the stand-in's four motions** (log line 224, 18:53): already fixed in ba6d6de. Its four
+     generic promises (p001-p004, due 3 December) are in the real town.
+   - **The news said council "sits tonight" until 05:42**: 20 airings after it had risen, and one invented a result
+     ("Ferry Rail Costings Sent Back Again", t585, never on the agenda). `council.calendar_line` keeps "(tonight)" all
+     day; the briefing never says the meeting is over.
+   - **The Chamber's second half repeated itself**: Hammond's question (slots 98 and 110) and the harbour office
+     accounts (104 and 116) written twice, and links still saying "bowling green left" after motion 4 was debated.
+   - **The senior editor undid the votes within the hour**: its 20:52 memo had t476 closed (p004 lapsed) and t447 moved
+     to 4 December while p002 stands for the 3rd.
+   - **The close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
+     memo's "close them on the board now", with closing notes naming no day; two never aired again.
+   - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
+3. **A second scratch Channel 8 evening**, to see today's fixes together: `data/afternoon_channel8_scratch.cmd`
    (already `--clock 17:45 --minutes 200`), with OBS open. Check:
    - **The Slipway:** five guests, each once (the feature twice, with Have a Go); about four bits; no pasty stacking;
      no stand-in links.
@@ -52,9 +66,9 @@ first airing of the news locator (b645a77). Review its log with the checks in "T
      six seconds; the whole gauge in view; nothing in the banner or on the ticker before the result airs.
    - **The Coast Road:** a route planned by Sonnet that keeps to the map; waits at the last stop.
    - **Wexley Wits:** the banner shows the round's tag, never the score.
-3. **Not fixed:** High Water's Harbourmaster's round and its two meets run at about half their targets (90 s of
+4. **Not fixed:** High Water's Harbourmaster's round and its two meets run at about half their targets (90 s of
    180, 60 of 120). The rounds and chats fill the time now.
-4. **The map's next uses**, as the user ranked them after the locator: travel news and the weather (Morning Tide's
+5. **The map's next uses**, as the user ranked them after the locator: travel news and the weather (Morning Tide's
    travel: the coast bus round by Polgrey, the ferry and the tide; Gordon's spots), then the rest (Out and About's
    walks, Full Time's away grounds, the callers' streets).
 
