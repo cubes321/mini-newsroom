@@ -168,6 +168,57 @@ def test_a_failed_booking_still_gives_the_hour_its_business(monkeypatch):
     entry = chamber.commission(w)
     assert entry["stand_in"] and len(entry["motions"]) == chamber.MOTIONS
     assert all(m["carried"] and m["motion"].startswith("That the council notes") for m in entry["motions"])
+    assert [m["thread_id"] for m in entry["motions"]] == [t.id for t in chamber.candidates(w)[:chamber.MOTIONS]]
+
+
+def _wider_town():
+    """_town, and more open stories than there are candidates, so one is left off the STORIES list."""
+    w = _town()
+    for i in range(chamber.CANDIDATES):
+        w.thread(w.update_thread(None, f"Council report number {i}", "so far")).next_development = "Full council on Thursday"
+    w.thread(w.update_thread(None, "Harbourmaster books the wall survey", "so far")).mentions = 26
+    return w
+
+
+def test_any_open_story_can_take_a_motion_not_only_the_listed_ones(monkeypatch):
+    """2026-11-19: the agenda's fourth motion took the harbour wall survey, an open story covered 26 times that the
+    briefing showed but the eight candidates didn't, and all four motions went to the stand-in."""
+    w = _wider_town()
+    pool = [t.id for t in chamber.candidates(w)]
+    survey = next(t.id for t in w.open_threads() if t.title.startswith("Harbourmaster"))
+    assert survey not in pool
+    _stub(monkeypatch, ChamberAgenda(motions=[_motion(pool[0], 4), _motion(pool[1], 5), _motion(pool[2], 2),
+                                              _motion(survey, 6)]))
+    entry = chamber.commission(w)
+    assert not entry.get("stand_in") and not any(m.get("stand_in") for m in entry["motions"])
+    assert [m["thread_id"] for m in entry["motions"]] == [*pool[:3], survey]
+    assert survey in chamber.on_agenda(w)                                     # the desk waits for its vote too
+
+
+def test_a_motion_that_cant_stand_gives_way_alone(monkeypatch):
+    """A made-up story, a finished one and a story twice each lose only their own motion, in its place on the
+    agenda, to a stand-in motion on a candidate the agenda doesn't already have."""
+    w = _town()
+    pool = [t.id for t in chamber.candidates(w)]
+    done = w.thread(pool[3])
+    done.phase = "closed"
+    _stub(monkeypatch, ChamberAgenda(motions=[_motion(pool[0], 4), _motion("t999", 5), _motion(pool[0], 2),
+                                              _motion(done.id, 6)]))
+    entry = chamber.commission(w)
+    m = entry["motions"]
+    assert not entry.get("stand_in") and len(m) == chamber.MOTIONS
+    assert (m[0]["thread_id"], m[0]["for"], m[0].get("stand_in")) == (pool[0], 4, None)    # the model's, kept
+    assert all(x.get("stand_in") and x["motion"].startswith("That the council notes") for x in m[1:])
+    spares = [t.id for t in chamber.candidates(w) if t.id != pool[0]]
+    assert [x["thread_id"] for x in m[1:]] == spares[:3] and done.id not in [x["thread_id"] for x in m]
+    assert len({x["thread_id"] for x in m}) == chamber.MOTIONS
+
+
+def test_an_agenda_with_nothing_that_stands_is_the_stand_in(monkeypatch):
+    w = _town()
+    _stub(monkeypatch, ChamberAgenda(motions=[_motion(f"t99{i}", 4) for i in range(4)]))
+    entry = chamber.commission(w)
+    assert entry["stand_in"] and len(entry["motions"]) == chamber.MOTIONS
 
 
 def test_the_hour_fills_and_keeps_finding_new_business(monkeypatch):

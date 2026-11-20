@@ -10,7 +10,8 @@ leaves the agenda's threads alone, so a motion still matches its story when it c
 
 Helen Strand chairs; the councillors are council.py's. Dana is in the press seats and Miles in the
 public gallery. If nothing was booked by 20:00, a stand-in agenda notes the four most-covered stories
-and asks for a report back, so the hour always has business.
+and asks for a report back, so the hour always has business. A booked motion that can't stand (a story
+that isn't open, one twice, a blocked word) gives way to one such stand-in motion, and the rest are kept.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from datetime import date, datetime
 
 from . import council, llm, promises, safety, schedule
 from .config import CONFIG
-from .models import ChamberAgenda, SegmentType
+from .models import ChamberAgenda, Motion, SegmentType
 from .world import Thread, World
 
 log = logging.getLogger(__name__)
@@ -100,16 +101,31 @@ def commission(world: World) -> dict:
     except llm.LLMError as e:
         log.warning("chamber: no agenda (%s); the stand-in takes tonight", e)
         return _record(world, None)
-    ids = [m.thread_id for m in agenda.motions]
-    if len(set(ids)) < len(ids) or not set(ids) <= {t.id for t in pool}:
-        off = sorted(set(ids) - {t.id for t in pool})
-        why = f"{', '.join(off)} not on the list" if off else "a story twice"
-        log.warning("chamber: agenda named %s, %s; the stand-in takes tonight", ids, why)
-        return _record(world, None)
-    if bad := safety.check(safety.strings(agenda)):   # a motion's wording becomes its story's status, read on teletext
-        log.warning("chamber: the agenda has %r in it; the stand-in takes tonight", bad)
-        return _record(world, None)
-    return _record(world, agenda)
+    return _record(world, _checked(world, agenda))
+
+
+def _checked(world: World, agenda: ChamberAgenda) -> list[Motion | None]:
+    """The agenda's motions, each one that can't stand as None for a stand-in motion to take its place.
+
+    Any open story will do, not only the STORIES list: the briefing shows the model every open story, and on
+    2026-11-19 a good agenda was thrown away whole because one motion took the harbour wall survey, open and
+    covered 26 times but not among the eight candidates. A made-up or finished story, a story twice, or a
+    blocked word (a motion's wording becomes its story's status, read on teletext) loses just that motion."""
+    live, taken, out = {t.id for t in world.open_threads()}, set(), []
+    for i, m in enumerate(agenda.motions, 1):
+        if m.thread_id not in live:
+            why = "isn't an open story"
+        elif m.thread_id in taken:
+            why = "is on the agenda twice"
+        elif bad := safety.check(safety.strings(m)):
+            why = f"has {bad!r} in it"
+        else:
+            out.append(m)
+            taken.add(m.thread_id)
+            continue
+        log.warning("chamber: motion %d's story %s %s; a stand-in motion takes its place", i, m.thread_id, why)
+        out.append(None)
+    return out
 
 
 def count(votes: list[dict]) -> dict:
@@ -130,30 +146,40 @@ def _votes(world: World, cast: list) -> list[dict]:
             for name, *_ in council.COUNCILLORS]
 
 
-def _record(world: World, agenda: ChamberAgenda | None) -> dict:
+def _stand_in_motion(world: World, t: Thread, i: int, names: list[str]) -> dict:
+    """A motion that notes the story and asks for a report back: business for the hour without a model."""
+    nxt = council.next_meetings(date.fromisoformat(world.last_date), 2)[-1]
+    return {"thread_id": t.id, "motion": f"That the council notes the latest on {t.title.rstrip('.')} "
+                                         "and asks officers to report back to the next meeting",
+            "mover": names[i % len(names)],
+            "votes": [{"councillor": n, "vote": "abstain" if j == (i + 1) % len(names) else "for",
+                       "why": "wants the full report first" if j == (i + 1) % len(names) else "it needs a report"}
+                      for j, n in enumerate(names)],
+            "if_carried": f"Officers report back to full council on {nxt:%A} {nxt.day} {nxt:%B}.",
+            "if_lost": "It goes back to committee.", "public": "", "stand_in": True}
+
+
+def _record(world: World, booked: list[Motion | None] | None) -> dict:
+    """Tonight's sitting: the model's motions in its order, a stand-in motion wherever one is None (all four
+    with no booking), from the candidates not already on the agenda."""
     names = [name for name, *_ in council.COUNCILLORS]
-    if agenda is None:
-        pool = candidates(world) or sorted(world.open_threads(), key=lambda t: -t.mentions)
-        nxt = council.next_meetings(date.fromisoformat(world.last_date), 2)[-1]
-        motions = [{"thread_id": t.id, "motion": f"That the council notes the latest on {t.title.rstrip('.')} "
-                                                 "and asks officers to report back to the next meeting",
-                    "mover": names[i % len(names)],
-                    "votes": [{"councillor": n, "vote": "abstain" if j == (i + 1) % len(names) else "for",
-                               "why": "wants the full report first" if j == (i + 1) % len(names) else "it needs a report"}
-                              for j, n in enumerate(names)],
-                    "if_carried": f"Officers report back to full council on {nxt:%A} {nxt.day} {nxt:%B}.",
-                    "if_lost": "It goes back to committee.", "public": ""}
-                   for i, t in enumerate(pool[:MOTIONS])]
-        entry = {"date": world.last_date, "stand_in": True, "motions": motions}
-    else:
-        motions = []
-        for m in agenda.motions:
-            mover = world.person_by_name(m.mover)
-            motions.append({"thread_id": m.thread_id, "motion": m.motion,
-                            "mover": mover.name if mover and mover.name in names else names[0],
-                            "votes": _votes(world, m.votes), "if_carried": m.if_carried, "if_lost": m.if_lost,
-                            "public": m.public})
-        entry = {"date": world.last_date, "motions": motions}
+    booked = booked if booked is not None else [None] * MOTIONS
+    pool = candidates(world) or sorted(world.open_threads(), key=lambda t: -t.mentions)
+    spare = iter([t for t in pool if t.id not in {m.thread_id for m in booked if m}])
+    motions = []
+    for i, m in enumerate(booked):
+        if m is None:
+            if t := next(spare, None):
+                motions.append(_stand_in_motion(world, t, i, names))
+            continue
+        mover = world.person_by_name(m.mover)
+        motions.append({"thread_id": m.thread_id, "motion": m.motion,
+                        "mover": mover.name if mover and mover.name in names else names[0],
+                        "votes": _votes(world, m.votes), "if_carried": m.if_carried, "if_lost": m.if_lost,
+                        "public": m.public})
+    entry = {"date": world.last_date, "motions": motions}
+    if all(m.get("stand_in") for m in motions):
+        entry["stand_in"] = True
     for m in entry["motions"]:
         t = world.thread(m["thread_id"])
         m["title"] = t.title if t else ""
@@ -163,6 +189,7 @@ def _record(world: World, agenda: ChamberAgenda | None) -> dict:
         world.chambers = (world.chambers + [entry])[-30:]
     log.info("chamber: tonight %s%s", " | ".join(
         f"{m['thread_id']} {m['for']}-{m['against']}-{m['abstain']} {'carried' if m['carried'] else 'lost'}"
+        + (" (stand-in)" if m.get("stand_in") and not entry.get("stand_in") else "")
         for m in entry["motions"]), " (stand-in)" if entry.get("stand_in") else "")
     return entry
 

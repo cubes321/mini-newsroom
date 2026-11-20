@@ -134,7 +134,7 @@ def _noon() -> float:
     return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 12, 0, 0, 0, 0, -1))
 
 
-def test_a_council_agenda_with_a_blocked_word_gives_way_to_the_stand_in(monkeypatch):
+def test_a_council_motion_with_a_blocked_word_gives_way_to_a_stand_in(monkeypatch):
     from newsroom import chamber, council
     from newsroom.models import ChamberAgenda, CouncilVote, Motion
 
@@ -152,7 +152,8 @@ def test_a_council_agenda_with_a_blocked_word_gives_way_to_the_stand_in(monkeypa
                                     *(motion(i, f"That the council settles {i}") for i in ids[1:4])])
     monkeypatch.setattr(chamber.llm, "complete_json", lambda *a, **k: agenda)
     entry = chamber.commission(w)
-    assert entry.get("stand_in") and safety.check(safety.strings(entry)) is None
+    assert safety.check(safety.strings(entry)) is None
+    assert entry["motions"][0].get("stand_in") and not any(m.get("stand_in") for m in entry["motions"][1:])
     assert safety.check(chamber.status_of(w, 0)) is None        # what a vote writes to its story
 
 
