@@ -220,6 +220,9 @@ def _slipway(slipway) -> None:
     writers.CAPTION_HOOKS[slipway.SHOW] = slipway.caption
     writers.TEMPLATE_HOOKS[slipway.SHOW] = slipway.template
     writers.CHECK_HOOKS[slipway.SHOW] = slipway.check           # an item's guest is the one it books
+    # Tegan and Elis's back-and-forth bits came to 13 and 14 lines against links' 12, and one went to the stand-in's
+    # four lines (2026-11-20).
+    writers.LINE_CAPS[slipway.SHOW] = 16
     writers.BOOKED_SHOWS.add(slipway.SHOW)                     # its guests are booked: no loose ends
     writers.UNFILED_SHOWS.add(slipway.SHOW)                    # never news
 

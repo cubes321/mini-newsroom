@@ -30,8 +30,13 @@ def _booking(feature="Morwenna Kitto", pupil="Ellie Penrose", what="mend a bike 
                     "about": "she started a Saturday club for twelve-year-olds who had never been in a boat"},
         "howto": {"what": what, "name": "Danny Hocking", "role": "bike repair stall, Harrow Street", "gender": "m",
                   "age": "young", "steps": ["Wheel off", "Find the hole", "Glue and patch", "Pump it up"]},
+        "watch": {"name": "Jago Carne", "role": "apprentice boatbuilder", "gender": "m", "age": "young",
+                  "about": "he built his first clinker dinghy alone this autumn"},
         "pupil": {"name": pupil, "year": "Year 10", "gender": "f",
                   "about": "she runs the Academy's board games club on Thursday lunchtimes"},
+        "ask": {"name": "Sue Lanyon", "role": "beach lifeguard", "gender": "f", "age": "middle",
+                "questions": ["Kayla from Saltby asks how you train", "Ben from Harbour Row asks what a rip is",
+                              "Mia from the Salting asks what the flags mean"]},
         "letters": ["Jade from Saltby says hi", "Owen from the Salting says a pasty is a meal",
                     "Priya from Harbour Row asks if Tegan finished", "Sam says the kiosk does the best chips",
                     "Lily from Greenhill Road learnt three knots"],
@@ -105,6 +110,25 @@ def test_the_briefs_carry_tonights_booking(monkeypatch):
     assert "Lily from Greenhill Road" in slipway.brief_for(w, slipway._BITS_B[0])      # the rest of the messages
     assert "seaweed" in slipway.brief_for(w, slipway._CHALLENGE)
     assert "only for their own items" in slipway.for_prompt(w)
+    watch, ask = slipway.brief_for(w, slipway._WATCH), slipway.brief_for(w, slipway._ASK)
+    assert "Jago Carne, apprentice boatbuilder" in watch and "{" not in watch
+    assert "Sue Lanyon, beach lifeguard" in ask and "Ben from Harbour Row asks what a rip is" in ask and "{" not in ask
+    k = slipway.tonight(w)
+    assert slipway.guest_for(k, slipway._WATCH) == "Jago Carne" and slipway.guest_for(k, slipway._ASK) == "Sue Lanyon"
+    assert w.person_by_name("Jago Carne") and w.person_by_name("Sue Lanyon")             # they join the town
+    assert slipway.caption(w, "Sue Lanyon") == "You asked: beach lifeguard"
+    assert "one to watch, Jago Carne" in slipway.for_prompt(w) and "You asked: Sue Lanyon" in slipway.digest(w, w.last_date)
+
+
+def test_a_booking_saved_before_the_new_items_still_airs(monkeypatch):
+    """The town's slipways from 2026-11-19 have no one to watch and no YOU ASKED: their briefs still fill."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    k = slipway.commission(w)
+    del k["watch"], k["ask"]
+    assert "{" not in slipway.brief_for(w, slipway._WATCH) and "{" not in slipway.brief_for(w, slipway._ASK)
+    assert slipway.guest_for(k, slipway._ASK) is None and "one to watch" not in slipway.for_prompt(w)
+    assert slipway.digest(w, w.last_date).startswith("The feature")
 
 
 def _spot(guest):
@@ -130,6 +154,7 @@ def test_with_the_model_down_every_item_is_still_tonights(channel, monkeypatch):
     k = slipway.commission(w)
     assert k["stand_in"] and k["pupil"]["name"]
     for brief, kind in ((slipway._FEATURE, T.interview), (slipway._HOWTO, T.interview), (slipway._ACADEMY, T.interview),
+                        (slipway._WATCH, T.interview), (slipway._ASK, T.interview),
                         (slipway._BITS_A[0], T.links), (slipway._CHALLENGE, T.links)):
         seg = Segment(slot_id=3, type=kind, show="slipway", brief=brief, target_s=100)
         writers.script_segment(seg, w)
@@ -158,8 +183,15 @@ def test_the_half_hour_ends_on_the_challenge_in_time_for_the_kettle(channel):
             p.cursor_ts = ts + seg.target_s * k
         assert ended is not None and abs(ended - _at(19)) <= 60, (factor, ended - _at(19))
         assert seen[-2].startswith("THE CHALLENGE"), factor
-        for key in ("THE FEATURE", "HOW TO", "ACADEMY CORNER", "HAVE A GO", "THE MESSAGES", "WHAT'S ON"):
+        for key in ("THE FEATURE", "HOW TO", "ONE TO WATCH", "ACADEMY CORNER", "YOU ASKED", "HAVE A GO",
+                    "THE MESSAGES", "WHAT'S ON"):
             assert sum(b.startswith(key) for b in seen) == 1, (factor, key)
-        bits = [b for b in seen if b in slipway._BITS_A or b in slipway._BITS_B or b in slipway._QUICK]
-        assert len(bits) == len(set(bits)), factor                               # no bit or quick five twice
-        assert any(b in slipway._QUICK for b in seen), factor                    # a guest again in the loop
+        bits = [b for b in seen if b in slipway._BITS_A or b in slipway._BITS_B]
+        assert len(bits) == len(set(bits)), factor                               # no bit twice
+        # No guest comes back but the feature's Have a Go: 2026-11-20's quick fives brought each one round again.
+        k = {"feature": {"name": "F"}, "howto": {"name": "H"}, "pupil": {"name": "P"}, "watch": {"name": "W"},
+             "ask": {"name": "A"}}
+        guests = [slipway.guest_for(k, b) for b in seen if slipway.guest_for(k, b)]
+        assert sorted(guests) == ["A", "F", "F", "H", "P", "W"], (factor, guests)
+        # At last night's lengths, four bits where nine items looped (2026-11-20); seven if everything runs short.
+        assert len(bits) <= (4 if factor == 1.0 else 7), (factor, len(bits))

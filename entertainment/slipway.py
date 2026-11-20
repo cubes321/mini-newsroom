@@ -7,9 +7,12 @@ everything and finishes nothing, and Elis Pengilly ("slip_b"), twenty-two, who p
 rules. Both are presenters, never residents.
 
 Each night: THE FEATURE, a young person from town with something to show (and, later in the half hour, Tegan has a
-go at it with them); HOW TO, someone showing how to do one useful thing; ACADEMY CORNER, a pupil from Greymouth
-Academy on something at school; viewers' messages, THE BIG QUESTION (a daft one the presenters take sides on), what's
-on for young people this week, and THE CHALLENGE: how last time's went and the next one. All booked by one
+go at it with them); HOW TO, someone showing how to do one useful thing; ONE TO WATCH, a young person with an
+achievement; ACADEMY CORNER, a pupil from Greymouth Academy on something at school; YOU ASKED, a grown-up who knows
+something answering viewers' questions; viewers' messages, THE BIG QUESTION (a daft one the presenters take sides on),
+what's on for young people this week, and THE CHALLENGE: how last time's went and the next one. Five guests, each in
+their own item only (Have a Go is the feature guest's second): with three, the half hour ran out of booked things at
+a quarter to seven and its guests came round again, introduced afresh (the scratch evening, 2026-11-20). All booked by one
 back-office call from BOOK_FROM (The Chamber's route unless config.toml gives "slipway" its own), recorded in
 `world.slipways` and handed to every item; if the call fails, a stand-in booking is made in code.
 
@@ -45,7 +48,7 @@ BOOK_FROM = "17:00"
 TASK = "slipway" if "slipway" in CONFIG.llm.routes else "chamber"
 REST_DAYS = 28                          # a feature guest, a how-to or a pupil isn't booked again within this
 SO_FAR_CHARS = 200
-TOKEN = re.compile(r"\{(feature|howto|steps|pupil|letters|more|question|whatson|challenge|last)\}")
+TOKEN = re.compile(r"\{(feature|howto|steps|pupil|watch|ask|askq|letters|more|question|whatson|challenge|last)\}")
 HOST_A, HOST_B = "Tegan Trevenna", "Elis Pengilly"
 
 # Its own set (assets/backdrops/studio_slipway.png, approved 2026-11-20), with marks for the pair and one guest as
@@ -66,6 +69,10 @@ _HOWTO = ("HOW TO: {howto} shows Tegan and Elis how to do it, in these steps, in
           "steps exactly, Tegan skips ahead; the guest keeps them both right")
 _ACADEMY = ("ACADEMY CORNER: {pupil}. Tegan and Elis ask them about it, kindly: what it is, who's in it, and how "
             "people can come or join. The pupil is called by their first name only, and nothing personal is asked")
+_WATCH = ("ONE TO WATCH: {watch}. Tegan and Elis ask how they did it, what it took, what went wrong on the way, and "
+          "what's next. Tegan is in awe; Elis wants the details")
+_ASK = ("YOU ASKED: {ask} answers viewers' questions, each read out with the sender's first name and where they're from: "
+        "{askq}. Short, practical answers; Elis has a follow-up for one, Tegan a question of her own")
 _LETTERS = ("THE MESSAGES: Tegan and Elis read out viewers' messages, each with the sender's first name and where "
             "they're from: {letters}. A line or two on each; they disagree about one")
 _QUESTION = ("THE BIG QUESTION: {question} Tegan and Elis take opposite sides, each with three reasons, and say "
@@ -79,11 +86,11 @@ _CHALLENGE = ("THE CHALLENGE: last time's challenge was {last}; Tegan and Elis s
 _ONLY = ". Only Tegan and Elis speak, to each other more than to camera; nothing a guest has said tonight"
 _BITS_A = tuple(b + _ONLY for b in (
     "ELIS'S LIST: Elis reads out his top three of something (things to do in Port Wexley on a wet Saturday, ways to "
-    "save up for something, the best chips on the front), and Tegan argues with every one",
+    "save up for something, the best views in town), and Tegan argues with every one",
     "TRY IT: Tegan tries something Elis has prepared for her (a tongue-twister, a card trick, folding a paper boat "
     "that floats) while Elis reads the instructions out exactly",
-    "QUICK-FIRE: Elis puts eight quick this-or-that questions to Tegan (chips or pasty, sunrise or sunset), she "
-    "answers without thinking, then he answers them all the other way",
+    "QUICK-FIRE: Elis puts six quick this-or-that questions to Tegan (sunrise or sunset, boat or bike), she answers "
+    "without thinking, then he answers them all the other way",
     "THE PLAN: Elis unveils his plan for the weekend, to the quarter hour; Tegan takes it apart and says what she'll "
     "actually do",
     "ELIS EXPLAINS: Elis explains properly how one everyday thing works (why the tide comes in twice a day, how a "
@@ -98,46 +105,37 @@ _BITS_B = tuple(b + _ONLY for b in (
     "WHO WON THE WEEK: Tegan and Elis go back over the arguments they've had this week, and decide who won each",
 ))
 
-# Between the bits, a guest again: five quick questions to each of tonight's three in turn (with only the bits, a
-# half hour whose items ran short was half Tegan and Elis on their own, in the producer's own sums).
-_QUICK = tuple(b + ". Five short answers, a laugh or two; nothing from their own item told again" for b in (
-    "QUICK FIVE, THE FEATURE: Tegan and Elis put five quick questions to {feature} (first thing they'd save in a "
-    "fire, best advice they were ever given, and three of their own)",
-    "QUICK FIVE, HOW TO: Tegan and Elis put five quick questions to {howto} (the thing they're worst at, their first "
-    "job, and three of their own)",
-    "QUICK FIVE, ACADEMY: Tegan and Elis put five quick, kind questions to {pupil} (favourite lesson, best school "
-    "trip, and three of their own; nothing personal)",
-))
-
 SHOW_DEF = Show(
     SHOW, "THE SLIPWAY", "SLIPWAY", (40, 160, 190),
     pattern=(
         T.bumper,
         I(T.links, "open", brief="Tegan and Elis open The Slipway: a quick hello from the studio, and what's on "
-                                 "tonight: the feature, the how-to, Academy Corner and the challenge", target_s=40.0),
+                                 "tonight: the feature, the how-to, one to watch, Academy Corner, your questions and "
+                                 "the challenge", target_s=40.0),
         I(T.interview, brief=_FEATURE, target_s=220.0),
         I(T.links, brief=_LETTERS, target_s=70.0),
-        T.ad_break,
         I(T.interview, brief=_HOWTO, target_s=200.0),
+        T.ad_break,
         I(T.links, brief=_QUESTION, target_s=80.0),
+        I(T.interview, brief=_WATCH, target_s=130.0),
         I(T.interview, brief=_ACADEMY, target_s=160.0),
         T.ad_break,
+        I(T.interview, brief=_ASK, target_s=130.0),
         I(T.interview, brief=_HAVE_A_GO, target_s=150.0),
         I(T.links, brief=_WHATSON, target_s=60.0),
-        # Wraps to here until the close: a bit of Tegan's and Elis's, a guest's quick five, another bit; new each lap.
-        # 90, 140, 90: swept at the rehearsal's lengths (interviews at 0.8 of target, Tegan and Elis's at 1.05) so the
-        # half hour ends by seven with the fewest laps: two or three, each guest's quick five once at most.
+        # Wraps to here until the close: Tegan and Elis on their own, a new bit each lap. No guest comes back: the
+        # quick five each that stood here did, introduced afresh, and told their item again differently (2026-11-20).
         I(T.links, brief=_BITS_A, target_s=90.0),
-        I(T.interview, brief=_QUICK, target_s=140.0),
         I(T.links, brief=_BITS_B, target_s=90.0),
     ),
-    loop_from=11,
+    loop_from=13,
     closing=(I(T.links, brief=_CHALLENGE, target_s=80.0),
              # Not told, the rehearsal's goodbye (2026-11-19) said Marina Row was next "at twenty past".
              I(T.links, "close", brief="Tegan and Elis close The Slipway: thanks to tonight's guests, the challenge "
                                        "once more in a line, see you next time, and The Kettle's On is next, at seven",
                target_s=35.0)),
-    target_s={T.bumper: 8.0, T.links: 60.0, T.interview: 180.0, T.ad_break: 60.0},
+    # Two breaks of two minutes, as a commercial half hour has, and as High Water's are (the user, 2026-11-20).
+    target_s={T.bumper: 8.0, T.links: 60.0, T.interview: 180.0, T.ad_break: 120.0},
     cast=("slip_a", "slip_b"), lead="slip_a",
     cast_by_type={T.links: ("slip_a", "slip_b"), T.interview: ("slip_a", "slip_b", "guest")},
     station="The Slipway, the teen magazine on Channel 8, Port Wexley's second channel, with Tegan Trevenna and "
@@ -215,11 +213,22 @@ class Pupil(BaseModel):
         min_length=8, max_length=200, description="the school thing they talk about (a club, the play, a fundraiser), in a sentence")
 
 
+class Asked(BaseModel):
+    name: str = Field(min_length=3, max_length=40, description="first name and surname")
+    role: str = Field(min_length=3, max_length=80, description="what they do: the job that lets them answer")
+    gender: str = Field(default="", max_length=1, description="'f' or 'm'")
+    age: str = Field(default="middle", max_length=6, description="young or middle")
+    questions: Annotated[list[str], creative._first(4)] = Field(
+        min_length=3, description="viewers' questions for them: a first name, where from, and the question, one each")
+
+
 class SlipwayBooking(BaseModel):
     """Tonight's The Slipway (entertainment/slipway.py)."""
     feature: Guest
     howto: HowTo
+    watch: Guest
     pupil: Pupil
+    ask: Asked
     letters: Annotated[list[str], creative._first(6)] = Field(
         min_length=4, description="viewers' messages: a first name, where from, and what they say, one line each")
     question: str = Field(min_length=8, max_length=140, description="THE BIG QUESTION, a daft one to take sides on")
@@ -236,16 +245,24 @@ FICTIONAL town in the briefing, presented by Tegan Trevenna and Elis Pengilly. B
 - howto: ONE useful thing a teenager might want to do, shown by someone who knows (eighteen or over): mend a bike
   puncture, cook a cheap tea, write a first CV, look after a houseplant, a basic skateboard move, sew on a button.
   Its steps, in order, three to six short lines: the only way it's done on air. Nothing dangerous.
+- watch: ONE TO WATCH, ONE more young person from town (eighteen to twenty-five) with an achievement: a prize, a
+  place in a county team, an apprenticeship they love, a record, a first exhibition. Not the feature's kind of thing.
 - pupil: ONE pupil at Greymouth Academy (Year 9 to the sixth form) with something at school to talk about: a club,
   the school play, a fundraiser, a team, a competition. A made-up pupil, never someone in PEOPLE.
+- ask: YOU ASKED, ONE grown-up whose job lets them answer teenagers' questions (a lifeguard, a careers adviser, a
+  vet nurse, a youth worker, a bus driver, a chef), and three or four viewers' questions for them: a first name, where
+  from, and the question. Questions a teenager would really ask; nothing private.
 - letters: four to six viewers' messages: a first name, where in town or nearby they're from, and what they say (a
   reply to last time's big question, a joke, a tip, a shout-out to a friend). Nothing unkind or private.
-- question: THE BIG QUESTION, a daft one to take sides on: is a pasty a meal or a snack, sea swim or pool.
+- question: THE BIG QUESTION, a daft one to take sides on. Your own: never one from these instructions, and on a
+  subject nothing else tonight touches (no message, no what's on, no challenge about it).
 - whats_on: two or three things on for young people this week: what, when and where, from the town's places in
   the briefing. Tonight is {today}: each on a day after tonight.
 - challenge: this week's challenge for viewers, safe, free and done at home or in town (learn three knots, find
   five kinds of seaweed on the beach with a grown-up, draw the harbour from memory).
-None of RECENT SHOWS again: no feature guest, how-to or pupil from there. Light, kind and safe; everything is
+Five different guests, none of them in RECENT SHOWS: no feature, how-to, one to watch, pupil or YOU ASKED job from
+there, and no big question like theirs. Each thing tonight on its own subject: two of them on one (pasties four
+times in one half hour, 2026-11-20) is a repeat. Light, kind and safe; everything is
 fiction. Return ONLY JSON.
 """
 
@@ -297,7 +314,9 @@ def commission(world: World) -> dict:
             + f"\n\nLAST TIME'S CHALLENGE: {last_challenge(world)}"
             + ("\n\nRECENT SHOWS (none of these again):\n" + "\n".join(
                 f"  - the feature {k['feature']['name']}; how to {k['howto']['what']}; Academy Corner "
-                f"{k['pupil']['name']}; the big question: {k['question']}" for k in recent) if recent else "")
+                f"{k['pupil']['name']}" + (f"; one to watch {k['watch']['name']}" if k.get("watch") else "")
+                + (f"; you asked {k['ask']['role']}" if k.get("ask") else "")
+                + f"; the big question: {k['question']}" for k in recent) if recent else "")
             + creative.for_planner(world, SHOW))
     try:
         b = llm.complete_json(TASK, SlipwayBooking, _SYSTEM.replace("{today}", today), user)
@@ -305,7 +324,8 @@ def commission(world: World) -> dict:
         log.warning("slipway: no booking (%s); the stand-in takes tonight", e)
         b = None
     if b and any(b.feature.name == k["feature"]["name"] or b.pupil.name == k["pupil"]["name"]
-                 or b.howto.what.lower() == k["howto"]["what"].lower() for k in recent):
+                 or b.howto.what.lower() == k["howto"]["what"].lower()
+                 or b.watch.name == (k.get("watch") or {}).get("name") for k in recent):
         log.warning("slipway: booking repeats a recent show (%s, %s); the stand-in takes tonight", b.feature.name,
                     b.howto.what)
         b = None
@@ -320,8 +340,9 @@ def _record(world: World, b: SlipwayBooking | None) -> dict:
     with world.lock:
         world.slipways = [k for k in world.slipways if k.get("date") != world.last_date] + [entry]
         world.slipways = world.slipways[-30:]
-    log.info("slipway: tonight %s (the feature), how to %s with %s, %s at Academy Corner%s", entry["feature"]["name"],
-             entry["howto"]["what"], entry["howto"]["name"], entry["pupil"]["name"], " (stand-in)" if stand_in else "")
+    log.info("slipway: tonight %s (the feature), how to %s with %s, %s (one to watch), %s at Academy Corner, %s "
+             "(you asked)%s", entry["feature"]["name"], entry["howto"]["what"], entry["howto"]["name"],
+             entry["watch"]["name"], entry["pupil"]["name"], entry["ask"]["name"], " (stand-in)" if stand_in else "")
     return entry
 
 
@@ -331,11 +352,12 @@ def pupil_role(p: dict) -> str:
 
 
 def _cast(world: World, k: dict) -> None:
-    """The feature guest, the how-to guest and the pupil join the town's people."""
+    """Tonight's guests join the town's people."""
     f, h, p = k["feature"], k["howto"], k["pupil"]
-    for name, role, gender, age in ((f["name"], f["role"], f["gender"], f["age"]),
-                                    (h["name"], h["role"], h["gender"], h["age"]),
-                                    (p["name"], pupil_role(p), p["gender"], "young")):
+    rows = [(f["name"], f["role"], f["gender"], f["age"]), (h["name"], h["role"], h["gender"], h["age"]),
+            (p["name"], pupil_role(p), p["gender"], "young")]
+    rows += [(g["name"], g["role"], g["gender"], g["age"]) for g in (k.get("watch"), k.get("ask")) if g]
+    for name, role, gender, age in rows:
         world.ensure_person(name, role, "resident", gender=gender or None, age=age or None, accent="british")
 
 
@@ -352,20 +374,28 @@ _STAND_INS = (
        "Find the hole: pump a little air in and listen", "Sand round it, add the glue, wait a minute, press the patch on",
        "Tyre back on with your thumbs, pump it up"]),
      ("Ellie Penrose", "Year 10", "f", "she runs the Academy's new board games club on Thursday lunchtimes"),
-     "Is a pasty a meal or a snack?",
+     ("Jago Carne", "apprentice boatbuilder at the Saltby yard", "m",
+      "he finished his first clinker dinghy this autumn, the youngest at the yard to build one alone"),
+     ("Sue Lanyon", "beach lifeguard, Port Wexley sands", "f",
+      ["Kayla from Saltby asks how you train to be a lifeguard", "Ben from Harbour Row asks what a rip current is",
+       "Mia from the Salting asks what the flags on the beach mean"]),
+     "Would you rather have a dog or a cat?",
      "learn three knots: a reef knot, a figure of eight and a bowline"),
 )
 
 
 def _stand_in(world: World) -> SlipwayBooking:
     rng = random.Random(f"slipway-{world.last_date}")
-    (fn, fr, fg, fa), (what, hn, hr, hg, steps), (pn, py, pg, pa), q, ch = rng.choice(_STAND_INS)
+    (fn, fr, fg, fa), (what, hn, hr, hg, steps), (pn, py, pg, pa), (wn, wr, wg, wa), (an, ar, ag, aq), q, ch = \
+        rng.choice(_STAND_INS)
     return SlipwayBooking(
         feature={"name": fn, "role": fr, "gender": fg, "age": "young", "about": fa},
         howto={"what": what, "name": hn, "role": hr, "gender": hg, "age": "young", "steps": steps},
+        watch={"name": wn, "role": wr, "gender": wg, "age": "young", "about": wa},
         pupil={"name": pn, "year": py, "gender": pg, "about": pa},
+        ask={"name": an, "role": ar, "gender": ag, "age": "middle", "questions": aq},
         letters=["Jade from Saltby says hello to everyone in her netball team",
-                 "Owen from the Salting says a pasty is definitely a meal",
+                 "Owen from the Salting says the new skate ramp at the park is brilliant",
                  "Priya from Harbour Row wants to know if Tegan ever finished last week's challenge",
                  "Sam from Greenhill Road says the best chips are at the kiosk by the slipway"],
         question=q,
@@ -378,12 +408,16 @@ def _stand_in(world: World) -> SlipwayBooking:
 
 def guest_for(k: dict, brief: str) -> str | None:
     """Whose interview this is, by its brief: the feature guest's, the how-to guest's or the pupil's."""
-    if brief.startswith(("THE FEATURE", "HAVE A GO", "QUICK FIVE, THE FEATURE")):
+    if brief.startswith(("THE FEATURE", "HAVE A GO")):
         return k["feature"]["name"]
-    if brief.startswith(("HOW TO", "QUICK FIVE, HOW TO")):
+    if brief.startswith("HOW TO"):
         return k["howto"]["name"]
-    if brief.startswith(("ACADEMY CORNER", "QUICK FIVE, ACADEMY")):
+    if brief.startswith("ACADEMY CORNER"):
         return k["pupil"]["name"]
+    if brief.startswith("ONE TO WATCH") and k.get("watch"):
+        return k["watch"]["name"]
+    if brief.startswith("YOU ASKED") and k.get("ask"):
+        return k["ask"]["name"]
     return None
 
 
@@ -408,6 +442,10 @@ def caption(world: World, name: str) -> str | None:
         return f"How to: {k['howto']['what']}"[:60]
     if name == k["pupil"]["name"]:
         return f"Greymouth Academy, {k['pupil']['year']}"[:60]
+    if k.get("watch") and name == k["watch"]["name"]:
+        return f"One to watch: {k['watch']['role']}"[:60]
+    if k.get("ask") and name == k["ask"]["name"]:
+        return f"You asked: {k['ask']['role']}"[:60]
     return None
 
 
@@ -428,6 +466,14 @@ def brief_for(world: World, brief: str) -> str:
         if tok == "pupil":
             p = k["pupil"]
             return f"{p['name']}, {p['year']} at Greymouth Academy: {p['about']}"
+        if tok == "watch":
+            g = k.get("watch") or k["feature"]
+            return f"{g['name']}, {g['role']}: {g['about']}"
+        if tok == "ask":
+            a = k.get("ask")
+            return f"{a['name']}, {a['role']}," if a else "a grown-up who knows,"
+        if tok == "askq":
+            return "; ".join((k.get("ask") or {}).get("questions") or ["two of their own choosing"])
         if tok == "letters":
             return "; ".join(k["letters"][:3])
         if tok == "more":
@@ -450,9 +496,11 @@ def for_prompt(world: World) -> str:
         aired = [a for a in world.archive if a["date"] == world.last_date and a.get("show") == SHOW
                  and a["type"] != T.ad_break.value]
     f, h, p = k["feature"], k["howto"], k["pupil"]
+    more = "".join(f"; {label}, {g['name']}, {g['role']}" for label, g in (("one to watch", k.get("watch")),
+                                                                         ("you asked", k.get("ask"))) if g)
     out = (f"TONIGHT: the feature, {f['name']}, {f['role']}; how to {h['what']} with {h['name']}, {h['role']}; "
-           f"Academy Corner, {p['name']} ({p['year']}). Each guest is in the studio only for their own items: in any "
-           "other item nobody talks to them or as if they were there.")
+           f"Academy Corner, {p['name']} ({p['year']}){more}. Each guest is in the studio only for their own items: in "
+           "any other item nobody talks to them or as if they were there.")
     if aired:
         out += ("\nSO FAR TONIGHT (don't do these again):\n" + "\n".join(
             f"  - {a['type'].replace('_', ' ')}: {a['headline']}: {a['text'][:SO_FAR_CHARS]}" for a in aired[-10:]))
@@ -468,6 +516,10 @@ def digest(world: World, day: str) -> str:
     return (f"The feature: {f['name']}, {f['role']}: {f['about']}\n"
             f"How to {h['what']} with {h['name']}: {'; '.join(h['steps'])}\n"
             f"Academy Corner: {p['name']}, {p['year']}: {p['about']}\n"
+            + (f"One to watch: {k['watch']['name']}, {k['watch']['role']}: {k['watch']['about']}\n"
+               if k.get("watch") else "")
+            + (f"You asked: {k['ask']['name']}, {k['ask']['role']}: {'; '.join(k['ask']['questions'])}\n"
+               if k.get("ask") else "") +
             f"The messages: {'; '.join(k['letters'])}\nThe big question: {k['question']}\n"
             f"What's on: {'; '.join(k['whats_on'])}\nThe challenge: {k['challenge']} (last time's: {k.get('last')})")
 
@@ -478,11 +530,12 @@ def enrol():
         SHOW, TITLE, kind="light", airs_at=AIRS_AT,
         brief=("A half-hour magazine for teenagers: Tegan Trevenna, who throws herself into everything and finishes "
                "nothing, and Elis Pengilly, who plans and reads the rules. A young person from town with something to "
-               "show (and Tegan having a go at it), a how-to, a pupil from Greymouth Academy, viewers' messages, a "
+               "show (and Tegan having a go at it), a how-to, one to watch, a pupil from Greymouth Academy, a grown-up "
+               "answering viewers' questions, viewers' messages, a "
                "daft big question, what's on, and a weekly challenge. Never news; talks with teenagers, not down to "
                "them. The pair's ways clash, warmly: that is the show."),
-        decides=("tonight's feature guest and what they show; the how-to and its steps; the pupil and their school "
-                 "thing; the viewers' messages; the big question; what's on; the challenge. Not the presenters' lines "
+        decides=("tonight's feature guest and what they show; the how-to and its steps; one to watch; the pupil and "
+                 "their school thing; who answers viewers' questions, and the questions; the viewers' messages; the big question; what's on; the challenge. Not the presenters' lines "
                  "or how the half hour runs"),
         digest=digest, books=should_commission)
 
@@ -513,8 +566,11 @@ def template(seg_type, world, rng: random.Random, part: str, work: dict, brief: 
     if seg_type is not T.interview:
         return None
     who = guest_for(k, brief) or f["name"]
-    role = (h["role"] if who == h["name"] else pupil_role(p) if who == p["name"] else f["role"])[:60]
-    about = h["what"] if who == h["name"] else p["about"] if who == p["name"] else f["about"]
+    g = next((x for x in (k.get("watch"), k.get("ask")) if x and x["name"] == who), None)
+    role = (g["role"] if g else h["role"] if who == h["name"] else pupil_role(p) if who == p["name"]
+            else f["role"])[:60]
+    about = (g.get("about") or g["role"] if g else h["what"] if who == h["name"] else p["about"] if who == p["name"]
+             else f["about"])
     said = [("slip_a", f"{who.split()[0]}, welcome to The Slipway!"),
             ("guest", f"Thanks for having me. It's about {about}."),
             ("slip_b", "And how would someone start?"),
