@@ -529,18 +529,18 @@ bottom with the date.
   Heard right as written, so left to Pocket: read (past), wind (wind up), tear (rip), bass the fish, a
   ribbon's bow. Pocket also says 14 hard names via assets/voices/names.toml (18faeb7).
 
-- [ ] **Try KittenTTS 2 against Pocket** (github.com/KittenML/KittenTTS, huggingface.co/KittenML/kitten-tts-2;
-  noted 2026-11-20, untested). A 1.7B model that runs on the CPU (about 6 GB RAM; `pip install kittenml`, PyTorch,
-  or the beta llama.cpp port `kitten_tts_cpp` for speed), 24 kHz like Pocket. Why it's worth a go: it clones from a
-  5-30 s clip with no transcript (Whisper fills one in, or pass `reference_text=`), so the DramaBox clips in
-  assets/voices work as they are; and it takes emotion tags (`[stern]`, `[excited]`, `[sad]`, `[tender]`... ten
-  of them, beta) and inline `<laugh>` `<sigh>` `<pause>`, which our line moods could drive. Doubts: no real-time
-  factor given for the 1.7B on a CPU (Pocket is 0.23-0.30 on one thread; the night buffer needs it well under 1);
-  none of its 115 stock voices is British, so cloning is the only way in; the weights are under the Stellon Labs
-  Community License (free under $1M revenue/funding, with an attribution clause to read before launch), not
-  Apache. Test it the 11-14 way: on the CPU, the same 5 voices x 3 lines as the ZONOS3 bake-off, blind against
-  Pocket, a Whisper dropped-word check, picks counted per voice; time it, and try a mood tag on a couple of lines.
-  Its 82M `kitten-tts-2-mini` (ONNX) is the fallback if the big one is too slow, if it can clone.
+- [x] Not doing (the user, 2026-11-20: "if it doesn't seem like it's going to be quick enough don't bother"):
+  **KittenTTS 2** (github.com/KittenML/KittenTTS, huggingface.co/KittenML/kitten-tts-2). A 1.7B ternary speech LM
+  over S3 codec tokens (Chatterbox's codec), cloning from a clip, with ten emotion tags. Timed 2026-11-20 on the
+  9950X, all slower than real time, against Pocket's 0.21x on one thread for the same lines:
+  - `kittenml` 0.9.8 on PyTorch, cloned from af_heart and bm_lewis: 2.8-3.2x on 16 threads. A first clone also
+    pays ~20-70 s, mostly for Whisper large-v3 transcribing the clip on the CPU.
+  - KittenML's llama.cpp port `kitten_tts_cpp` 0.2.0, built-in voice Walter: 3.0x warm on 16 threads, 4.4x on 8.
+    With the `student_w4` decoder it is 3.1x: the LM takes 42 s of the 46 s (8.6 tokens/s against the codec's 25),
+    so no decoder setting saves it. That port also clones only through an offline `prepare_reference.py` step
+    with a written transcript.
+  Not listened to. Worth another look only if a GPU becomes free for TTS, or a smaller KittenTTS 2 model clones
+  (the 82M `kitten-tts-2-mini` is ONNX; its cloning wasn't checked).
 
 - [ ] **The first Week in Port Wexley on air: Sunday 22 November** (the station was dark 9-13 Nov, so 15 Nov falls
   back to an ordinary documentary: a week needs 3 annals pages). The on-air path was rehearsed 2026-11-13 on a
