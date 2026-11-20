@@ -8,7 +8,7 @@ import pytest
 
 import entertainment
 from entertainment import highwater as hw, highwater_show as hs
-from newsroom import backdrops, llm, locations, schedule, world as world_mod, writers
+from newsroom import backdrops, llm, locations, player, schedule, world as world_mod, writers
 from newsroom.models import PanelLine, Segment, SegmentType as T
 
 
@@ -69,8 +69,10 @@ def test_high_water_has_six_oclock_and_undo_takes_it_off():
         host = world_mod.seed().character("hw_host")
         assert host.name == "Des Kneebone" and host.voice == "bm_kneebone"         # his own, never a guest pool's
         assert "High Water" in entertainment.CLOSEDOWN_TEXT
+        assert "highwater" in player.TICKER_AFTER          # "Ruth Hollis Wins the Star Prize": after, never ahead
     finally:
         undo()
+    assert "highwater" not in player.TICKER_AFTER
     assert schedule.show_at(_at(18, 10)).id == before and hs.SET not in locations.BY_ID
 
 

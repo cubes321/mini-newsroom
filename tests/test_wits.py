@@ -599,6 +599,28 @@ def test_a_rounds_headline_joins_the_ticker_once_the_round_is_over(channel, monk
     assert (quiz.SHOW, seg.headline) in pl.ticker                             # then, as what happened
 
 
+def test_a_rounds_result_is_never_in_the_banner_while_it_plays(channel, monkeypatch):
+    """2026-11-20, the scratch evening: the ticker waited, but the banner was captioned with the round's headline from
+    its first line ("Cannery Tap leads 7-0 after a sharp general knowledge round"). It carries the round's tag."""
+    from newsroom.buffer import Buffer
+    from newsroom.models import Line, PanelScript
+    from newsroom.player import Player
+
+    w = world_mod.seed()
+    monkeypatch.setattr(schedule, "now", lambda: _at(20, 14))
+    pl = Player(Buffer(), w, producer=None, audio=False)
+    script = PanelScript(headline="Cannery Tap leads 7-0 after round one", lower_third="Wexley Wits: round one",
+                         lines=[{"speaker": "mag_b", "text": f"Line {i} of round one."} for i in range(4)])
+    seg = Segment(slot_id=52, type=T.interview, show=quiz.SHOW, brief="{r1}", target_s=80, headline=script.headline,
+                  lines=[Line(speaker="mag_b", text="Round one, general knowledge.", duration_s=2.0,
+                              mouth_env=[0.5] * 40)],
+                  cues=writers._cues_for(Segment(slot_id=52, type=T.interview, show=quiz.SHOW), script))
+    pl._start(seg, _at(20, 14))
+    v = pl.view(_at(20, 14) + 1)
+    assert v.lower_third == ("Wexley Wits: round one", "Channel 8")
+    assert "7-0" not in " ".join(v.lower_third)
+
+
 def test_leaving_channel_8_takes_wits_off_the_after_the_round_list():
     undo = entertainment.use()
     assert quiz.SHOW in player.TICKER_AFTER

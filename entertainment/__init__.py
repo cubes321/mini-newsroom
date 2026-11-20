@@ -252,6 +252,7 @@ def _highwater(show) -> None:
     writers.AFTER_HOOKS[show.SHOW] = tidegauge.after
     player.VIEW_HOOKS[show.SHOW] = tidegauge.view
     scenes.DRESSINGS[show.SHOW] = tidegauge.draw
+    player.TICKER_AFTER.add(show.SHOW)                         # a round's headline is how it went: never ahead of it
     writers.LINE_CAPS[show.SHOW] = 40                          # a round: eight turns, the tide and the summing up
     writers.BOOKED_SHOWS.add(show.SHOW)
     writers.DEBATE_SHOWS.add(show.SHOW)                        # two climbers, each line naming its speaker

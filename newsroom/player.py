@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, continuity, control, council, documentary, schedule, teletext
+from . import adverts, channel, continuity, control, council, documentary, schedule, teletext
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -50,7 +50,8 @@ SEATS: dict[str, int] = {}
 # of the shows after them (entertainment/: Channel 8's soap).
 BARE_SHOWS: set[str] = set()
 # Shows whose headlines give the result away, as a quiz round's does ("Pot Luck round goes to The Crown at Saltby",
-# on the ticker as the round began, 2026-11-16): each joins the ticker once its item has finished (entertainment/: Wits).
+# on the ticker as the round began, 2026-11-16): each joins the ticker once its item has finished, and never goes in the
+# banner, which carries the item's own tag instead (on from its first line, 2026-11-20) (entertainment/: Wits, High Water).
 TICKER_AFTER: set[str] = set()
 # Its box over the set, by show id: (segment, line index) -> the box's data for scenes.OVERLAYS, or None.
 OVERLAY_HOOKS: dict = {}
@@ -645,6 +646,8 @@ class Player:
             v.mouth = line.mouth_env[i] if 0 <= i < len(line.mouth_env) else 0.0
             v.talking = v.mouth > 0.08
         lt = cues.get("lower_third")
+        if lt and seg.show in TICKER_AFTER and seg.headline and lt.get("title") == seg.headline:
+            lt = {"title": lt.get("subtitle") or "", "subtitle": channel.CURRENT.name}    # the tag, never the result
         if not as_presenter:
             v.lower_third = (lt.get("title", ""), lt.get("subtitle", "")) if lt else None
         mp = cues.get("map_state", {})
