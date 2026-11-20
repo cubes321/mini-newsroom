@@ -55,7 +55,7 @@ first airing of the news locator (b645a77). Review its log with the checks in "T
      accounts (104 and 116) written twice, and links still saying "bowling green left" after motion 4 was debated.
    - **The senior editor undid the votes within the hour**: its 20:52 memo had t476 closed (p004 lapsed) and t447 moved
      to 4 December while p002 stands for the 3rd.
-   - **The close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
+   - **Fixed 2026-11-20 evening** (`Thread.closes_on`, `desk._kept`): **the close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
      memo's "close them on the board now", with closing notes naming no day; two never aired again.
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
 3. **A second scratch Channel 8 evening**, to see today's fixes together: `data/afternoon_channel8_scratch.cmd`

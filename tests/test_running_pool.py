@@ -263,3 +263,39 @@ def test_a_story_that_is_over_closes(monkeypatch):
     assert quiet.phase == "closed"
     _close(w, later, "On Friday 6 November the third fender goes on and the job is signed off")
     assert later.phase == "resolving" and not later.waits_until                          # the pool is switched off
+
+
+def test_a_held_close_keeps_its_day_when_closed_again_without_one(monkeypatch):
+    """On the night of 2026-11-19, t513, t558 and t560 were held at 19:22 to close on the Friday, the Sunday and the
+    Tuesday; at 21:22 a memo said "close them on the board now", the desk closed all three with notes naming no day,
+    the closes stood, and two were never covered again."""
+    w, story = _town(monkeypatch)
+    crane = story("Harbourmaster says crane invoice still under checks", "2026-11-03", 9, "The office checks it")
+    crane.moved_ts = 1_800_000_000.0
+    ending = "On Thursday 5 November the harbour office passes the crane invoice, and the story ends there"
+    _close(w, crane, ending)
+    assert crane.phase == "resolving" and crane.waits_until == crane.closes_on == "2026-11-05"
+    _close(w, crane, "Close it: the checks are a formality and there is nothing more to report")    # no day
+    assert crane.phase == "resolving" and crane.waits_until == "2026-11-05" and w.waiting(crane)
+    assert crane.next_development == ending                                       # the ending, still to report
+    _close(w, crane, "Close it after Tuesday 3 November's checks")                # a day gone by: the same
+    assert crane.phase == "resolving" and crane.next_development == ending
+
+    # Its day: once the ending has gone out, a close with no day stands, and the hold is spent.
+    w.last_date = "2026-11-05"
+    w.fade_threads(now=1_800_000_000.0 + 86400)
+    _close(w, crane, "Close it now")
+    assert crane.phase == "resolving"                                             # not reported yet today
+    w.update_thread(crane.id, "Crane invoice passed for payment", "paid")
+    _close(w, crane, "Close it now: paid")
+    assert crane.phase == "closed" and crane.closes_on == ""
+
+
+def test_a_held_close_moved_to_a_later_day_takes_that_day(monkeypatch):
+    w, story = _town(monkeypatch)
+    sign = story("The fender sign-off", "2026-11-03", 6, "The engineer inspects")
+    sign.moved_ts = 1_800_000_000.0
+    _close(w, sign, "On Thursday 5 November the fender is signed off, and the story ends there")
+    _close(w, sign, "On Monday 9 November the fender is signed off after a second look, and that is the end")
+    assert sign.phase == "resolving" and sign.waits_until == sign.closes_on == "2026-11-09"
+    assert sign.next_development.startswith("On Monday 9 November")

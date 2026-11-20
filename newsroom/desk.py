@@ -275,6 +275,20 @@ def apply(world: World, p: StoryPlan, only: set[str] | None = None, reach: set[s
         _apply(world, p, only, reach or set())
 
 
+def _kept(t: Thread, u: ThreadUpdate, due: date | None, today: date) -> tuple[date | None, ThreadUpdate]:
+    """A close that names no day, or an earlier one, for a story already held to close on a day: the hold stands, and
+    the story keeps the NEXT with its ending. On the night of 2026-11-19 t513, t558 and t560 were held at 19:22 to close
+    on the Friday, the Sunday and the Tuesday; at 21:22 a memo said "close them on the board now", the desk closed all
+    three with notes naming no day, the closes stood, and two were never covered again."""
+    if u.phase != "closed" or not t.closes_on:
+        return due, u
+    held = date.fromisoformat(t.closes_on)
+    if held < today or (due is not None and due >= held):
+        return due, u
+    log.info("thread %s: closed again without its day; the hold for %s stands", t.id, said_date(held))
+    return held, u.model_copy(update={"next_development": t.next_development})
+
+
 def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     """A waiting story's new day, from the NEXT the desk gave it: the update to apply, or None to leave
     the story as it is. `world.pool_threads` leaves a story already in the pool alone, so the date is
@@ -287,11 +301,13 @@ def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     closed with today's ending, or none, comes out of the pool, and `_held` has the last word."""
     today = date.fromisoformat(world.last_date)
     due = due_date(u.next_development, today, looking_back=u.phase == "closed")
+    due, u = _kept(t, u, due, today)
     if u.phase == "closed":
         if due is None or due <= today:
-            t.waits_until = ""
+            t.waits_until = t.closes_on = ""
             return u
         log.info("thread %s is to close on %s, not before: resolving, and it waits for that day", t.id, said_date(due))
+        t.closes_on = due.isoformat()
         u = u.model_copy(update={"phase": "resolving"})
     if due is None or due < today:
         log.info("story desk gave waiting thread %s a NEXT with no day to come; left in the pool until %s",
@@ -327,10 +343,14 @@ def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
         return u
     today = date.fromisoformat(world.last_date)
     due = due_date(u.next_development, today, looking_back=True)
+    due, u = _kept(t, u, due, today)
     if due is None or due < today:
+        t.closes_on = ""
         return u
     if due == today and t.updated == world.last_date and t.mentions > t.next_mentions:
+        t.closes_on = ""
         return u
+    t.closes_on = due.isoformat()
     if due > today and CONFIG.story.pool:
         log.info("thread %s is to close on %s, not before: resolving, and it waits for that day", t.id, said_date(due))
         t.waits_until = due.isoformat()

@@ -168,6 +168,7 @@ class Thread:
     faded_ts: float = 0.0           # when it faded, on the broadcast clock
     merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread
     waits_until: str = ""           # ISO date: in the running-stories pool until its NEXT is due (pool_threads)
+    closes_on: str = ""             # ISO date: closed with its ending still to come, held till then (desk._held)
 
 
 def _locked(method):
