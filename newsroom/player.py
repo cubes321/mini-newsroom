@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, channel, continuity, control, council, documentary, schedule, teletext
+from . import adverts, channel, continuity, control, council, documentary, locator, schedule, teletext
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -130,6 +130,7 @@ class View:
     film: tuple[str, float] | None = None   # a film from the bank on air: (its video, seconds into it)
     bonfire: bool = False                # a special night out on location (schedule.SPECIAL_NIGHTS): a bonfire
     fireworks: bool = False              # and fireworks overhead, in their window on the clock
+    locator: str | None = None           # a news item's place on the town's map, while its locator is up (locator.py)
 
 
 class Player:
@@ -161,6 +162,7 @@ class Player:
         self._unheard = False                # the line on air has no audio to wait for: its length times it
         self._cast_of: tuple[str, list] = ("", [])     # (segment id, people on set), worked out once
         self._resume_of: tuple[str, str] = ("", "")    # (test card's id, when programmes resume), likewise
+        self._locator_of: tuple[str, str | None] = ("", None)   # (segment id, its place on the map), likewise
         self.holding = False                 # held on the test card by the kill switch (control.py)
         if audio:
             import pygame
@@ -539,6 +541,25 @@ class Player:
                     chapter_at = c.at_s
         return active, elapsed - chapter_at
 
+    def _locator(self, seg: Segment, v: View, elapsed: float) -> str | None:
+        """Where the news item is on the town's map (locator.py), while it is up: the whole of the wall's
+        handover, and the first SHOW_S seconds out on location. Worked out once an item."""
+        if not locator.wanted(seg, v.reporter):
+            return None
+        if self._locator_of[0] != seg.id:
+            th = self.world.thread(seg.thread_id)
+            self._locator_of = (seg.id, locator.place_of(seg, f"{th.title}. {th.status}" if th else "", v.backdrop))
+        pid = self._locator_of[1]
+        if pid is None:
+            return None
+        if v.mode == "studio" and v.shot == "wall":
+            return pid
+        if v.mode == "field":
+            first = next((i for i, l in enumerate(seg.lines) if l.speaker in (*FIELD_REPORTERS, "guest")), 0)
+            out_there = sum(l.duration_s or 0.0 for l in seg.lines[:first])
+            return pid if 0 <= elapsed - out_there < locator.SHOW_S else None
+        return None
+
     @staticmethod
     def _on_location(seg: Segment, v: View) -> None:
         """A special night's show, all of it out on location (Coastwide at the Bonfire): every link, guest
@@ -738,6 +759,7 @@ class Player:
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id
+        v.locator = self._locator(seg, v, elapsed)
         label = {SegmentType.documentary: "DOCUMENTARY" if documentary.is_documentary(seg) else "SPECIAL",
                  SegmentType.breaking: "BREAKING",
                  SegmentType.advert: "ADVERT", SegmentType.continuity: "CONTINUITY",

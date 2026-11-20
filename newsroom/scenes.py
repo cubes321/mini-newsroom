@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import backdrops, channel, film, locations, logo, parallax, schedule
+from . import backdrops, channel, film, locations, locator, logo, parallax, schedule
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -368,6 +368,7 @@ def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
     who = v.presenter or "anchor"
     draw_character(canvas, 270, 152, who, v.mouth if v.speaker == who else 0.0, t, scale=2,
                    mood=_mood(v, v.speaker == who))
+    draw_locator(canvas, v, t, locator.WALL_RECT)
 
 
 LATE_LIGHT = (0.86, 0.84, 0.96)                 # the talk show's lights down: a little dimmer and cooler
@@ -624,6 +625,20 @@ def draw_field(canvas: pygame.Surface, v: View, t: float) -> None:
         text(canvas, v.tag, 8 + w // 2, 13, 8, center=True)
     if v.verdict:
         _verdict_card(canvas, v.verdict)
+    draw_locator(canvas, v, t, locator.FIELD_RECT)
+
+
+def draw_locator(canvas: pygame.Surface, v: View, t: float, rect: tuple[int, int, int, int]) -> None:
+    """A news item's place on the town's map, while the player has it up (locator.py): the map at the window's
+    size, the spot's ring blinking, the place's name under it."""
+    if not v.locator or v.locator not in locator.g.BY_ID:
+        return
+    x, y, w, h = rect
+    lit = int(t * 2) % 2 == 0
+    queue_picture(("locator", v.locator, w, h, lit), lambda k, pid=v.locator: locator.picture(pid, (w, h), k, lit),
+                  (x, y))
+    text(canvas, locator.caption(v.locator), x + w // 2, y + h - locator.CAPTION_H // 2 - 1, 8, center=True,
+         maxw=w - 4)
 
 
 BONFIRE_AT = (150, 104)                          # the far bank of the estuary set, between the presenters

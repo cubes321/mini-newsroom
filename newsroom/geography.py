@@ -230,6 +230,18 @@ LINKS: tuple[tuple[str, str, float, str], ...] = (
 BUS_ROUTE: tuple[str, ...] = ("greymouth", "saltby", "polgrey", "main_street", "kessick_bay", "carrow_point",
                               "pellow_harbour")
 BUS_EVERY_MIN = 60
+
+# The shore as the approved map draws it (tools/town_map.py, newsroom/locator.py), in miles east and north of the
+# Quay Steps: the open coast west of the bay, up the Saltby shore to the head at Polgrey, down the town's shore,
+# then the coast east.
+SHORE = [(-13.0, -2.2), (-11.0, -2.75), (-8.0, -3.2), (-6.0, -3.5), (-4.6, -3.45), (-4.25, -3.15), (-3.7, -2.5),
+         (-2.95, -1.95), (-2.25, -1.35), (-1.85, -0.9), (-1.6, -0.35), (-1.35, 0.05), (-0.95, 0.3), (-0.75, 0.45),
+         (-0.35, 0.95), (0.3, 1.75), (1.1, 2.75), (1.9, 3.65), (2.55, 4.4), (2.85, 4.35), (2.35, 3.25),
+         (1.65, 2.3), (1.05, 1.55), (0.5, 0.8), (0.15, 0.35), (0.05, 0.0), (0.12, -0.3), (0.25, -0.6),
+         (0.28, -1.0), (0.22, -1.35), (0.1, -1.8), (-0.15, -2.3), (-0.45, -2.85), (-0.75, -3.45), (-0.95, -3.9),
+         (-0.45, -4.15), (0.8, -4.25), (1.8, -4.05), (2.6, -4.3), (3.4, -4.05), (4.6, -4.35), (5.9, -4.9),
+         (7.0, -4.5), (8.5, -4.3), (9.6, -4.55), (11.5, -4.4), (13.0, -4.5)]
+RIVER = [(2.7, 4.4), (2.9, 5.0), (3.4, 5.7), (3.5, 6.6), (3.9, 7.5)]
 MIN_PER_MILE = {"foot": 20.0, "bike": 6.0, "bus": 2.5}
 
 # A backdrop on its own (no place named) says where only when it shows one place. The rest (the slipway,

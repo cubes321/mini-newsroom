@@ -362,6 +362,16 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   is about 700 characters (about 200 tokens) on prompts of 14,000 to 16,000. It is not in the shared briefing,
   which every prompt carries. The creative editor sends back a plan that goes against THE COAST when its planner
   was given it.
+- **The news locator** (`newsroom/locator.py`) shows where a Channel 7 news item is: a small inset of the map with
+  the spot blinking and the place's name under it. The user approved it on
+  `data/contact-sheets/2026-11-20-news-locator.png`.
+  - **When:** for Miles's field reports, features and vox pops, it is up for the whole of the wall's handover and
+    then for the first `SHOW_S` (6) seconds out on location (`Player._locator`, drawn by `scenes.draw_locator`).
+  - **Where:** the item's headline, brief and thread place it first, then a backdrop that shows one place. It
+    shows nothing when they can't say, or when they point to both sides of the Grey.
+  - **Never on:** Out and About or Channel 8.
+  - **On screen:** top right under the clock on location, and in the big screen's corner on the wall, clear of the
+    lower third, the ticker and the reporter.
 - **Still to square.** `travelogue.TRAVEL` films a ferry ride on the cannery `slipway`, but the ferry goes from the
   Quay Steps. The studio weather map (`scenes.draw_weather`) is a generic shape that matches neither teletext nor
   this map.
