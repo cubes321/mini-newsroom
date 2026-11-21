@@ -148,6 +148,23 @@ def test_an_item_with_the_wrong_guest_is_asked_for_once_more(channel, monkeypatc
     assert len(seen) == 2 and "the guest is Danny Hocking" in seen[1][3] and seg.headline == "A guest"
 
 
+def test_a_how_to_long_enough_for_its_target_is_kept(channel, monkeypatch):
+    """2026-11-21: the how-to came back at 21 lines twice, about right for its 200 s, over the interviews' cap of
+    16 + 2, and aired as a 15 s template. The links keep theirs."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    slipway.commission(w)
+    long = {**_spot("Danny Hocking"), "lines": [
+        {"speaker": ("slip_a", "guest", "slip_b", "guest")[i % 4], "text": f"Step {i}, and the tyre lever."}
+        for i in range(24)]}
+    seen = _stub(monkeypatch, lambda schema: schema.model_validate(long))
+    seg = Segment(slot_id=5, type=T.interview, show="slipway", brief=slipway._HOWTO, target_s=200)
+    writers.script_segment(seg, w)
+    assert len(seen) == 1 and not seg.fallback and len(seg.lines) == 24
+    assert writers.line_cap("slipway", T.links) == 16 and writers.line_cap("slipway", T.call) is None
+    assert writers.line_cap("highwater", T.interview) == 40
+
+
 def test_with_the_model_down_every_item_is_still_tonights(channel, monkeypatch):
     w = world_mod.seed()
     _stub(monkeypatch, llm.LLMError("down"))

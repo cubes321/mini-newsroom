@@ -796,7 +796,16 @@ DEBATE_SHOWS: set[str] = set()      # an interview has several guests, each line
 UNFILED_SHOWS: set[str] = set()     # never files an item under a news story, whatever thread_id it sets
 CAPTION_HOOKS: dict[str, Callable] = {}   # (world, guest name) -> their caption on this show, or None
 CHECK_HOOKS: dict[str, Callable] = {}     # (seg, script, world): raise llm.LLMError if the script won't do
-LINE_CAPS: dict[str, int] = {}          # a script's most lines, where the type's own cap is too few for the show
+# A script's most lines, where the type's own cap is too few for the show: one cap for all its items, or one per item
+# type ({SegmentType.links: 16, ...}; a type not named keeps its own). The Slipway's 16 lifted its links from 12 but
+# left its interviews at their own 16, about 150 s, under targets of 220 s: the 2026-11-21 evening's feature ran
+# 112 s, and its how-to came back at 21 lines twice and aired as a 15 s template.
+LINE_CAPS: dict[str, int | dict[SegmentType, int]] = {}
+
+
+def line_cap(show_id: str, seg_type: SegmentType) -> int | None:
+    cap = LINE_CAPS.get(show_id)
+    return cap.get(seg_type) if isinstance(cap, dict) else cap
 AFTER_HOOKS: dict[str, Callable] = {}     # (seg, world): once seg.lines are set, e.g. which line shows what
 # A phone-in on a show from outside: (world) -> the guest in the studio who answers callers (Have Your Say's is
 # phonein's), so their lines aren't the caller's; and how a caller's memory names the show.
@@ -1545,7 +1554,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         seg.work["seats"] = SEAT_HOOKS[show.id](world)     # on the set all show, speaking or not (player.py)
     chatter = show.id == "rockpool"           # Poppy and Gully (and a visitor): many short lines
     schema = script_schema(seg.type, show.cast_for(seg.type), couch=bool(couch), panel=debate, chatter=chatter,
-                           max_lines=LINE_CAPS.get(show.id))
+                           max_lines=line_cap(show.id, seg.type))
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
