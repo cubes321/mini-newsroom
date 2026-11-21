@@ -55,6 +55,57 @@ silences of five seconds).
 - **Morning Tide's field reports go round the same few things:** 27 in under three hours on a quiet Saturday. Eight
   were on the big tides, four on the lifeboat crew at the slipway, and three on the morning rush.
 
+### The second scratch Channel 8 evening (2026-11-21, 09:34 to 12:54 real time)
+
+17:45 to 21:05 on its clock, from `data/afternoon_channel8_scratch.cmd`. The log is
+`%TEMP%\newsroom-scratch-m3xxj256\logs\station-2026-11-21-0934.log`, the model calls are in `llm_calls/` beside it, and
+the recordings are `E:/recordings/2026-11-21 *.mp4`. It exited cleanly: 144 segments, 49 adverts, no filler, worst
+p99 5.3 ms. Every show ended on time. All eight recordings have sound, with no silences of three seconds. The desk ran
+on the scratch copy and held t506 ("closed again without its day; the hold stands"). The real
+`data/travelogue/lorna_quayle.json` is untouched.
+
+- **As intended:**
+  - **High Water:**
+    - rounds of 190, 193, 212 and 195 s;
+    - two chats;
+    - the banner gone by six seconds;
+    - the whole gauge in view, with the tide and the climbers' marks right;
+    - no result on the ticker before it aired, in the frames checked.
+  - **Wexley Wits:** the banner shows the round's tag ("Round 4: The Week's News"), never the score.
+  - **The Kettle's On:**
+    - 16 calls, with no pet name twice;
+    - Cyril on the sofa at 19:15 and 19:29;
+    - two duels (tea, egg);
+    - the dish out at 19:58.
+  - **The Coast Road:** a Sonnet route that passes the map check. The saved route didn't, so it was planned again.
+- **Items run short and the loops pad them,** on four shows:
+  - **The Slipway** had nine of Tegan and Elis's bits, not four. Its booked items came to about 780 s against 1240 of
+    targets: the feature ran 112 s of 220. The how-to (Ned Carver) came back at 21 lines twice, over the cap of 16 + 2,
+    and aired as a 15 s template. The bits contradicted each other. They also carried real results as chat (Tides 3-1
+    Saltby, Darren Rodda's 83 checkout).
+  - **The Coast Road** had three visits, then six near-identical waits on the promenade: flask, parkin, gulls. One of
+    them (slot 134, 3 lines) was only Lorna's half of a talk with Ruth and an unmet boatman.
+  - **Wexley Wits** had five chats after the rounds, inventing questions nobody was asked. Both darts rounds aired as
+    templates (38 s each): the model gave a thrower's first dart to the thrower, not to Clive. The check is right, but
+    it isn't asked again.
+  - **Marina Row** had 21 scenes for a plan of nine, with three stock quiet moments.
+- **High Water:**
+  - The spring tide's script ended with Des putting Ada's first question to Ruben, who doesn't play it.
+  - Round four said the swap backwards: "the step-four prize... that's yours now".
+  - The chats gave Ruben a "Hal" in one and a wife Ellen in the next.
+  - The meets ran 56 and 80 s of 120, and the Harbourmaster's round 128 of 180.
+- **The Coast Road's route:**
+  - The creative editor sent Sonnet's first route back for doubling back on itself.
+  - The second attempt hit the 32000-token cap with broken JSON. The third (31755 tokens out, 224 s) was taken without
+    another look. It still goes "East to the End of the Line", then "West Again to the Lighthouse".
+  - About 84k Sonnet output tokens for one route.
+- **Wren Ashdown was on three times in one evening:** The Slipway's feature, its Have a Go, and The Coast Road's first
+  visit. The creative editor named her as an example to the route planner.
+- **The creative editor's marks:**
+  - fair: High Water, The Slipway, The Kettle's On, Marina Row;
+  - weak: Wexley Wits (last week's notes unheeded: vague news questions, one story in two rounds, stock chestnuts) and
+    The Coast Road.
+
 ### What changed on 2026-11-20 (all pushed, `ba6d6de..153d902`)
 
 - **High Water's art and sound**, done and approved:
@@ -107,14 +158,14 @@ silences of five seconds).
    - **Fixed 2026-11-20 evening** (`Thread.closes_on`, `desk._kept`): **the close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
      memo's "close them on the board now", with closing notes naming no day; two never aired again.
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
-3. **A second scratch Channel 8 evening**, to see today's fixes together: `data/afternoon_channel8_scratch.cmd`
-   (already `--clock 17:45 --minutes 200`), with OBS open. Check:
-   - **The Slipway:** five guests, each once (the feature twice, with Have a Go); about four bits; no pasty stacking;
-     no stand-in links.
-   - **High Water:** rounds near 200 s; three chats at most, none inventing a wave or a climb; the banner gone after
-     six seconds; the whole gauge in view; nothing in the banner or on the ticker before the result airs.
-   - **The Coast Road:** a route planned by Sonnet that keeps to the map; waits at the last stop.
-   - **Wexley Wits:** the banner shows the round's tag, never the score.
+3. **The second scratch Channel 8 evening ran on 2026-11-21** (above). High Water's, Wits' and The Kettle's On's
+   checks pass. Still open:
+   - The Slipway's short items and its padding;
+   - The Coast Road's six waits;
+   - Wits' darts templates and its five chats;
+   - High Water's stray spring-tide line;
+   - Wren on three times in one evening;
+   - the route taken without a second look.
 4. **Not fixed:** High Water's Harbourmaster's round and its two meets run at about half their targets (90 s of
    180, 60 of 120). The rounds and chats fill the time now.
 5. **The map's next uses**, as the user ranked them after the locator: travel news and the weather (Morning Tide's
