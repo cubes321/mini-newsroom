@@ -243,8 +243,12 @@ saved route from the real `data/`.
    (Out and About's walks, Full Time's away grounds, the callers' streets).
    - **The weather map is built** (2026-11-21, `newsroom/weathermap.py`; docs/ENGINE.md, "The map of the town"):
      the wall screen drawn from the gazetteer, four spots with temperatures worked out in code from the script's
-     one, every sky moving. Approved on `data/contact-sheets/2026-11-21-weather-map.png`. Not aired yet: look at
-     the first weather of the next run, and listen for Gordon giving a spot's figure that isn't the one behind him.
+     one, every sky moving. Approved on `data/contact-sheets/2026-11-21-weather-map.png` as stills; the motion
+     hasn't been seen. The weather scene renders in 0.2 ms (p99 0.4).
+     - Gordon is told the spots in words only. Told the rules and asked for figures, Haiku named a spot in all six
+       trial forecasts and got one figure wrong; told "a degree or two colder" and one place at most, two of six
+       named one, both rightly, with no figure.
+     - Not aired yet: look at the first weather of the next run.
    - **Next: the travel board**, for Have Your Say's travel link and Morning Tide's: the coast bus round by Polgrey,
      the ferry crossing and the tide times, all from code (`tides.py`, `geography.py`). No graphic yet.
 

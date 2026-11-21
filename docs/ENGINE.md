@@ -380,7 +380,8 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - **Four spots** (Greymouth, Polgrey, Port Wexley, Pellow Harbour), each with the sky's symbol and a temperature.
     The script still gives one temperature, Port Wexley's. `spots()` works out the rest: Polgrey 1 colder (2 at 3°C
     or below, or in fog or snow), Greymouth 1 colder in wind, rain or a storm, Pellow Harbour 1 warmer in the sun.
-    Gordon's prompt has the same rules (`for_prompt`), so a figure he gives is the one behind him.
+    Gordon is told the spots in words only (`for_prompt`: "a degree or two colder" up at Polgrey, one place at
+    most, no figure but Port Wexley's): given the rules and asked for figures, Haiku got one of six wrong.
   - **Every sky moves**: rain and snow fall, cloud and fog drift, the wind streaks, the storm's bolt flashes.
   - It is drawn at the canvas's size each frame, not as a full-size picture, so the weather can move over it. The
     lower third hides the screen's bottom rows, so the window (`X0, X1, Y1`) keeps the coast above them.

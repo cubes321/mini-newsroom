@@ -38,13 +38,15 @@ def spots(temp_c: int, state: str | None) -> dict[str, int]:
 
 
 def for_prompt() -> str:
-    """The spots, for Gordon: so a figure he gives for one of them is the one on the map behind him."""
-    return ("THE WEATHER MAP behind Gordon shows four places, each with a temperature worked out from temp_c, which "
-            "is Port Wexley's: Polgrey, five miles up the estuary, is 1 degree colder (2 colder when temp_c is 3 or "
-            "below, or in fog or snow); Greymouth, on the open coast to the west, is 1 colder in wind, rain or a "
-            "storm, otherwise the same; Pellow Harbour, along the coast to the east, is 1 warmer when it is sunny, "
-            "otherwise the same. Gordon may point to one or two of them and give its figure, worked out exactly so; "
-            "no other place gets a figure.")
+    """The spots, for Gordon, in words that can't disagree with the map behind him. Given the rules and asked for
+    figures, Haiku named a spot in all six forecasts of a trial and got one wrong (Greymouth "a degree colder, at
+    ten" on a sunny day, with eleven on the map: 2026-11-21). So no figure but Port Wexley's, and one place at most."""
+    return ("THE WEATHER MAP behind Gordon shows Port Wexley's temperature (temp_c) and three more worked out from "
+            "it: Polgrey, up the estuary; Greymouth, on the open coast to the west; Pellow Harbour, along the coast "
+            "to the east. Now and then, not in every forecast, Gordon may point to ONE of them, in these words and "
+            "no figure: Polgrey is \"a degree or two colder\" than the town, always; Greymouth is \"a degree down\" "
+            "only in wind, rain or a storm; Pellow Harbour is \"a degree up\" only when it is sunny. Otherwise he "
+            "leaves them to the map. The only temperature he gives in figures is Port Wexley's.")
 
 
 def _at(xy: tuple[float, float], w: int) -> tuple[int, int]:
@@ -92,6 +94,8 @@ def icon(s, state: str | None, x: int, y: int, t: float) -> None:
     import pygame
 
     beat = int(t * 3)
+    if state is None:                          # before the day's first forecast: the places, and no sky yet
+        return
     if state == "sunny":
         pygame.draw.circle(s, (255, 226, 110), (x + 5, y + 5), 3)
         for i in range(8):
