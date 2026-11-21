@@ -263,6 +263,13 @@ saved route from the real `data/`.
      "the Cannery Tap" the old cannery. Both are a few hundred yards out; a more detailed town map would fix it.
    - Checked 2026-11-21: this morning's planned route places 18 of its 18 stops; both graphics render in under
      half a millisecond; whoever reads the travel stays at the wall between lines.
+   - **The town close up is built** (2026-11-21; docs/ENGINE.md, "The map of the town"): 18 more places, the
+     town in streets and blocks with 29 unnamed side streets, and the locator a mile across in the old town.
+     Approved on `data/contact-sheets/2026-11-21-town-plan.png`. Not aired yet. To watch for on the next night:
+     - a pub's name read as its pub when it wasn't meant ("the ferryman" on the ferry, "the lantern"). Each was
+       put where a stray match is still about right, but look at where the locator lands;
+     - "the Railway" is the pub now, not the station (they are next door);
+     - The Coast Road's planner is told the new places as "Nearby" to each stop (`geography.coast_text`).
    - **Next on the list:** Out and About's walks, Full Time's away grounds (some league towns aren't in the
      gazetteer), the callers' streets; and, new: The Chamber's wards, breaking news, Tideline, Seventext's coast.
 

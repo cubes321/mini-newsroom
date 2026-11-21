@@ -100,3 +100,21 @@ def test_where_the_report_says_it_is_comes_before_its_headline():
     assert locator.place_of(seg) == "harbour"
     seg.work["said_at"] = "the Saltby slip, looking across to the Quay Steps"      # both sides: say nothing...
     assert locator.place_of(seg) == "harbour"                          # ...so the headline decides
+
+
+def test_in_the_old_town_the_locator_goes_down_to_the_streets():
+    """2026-11-21: a mile across with the street plan (townplan.py), so Gull's Rest is not the fish quay."""
+    def across(pid):
+        x0, x1, _, _ = locator.box(pid, 0.57)
+        return round(x1 - x0, 2)
+    assert across("gulls_rest") == across("fish_quay") == across("library") == locator.STREET_MILES
+    assert across("stadium") > locator.STREET_MILES and across("saltby") > locator.STREET_MILES   # out of the old town
+    assert across("polgrey") == locator.AREA_MILES
+    pygame.init()
+    close, wide = locator.picture("gulls_rest", (72, 52), 2, False), locator.picture("polgrey", (72, 52), 2, False)
+    roofs = {tuple(c) for c in __import__("newsroom.townplan", fromlist=["ROOFS"]).ROOFS}
+
+    def has_roofs(img):
+        return any(tuple(img.get_at((x, y)))[:3] in roofs for x in range(0, img.get_width(), 2)
+                   for y in range(0, img.get_height() - 24, 2))
+    assert has_roofs(close) and not has_roofs(wide)

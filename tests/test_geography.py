@@ -167,3 +167,44 @@ def test_a_location_is_the_first_place_it_names():
     assert g.place_for("the fish quay, Port Wexley harbour") == "harbour"         # the longest name: the old reading
     assert g.place_at("") is None and g.place_at("a doorstep somewhere") is None
     assert g.place_at("the Saltby slip, looking across to the Quay Steps") is None   # both sides of the Grey
+
+
+def test_the_town_close_up_has_the_places_the_stories_name():
+    """2026-11-21: Harbour Row (133 mentions), the harbour wall, Gull's Rest and the rest shared the harbour's dot
+    or had none. Each is a place of its own now, and reads as itself."""
+    for said, pid in (("Gull's Rest on Harbour Row", "gulls_rest"), ("Harbour Row, Port Wexley", "harbour_row"),
+                      ("the harbour wall below the fish quay", "harbour_wall"),
+                      ("I'm at the harbour office with Ivy Marchetti", "harbour_office"),
+                      ("outside the library on Main Street", "library"),
+                      ("the Cannery Tap, Port Wexley", "cannery_tap"), ("the old cannery shed", "cannery_shed"),
+                      ("born on Quay Lane", "quay_lane"), ("Dev Ramachandran's bakery", "bakery"),
+                      ("The Quay Steps, Port Wexley harbour", "harbour")):          # the steps are the harbour's dot
+        assert g.place_at(said) == pid, said
+    assert g.place_for("The Crown at Saltby beat the Cannery Tap") is None           # one on each side of the Grey
+    for p in g.PLACES:
+        assert p.side in (g.EAST, g.WEST, g.HEAD) and (not p.at or p.at in g.BY_ID), p.id
+        assert not p.backdrop or p.backdrop in locations.BY_ID, p.id
+    assert len({p.id for p in g.PLACES}) == len(g.PLACES)
+
+
+def test_every_pub_in_the_darts_league_is_on_the_map():
+    from newsroom import darts
+    for pub, *_ in darts.PUBS:
+        assert g.place_for(f"Tonight at {pub} the darts are back") is not None, pub
+    assert g.side(g.place_for("the Crown at Saltby")) == g.WEST
+    assert g.place_for("just up from the Railway") == "the_railway" and g.place_for("the station") == "station"
+
+
+def test_the_side_streets_join_the_town_up():
+    named = [pt for line in g.STREETS.values() for pt in line]
+    for line in g.BACK_STREETS:
+        assert len(line) >= 2
+        for x, y in line:
+            assert 0.1 <= x <= 1.5 and -1.15 <= y <= 1.0, (x, y)      # in the town, east of the quay
+    ends = [pt for line in g.BACK_STREETS for pt in (line[0], line[-1])]
+    every = named + [pt for line in g.BACK_STREETS for pt in line]
+
+    def near(pt):                                                   # an end meets another street, give or take
+        return sum(1 for q in every if abs(q[0] - pt[0]) < 0.12 and abs(q[1] - pt[1]) < 0.12) >= 2
+    assert sum(near(e) for e in ends) >= len(ends) * 0.8
+    assert set(g.BUILT_UP) | set(g.DENSE) <= set(g.STREETS)

@@ -401,6 +401,21 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - The window fits the route (`window_for`). A stop the gazetteer can't place keeps its number and is left off.
 - **The locator's first word** (2026-11-21) is the report's own `location` (`seg.work["said_at"]`, read by
   `geography.place_at`: the first place it names). Over two days of reports it placed 117 of 118, the headline 79.
+- **The town close up** (2026-11-21). The user approved it on `data/contact-sheets/2026-11-21-town-plan.png`, made
+  by `tools/town_plan.py`.
+  - **18 more places** in the gazetteer (53 in all, 31 in the town), chosen by counting what the archive names:
+    Harbour Row (133 mentions), the harbour wall, Gull's Rest, the harbour office and Quay Lane, which shared the
+    harbour's dot; the library, the bakery and the Cannery shed; and the darts league's ten pubs (`darts.PUBS`).
+    Only the Cannery Tap, the Railway and the Crown at Saltby had a place in the stories; the other seven pubs
+    are where their names say (the Lantern on Lantern Row, the Ferryman by the Quay Steps).
+  - **Left out on purpose:** the pool (there isn't one: every mention is the petition for one), a museum (the
+    Historical Society has no building in the stories), and the Quay Steps (they are the harbour's own dot).
+  - **Streets and blocks** (`newsroom/townplan.py`): the named streets (`geography.STREETS`, moved from the tool),
+    29 unnamed side and connecting streets (`BACK_STREETS`; a story that names a street can take one), roofs
+    either side of each, a back row in the middle (`DENSE`), the harbour wall, the quay's edge, the Quay Steps,
+    the park and the grounds. No roof is drawn on water or on a green.
+  - **The locator goes down to the streets:** a mile across with the plan drawn, for a place in the old town
+    (`locator.STREET_MILES`), so Gull's Rest is not the fish quay. The town at 2.4 miles has the plan too.
 - **One coast for all of them.** `weathermap.base(size, win)` draws the land and water for any window on the map;
   the weather, the travel board and the route map each give their own.
 - **Still to square.** `travelogue.TRAVEL` films a ferry ride on the cannery `slipway`, but the ferry goes from the

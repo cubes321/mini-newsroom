@@ -73,7 +73,7 @@ PLACES: tuple[Place, ...] = (
        ("cliff road",), "Saltby's houses along the cliff top",
        "\"Cliff Road pupils take the Saltby ferry to school\""),
     _p("saltby", "Saltby", WEST, "Saltby", "", (-1.15, 0.75), "village",
-       ("saltby", "saltby green", "saltby village", "saltby village hall", "village hall", "crown at saltby",
+       ("saltby", "saltby green", "saltby village", "saltby village hall", "village hall",
         "saltby church", "saltby yard", "saltby boatyard", "saltby road", "saltby lane"),
        "the village across the water: the green, the church spire and orchard, the Crown, the village hall, the "
        "boatyard",
@@ -98,8 +98,8 @@ PLACES: tuple[Place, ...] = (
        "the bonfire field",
        "the Salting ward; \"the town bonfire and fireworks on the Salting\"; the reserve's warden (wildlife.py)"),
     _p("harbour", "Port Wexley harbour", EAST, "Quay", "", (0.0, 0.0), "harbour",
-       ("harbour", "quay steps", "harbour steps", "ferry steps", "town quay", "harbour wall", "harbour front",
-        "harbour office", "ferry office", "loading dock", "harbour row", "gull's rest"),
+       ("harbour", "quay steps", "harbour steps", "ferry steps", "town quay", "harbour front", "ferry office",
+        "loading dock"),
        "the harbour: Harbour Row along it, the Quay Steps where the Saltby ferry goes from, the loading dock",
        "the ferry advert: \"Harbour steps, half-hourly from seven\"; \"Quay Steps to the Lighthouse\" swim"),
     _p("fish_quay", "the fish quay", EAST, "Quay", "", (0.15, -0.3), "fish_quay",
@@ -142,7 +142,7 @@ PLACES: tuple[Place, ...] = (
        ("town hall", "council chamber", "clock tower"), "the town hall and its clock, at the top of Main Street",
        "the Wexley Town Hall clock (a landmark)", town=True),
     _p("harbour_church", "the harbour church", EAST, "Quay", "harbour", (0.25, 0.45), "church",
-       ("harbour church", "gull lane", "chandlery", "quay lane"),
+       ("harbour church", "gull lane", "chandlery"),
        "the harbour church above the steps; Gull Lane and the chandlery behind", town=True),
     _p("park", "Wexley Park", EAST, "Harbour", "seafront", (0.85, -0.5), "park",
        ("wexley park", "the park", "duck pond"), "the park between the town and the seafront", town=True),
@@ -152,7 +152,7 @@ PLACES: tuple[Place, ...] = (
        ("greenhill road", "bowling green"), "the road up Harrow Hill, with the bowling green",
        "the Greenhill Road bowling green", town=True),
     _p("station", "the station", EAST, "Harrow Street", "harbour", (1.3, 0.9), "main_street",
-       ("railway station", "the station", "mill lane", "the railway"),
+       ("railway station", "the station", "mill lane"),
        "the railway station at the top of the town, the Railway pub and Mill Lane by it",
        "Okonkwo's Taxis: \"Saltby, the station, the lighthouse\"; \"Mill Lane, just up from the Railway\"",
        town=True),
@@ -171,6 +171,59 @@ PLACES: tuple[Place, ...] = (
        ("fire station",), "the fire station on Main Street", town=True),
     _p("police_station", "the police station", EAST, "Harrow Street", "harbour", (0.55, 0.7), "police_station",
        ("police station",), "the police station off Main Street", town=True),
+    # ------------------------------------------------ the town close up (2026-11-21): the places the stories name
+    # most that shared a dot or had none. Counted over the archive: Harbour Row 133 mentions, the harbour wall 103,
+    # Gull's Rest 92, the Cannery shed 38, the Cannery Tap 36, the harbour office 30, the Railway 28, the library 27.
+    # The pubs are the darts league's ten (darts.PUBS), each put where its name says.
+    _p("harbour_row", "Harbour Row", EAST, "Quay", "harbour", (0.1, 0.12), "harbour",
+       ("harbour row", "sail loft"), "the row of houses and shops along the harbour, the sail loft among them",
+       "Gull's Rest \"on Harbour Row\"; \"the Harbour Row sail loft\"; \"I live on Harbour Row\"", town=True),
+    _p("gulls_rest", "Gull's Rest", EAST, "Quay", "harbour", (0.12, 0.05), "harbour",
+       ("gull's rest", "gulls rest", "chip shop", "chippy"),
+       "Dolores Finch's fish and chip shop on Harbour Row, just above the Quay Steps",
+       "\"outside Gull's Rest Fish and Chips on the harbour\"; \"Gull's Rest on Harbour Row\"", town=True),
+    _p("harbour_office", "the harbour office", EAST, "Quay", "harbour", (0.14, -0.14), "harbour",
+       ("harbour office", "harbourmaster's office"), "the harbourmaster's office on the quay, towards the fish quay",
+       "\"I'm at the harbour office with Ivy Marchetti, who has the bound tide book open on the counter\"", town=True),
+    _p("harbour_wall", "the harbour wall", EAST, "Quay", "harbour", (-0.02, -0.2), "harbour",
+       ("harbour wall", "breakwater"), "the wall round the harbour's mouth, below the Quay Steps",
+       "\"on the sand between the harbour wall and the cannery slip\"; \"from the harbour wall to the Greymouth "
+       "lighthouse\"", town=True),
+    _p("quay_lane", "Quay Lane", EAST, "Quay", "harbour", (0.18, 0.3), "residential_street",
+       ("quay lane",), "the lane up from the harbour to the church",
+       "\"I was born on Quay Lane, two streets from the harbour\"", town=True),
+    _p("library", "the library", EAST, "Harrow Street", "harbour", (0.74, 0.42), "main_street",
+       ("the library", "library"), "the library, on the corner where Harrow Street meets Main Street",
+       "\"the library on Harrow Street\" and \"outside the library on Main Street\": the corner has both", town=True),
+    _p("bakery", "the bakery", EAST, "Harrow Street", "harbour", (0.36, 0.08), "market",
+       ("the bakery", "bakery"), "Dev Ramachandran's bakery on Harrow Street, by the market",
+       "\"Harrow Street market, where Dev Ramachandran's bakery is opening up for the day\"", town=True),
+    _p("cannery_shed", "the Cannery shed", EAST, "Cannery", "cannery", (0.24, -0.66), "cannery",
+       ("cannery shed", "old cannery shed", "cannery loft"), "the shed beside the old cannery, by its slipway: the Academy's bike classes",
+       "\"the bench outside the cannery shed\"; \"the brake lessons the Academy runs there\"", town=True),
+    _p("cannery_tap", "the Cannery Tap", EAST, "Cannery", "cannery", (0.4, -0.42), "pub",
+       ("cannery tap",), "the pub on Cannery Lane, up from the old cannery",
+       "darts.PUBS; \"Miles Okafor, out at the Cannery Tap\"; a Harbour Row \"regular at the Cannery Tap\"", town=True),
+    _p("the_railway", "the Railway", EAST, "Harrow Street", "harbour", (1.24, 0.84), "pub",
+       ("the railway", "railway inn"), "the pub by the station, at the foot of Mill Lane",
+       "darts.PUBS; \"Mill Lane, just up from the Railway\"", town=True),
+    _p("harbour_lights", "the Harbour Lights", EAST, "Quay", "harbour", (0.09, 0.2), "pub",
+       ("harbour lights",), "the pub at the top end of Harbour Row", "darts.PUBS", town=True),
+    _p("the_ferryman", "the Ferryman", EAST, "Quay", "harbour", (0.13, -0.04), "pub",
+       ("the ferryman",), "the pub by the Quay Steps, where the Saltby ferry goes from", "darts.PUBS", town=True),
+    _p("the_lugger", "the Lugger", EAST, "Quay", "harbour", (0.22, -0.26), "pub",
+       ("the lugger",), "the fishermen's pub at the fish quay", "darts.PUBS", town=True),
+    _p("anchor_and_bell", "the Anchor and Bell", EAST, "Quay", "harbour", (0.21, 0.37), "pub",
+       ("anchor and bell",), "the pub on Quay Lane, under the harbour church's bell", "darts.PUBS", town=True),
+    _p("the_pilchard", "the Pilchard", EAST, "Cannery", "cannery", (0.5, -0.55), "pub",
+       ("the pilchard",), "the pub on Tallow Lane, behind the old cannery", "darts.PUBS", town=True),
+    _p("the_lantern", "the Lantern", EAST, "Harbour", "seafront", (0.55, -0.9), "pub",
+       ("the lantern",), "the pub on Lantern Row, above the seafront", "darts.PUBS", town=True),
+    _p("wexley_legion", "the Wexley Legion", EAST, "Harrow Street", "harbour", (0.95, 0.38), "pub",
+       ("wexley legion", "the legion"), "the Legion club on Main Street, towards the town hall", "darts.PUBS",
+       town=True),
+    _p("the_crown", "the Crown at Saltby", WEST, "Saltby", "saltby", (-1.1, 0.7), "pub",
+       ("crown at saltby",), "Saltby's pub, on the green", "darts.PUBS; \"the Crown at Saltby\""),
     # ------------------------------------------------ the country behind the town
     _p("harrow_hill", "Harrow Hill", EAST, "Harrow Street", "seafront", (2.1, -0.3), "farm",
        ("harrow hill", "hill farm"), "the hill behind the town: farms, the old quarry, the view of the bay",
@@ -242,6 +295,64 @@ SHORE = [(-13.0, -2.2), (-11.0, -2.75), (-8.0, -3.2), (-6.0, -3.5), (-4.6, -3.45
          (-0.45, -4.15), (0.8, -4.25), (1.8, -4.05), (2.6, -4.3), (3.4, -4.05), (4.6, -4.35), (5.9, -4.9),
          (7.0, -4.5), (8.5, -4.3), (9.6, -4.55), (11.5, -4.4), (13.0, -4.5)]
 RIVER = [(2.7, 4.4), (2.9, 5.0), (3.4, 5.7), (3.5, 6.6), (3.9, 7.5)]
+
+# The town's streets (the map's inset, and townplan.py): the ones the stories have, laid out with the map.
+STREETS: dict[str, list[tuple[float, float]]] = {
+    "Harbour Row": [(0.07, 0.25), (0.1, 0.0), (0.2, -0.3)],
+    "Harrow Street": [(0.1, 0.05), (0.45, 0.12), (0.8, 0.45)],
+    "Main Street": [(0.5, 0.6), (0.8, 0.45), (1.05, 0.3), (1.2, 0.2)],
+    "Quay Lane": [(0.12, 0.15), (0.25, 0.45)],
+    "Gull Lane": [(0.25, 0.45), (0.45, 0.5)],
+    "Tallow Lane": [(0.35, -0.5), (0.6, -0.55)],
+    "Cannery Lane": [(0.27, -0.6), (0.5, -0.3), (0.45, 0.12)],
+    "Greenhill Road": [(1.2, 0.2), (1.35, 0.05), (1.7, -0.1), (2.2, -0.25)],
+    "Mill Lane": [(1.0, 0.65), (1.3, 0.9)],
+    "Tidewater Road": [(0.8, 0.45), (1.0, 0.65), (1.3, 0.9), (1.6, 1.35)],
+    "the Polgrey road": [(0.5, 0.6), (0.75, 1.0), (0.95, 1.15), (1.35, 1.6), (1.8, 1.95)],
+    "the Kessick road": [(1.2, 0.2), (1.6, -0.8), (2.2, -2.0)],
+    "Lantern Row": [(0.45, -0.85), (0.75, -0.95)],
+    "the promenade": [(0.32, -0.95), (0.32, -1.3), (0.24, -1.75)],
+    "the coast road": [(0.24, -1.75), (0.05, -2.15)],
+    "Cliff Road": [(-1.6, -0.2), (-1.45, 0.05), (-1.25, 0.4)],
+    "Saltby Road": [(-1.15, 0.75), (-0.75, 1.3), (-0.3, 1.9)],
+}
+# The streets with houses along them (townplan.py draws their roofs); the rest are roads out of town.
+BUILT_UP = ("Harbour Row", "Harrow Street", "Main Street", "Quay Lane", "Gull Lane", "Tallow Lane", "Cannery Lane",
+            "Mill Lane", "Lantern Row", "Cliff Road")
+# The wall round the harbour's mouth, and the quay's edge from the top of Harbour Row down to the cannery slip.
+HARBOUR_WALL = [(0.09, -0.2), (-0.02, -0.2), (-0.06, -0.12)]
+QUAY_STEPS = [(0.08, 0.0), (-0.01, 0.0)]        # the stone steps the ferry goes from, out from the quay
+# The streets nobody has named yet: the side streets and the ones that join the named ones up, so the town is a
+# town and not ribbons of houses across fields (the user, 2026-11-21). A story that names a street can take one.
+BACK_STREETS: tuple[list[tuple[float, float]], ...] = (
+    # between Harbour Row and Cannery Lane: three cross streets and one down the middle
+    [(0.12, -0.08), (0.3, -0.07), (0.47, -0.06)], [(0.15, -0.2), (0.31, -0.2), (0.49, -0.19)],
+    [(0.19, -0.33), (0.32, -0.33), (0.5, -0.31)], [(0.3, 0.09), (0.3, -0.07), (0.32, -0.33), (0.33, -0.47)],
+    # the wedge between Quay Lane, Gull Lane and Harrow Street
+    [(0.16, 0.22), (0.33, 0.25), (0.52, 0.3)], [(0.29, 0.1), (0.33, 0.25), (0.36, 0.48)],
+    [(0.45, 0.5), (0.5, 0.6)], [(0.45, 0.5), (0.52, 0.3), (0.56, 0.2)],
+    # east of Cannery Lane, between Harrow Street, Main Street and the park
+    [(0.48, -0.04), (0.68, 0.02), (0.92, 0.09), (1.14, 0.12)], [(0.49, -0.19), (0.68, -0.15), (0.9, -0.1), (1.2, -0.04)],
+    [(0.66, 0.31), (0.68, 0.02), (0.68, -0.15), (0.66, -0.34)], [(0.91, 0.38), (0.92, 0.09), (0.9, -0.1), (0.9, -0.3)],
+    [(1.08, 0.28), (1.14, 0.12), (1.12, -0.06), (1.1, -0.22)], [(0.5, -0.31), (0.66, -0.34), (0.74, -0.36)],
+    # north of Main Street, between the Polgrey road and Tidewater Road
+    [(0.62, 0.79), (0.8, 0.7), (0.97, 0.62)], [(0.7, 0.93), (0.9, 0.84), (1.12, 0.76)],
+    [(0.68, 0.52), (0.8, 0.7), (0.9, 0.84), (0.95, 0.97)], [(0.62, 0.55), (0.62, 0.79)],
+    # up by the station and the top of Greenhill Road
+    [(1.05, 0.3), (1.13, 0.5), (1.0, 0.65)], [(1.2, 0.2), (1.3, 0.42), (1.27, 0.68), (1.3, 0.9)],
+    [(1.13, 0.5), (1.3, 0.42), (1.45, 0.38)], [(1.35, 0.05), (1.42, 0.24), (1.45, 0.38)],
+    # below the cannery, down to Lantern Row and the promenade
+    [(0.33, -0.63), (0.34, -0.78), (0.33, -0.95)], [(0.34, -0.78), (0.52, -0.76), (0.72, -0.78)],
+    [(0.5, -0.55), (0.52, -0.76), (0.52, -0.88)], [(0.6, -0.55), (0.66, -0.68), (0.72, -0.78), (0.75, -0.95)],
+    [(0.45, -0.85), (0.33, -0.95)], [(0.75, -0.95), (0.62, -1.1), (0.33, -1.12)], [(0.52, -0.88), (0.5, -1.11)],
+)
+# The streets with a second row of houses behind the first: the old town's middle.
+DENSE = ("Harbour Row", "Harrow Street", "Main Street", "Cannery Lane")
+QUAYSIDE = [(0.13, 0.3), (0.05, 0.0), (0.1, -0.2), (0.2, -0.45), (0.25, -0.6)]
+# Open ground in the town: (kind, its middle, how far it is across and up and down, in miles).
+GREENS = (("park", (0.85, -0.5), (0.3, 0.22)), ("pitch", (1.35, 0.02), (0.08, 0.06)),      # the park; the bowling green
+          ("pitch", (1.7, -0.45), (0.16, 0.1)), ("pitch", (1.6, 1.35), (0.18, 0.12)),      # the Quarry Field; the stadium
+          ("marsh", (0.85, 1.45), (0.5, 0.3)))                                             # the Salting
 MIN_PER_MILE = {"foot": 20.0, "bike": 6.0, "bus": 2.5}
 
 # A backdrop on its own (no place named) says where only when it shows one place. The rest (the slipway,

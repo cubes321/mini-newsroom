@@ -61,3 +61,24 @@ def test_gordon_is_told_the_spots_and_nobody_else_is():
     weather = writers.build_prompt(T.weather, w, target_s=60, show=schedule.get("news"))[1]
     assert "THE WEATHER MAP behind Gordon" in weather and "Polgrey" in weather
     assert "THE WEATHER MAP" not in writers.build_prompt(T.bulletin, w, target_s=60, show=schedule.get("news"))[1]
+
+
+def test_the_town_plan_builds_on_land_and_leaves_the_park_green():
+    from newsroom import townplan
+    pygame.init()
+    ppm, x0, y1 = 150, -0.3, 1.0
+    s = pygame.Surface((270, 315))
+    s.fill(weathermap.LAND)
+    at = lambda xy: (round((xy[0] - x0) * ppm), round((y1 - xy[1]) * ppm))  # noqa: E731
+    pygame.draw.polygon(s, weathermap.SEA, [at(p) for p in g.SHORE] + [at((g.SHORE[-1][0], -40)), at((g.SHORE[0][0], -40))])
+    sea_before = sum(tuple(s.get_at((x, y)))[:3] == weathermap.SEA for x in range(0, 270, 3) for y in range(0, 315, 3))
+    townplan.draw(s, at, ppm, (weathermap.SEA,))
+    roofs = set(townplan.ROOFS)
+    count = sum(tuple(s.get_at((x, y)))[:3] in roofs for x in range(270) for y in range(315))
+    assert count > 1500                                             # a town, not ribbons across fields
+    park = at((0.85, -0.5))
+    assert tuple(s.get_at(park))[:3] == townplan.GREEN              # the middle of Wexley Park
+    assert not any(tuple(s.get_at((park[0] + dx, park[1] + dy)))[:3] in roofs for dx in range(-12, 13) for dy in range(-8, 9))
+    assert tuple(s.get_at(at((-0.2, -0.6))))[:3] == weathermap.SEA  # the Grey: nothing built on it
+    sea_after = sum(tuple(s.get_at((x, y)))[:3] == weathermap.SEA for x in range(0, 270, 3) for y in range(0, 315, 3))
+    assert sea_after > sea_before * 0.97                            # only the wall and the steps go out into it

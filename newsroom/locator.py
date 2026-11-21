@@ -15,7 +15,7 @@ Channel 7's news only: Miles ("reporter"), never Meg's Out and About or anything
 """
 from __future__ import annotations
 
-from . import channel, geography as g
+from . import channel, geography as g, townplan
 from .models import Segment, SegmentType
 
 SHOW_S = 6.0                        # on location, up for this long from the first line out there
@@ -31,6 +31,8 @@ WALL_RECT = (44, 24, 72, 52)
 CAPTION_H = 11                      # the place's name under the map
 
 TOWN_MILES, AREA_MILES = 2.4, 10.0  # how wide the map is round a place in the town, and round anywhere else
+STREET_MILES = 1.0                  # and round a place in the streets by the harbour: Harbour Row is not the fish quay
+CENTRE, CENTRE_REACH = (0.35, -0.05), 0.85      # the middle of the old town, and how far its streets go
 
 LAND, SEA, RIVER_C = (112, 150, 84), (58, 104, 150), (58, 104, 150)
 TOWN, FRAME, CAPTION = (196, 186, 170), (20, 22, 34), (20, 22, 34)
@@ -56,7 +58,8 @@ def wanted(seg: Segment, reporter: str) -> bool:
 def box(pid: str, aspect: float) -> tuple[float, float, float, float]:
     """The map's window round a place, in miles (x0, x1, y0, y1): the town close up, anywhere else wider."""
     p = g.BY_ID[pid]
-    w = TOWN_MILES if g.miles_between(pid, "harbour") < 1.8 else AREA_MILES
+    streets = p.side == g.EAST and ((p.xy[0] - CENTRE[0]) ** 2 + (p.xy[1] - CENTRE[1]) ** 2) ** 0.5 < CENTRE_REACH
+    w = STREET_MILES if streets else TOWN_MILES if g.miles_between(pid, "harbour") < 1.8 else AREA_MILES
     h = w * aspect
     return p.xy[0] - w / 2, p.xy[0] + w / 2, p.xy[1] - h / 2, p.xy[1] + h / 2
 
@@ -79,10 +82,13 @@ def picture(pid: str, size: tuple[int, int], k: int, lit: bool):
     s.fill(LAND)
     pygame.draw.polygon(s, SEA, [at(p) for p in g.SHORE] + [at((g.SHORE[-1][0], -40)), at((g.SHORE[0][0], -40))])
     pygame.draw.lines(s, RIVER_C, False, [at(p) for p in g.RIVER], max(2, k))
-    for town, r in (((0.6, 0.3), 0.45), (g.BY_ID["saltby"].xy, 0.22)):       # the town and the village, as grey
-        cx, cy = at(town)
-        rr = max(k, round(r * sx))
-        pygame.draw.ellipse(s, TOWN, (cx - rr, cy - rr * 2 // 3, rr * 2, rr * 4 // 3))
+    if x1 - x0 <= TOWN_MILES:             # close enough for the streets and their roofs (townplan.py)
+        townplan.draw(s, at, sx, (SEA,))
+    else:
+        for town, r in (((0.6, 0.3), 0.45), (g.BY_ID["saltby"].xy, 0.22)):   # the town and the village, as grey
+            cx, cy = at(town)
+            rr = max(k, round(r * sx))
+            pygame.draw.ellipse(s, TOWN, (cx - rr, cy - rr * 2 // 3, rr * 2, rr * 4 // 3))
     x, y = at(g.BY_ID[pid].xy)
     if lit:
         pygame.draw.circle(s, MARK_RING, (x, y), 6 * k, max(1, k))
