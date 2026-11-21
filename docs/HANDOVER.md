@@ -45,8 +45,13 @@ silences of five seconds).
     - An ending with no time ("at half-time", t606) still closes on any piece that day.
     - A close naming no day, for a story that was never held, still stands.
     - Threads from before this change have no `covered_ts`, so their first close today waits for a new piece.
-  - **In the real town:** t506 is closed with this afternoon's finish written as done. It is the user's call
-    whether to reopen it before the next run.
+  - **In the real town:** t506 was closed with this afternoon's finish written as done. At the user's word it was
+    reopened at 09:15 on 2026-11-21. It is now resolving, held for that day, and last covered at 06:45. Its NEXT is
+    the finish still to come: the held NEXT's full text wasn't kept anywhere, so it was rewritten from the closing
+    note, without the figures. Nothing else in the town carried the close. The backup from before the edit is
+    `data/world.backup-2026-11-21-before-t506-reopen.json`. Replayed on a copy: a close after another morning
+    preview is held, and one after a piece at 16:40 stands. If the next run is after Saturday, the day has gone by
+    and the desk's next close stands as before.
 - **Morning Tide's field reports go round the same few things:** 27 in under three hours on a quiet Saturday. Eight
   were on the big tides, four on the lifeboat crew at the slipway, and three on the morning rush.
 
@@ -87,7 +92,7 @@ silences of five seconds).
 ### To do next, in order
 
 1. **The 2026-11-20 night's review** (above): both of its fixes are in (The Last Ferry's double booking, the close on
-   a preview). Neither has aired yet. Decide about t506 before the next run.
+   a preview). Neither has aired yet. t506 is reopened in the real town.
 2. **Fix what the 2026-11-19 council night's review found.** The station itself ran cleanly: no errors, no filler, sound
    in every recording checked, memos, pool moves, quiet rounds and seeds all as intended. But:
    - **The Chamber ran on the stand-in's four motions** (log line 224, 18:53): already fixed in ba6d6de. Its four
