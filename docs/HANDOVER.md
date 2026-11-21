@@ -43,7 +43,8 @@ silences of five seconds).
     ending at 16:10 has been reported").
   - **Still open:**
     - An ending with no time ("at half-time", t606) still closes on any piece that day.
-    - A close naming no day, for a story that was never held, still stands.
+    - A close naming no day, for a story that was never held, still stands, unless the story's own NEXT has its
+      ending today (fixed 2026-11-21, 47aee0c; t586).
     - Threads from before this change have no `covered_ts`, so their first close today waits for a new piece.
   - **In the real town:** t506 was closed with this afternoon's finish written as done. At the user's word it was
     reopened at 09:15 on 2026-11-21. It is now resolving, held for that day, and last covered at 06:45. Its NEXT is
@@ -119,6 +120,12 @@ saved route from the real `data/`.
   note gave the result, "ended one apiece", and named no day. The story had never been held, so the close stood: the
   open gap "a close naming no day, for a story that was never held". Its NEXT had the day and "kick off at three". In
   the real town t586 is at its peak for today, and a real night tonight could close it the same way.
+  - **Fixed the same afternoon** (47aee0c): a close naming no day takes its day from the story's own NEXT when that
+    names today, and the time gate then holds it until a piece is written after the ending's time. Replayed on a copy
+    of the real town: held at 18:06 ("is to close once its ending at 15:00 has been reported"), closed after a report
+    written at 18:30. A NEXT with no day, or another day, leaves such a close standing as before.
+  - Small, and as before for held stories: when the close then stands, the story keeps the held NEXT (the kick-off),
+    not the desk's closing note.
 - **Wren Ashdown was on three times in one evening:** The Slipway's feature, its Have a Go, and The Coast Road's first
   visit. The creative editor named her as an example to the route planner.
 - **The creative editor's marks:**
@@ -181,7 +188,6 @@ saved route from the real `data/`.
 3. **The second scratch Channel 8 evening ran on 2026-11-21** (above). High Water's, Wits' and The Kettle's On's
    checks pass. Still open:
    - The Slipway's padding, to see on air now its interviews' cap is 28 (16975e8);
-   - the desk's close of t586 with no day and no report;
    - The Coast Road's six waits;
    - Wits' darts templates and its five chats;
    - High Water's stray spring-tide line;
