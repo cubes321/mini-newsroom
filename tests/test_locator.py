@@ -84,3 +84,19 @@ def test_it_is_drawn_only_while_up_and_clear_of_the_captions(canvas, v):
         assert not box.colliderect(keep_clear)
     if v.mode == "field":
         assert not box.colliderect(pygame.Rect(64, 86, 52, 74))              # the reporter
+
+
+def test_where_the_report_says_it_is_comes_before_its_headline():
+    """Over the reports of 2026-11-20 and 21 the script's location placed 117 of 118 and the headline 79, and the
+    headline was wrong where they differed: it names the story's subject, not where Miles is standing."""
+    seg = Segment(slot_id=1, type=T.field_report, headline="Wreckers Hold Their Shape Ahead of Saltby Trip")
+    assert locator.place_of(seg) == "saltby"                           # by the headline alone: across the water
+    seg.work["said_at"] = "the Quarry Field, home of Port Wexley RFC"
+    assert locator.place_of(seg) == "quarry_field"
+    seg = Segment(slot_id=2, type=T.field_report, headline="Hard Frost Grips the Harbour Edges")
+    seg.work["said_at"] = "the fish quay, Port Wexley harbour"         # the first place named, not the longest
+    assert locator.place_of(seg) == "fish_quay"
+    seg.work["said_at"] = "a doorstep somewhere"                       # nothing the map knows: the headline again
+    assert locator.place_of(seg) == "harbour"
+    seg.work["said_at"] = "the Saltby slip, looking across to the Quay Steps"      # both sides: say nothing...
+    assert locator.place_of(seg) == "harbour"                          # ...so the headline decides

@@ -285,17 +285,34 @@ def place_for(text: str = "", backdrop: str = "", where: str = "") -> str | None
     say nothing ("the coast road above Saltby sands": the town's coast road, or Saltby's?)."""
     if where in BY_ID:
         return where
+    found = _named(text)
+    if found:
+        sides = {BY_ID[pid].side for _, pid in found} - {HEAD}
+        return found[0][1] if len(sides) <= 1 else None
+    return BACKDROP_PLACE.get(backdrop or "")
+
+
+def _named(text: str) -> list[tuple[int, str]]:
+    """The places named in `text`, the longest names first: (where in the text, the place)."""
     taken: list[tuple[int, int]] = []
-    found: list[str] = []
+    found: list[tuple[int, str]] = []
     for pat, pid, _ in _ALIASES:                         # longest first
         for m in pat.finditer(text or ""):
             if not any(a < m.end() and m.start() < b for a, b in taken):
                 taken.append(m.span())
-                found.append(pid)
-    if found:
-        sides = {BY_ID[pid].side for pid in found} - {HEAD}
-        return found[0] if len(sides) <= 1 else None
-    return BACKDROP_PLACE.get(backdrop or "")
+                found.append((m.start(), pid))
+    return found
+
+
+def place_at(location: str) -> str | None:
+    """Where a reporter says they are, from the script's own `location`: the FIRST place it names, since the rest
+    say what it is near ("the fish quay, Port Wexley harbour"; "the slipway by the old cannery"; "the seafront
+    by the lifeboat station"). `place_for` takes the longest name, which made the fish quay the harbour. Names
+    on both sides of the Grey still say nothing."""
+    found = _named(location)
+    if not found or len({BY_ID[pid].side for _, pid in found} - {HEAD}) > 1:
+        return None
+    return min(found)[1]
 
 
 # ------------------------------------------------------------------ getting about

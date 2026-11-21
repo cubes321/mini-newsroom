@@ -4,8 +4,11 @@ The way real local news does it, from the map the user approved (newsroom/geogra
 tools/town_map.py). It goes up on the big-picture wall while the anchor hands over, and in the corner of
 Miles's report or vox pop for its first few seconds out on location; then it goes.
 
-Where: the item's own words first (its headline, the running order's brief, its thread's title and status),
-then the backdrop it is filmed on when that shows one place. A name the map doesn't know, names on both
+Where: the place the report says it is first (the script's own `location`, the first place it names), then
+the item's other words (its headline, the running order's brief, its thread's title and status), then the
+backdrop it is filmed on when that shows one place. Over the 118 reports of 2026-11-20 and 21 the location
+placed 117 and the headline 79, and where they differed the headline was wrong every time: it named the
+story's subject ("Wreckers Hold Their Shape Ahead of Saltby Trip", filmed at the Quarry Field). A name the map doesn't know, names on both
 sides of the Grey, or words and backdrop on opposite sides: nothing goes up. It never guesses.
 
 Channel 7's news only: Miles ("reporter"), never Meg's Out and About or anything on Channel 8.
@@ -37,7 +40,7 @@ MARK, MARK_RING = (230, 40, 40), (250, 250, 250)
 def place_of(seg: Segment, thread_text: str = "", backdrop: str | None = None) -> str | None:
     """The gazetteer id of where this news item is, or None when its words and backdrop don't say for sure."""
     words = " ".join(x for x in (seg.headline or "", seg.brief or "", thread_text) if x)
-    said = g.place_for(words) if words else None
+    said = g.place_at(seg.work.get("said_at") or "") or (g.place_for(words) if words else None)
     shown = g.BACKDROP_PLACE.get(backdrop or "")
     if said and shown and {g.side(said), g.side(shown)} == {g.EAST, g.WEST}:
         return None                                   # filmed on one side, about the other: say nothing

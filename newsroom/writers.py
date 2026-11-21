@@ -1962,6 +1962,8 @@ def _guest_of(line, script, stayed: str | None = None, studio: str | None = None
 
 def _cues_for(seg: Segment, script) -> list[VisualCue]:
     cues: list[VisualCue] = [VisualCue(at_s=0, kind="ticker", payload={"text": script.headline})]
+    if isinstance(script, (FieldReportScript, FeatureScript, VoxPopScript)):
+        seg.work["said_at"] = script.location           # where the reporter says they are: the locator's first word
     if isinstance(script, WeatherScript):
         cues.append(VisualCue(at_s=0, kind="map_state", payload={"state": script.map_state, "temp_c": script.temp_c}))
         cues.append(VisualCue(at_s=0, kind="lower_third", payload={"title": "Weather", "subtitle": script.headline}))

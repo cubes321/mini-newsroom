@@ -155,3 +155,15 @@ def test_the_journey_starts_and_ends_in_port_wexley():
     assert not any("ends" in e for e in g.check_legs([home, unplaced], round_trip=True))    # can't tell: passes
     assert all(g.in_town(p) for p in ("harbour", "harrow_street", "the_salting", "seafront"))
     assert not any(g.in_town(p) for p in ("saltby", "kessick_bay", "polgrey", "wexley_point"))
+
+
+def test_a_location_is_the_first_place_it_names():
+    for said, pid in (("the fish quay, Port Wexley harbour", "fish_quay"),
+                      ("the slipway by the old cannery", "cannery"),
+                      ("the seafront by the lifeboat station", "seafront"),
+                      ("The Quay Steps, Port Wexley harbour", "harbour"),
+                      ("Tidewater Stadium, Port Wexley", "stadium")):
+        assert g.place_at(said) == pid, said
+    assert g.place_for("the fish quay, Port Wexley harbour") == "harbour"         # the longest name: the old reading
+    assert g.place_at("") is None and g.place_at("a doorstep somewhere") is None
+    assert g.place_at("the Saltby slip, looking across to the Quay Steps") is None   # both sides of the Grey
