@@ -89,6 +89,10 @@ saved route from the real `data/`.
       (the feature) and 16 ran 140 s (Have a Go). The targets are 220, 200 and 160 s.
     - The how-to (Ned Carver) came back at 21 lines twice, about right for its 200 s, and was thrown out both times
       for a 15 s template. That one cap likely explains both the template and most of the padding.
+    - **Fixed the same afternoon** (16975e8): a show's line cap can be one per item type (`writers.line_cap`), and
+      The Slipway's interviews have 28, its links still 16. Rehearsed on a copy of the town
+      (`rehearsal-1119/rehearsal-slipway-cap28.log`): the feature at 19 lines (~234 s of 220) and the how-to at 19
+      (~168 s of 200), no template, the booked items ~1200 s of 1240 by the rehearsal's estimate. Not aired yet.
     - The bits contradicted each other. They also carried results as chat ("Tides 3-1 Saltby", Darren Rodda's 83
       checkout); the desk had the same match one apiece.
   - **The Coast Road** had three visits, then six near-identical waits on the promenade: flask, parkin, gulls. One of
@@ -176,7 +180,7 @@ saved route from the real `data/`.
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
 3. **The second scratch Channel 8 evening ran on 2026-11-21** (above). High Water's, Wits' and The Kettle's On's
    checks pass. Still open:
-   - The Slipway's interview line cap (16 + 2 against targets of up to 220 s), its short items and its padding;
+   - The Slipway's padding, to see on air now its interviews' cap is 28 (16975e8);
    - the desk's close of t586 with no day and no report;
    - The Coast Road's six waits;
    - Wits' darts templates and its five chats;
