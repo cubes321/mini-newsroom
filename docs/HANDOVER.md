@@ -184,7 +184,9 @@ saved route from the real `data/`.
        report no result. The Chamber's own items still get "(tonight)" (`summary_for_prompt(sitting=True)`), and
        Seventext's notices a short "met tonight".
      - The overnight repeats leave out a piece that mentions the council and was written before the meeting began
-       (`workers.before_council_sat`): 02:10 and 02:57's "council sits tonight" were repeats.
+       (`workers.before_council_sat`): 02:10 and 02:57's "council sits tonight" were repeats. "Council" matches
+       "councillor" too, so on a council night an earlier piece with a councillor in it isn't repeated either. The
+       repeats up to 05:42 were of pieces written after eight, which the briefing now covers.
      - Replayed with Haiku on a copy of the town at 23:06 on the 19th: none of 8 bulletins had the council still to
        sit, 7 reported the four votes as carried 5-0, and none gave a vote that wasn't taken. Not aired yet: the
        next full council is Thursday 3 December.
