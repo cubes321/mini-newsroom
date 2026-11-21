@@ -22,7 +22,7 @@ from datetime import date, datetime
 from typing import Callable
 
 from . import (breaking, calendar, channel, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown,
-               safety, schedule, sport, tides, tipline)
+               safety, schedule, sport, tides, tipline, weathermap)
 from .geography import lie_of_the_land
 from .locations import locations_for_prompt
 from .models import (
@@ -999,6 +999,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             show.id == outabout.SHOW and seg_type is SegmentType.field_report):   # Meg's walk: the tide
         today = datetime.fromtimestamp(at_ts or schedule.now()).date()
         user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
+    if seg_type is SegmentType.weather:       # the figures on the map behind him (weathermap.py)
+        user += "\n\n" + weathermap.for_prompt()
     if seg_type is SegmentType.sport or show.id == "sport":
         user += "\n\n" + sport.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))
     scene = world.thread(work.get("scene")) if seg_type is SegmentType.field_report else None

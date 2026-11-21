@@ -374,9 +374,18 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - **Never on:** Out and About or Channel 8.
   - **On screen:** top right under the clock on location, and in the big screen's corner on the wall, clear of the
     lower third, the ticker and the reporter.
+- **The weather map** (`newsroom/weathermap.py`, 2026-11-21) is Gordon's wall screen: 24 miles of the same coast,
+  Greymouth to Pellow Harbour, with the Grey up to Polgrey. The user approved it on
+  `data/contact-sheets/2026-11-21-weather-map.png`.
+  - **Four spots** (Greymouth, Polgrey, Port Wexley, Pellow Harbour), each with the sky's symbol and a temperature.
+    The script still gives one temperature, Port Wexley's. `spots()` works out the rest: Polgrey 1 colder (2 at 3°C
+    or below, or in fog or snow), Greymouth 1 colder in wind, rain or a storm, Pellow Harbour 1 warmer in the sun.
+    Gordon's prompt has the same rules (`for_prompt`), so a figure he gives is the one behind him.
+  - **Every sky moves**: rain and snow fall, cloud and fog drift, the wind streaks, the storm's bolt flashes.
+  - It is drawn at the canvas's size each frame, not as a full-size picture, so the weather can move over it. The
+    lower third hides the screen's bottom rows, so the window (`X0, X1, Y1`) keeps the coast above them.
 - **Still to square.** `travelogue.TRAVEL` films a ferry ride on the cannery `slipway`, but the ferry goes from the
-  Quay Steps. The studio weather map (`scenes.draw_weather`) is a generic shape that matches neither teletext nor
-  this map.
+  Quay Steps. Teletext's weather page still has its own coast, a character cell each (`teletext.COAST`).
 
 ## The content bank, built (2026-11-07)
 

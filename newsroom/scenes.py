@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import pygame
 
-from . import backdrops, channel, film, locations, locator, logo, parallax, schedule
+from . import backdrops, channel, film, locations, locator, logo, parallax, schedule, weathermap
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -568,21 +568,8 @@ def draw_studio(canvas: pygame.Surface, v: View, t: float) -> None:
 def draw_weather(canvas: pygame.Surface, v: View, t: float) -> None:
     backdrops.draw(canvas, "weather_wall")
     pygame.draw.rect(canvas, SKY.get(v.map_state, SKY[None]), (234, 20, 76, 124))   # side panel
-    # Coastline map
-    pygame.draw.rect(canvas, (90, 130, 170), (40, 20, 180, 120))
-    pygame.draw.polygon(canvas, (120, 150, 90), [(40, 140), (40, 70), (90, 60), (130, 90), (180, 80), (220, 110), (220, 140)])
-    pygame.draw.rect(canvas, (230, 230, 230), (118, 86, 4, 4))          # the town
-    text(canvas, "Port Wexley", 126, 82, 8, (10, 10, 10))
-    if v.map_state in ("rain", "storm"):
-        for i in range(18):
-            x = 50 + (i * 37 + int(t * 120)) % 160
-            y = 25 + (i * 53 + int(t * 200)) % 100
-            pygame.draw.rect(canvas, (210, 220, 240), (x, y, 1, 4))
-    if v.map_state == "sunny":
-        pygame.draw.circle(canvas, (255, 230, 120), (200, 36), 10)
-    if v.map_state in ("cloudy", "fog", "storm"):
-        for i in range(3):
-            pygame.draw.ellipse(canvas, (220, 220, 225), (60 + i * 50 + int(math.sin(t * 0.5 + i) * 4), 28 + i * 6, 40, 14))
+    # The town's own map, the sky over it and a temperature at each spot (weathermap.py)
+    weathermap.draw(canvas, tuple(WALL_SCREEN), v.map_state, v.temp_c, t, text, lambda s, size: font(size).size(s))
     if v.temp_c is not None:
         pygame.draw.rect(canvas, (20, 20, 30), (236, 24, 70, 40))
         text(canvas, f"{v.temp_c}°C", 271, 44, 14, center=True)

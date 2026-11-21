@@ -239,9 +239,14 @@ saved route from the real `data/`.
    - the route taken without a second look.
 4. **Not fixed:** High Water's Harbourmaster's round and its two meets run at about half their targets (90 s of
    180, 60 of 120). The rounds and chats fill the time now.
-5. **The map's next uses**, as the user ranked them after the locator: travel news and the weather (Morning Tide's
-   travel: the coast bus round by Polgrey, the ferry and the tide; Gordon's spots), then the rest (Out and About's
-   walks, Full Time's away grounds, the callers' streets).
+5. **The map's next uses**, as the user ranked them after the locator: travel news and the weather, then the rest
+   (Out and About's walks, Full Time's away grounds, the callers' streets).
+   - **The weather map is built** (2026-11-21, `newsroom/weathermap.py`; docs/ENGINE.md, "The map of the town"):
+     the wall screen drawn from the gazetteer, four spots with temperatures worked out in code from the script's
+     one, every sky moving. Approved on `data/contact-sheets/2026-11-21-weather-map.png`. Not aired yet: look at
+     the first weather of the next run, and listen for Gordon giving a spot's figure that isn't the one behind him.
+   - **Next: the travel board**, for Have Your Say's travel link and Morning Tide's: the coast bus round by Polgrey,
+     the ferry crossing and the tide times, all from code (`tides.py`, `geography.py`). No graphic yet.
 
 ## Picking up after the Channel 7 council night of 2026-11-19
 
