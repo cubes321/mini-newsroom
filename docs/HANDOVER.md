@@ -61,8 +61,9 @@ silences of five seconds).
 `%TEMP%\newsroom-scratch-m3xxj256\logs\station-2026-11-21-0934.log`, the model calls are in `llm_calls/` beside it, and
 the recordings are `E:/recordings/2026-11-21 *.mp4`. It exited cleanly: 144 segments, 49 adverts, no filler, worst
 p99 5.3 ms. Every show ended on time. All eight recordings have sound, with no silences of three seconds. The desk ran
-on the scratch copy and held t506 ("closed again without its day; the hold stands"). The real
-`data/travelogue/lorna_quayle.json` is untouched.
+on the scratch copy and held t506 ("closed again without its day; the hold stands"). The real town is untouched:
+`data/world.json` was last written at 09:13, and `data/travelogue/lorna_quayle.json` on 11-14. The run did read that
+saved route from the real `data/`.
 
 - **As intended:**
   - **High Water:**
@@ -78,17 +79,26 @@ on the scratch copy and held t506 ("closed again without its day; the hold stand
     - two duels (tea, egg);
     - the dish out at 19:58.
   - **The Coast Road:** a Sonnet route that passes the map check. The saved route didn't, so it was planned again.
+  - **The Slipway:** the booked guests each came once (Wren twice, with Have a Go), none came back in the loop, no
+    pasty, and the goodbye named The Kettle's On.
 - **Items run short and the loops pad them,** on four shows:
-  - **The Slipway** had nine of Tegan and Elis's bits, not four. Its booked items came to about 780 s against 1240 of
-    targets: the feature ran 112 s of 220. The how-to (Ned Carver) came back at 21 lines twice, over the cap of 16 + 2,
-    and aired as a 15 s template. The bits contradicted each other. They also carried real results as chat (Tides 3-1
-    Saltby, Darren Rodda's 83 checkout).
+  - **The Slipway** had eight of Tegan and Elis's bits (slots 33 to 40), not four. Its booked items came to about
+    780 s against 1240 of targets.
+    - **Why: the line cap.** `LINE_CAPS["slipway"] = 16` was set to lift the links from 12, but an interview's own
+      cap was 16 already, so the interviews never got more. 16 + 2 lines is about 150 s here: 14 lines ran 112 s
+      (the feature) and 16 ran 140 s (Have a Go). The targets are 220, 200 and 160 s.
+    - The how-to (Ned Carver) came back at 21 lines twice, about right for its 200 s, and was thrown out both times
+      for a 15 s template. That one cap likely explains both the template and most of the padding.
+    - The bits contradicted each other. They also carried results as chat ("Tides 3-1 Saltby", Darren Rodda's 83
+      checkout); the desk had the same match one apiece.
   - **The Coast Road** had three visits, then six near-identical waits on the promenade: flask, parkin, gulls. One of
     them (slot 134, 3 lines) was only Lorna's half of a talk with Ruth and an unmet boatman.
   - **Wexley Wits** had five chats after the rounds, inventing questions nobody was asked. Both darts rounds aired as
     templates (38 s each): the model gave a thrower's first dart to the thrower, not to Clive. The check is right, but
     it isn't asked again.
-  - **Marina Row** had 21 scenes for a plan of nine, with three stock quiet moments.
+  - **Marina Row** kept its plan (nine scenes and the three spares: the pint, the gansey, the oilskins), but its scenes
+    ran 24 to 113 s. The rest of its 19 minutes went to eight unplanned scenes, three of them stock quiet moments, in
+    20 scenes in all.
 - **High Water:**
   - The spring tide's script ended with Des putting Ada's first question to Ruben, who doesn't play it.
   - Round four said the swap backwards: "the step-four prize... that's yours now".
@@ -97,8 +107,14 @@ on the scratch copy and held t506 ("closed again without its day; the hold stand
 - **The Coast Road's route:**
   - The creative editor sent Sonnet's first route back for doubling back on itself.
   - The second attempt hit the 32000-token cap with broken JSON. The third (31755 tokens out, 224 s) was taken without
-    another look. It still goes "East to the End of the Line", then "West Again to the Lighthouse".
-  - About 84k Sonnet output tokens for one route.
+    another look. By its leg titles it still doubles back: "East to the End of the Line", then "West Again to the
+    Lighthouse". The stops weren't checked.
+  - About 84k Sonnet output tokens for one route, and the one taken came within 245 tokens of the cap. If both
+    attempts are cut off, the stand-in route made in code takes the series (`travelogue.plan_route`).
+- **The desk closed t586 (the Tides v Saltby match) with no report of it** (10:06:59; 18:06 on its clock). The closing
+  note gave the result, "ended one apiece", and named no day. The story had never been held, so the close stood: the
+  open gap "a close naming no day, for a story that was never held". Its NEXT had the day and "kick off at three". In
+  the real town t586 is at its peak for today, and a real night tonight could close it the same way.
 - **Wren Ashdown was on three times in one evening:** The Slipway's feature, its Have a Go, and The Coast Road's first
   visit. The creative editor named her as an example to the route planner.
 - **The creative editor's marks:**
@@ -160,7 +176,8 @@ on the scratch copy and held t506 ("closed again without its day; the hold stand
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
 3. **The second scratch Channel 8 evening ran on 2026-11-21** (above). High Water's, Wits' and The Kettle's On's
    checks pass. Still open:
-   - The Slipway's short items and its padding;
+   - The Slipway's interview line cap (16 + 2 against targets of up to 220 s), its short items and its padding;
+   - the desk's close of t586 with no day and no report;
    - The Coast Road's six waits;
    - Wits' darts templates and its five chats;
    - High Water's stray spring-tide line;
