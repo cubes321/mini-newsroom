@@ -30,7 +30,7 @@ from datetime import date, datetime
 from . import chamber, llm, meeting, promises, safety, schedule
 from .config import CONFIG
 from .models import NewThread, StoryPlan, ThreadUpdate
-from .world import STALE_WARNING_S, THREAD_PEOPLE, Thread, World, due_date, fade_after_s, said_date
+from .world import STALE_WARNING_S, THREAD_PEOPLE, Thread, World, due_date, due_time, fade_after_s, said_date
 
 log = logging.getLogger(__name__)
 
@@ -322,6 +322,22 @@ def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     return u
 
 
+def _ending_at(t: Thread, note: str, today: date) -> tuple[int, int] | None:
+    """The time of day a story's ending comes, from the closing note as the desk wrote it, or else from the NEXT it
+    was held with. None when neither says a time."""
+    if at := due_time(note):
+        return at
+    return due_time(t.next_development) if due_date(t.next_development, today) == today else None
+
+
+def _clock(ts: float) -> tuple[int, int]:
+    """(hour, minute) of a time on the broadcast clock; never covered is midnight."""
+    if not ts:
+        return 0, 0
+    lt = time.localtime(ts)
+    return lt.tm_hour, lt.tm_min
+
+
 def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
     """A close stands once the story's ending has gone out; until then the story is resolving, with the
     ending as its NEXT. A closed story leaves the board at once, so an ending the desk wrote as it closed
@@ -337,19 +353,32 @@ def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
     it would be covered with nothing new, and that would look like the ending). Today: the close stands
     only if the story has been covered today since the desk last wrote its NEXT (`Thread.next_mentions`;
     covered is counted when a piece is written, a few minutes before it airs); a story back from the pool
-    is planned at once, before any piece. Otherwise it stays on the board with a fresh start on the fade
+    is planned at once, before any piece. When the closing note (or the NEXT it was held with) says a time of
+    day, that piece must be written at or after it (`Thread.covered_ts`): a morning preview of an afternoon
+    finish is not the finish. Otherwise it stays on the board with a fresh start on the fade
     timer, and the desk sees it again when it is covered. A faded story the desk closes stays closed."""
     if u.phase != "closed" or t.phase in ("closed", "faded"):
         return u
     today = date.fromisoformat(world.last_date)
     due = due_date(u.next_development, today, looking_back=True)
+    note = u.next_development                       # before `_kept` puts the held NEXT back in its place
     due, u = _kept(t, u, due, today)
     if due is None or due < today:
         t.closes_on = ""
         return u
     if due == today and t.updated == world.last_date and t.mentions > t.next_mentions:
-        t.closes_on = ""
-        return u
+        at = _ending_at(t, note, today)
+        if at is None or _clock(t.covered_ts) >= at:
+            t.closes_on = ""
+            return u
+        # Covered today, but only before the ending's time: the 2026-11-20 night's t506, Ruby Tennant's row, was
+        # closed at 07:58 on its morning previews ("Nears the Finish") with the finish "at ten past four" written as
+        # done. It stays on the board with the ending to come as its NEXT, not the closing note told as past.
+        t.closes_on, t.moved_ts = due.isoformat(), schedule.now()
+        log.info("thread %s is to close once its ending at %02d:%02d has been reported (last covered at %02d:%02d): "
+                 "resolving until then", t.id, *at, *_clock(t.covered_ts))
+        keep = t.next_development if due_date(t.next_development, today) == today else u.next_development
+        return u.model_copy(update={"phase": "resolving", "next_development": keep})
     t.closes_on = due.isoformat()
     if due > today and CONFIG.story.pool:
         log.info("thread %s is to close on %s, not before: resolving, and it waits for that day", t.id, said_date(due))

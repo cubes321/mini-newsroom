@@ -237,7 +237,8 @@ def test_a_story_closed_with_todays_ending_is_reported_first(monkeypatch):
         thread_id=salt.id, phase="resolving", next_development="By this evening, Wednesday 4 November, the last sack goes")]))
     _close(w, salt, "By the evening of Wednesday 4 November the last sack goes, and the frost story closes")
     assert salt.phase == "resolving"
-    w.update_thread(salt.id, "The last of the rock salt goes", "sold out")
+    monkeypatch.setattr(world_mod.schedule, "now", lambda: time.mktime((2026, 11, 4, 18, 30, 0, 0, 0, -1)))
+    w.update_thread(salt.id, "The last of the rock salt goes", "sold out")       # an evening ending, in the evening
     _close(w, salt, "By the evening of Wednesday 4 November the last sack goes, and the frost story closes")
     assert salt.phase == "closed"
 
@@ -299,3 +300,61 @@ def test_a_held_close_moved_to_a_later_day_takes_that_day(monkeypatch):
     _close(w, sign, "On Monday 9 November the fender is signed off after a second look, and that is the end")
     assert sign.phase == "resolving" and sign.waits_until == sign.closes_on == "2026-11-09"
     assert sign.next_development.startswith("On Monday 9 November")
+
+
+@pytest.mark.parametrize("text, at", [
+    ("On Saturday 21 November, with the light gone by half past four, Ruby Tennant brings the scull in", (16, 30)),
+    ("Closed: Ruby Tennant comes back up the slip at ten past four with the light gone, Ellen Buchanan calls it at "
+     "twelve hours and three minutes, the sponsor sheet closes at 268 names and £2,880", (16, 10)),
+    ("On Saturday 21 November the Tides kick off at three on a pitch still hard with frost", (15, 0)),
+    ("On Saturday 21 November the sun clears Wexley Point by ten and the frost lifts off the quay", (10, 0)),
+    ("with the Tides crowd coming along the quay for three o'clock, the new rope goes on", (15, 0)),
+    ("a quarter to five", (16, 45)),
+    ("the bonfire is lit at seven this evening", (19, 0)),
+    ("kick-off at 3pm, and the ferry leaves at 16:45", (16, 45)),
+    ("By this evening, Wednesday 4 November, the last sack goes", (18, 0)),
+    ("On Saturday 21 November, at half-time of the Tides' match against Saltby, Gordon waits", None),
+    ("The darts finish 7-2, the Crown take the Ferryman 28-19, and the number twelve bus is late", None),
+    ("at one point the lead was cut by two goals after three days", None),
+    ("Later on Wednesday 4 November Bernard lays the spinnaker flat", None),
+])
+def test_the_time_of_day_a_next_step_names(text, at):
+    assert world_mod.due_time(text) == at
+
+
+def _at(monkeypatch, hh, mm):
+    ts = time.mktime((2026, 11, 4, hh, mm, 0, 0, 0, -1))
+    monkeypatch.setattr(world_mod.schedule, "now", lambda: ts)
+
+
+def test_a_close_waits_for_a_piece_after_its_endings_time(monkeypatch):
+    """The 2026-11-20 night's t506, Ruby Tennant's twelve-hour row, was held at 01:28 to close once Saturday's ending
+    had been reported. At 07:58 the desk closed it with "comes back up the slip at ten past four": the breakfast
+    previews ("Nears the Finish") had counted as the ending, and the finish was in the town as done by eight."""
+    w, story = _town(monkeypatch)
+    row = story("Ruby Tennant rows twelve hours for the lifeboat fund", "2026-11-02", 40, "She trains")
+    held = "On Wednesday 4 November, with the light gone by half past four, Ruby brings the scull in"
+    _at(monkeypatch, 1, 28)
+    _close(w, row, held)
+    assert row.phase == "resolving" and row.closes_on == "2026-11-04"            # today's ending, not yet out
+    _at(monkeypatch, 7, 6)
+    w.update_thread(row.id, "Ruby Tennant nears the finish of her twelve-hour row", "rowing")
+    _at(monkeypatch, 7, 58)
+    _close(w, row, "Closed: Ruby comes back up the slip at ten past four, and the sponsor sheet closes at £2,880")
+    assert row.phase == "resolving" and row.next_development == held               # the ending to come, not as told
+    assert row.closes_on == "2026-11-04" and row in w.board_threads()
+
+    _at(monkeypatch, 16, 20)
+    w.update_thread(row.id, "Ruby Tennant finishes her twelve-hour row", "done")
+    _at(monkeypatch, 16, 28)
+    _close(w, row, "Closed: Ruby came back up the slip at ten past four, and the sponsor sheet closed at £2,880")
+    assert row.phase == "closed" and row.closes_on == ""
+
+
+def test_a_close_with_no_time_still_stands_on_any_piece_that_day(monkeypatch):
+    w, story = _town(monkeypatch)
+    sail = story("Bernard Moss airs the red spinnaker", "2026-11-02", 3, "On Wednesday 4 November he lays it flat")
+    _at(monkeypatch, 7, 0)
+    w.update_thread(sail.id, "The red spinnaker is laid flat", "done")
+    _close(w, sail, "Wednesday 4 November: the spinnaker was laid flat and the surname went to the file")
+    assert sail.phase == "closed"

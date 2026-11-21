@@ -31,9 +31,22 @@ silences of five seconds).
   replacement guest is checked too, with one more ask that names everyone who is out. And when the "has been on
   before" ask comes back with someone new, the new guest is kept if the one before was just on.
 - **A close stood on a morning preview:** t506 (Ruby Tennant's row) was held "to close once its ending for Saturday
-  21 November has been reported". The breakfast reports ("Nears the Finish", "Keeps Rowing") counted as coverage,
-  so the desk closed it at 07:58 with the finish at 16:10, the time and the £2,880 written as done. t569, t586, t604
-  and t606 were still held when the run ended, waiting on this afternoon.
+  21 November has been reported". At 07:58 the desk closed it with "comes back up the slip at ten past four", the
+  time and the £2,880 written as done. The night ran the code from before df60ba6 (committed at 21:02, after the
+  20:51 start), so the note's lack of a day let it stand. With df60ba6 `_kept` would have held it, but the breakfast
+  previews ("Nears the Finish", "Keeps Rowing") would still have counted as the ending. t569, t586, t604 and t606 were
+  still held when the run ended, waiting on this afternoon. **Fixed the same morning:**
+  - `world.due_time` reads the time of day a NEXT names ("ten past four", "kick off at three", "by ten", "this
+    evening"), and `Thread.covered_ts` is when a piece on the story was last written.
+  - When today's closing note, or the NEXT it was held with, names a time, the close stands only once a piece has
+    been written at or after it. Until then the story keeps its ending-to-come as its NEXT ("is to close once its
+    ending at 16:10 has been reported").
+  - **Still open:**
+    - An ending with no time ("at half-time", t606) still closes on any piece that day.
+    - A close naming no day, for a story that was never held, still stands.
+    - Threads from before this change have no `covered_ts`, so their first close today waits for a new piece.
+  - **In the real town:** t506 is closed with this afternoon's finish written as done. It is the user's call
+    whether to reopen it before the next run.
 - **Morning Tide's field reports go round the same few things:** 27 in under three hours on a quiet Saturday. Eight
   were on the big tides, four on the lifeboat crew at the slipway, and three on the morning rush.
 
@@ -73,8 +86,8 @@ silences of five seconds).
 
 ### To do next, in order
 
-1. **Fix what the 2026-11-20 night's review found** (above): the close on a preview. The Last Ferry's double booking
-   is fixed.
+1. **The 2026-11-20 night's review** (above): both of its fixes are in (The Last Ferry's double booking, the close on
+   a preview). Neither has aired yet. Decide about t506 before the next run.
 2. **Fix what the 2026-11-19 council night's review found.** The station itself ran cleanly: no errors, no filler, sound
    in every recording checked, memos, pool moves, quiet rounds and seeds all as intended. But:
    - **The Chamber ran on the stand-in's four motions** (log line 224, 18:53): already fixed in ba6d6de. Its four

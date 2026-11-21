@@ -169,6 +169,7 @@ class Thread:
     merged_into: str = ""           # closed as a duplicate: a follow-up of it goes to this thread
     waits_until: str = ""           # ISO date: in the running-stories pool until its NEXT is due (pool_threads)
     closes_on: str = ""             # ISO date: closed with its ending still to come, held till then (desk._held)
+    covered_ts: float = 0.0         # when a piece on it was last written, on the broadcast clock (desk._held)
 
 
 def _locked(method):
@@ -691,7 +692,7 @@ class World:
                         log.info("thread %s back from faded: %s", t.id, title[:60])
                     t.status = status or t.status
                     t.updated = today
-                    t.moved_ts = now
+                    t.moved_ts = t.covered_ts = now
                     t.mentions += 1
                     t.beats.append({"date": today, "day": self.broadcast_day, "headline": title[:90], "status": t.status})
                     t.beats = t.beats[-12:]
@@ -699,7 +700,8 @@ class World:
                         t.phase = "developing"
                     return t.id
         new_id = self._new_thread_id()
-        self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1, moved_ts=now,
+        self.threads.append(Thread(new_id, title[:80], status or "developing", today, today, 1,
+                                   moved_ts=now, covered_ts=now,
                                    beats=[{"date": today, "day": self.broadcast_day, "headline": title[:90], "status": status or ""}]))
         self._cap_threads()
         return new_id
@@ -724,6 +726,7 @@ class World:
         if keep.phase == "emerging":
             keep.phase = "developing"                   # covered under two titles, it has moved
         keep.updated, keep.moved_ts = max(keep.updated, dup.updated), max(keep.moved_ts, dup.moved_ts)
+        keep.covered_ts = max(keep.covered_ts, dup.covered_ts)
         if dup.breaking_ts > keep.breaking_ts:
             keep.breaking, keep.breaking_ts = dup.breaking, dup.breaking_ts
         for e in self.archive + self.specials:
@@ -1010,6 +1013,61 @@ def due_date(text: str, today: date, looking_back: bool = False) -> date | None:
     except ValueError:                                    # "31 November"
         return None
     return None
+
+
+_HOURS = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve")
+_HOUR = "(" + "|".join(_HOURS) + ")"
+_PAST_TO = re.compile(r"\b(?:a\s+)?(five|ten|quarter|twenty|twenty-five|twenty five|half)\s+(past|to)\s+" + _HOUR
+                      + r"\b", re.I)
+_O_CLOCK = re.compile(r"\b" + _HOUR + r"\s+o'?clock", re.I)
+# "at three", "by ten": an hour after a word for when, and not a count of something ("by two goals", "at one
+# point", "after three days"). "One" alone is too often a count; "one o'clock" and "ten past one" still read.
+_AT_HOUR = re.compile(r"\b(?:at|by|from|until|till|before|after)\s+" + _HOUR
+                      + r"\b(?!-|\s+(?:point|stage|end|side|time|of|more|another|"
+                        r"(?!this\b|is\b|was\b|as\b|has\b)[a-z]+s\b))", re.I)
+_DIGITS = re.compile(r"(?<![\d£$.:-])(\d{1,2})(?:[:.](\d{2}))?\s?(am|pm|a\.m\.|p\.m\.)(?![a-z])"
+                     r"|(?<![\d£$.:-])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])", re.I)
+_NOON = re.compile(r"\b(?:noon|midday|lunchtime)\b", re.I)
+_LATE = re.compile(r"\b(?:evening|tonight|pm|p\.m\.)\b", re.I)
+_PARTS = ((re.compile(r"\bafternoon\b", re.I), (12, 0)), (re.compile(r"\b(?:evening|tonight)\b", re.I), (18, 0)))
+
+
+def due_time(text: str) -> tuple[int, int] | None:
+    """The latest time of day a story desk's NEXT names, as (hour, minute); None if it names none. "Ten past four",
+    "kick off at three", "for three o'clock", "by ten", "16:10", "4pm"; "this afternoon" is midday and "this evening"
+    or "tonight" six, when no clock time is said. The prose has no am or pm, so a spoken hour is the town's day:
+    one to six in the afternoon, seven to eleven in the morning unless the evening or "tonight" comes right after,
+    twelve midday. Counts are not times: "twelve hours and three minutes", "268 names", "7-2", "the number twelve
+    bus", "at half-time". The 2026-11-20 night's t506 was closed at 07:58 on its morning previews, with the finish
+    "at ten past four" written as done."""
+    text = text or ""
+    found: list[tuple[int, int]] = []
+
+    def spoken(h: int, m: int, end: int) -> tuple[int, int]:
+        if 1 <= h <= 6 or (7 <= h <= 11 and _LATE.search(text[end:end + 30])):
+            h += 12
+        return h % 24, m
+
+    for x in _PAST_TO.finditer(text):
+        mins = {"five": 5, "ten": 10, "quarter": 15, "twenty": 20, "twenty-five": 25, "twenty five": 25,
+                "half": 30}[x.group(1).lower()]
+        h = _HOURS.index(x.group(3).lower()) + 1
+        h, m = (h, mins) if x.group(2).lower() == "past" else (h - 1 or 12, 60 - mins)
+        found.append(spoken(h, m, x.end()))
+    for rx in (_O_CLOCK, _AT_HOUR):
+        for x in rx.finditer(text):
+            found.append(spoken(_HOURS.index(x.group(1).lower()) + 1, 0, x.end()))
+    for x in _DIGITS.finditer(text):
+        if x.group(3):
+            h, m = int(x.group(1)) % 12, int(x.group(2) or 0)
+            found.append((h + 12 if x.group(3).lower().startswith("p") else h, m))
+        else:
+            found.append((int(x.group(4)), int(x.group(5))))
+    if _NOON.search(text):
+        found.append((12, 0))
+    if not found:
+        found = [hm for rx, hm in _PARTS if rx.search(text)]
+    return max(found) if found else None
 
 
 def fade_after_s(t: Thread) -> float:
