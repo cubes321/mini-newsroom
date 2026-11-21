@@ -272,6 +272,50 @@ def thread_ref(town: Town, tid: str) -> str:
     return f'<a class=id href="{esc(url("/thread/" + tid))}" title="{esc(town.thread_title(tid))}">{esc(tid)}</a>' if tid else ""
 
 
+_TID = re.compile(r"\bt\d{1,5}\b")
+
+
+def with_ids(town: Town, text) -> str:
+    """Text an editor wrote (a memo, a desk note, a turn at the meeting), escaped, with each story id it names
+    turned into a link to that story: "t525" alone says nothing to the reader. An id the town no longer has
+    stays as it was written."""
+    def ref(m: re.Match) -> str:
+        tid = m.group(0)
+        return thread_ref(town, tid) if tid in town.threads or tid in town.pieces else tid
+    return _TID.sub(ref, esc(text))
+
+
+def named_in(town: Town, text) -> list[dict]:
+    """The stories a text names by id, in the order it names them, each once (a merged one as the story it joined)."""
+    seen, out = set(), []
+    for tid in _TID.findall(text or ""):
+        root_id = town.root(tid) if tid in town.threads else None
+        if root_id and root_id not in seen:
+            seen.add(root_id)
+            out.append(town.threads[root_id])
+    return out
+
+
+def story_card(town: Town, t: dict) -> str:
+    """A story in a few lines: its phase, its title and id, where it stands and its NEXT."""
+    return (f'<div class="card">{phase_badge(t)} <b>{thread_link(town, t["id"])}</b>'
+            f'<div>{esc(t.get("status", ""))}</div>'
+            f'<div class="muted">NEXT: {esc(short(t.get("next_development"), 260))}</div>'
+            f'<div class="muted">opened {esc(t.get("opened", ""))} · updated {esc(t.get("updated", ""))} · '
+            f'{t.get("mentions", 0)} mentions · {len(town.pieces.get(t["id"], []))} pieces held</div></div>')
+
+
+def memo_block(town: Town, w: dict, *, stories: bool) -> str:
+    """The senior editor's memo, its story ids as links; with `stories`, each story it names set out under it."""
+    named = named_in(town, w["senior_memo"]) if stories else []
+    on_board = sum(t.get("phase") in LIVE and not t.get("waits_until") for t in named)
+    return (f"<h2>The senior editor's memo <span class=muted>{esc(w.get('senior_memo_at', ''))}</span></h2>"
+            f'<div class="card"><pre class=memo>{with_ids(town, w["senior_memo"])}</pre></div>'
+            + (f"<h3>The stories the memo names ({len(named)})</h3>"
+               f"<p class=muted>{on_board} on the board above; the rest are waiting in the pool, faded or closed.</p>"
+               + "".join(story_card(town, t) for t in named) if named else ""))
+
+
 def person_link(town: Town, name: str) -> str:
     p = town.by_name.get(name)
     return link(f"/person/{p['id']}", name) if p else esc(name)
@@ -361,12 +405,7 @@ def front(files: Files, town: Town, q: dict) -> str:
                                             key=lambda kv: PHASE_ORDER.get(kv[0], 9)))
            + f" · {len(town.archive)} pieces in the archive · {len(files.annals_days())} annals pages</p>"]
     out.append(f"<h2>On the board ({len(live)})</h2>")
-    for t in live:
-        out.append(f'<div class="card">{phase_badge(t)} <b>{thread_link(town, t["id"])}</b>'
-                   f'<div>{esc(t.get("status", ""))}</div>'
-                   f'<div class="muted">NEXT: {esc(short(t.get("next_development"), 260))}</div>'
-                   f'<div class="muted">opened {esc(t.get("opened", ""))} · updated {esc(t.get("updated", ""))} · '
-                   f'{t.get("mentions", 0)} mentions · {len(town.pieces.get(t["id"], []))} pieces held</div></div>')
+    out.extend(story_card(town, t) for t in live)
     aired = [e for e in reversed(town.archive) if e.get("type") in ("bulletin", "field_report", "breaking", "special")
              and e.get("headline")][:15]
     out.append("<h2>Latest on air</h2>" + archive_table(town, aired))
@@ -374,9 +413,7 @@ def front(files: Files, town: Town, q: dict) -> str:
         out.append("<h2>The ticker's headlines</h2><ul>" + "".join(f"<li>{esc(h)}</li>" for h in w["headlines"][:20])
                    + "</ul>")
     if w.get("senior_memo"):
-        out.append(f"<h2>The senior editor's memo <span class=muted>{esc(w.get('senior_memo_at', ''))}</span></h2>"
-                   f'<div class="card"><pre class=memo>{esc(w["senior_memo"])}</pre></div>'
-                   + link("/desk", "The desk's rounds and the editors' meetings"))
+        out.append(memo_block(town, w, stories=True) + link("/desk", "The desk's rounds and the editors' meetings"))
     return page(files, "Front page", "".join(out))
 
 
@@ -504,7 +541,7 @@ def thread_page(files: Files, town: Town, tid: str) -> tuple[int, str]:
     planned = [n for n in w.get("desk_notes", []) if tid in (n.get("planned") or [])]
     if planned:
         out.append("<h2>On the desk's rounds</h2>" + "".join(
-            f'<div class=card><span class=muted>{esc(n.get("at", ""))}</span> {esc(n.get("note", ""))}</div>'
+            f'<div class=card><span class=muted>{esc(n.get("at", ""))}</span> {with_ids(town, n.get("note", ""))}</div>'
             for n in reversed(planned)))
     title = t.get("title", tid) if t else tid
     return 200, page(files, title, "".join(out))
@@ -910,20 +947,19 @@ def desk_page(files: Files, town: Town, q: dict) -> str:
     w = town.w
     out = ["<h1>The desk</h1>"]
     if w.get("senior_memo"):
-        out.append(f"<h2>The senior editor's memo <span class=muted>{esc(w.get('senior_memo_at', ''))}</span></h2>"
-                   f"<div class=card><pre class=memo>{esc(w['senior_memo'])}</pre></div>")
+        out.append(memo_block(town, w, stories=True))
     out.append("<h2>The story desk's rounds</h2>")
     for n in reversed(w.get("desk_notes", [])):
         planned = ", ".join(thread_link(town, t) if t in town.threads or t in town.pieces else esc(t)
                             for t in n.get("planned") or [])      # an id the desk named that never stuck: no link
         out.append(f"<div class=card><b>{esc(n.get('at', ''))}</b> <span class=muted>{n.get('new', 0)} new, "
-                   f"{n.get('merges', 0)} merged</span><div>{esc(n.get('note', ''))}</div>"
+                   f"{n.get('merges', 0)} merged</span><div>{with_ids(town, n.get('note', ''))}</div>"
                    + (f"<div class=muted>Planned: {planned}</div>" if planned else "") + "</div>")
     out.append("<h2>The editors' meetings</h2>")
     for m in sorted(w.get("meetings", []), key=lambda m: (m.get("date", ""), m.get("at", "")), reverse=True):
         mins = m.get("minutes") or {}
         turns = "".join(f"<div class=card><b>{esc(t.get('title') or t.get('seat', ''))}</b>"
-                        f"<pre class=memo>{esc(t.get('says', ''))}</pre></div>" for t in m.get("turns", []))
+                        f"<pre class=memo>{with_ids(town, t.get('says', ''))}</pre></div>" for t in m.get("turns", []))
         acts = "".join(f"<li><b>{esc(a.get('to', ''))}</b>{' (' + esc(a['about']) + ')' if a.get('about') else ''}: "
                        f"{esc(a.get('what', ''))}</li>" for a in mins.get("actions", []) if isinstance(a, dict))
         canon = "".join(f"<li>{esc(c)}</li>" for c in mins.get("canon", []))

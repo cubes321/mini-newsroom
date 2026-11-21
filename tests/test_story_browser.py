@@ -208,3 +208,19 @@ def test_it_serves_over_http_on_localhost(town):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_the_memos_story_ids_are_links_and_its_stories_are_set_out_under_it(town):
+    """The memo says "t3" and "t1"; alone, an id says nothing to the reader (the user, 2026-11-21)."""
+    files, t = town, town.town()
+    t.w["senior_memo"] = "1) Close t3 after its bench beat. 2) t1 and t2 are one story; t99 is gone. 3) Day 20 is thin."
+    t.w["senior_memo_at"] = "2026-11-18 21:09"
+    for html in (sb.front(files, t, {}), sb.desk_page(files, t, {})):
+        assert '<a class=id href="/thread/t3" title="Brass Gull Bench Unveiled">t3</a>' in html
+        assert '<a class=id href="/thread/t1"' in html and "t99 is gone" in html      # an id the town hasn't: as written
+        assert "The stories the memo names (2)" in html                    # t3, and t1 once (t2 was folded into it)
+        under = html.split("The stories the memo names")[1]
+        assert under.index("Brass Gull Bench Unveiled") < under.index("Pool Petition Nears a Thousand Names")
+        assert "Swimming pool names counted" not in under and "Day 20" in html
+    assert [x["id"] for x in sb.named_in(t, "t1, then t1 again, t2 and t3")] == ["t1", "t3"]
+    assert sb.with_ids(t, "a <b> about t1") == 'a &lt;b&gt; about ' + sb.thread_ref(t, "t1")
