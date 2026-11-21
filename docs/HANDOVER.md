@@ -27,7 +27,9 @@ silences of five seconds).
 - **The Last Ferry booked Dev Ramachandran four times in one show** (slots 115, 117, 137 and 139). He had also just
   been on The Panel. At slot 137, "Jo Pascoe was just on" was asked again and the answer, Dev, wasn't checked again.
   The "has been on before" ask then booked Owen Kersey instead, so "keeping the script before" kept Dev. Ruth Averill
-  was picked again three times too (slots 129, 140 and 146), and caught each time.
+  was picked again three times too (slots 129, 140 and 146), and caught each time. **Fixed the same morning:** the
+  replacement guest is checked too, with one more ask that names everyone who is out. And when the "has been on
+  before" ask comes back with someone new, the new guest is kept if the one before was just on.
 - **A close stood on a morning preview:** t506 (Ruby Tennant's row) was held "to close once its ending for Saturday
   21 November has been reported". The breakfast reports ("Nears the Finish", "Keeps Rowing") counted as coverage,
   so the desk closed it at 07:58 with the finish at 16:10, the time and the £2,880 written as done. t569, t586, t604
@@ -71,8 +73,8 @@ silences of five seconds).
 
 ### To do next, in order
 
-1. **Fix what the 2026-11-20 night's review found** (above): The Last Ferry's double booking first, then the close on
-   a preview.
+1. **Fix what the 2026-11-20 night's review found** (above): the close on a preview. The Last Ferry's double booking
+   is fixed.
 2. **Fix what the 2026-11-19 council night's review found.** The station itself ran cleanly: no errors, no filler, sound
    in every recording checked, memos, pool moves, quiet rounds and seeds all as intended. But:
    - **The Chamber ran on the stand-in's four motions** (log line 224, 18:53): already fixed in ba6d6de. Its four

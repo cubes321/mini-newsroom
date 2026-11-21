@@ -39,6 +39,72 @@ def test_a_guest_already_on_the_show_today_is_not_booked_again(monkeypatch):
     assert w.guests_today("magazine") == ["Helen Strand", "Ellie Marr"]
 
 
+def _guest(name):
+    return {"headline": f"{name} on the frost", "lower_third": "Coastwide", "guest_name": name,
+            "guest_role": "a guest", "guest_gender": "m",
+            "lines": [{"speaker": "mag_a", "text": "Cold one?"}, {"speaker": "guest", "text": "Freezing."}]}
+
+
+def _last_ferry_137(w, monkeypatch):
+    """The Last Ferry, 2026-11-20, slot 137: Jo Pascoe just on, Dev Ramachandran on twice that hour."""
+    w.record_aired("interview", "Dev Ramachandran: one tray at a time", None, "...", show="magazine",
+                   guest="Dev Ramachandran")
+    monkeypatch.setattr(writers, "_recent_guests", writers.deque(["Jo Pascoe"], maxlen=8))
+
+
+def test_the_guest_asked_for_instead_is_checked_too(monkeypatch):
+    w = world_mod.seed()
+    _last_ferry_137(w, monkeypatch)
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_guest(["Jo Pascoe", "Dev Ramachandran", "Owen Kersey"][len(asked) - 1]))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=137, type=T.interview, show="magazine", target_s=90)
+    writers.script_segment(seg, w)
+    assert len(asked) == 3 and "NOT Jo Pascoe" in asked[1] and "NOT Dev Ramachandran either" in asked[2]
+    assert "Jo Pascoe" in asked[2].split("NOT Dev Ramachandran either")[1]          # the whole list, both of them
+    assert {l.guest_name for l in seg.lines if l.speaker == "guest"} == {"Owen Kersey"}
+
+
+def test_a_new_guest_wins_over_a_returning_one_just_on(monkeypatch):
+    """Asked about Dev with what he said before, the model booked Owen Kersey; keeping the script before put Dev
+    on twice more."""
+    w = world_mod.seed()
+    _last_ferry_137(w, monkeypatch)
+    dev = w.ensure_person("Dev Ramachandran", "baker", gender="m")
+    dev.memories = [{"said": "one tray at a time", "show": "The Last Ferry", "date": w.last_date}]
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        names = ["Jo Pascoe", "Dev Ramachandran", "Dev Ramachandran", "Owen Kersey"]
+        return schema.model_validate(_guest(names[min(len(asked), 4) - 1]))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=137, type=T.interview, show="magazine", target_s=90)
+    writers.script_segment(seg, w)
+    assert len(asked) == 4 and "Dev Ramachandran has been on before" in asked[3]
+    assert {l.guest_name for l in seg.lines if l.speaker == "guest"} == {"Owen Kersey"}
+
+
+def test_a_returning_guest_not_just_on_still_keeps_the_script_before(monkeypatch):
+    """The old rule stands when the guest before wasn't just on: asked about Tam, a different name is dropped."""
+    w = world_mod.seed()
+    monkeypatch.setattr(writers, "_recent_guests", writers.deque(maxlen=8))
+    tam = w.person_by_name("Tam Buchanan")
+    tam.memories = [{"said": "the crew launch from the slipway", "show": "Coastwide", "date": w.last_date}]
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_guest("Tam Buchanan" if len(asked) == 1 else "Owen Kersey"))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=40, type=T.interview, show="magazine", target_s=90)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and {l.guest_name for l in seg.lines if l.speaker == "guest"} == {"Tam Buchanan"}
+
+
 def _inquiry_night(w):
     w.inquiries = [{"date": w.last_date, "thread_id": None, "title": "Who Opens the Keeper's Lamp Room?",
                     "guest": "Ivy Marchetti", "angle": "who holds the key", "questions": ["Who decided?"]}]

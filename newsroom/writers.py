@@ -1591,6 +1591,16 @@ def script_segment(seg: Segment, world: World) -> Segment:
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             user += "\n\n" + again        # and every later ask keeps it
             script = llm.complete_json(seg.type.value, schema, system, user)
+            # The answer is checked too: on The Last Ferry of 2026-11-20, told "NOT Jo Pascoe" at slot 137, the model
+            # booked Dev Ramachandran, on twice that hour already, and he aired twice more. One more ask, naming
+            # everyone who is out. (THE GUEST, out of place, has its own last ask below.)
+            twice = _rebooked(script, world, taken, show.id)
+            if twice and twice.lower() != (taken or "").lower():
+                out = list(dict.fromkeys([*world.guests_today(show.id), *_recent_guests, rebooked, twice]))
+                log.info("%s slot %d: %s was just on too; asking once more", seg.type.value, seg.slot_id, twice)
+                user += (f"\n\nNOT {twice} either. Everyone here has been on very recently, so none of them: "
+                         f"{', '.join(out)}. Book a person who is not on that list.")
+                script = llm.complete_json(seg.type.value, schema, system, user)
         # A guest booked of the writer's own accord who has been on before: ask again with what
         # they said, so they don't contradict themselves (the offered return visit had it already).
         # Not on Rock Pool: told what a returning grown-up said on the other shows, the children's visitors brought it
@@ -1608,11 +1618,17 @@ def script_segment(seg: Segment, world: World) -> Segment:
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
             # Asked about one guest, the model may book another: on 2026-11-03, asked about Tam Buchanan it
             # put THE GUEST back in the chair, four times. Then the script before the ask stands.
+            # Unless the one before was a guest just on and this one is new: at slot 137 on 2026-11-20, asked about
+            # Dev Ramachandran (on twice that hour), it booked Owen Kersey, and keeping Dev put him on twice more.
             now_booked = (getattr(script, "guest_name", None) or "").strip().lower()
             if now_booked != known.name.lower():
-                log.info("%s slot %d: asked about %s, it booked %s; keeping the script before", seg.type.value,
-                         seg.slot_id, known.name, getattr(script, "guest_name", None))
-                script = before
+                fresh = (_rebooked(before, world, taken, show.id) and now_booked
+                         and not _rebooked(script, world, taken, show.id))
+                log.info("%s slot %d: asked about %s, it booked %s; keeping %s", seg.type.value, seg.slot_id,
+                         known.name, getattr(script, "guest_name", None),
+                         "them, as the one before was just on" if fresh else "the script before")
+                if not fresh:
+                    script = before
             elif end:
                 seg.work["loose_end_of"] = known.name
         # Still THE GUEST, out of place: one last ask, with the item restated last (on 2026-11-06 a film asked
