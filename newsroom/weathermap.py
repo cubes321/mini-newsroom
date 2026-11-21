@@ -49,38 +49,44 @@ def for_prompt() -> str:
             "leaves them to the map. The only temperature he gives in figures is Port Wexley's.")
 
 
-def _at(xy: tuple[float, float], w: int) -> tuple[int, int]:
-    k = w / (X1 - X0)
-    return round((xy[0] - X0) * k), round((Y1 - xy[1]) * k)
+WINDOW = (X0, X1, Y1)                  # the weather's window; the travel board and the route map have their own
+
+
+def _at(xy: tuple[float, float], w: int, win: tuple[float, float, float] = WINDOW) -> tuple[int, int]:
+    x0, x1, y1 = win
+    k = w / (x1 - x0)
+    return round((xy[0] - x0) * k), round((y1 - xy[1]) * k)
 
 
 _base: dict = {}
 
 
-def base(size: tuple[int, int]):
-    """The map with no weather on it: land, the sea and the estuary, the river and the town."""
+def base(size: tuple[int, int], win: tuple[float, float, float] = WINDOW):
+    """The map with no weather on it: land, the sea and the estuary, the river and the town. `win` is the
+    window on it (miles: west edge, east edge, north edge); each is drawn once and kept. Copy it to draw on."""
     import pygame
 
-    if size not in _base:
+    if (size, win) not in _base:
         w, h = size
+        at = lambda p: _at(p, w, win)  # noqa: E731
         s = pygame.Surface(size)
         s.fill(LAND)
         for i in range(0, w, 3):                                    # the moor, a shade darker up the top
             for j in range(0, h // 3, 3):
                 if (i * 7 + j * 13) % 5 == 0:
                     s.set_at((i, j), LAND_HIGH)
-        sea = [_at(p, w) for p in g.SHORE] + [_at((g.SHORE[-1][0], -40), w), _at((g.SHORE[0][0], -40), w)]
+        sea = [at(p) for p in g.SHORE] + [at((g.SHORE[-1][0], -40)), at((g.SHORE[0][0], -40))]
         pygame.draw.polygon(s, SEA, sea)
-        deep = _at((0, -6.2), w)[1]                                 # open water, a shade darker off the coast
-        for j in range(deep, h):
+        deep = at((0, -6.2))[1]                                     # open water, a shade darker off the coast
+        for j in range(max(0, deep), h):
             for i in range(w):
                 if s.get_at((i, j))[:3] == SEA and (i + j * 2) % 4:
                     s.set_at((i, j), SEA_DEEP)
-        pygame.draw.lines(s, SHORE_LINE, False, [_at(p, w) for p in g.SHORE], 1)
-        pygame.draw.lines(s, SEA, False, [_at(p, w) for p in g.RIVER], 1)
-        pygame.draw.circle(s, TOWN, _at(g.BY_ID["main_street"].xy, w), 3)
-        _base[size] = s
-    return _base[size]
+        pygame.draw.lines(s, SHORE_LINE, False, [at(p) for p in g.SHORE], 1)
+        pygame.draw.lines(s, SEA, False, [at(p) for p in g.RIVER], 1)
+        pygame.draw.circle(s, TOWN, at(g.BY_ID["main_street"].xy), max(3, round(0.42 * w / (win[1] - win[0]))))
+        _base[size, win] = s
+    return _base[size, win]
 
 
 def _cloud(s, x: int, y: int, c) -> None:

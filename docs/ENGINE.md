@@ -385,6 +385,24 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - **Every sky moves**: rain and snow fall, cloud and fog drift, the wind streaks, the storm's bolt flashes.
   - It is drawn at the canvas's size each frame, not as a full-size picture, so the weather can move over it. The
     lower third hides the screen's bottom rows, so the window (`X0, X1, Y1`) keeps the coast above them.
+- **The travel board** (`newsroom/travelboard.py`, 2026-11-21) is the wall's screen while the travel is read: Have
+  Your Say's travel link, the only travel item in the schedule (`travelboard.is_travel` reads the brief). Approved
+  on `data/contact-sheets/2026-11-21-travel-board-and-route-map.png`.
+  - Whoever reads it stands at the wall (`Player._studio_shot` sets `View.board`, `scenes._studio_wall` draws it).
+  - The estuary close up: the coast bus's road in yellow, the ferry's crossing in dashes that run while it does and
+    stop, red, when it doesn't.
+  - Three rows, FERRY, BUS and TIDE, from `tides.ferry`, `tides.tides` and the gazetteer: the facts the script is
+    given (`tides.for_prompt`), so the board and the presenter agree. The ferry row knows the low-water gap, the
+    last boat, and a day it is off for the weather.
+- **The route map** (`newsroom/routemap.py`, 2026-11-21) is The Coast Road's journey in the corner, on the same
+  sheet: the whole route pale, tonight's leg yellow with a dot a stop, and the stop she is heading for ringed.
+  - `travelogue.after` puts the route on the opening and each road item (`seg.work["route"]`); it is up for the
+    item's first line (`travelogue.view`, `draw_scene`).
+  - The window fits the route (`window_for`). A stop the gazetteer can't place keeps its number and is left off.
+- **The locator's first word** (2026-11-21) is the report's own `location` (`seg.work["said_at"]`, read by
+  `geography.place_at`: the first place it names). Over two days of reports it placed 117 of 118, the headline 79.
+- **One coast for all of them.** `weathermap.base(size, win)` draws the land and water for any window on the map;
+  the weather, the travel board and the route map each give their own.
 - **Still to square.** `travelogue.TRAVEL` films a ferry ride on the cannery `slipway`, but the ferry goes from the
   Quay Steps. Teletext's weather page still has its own coast, a character cell each (`teletext.COAST`).
 

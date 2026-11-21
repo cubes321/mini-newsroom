@@ -30,7 +30,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from . import adverts, channel, continuity, control, council, documentary, locator, schedule, teletext
+from . import adverts, channel, continuity, control, council, documentary, locator, schedule, teletext, travelboard
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -108,6 +108,7 @@ class View:
     weather: str | None = None           # last weather report's map_state; grades exteriors
     shot: str = "wide"                   # studio framing: wide | close | wall
     wall_label: str = ""                 # caption on the big-picture wall's side panel
+    board: str = ""                      # what the wall's screen shows instead of a place: "travel" (travelboard.py)
     strand: str = ""                     # a documentary's strand name, for its letterbox label
     archive: str = ""                    # archive footage on screen: its caption (black and white)
     chapter: dict | None = None          # {number, total, heading, title, standfirst}
@@ -582,7 +583,11 @@ class Player:
         - Bulletins cut between the wide desk shot and a close-up, line by line.
         """
         handing_over = all(l.speaker not in (*FIELD_REPORTERS, "guest") for l in seg.lines[:self.line_idx + 1])
-        if seg.type in OUTSIDE and handing_over and v.backdrop and seg.show != "chamber":   # Dana stays in the room
+        if travelboard.is_travel(seg.brief) and seg.type is SegmentType.links:
+            # The travel: whoever reads it stands at the wall, with the bus, the ferry and the tide on its screen.
+            v.shot, v.wall_label, v.board = "wall", "TRAVEL", "travel"
+            v.presenter = v.speaker or v.presenter
+        elif seg.type in OUTSIDE and handing_over and v.backdrop and seg.show != "chamber":   # Dana stays in the room
             v.shot, v.wall_label = "wall", OUTSIDE[seg.type]
             v.presenter = v.speaker or v.presenter
         elif seg.type is SegmentType.documentary and self.line_idx == 0:

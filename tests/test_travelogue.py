@@ -565,3 +565,31 @@ def test_the_route_is_planned_by_sonnet_not_the_chambers_thinking_model():
     assert tv.TASK == soap.TASK
     assert CONFIG.llm.routes[tv.TASK] == "claude_sonnet" or "travelogue" in CONFIG.llm.routes
     assert "LAST LEG'S LAST STOP are both in Port Wexley" in tv._SYSTEM
+
+
+def test_the_opening_and_the_road_items_carry_the_route_for_the_map(channel, monkeypatch, nowhere):
+    """The journey on the town's map (newsroom/routemap.py): up for the first line of the opening and of each road
+    item, with the stop she is heading for; never over a meeting."""
+    from newsroom.models import Line, Segment, SegmentType
+    from newsroom.player import View
+
+    w = _world()
+    _stub(monkeypatch)
+    entry = tv.commission(w)
+
+    def item(brief):
+        seg = Segment(slot_id=1, type=SegmentType.interview, show=tv.SHOW, brief=brief,
+                      lines=[Line(speaker="guest", guest_name=tv.HOST, text="Off we go."),
+                             Line(speaker="guest", guest_name=tv.HOST, text="And on.")])
+        tv.after(seg, w)
+        return seg
+    opening, road, meeting = item("{open}"), item("{r1}"), item("{m1}")
+    r = road.work["route"]
+    assert len(r["legs"]) == tv.LEGS and r["n"] == entry["n"] == 1 and r["to"] == 1
+    assert r["caption"].startswith("Leg 1 of 6: ")
+    assert opening.work["route"]["to"] is None and "route" not in meeting.work
+    v = View()
+    tv.view(road, v, 0)
+    assert v.scene["route"] == r
+    tv.view(road, v, 1)
+    assert v.scene["route"] is None                                   # the first line only

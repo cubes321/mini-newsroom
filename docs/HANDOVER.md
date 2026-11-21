@@ -249,8 +249,18 @@ saved route from the real `data/`.
        trial forecasts and got one figure wrong; told "a degree or two colder" and one place at most, two of six
        named one, both rightly, with no figure.
      - Not aired yet: look at the first weather of the next run.
-   - **Next: the travel board**, for Have Your Say's travel link and Morning Tide's: the coast bus round by Polgrey,
-     the ferry crossing and the tide times, all from code (`tides.py`, `geography.py`). No graphic yet.
+   - **The travel board is built** (2026-11-21, `newsroom/travelboard.py`): on the wall while Jonah reads Have Your
+     Say's travel, with the bus, the ferry and the tide from code. Morning Tide has no travel item, so it isn't
+     there; one could be added. Approved as stills on
+     `data/contact-sheets/2026-11-21-travel-board-and-route-map.png`. Not aired yet.
+   - **The Coast Road's route map is built** (2026-11-21, `newsroom/routemap.py`): the journey in the corner for the
+     first line of the opening and of each road item. Approved on the same sheet, drawn from the stand-in route.
+     The saved route in `data/travelogue/lorna_quayle.json` is the one that failed the map check, and its stops
+     place oddly (leg 2 all at Saltby, leg 3 from the Quarry Field to Greymouth Point). Not aired yet.
+   - **The locator reads the report's own location first** (f6865d0): expect it up on nearly every one of Miles's
+     reports now, not about half. Look at where it puts them on the next night.
+   - **Next on the list:** Out and About's walks, Full Time's away grounds (some league towns aren't in the
+     gazetteer), the callers' streets; and, new: The Chamber's wards, breaking news, Tideline, Seventext's coast.
 
 ## Picking up after the Channel 7 council night of 2026-11-19
 

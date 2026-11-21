@@ -645,6 +645,11 @@ def after(seg, world: World) -> None:
             line.text = pat.sub(lambda m, d=day: d.capitalize() if m.group(0)[0].isupper() else d, line.text)
     seg.work["location"], seg.work["tod"], seg.work["filmed"] = it["backdrop"], it["tod"], True
     seg.work["road"] = {"other": it["stop"]["meet"] if it["kind"] == "meet" else None}
+    if it["kind"] in ("open", "road"):          # the journey on the town's map, up as the item begins (routemap.py)
+        from newsroom import routemap
+        seg.work["route"] = {"legs": routemap.legs_of(s["legs"]), "n": entry["n"],
+                             "to": min(it["k"], STOPS - 1) if it["kind"] == "road" else None,
+                             "caption": f"Leg {entry['n']} of {LEGS}: {it['leg']['title']}"}
 
 
 FAMILY = re.compile(r"\bmy (?:late |old |dear )?(wife|husband|missus|hubby|sister|brother|son|daughter|kids|children|"
@@ -797,7 +802,8 @@ def view(seg, v, line_idx: int) -> None:
         return
     v.tag, v.mode = "", "road"
     v.backdrop, v.tod = seg.work["location"], seg.work.get("tod") or v.tod
-    v.scene = {"host": HOST, "other": (seg.work.get("road") or {}).get("other")}
+    v.scene = {"host": HOST, "other": (seg.work.get("road") or {}).get("other"),
+               "route": seg.work.get("route") if line_idx == 0 else None}     # the map, for the item's first line
 
 
 def draw_scene(canvas, v, t: float) -> None:
@@ -822,6 +828,10 @@ def draw_scene(canvas, v, t: float) -> None:
         if other:                                     # the resident beside her, listening
             draw_character(canvas, 230, 160, "guest", 0.0, t, scale=2, facing=-1, look=_guest(v, other),
                            light=light)
+    if route := (v.scene or {}).get("route"):
+        from newsroom import routemap
+        from newsroom.scenes import text
+        routemap.draw(canvas, routemap.RECT, route["legs"], route["n"], route["to"], t, text, route["caption"])
 
 
 # ------------------------------------------------------------------ with no model

@@ -10,12 +10,13 @@ on the canvas but draws it at the window's size, in `present()`, because an
 from __future__ import annotations
 
 import math
+from datetime import datetime
 import random
 from functools import lru_cache
 
 import pygame
 
-from . import backdrops, channel, film, locations, locator, logo, parallax, schedule, weathermap
+from . import backdrops, channel, film, locations, locator, logo, parallax, schedule, travelboard, weathermap
 from .models import FIELD_REPORTERS
 from .player import WAVE_WINDOWS as WAVE_BARS, View
 from .sprites import REACT, draw_character, draw_mic, guest_look
@@ -355,13 +356,17 @@ def _studio_close(canvas: pygame.Surface, v: View, t: float) -> None:
 def _studio_wall(canvas: pygame.Surface, v: View, t: float) -> None:
     """The anchor at the big wall, the story's location up on the screen."""
     backdrops.draw(canvas, "weather_wall")
-    canvas.blit(backdrops.picture(v.backdrop, v.tod, v.weather, WALL_SCREEN.size), WALL_SCREEN)
+    if v.board == "travel":                  # the travel: the bus, the ferry and the tide, not a place (travelboard.py)
+        travelboard.draw(canvas, tuple(WALL_SCREEN), datetime.fromtimestamp(schedule.now()), v.weather, t, text,
+                         lambda s, size: font(size).size(s))
+    else:
+        canvas.blit(backdrops.picture(v.backdrop, v.tod, v.weather, WALL_SCREEN.size), WALL_SCREEN)
     pygame.draw.rect(canvas, (20, 20, 30), WALL_PANEL)
     tag = (200, 30, 30) if v.wall_label == "LIVE" else (200, 170, 60)
     pygame.draw.rect(canvas, tag, (WALL_PANEL.x + 4, WALL_PANEL.y + 6, WALL_PANEL.w - 8, 12))
     text(canvas, v.wall_label, WALL_PANEL.centerx, WALL_PANEL.y + 12, 8, center=True, maxw=WALL_PANEL.w - 10)
     y = WALL_PANEL.y + 24
-    name = locations.get(v.backdrop).name
+    name = "the Grey, the coast bus and the Saltby ferry" if v.board == "travel" else locations.get(v.backdrop).name
     for ln in wrap(name[:1].upper() + name[1:], 8, WALL_PANEL.w - 8, 3):
         text(canvas, ln, WALL_PANEL.x + 4, y, 8, (220, 220, 230))
         y += 10
