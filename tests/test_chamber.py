@@ -437,3 +437,16 @@ def test_a_loop_item_the_chamber_has_had_is_asked_for_again_but_never_a_motion()
     assert writers._repeated("Who Won and Lost Tonight in the Port Wexley Chamber", w, show, T.links, "z") is None
     _filed(w, "p", "Splash pool petition of 418 names goes to budget committee")
     assert writers._repeated("Splash Pool Petition of 418 Names Heads to Costing", w, show, T.interview, "p")
+
+
+def test_an_item_written_ahead_already_counts_for_the_turns():
+    """The Chamber is written about six items ahead of the air: the turn after a "{who}" item comes from the
+    entry filed as it is written, not when it airs."""
+    w = _town()
+    _, ward, aob, *_ = schedule.SHOWS["chamber"].briefs[T.interview]
+    assert NAMES[0] in chamber.brief_for(w, ward)
+    seg = Segment(slot_id=40, type=T.interview, show="chamber", brief=ward, target_s=330.0)
+    writers.script_segment(seg, w)                                        # written; the player hasn't said it aired
+    filed = w.archive[-1]
+    assert filed["show"] == "chamber" and filed["brief"] == ward and filed.get("aired") is False
+    assert NAMES[1] in chamber.brief_for(w, aob) and NAMES[0] not in chamber.brief_for(w, aob)

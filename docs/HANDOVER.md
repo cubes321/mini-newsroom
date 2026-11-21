@@ -208,9 +208,15 @@ saved route from the real `data/`.
      - **Replayed twice with a real booking and Haiku**, the whole hour on a copy of the town from before that night
        (37 and 39 items). In the second: six councillors took the six turns, three different reports, seven
        different people at the lectern, two petitions from two wards, and no link had a vote still to come. One
-       pair alike (the Cannery plaque quote, at 20:16 and 20:34), which the last change (no re-ask on a `{vote}`
-       question) is meant to stop; that change has unit tests but was not replayed.
+       pair alike: the Cannery plaque quote, at 20:16 and 20:34.
      - **Still open:**
+       - A question on a vote can leave its vote: in both replays the second `{vote}` turn, on the fire engine, went
+         elsewhere (Dev Ramachandran's winter market; the Cannery plaque again). The second time it had been
+         re-asked for "a different subject", so a `{vote}` question is no longer re-asked; the first time it hadn't,
+         so that isn't the whole cause. Perhaps "no motion debated twice" in the so-far list. Not replayed since.
+       - The loop's items follow stories up: `{story}` and `{vote}` name a story by id, and seven loop items in the
+         second replay filed under one (t484's and t525's status lines were rewritten by a resident's question; their
+         NEXT and promises stood). Worth a look with the senior editor's undoing of the votes.
        - Miles's gallery has regulars: Dougal Crane and Ruth Penhaligon were asked four or five times each.
        - Dana's recap links are alike by nature ("Four Votes Carried, ..." three times).
        - A councillor's "not on tonight's agenda" question still strays onto the agenda (the harbour wall).

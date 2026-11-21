@@ -1562,8 +1562,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
             log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
                      seg.slot_id, done, show.id)
             user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today. Write "
-                     + ("it again as THIS ITEM says, from what has happened since, in other words and under its own "
-                        "headline." if show.id == chamber.SHOW and seg.type is SegmentType.links else
+                     + ("it again as THIS ITEM says, with other people and other words, from what has happened "
+                        "since, under its own headline."
+                        if show.id == chamber.SHOW and seg.type in (SegmentType.links, SegmentType.vox_pop) else
                         "about a different subject, with a different person and place, as THIS ITEM says."))
             script = llm.complete_json(seg.type.value, schema, system, user)
         if quay.about_the_auction(getattr(script, "headline", "")) and (done := _auction_on_news(world, show)):
