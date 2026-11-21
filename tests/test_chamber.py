@@ -354,3 +354,86 @@ def test_the_briefings_say_the_meeting_is_over_except_to_the_chamber_itself(monk
     assert "Thursday 19 November (tonight)" in sitting and "OVER" not in sitting
     monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 19, 19, 59).timestamp())
     assert "Thursday 19 November (tonight)" in w.summary_for_prompt()
+
+
+def _filed(w, brief, headline, kind="interview", people=()):
+    """An item of tonight's Chamber as the writer files it."""
+    w.archive.append({"date": w.last_date, "type": kind, "headline": headline, "text": "…", "show": "chamber",
+                      "brief": brief, "people": list(people)})
+
+
+def test_the_loops_briefs_take_turns_so_no_item_is_written_twice():
+    """On 2026-11-19 the six angles came round with the same words and got the same items: Lucy Hammond's
+    Cannery shed question twice, the harbour office accounts twice, the pool petition three times."""
+    w = _town()
+    w.chambers = [{"date": w.last_date, "motions": [
+        {"thread_id": "t1", "title": "Harbour wall tender", "motion": "That the tender is let", "mover": NAMES[0],
+         "carried": True, "for": 4, "against": 2, "applied": True, "votes": [], "casting": False},
+        {"thread_id": "t2", "title": "Second fire engine", "motion": "That the engine is bought", "mover": NAMES[1],
+         "carried": False, "for": 2, "against": 4, "applied": True, "votes": [], "casting": False}]}]
+    show = schedule.SHOWS["chamber"]
+    vote, ward, aob, story, report, petition = show.briefs[T.interview]
+    asked = []
+    for brief in (ward, aob, ward, aob, ward, aob, ward):                 # round the table, then round again
+        said = chamber.brief_for(w, brief)
+        assert "{" not in said
+        asked.append(next(n for n in NAMES if n in said))
+        _filed(w, brief, f"Question {len(asked)}")
+    assert asked == NAMES + NAMES[:1]
+    first = chamber.brief_for(w, vote)
+    assert "tonight's first vote, on [t1] Harbour wall tender (carried 4-2" in first and "come round before" not in first
+    _filed(w, vote, "Tender question")
+    second = chamber.brief_for(w, vote)
+    assert "tonight's second vote, on [t2] Second fire engine (lost 2-4" in second
+    assert 'come round before tonight, as "Tender question": do NOT write that again' in second
+    reports = []
+    for _ in range(4):
+        reports.append(chamber.brief_for(w, report).split(",")[0])
+        _filed(w, report, f"Report {len(reports)}")
+    assert len(set(reports[:3])) == 3 and reports[3] == reports[0]
+    jean = w.ensure_person("Jean Corran", "Resident, Harbour Row")
+    agenda_free = sorted(t.id for t in w.briefing_threads() if t.id not in ("t1", "t2"))
+    told = []
+    for _ in range(2):                                                    # a new story and a new ward each time
+        q, pet = chamber.brief_for(w, story), chamber.brief_for(w, petition)
+        assert "{" not in q + pet
+        told.append((next(i for i in agenda_free if f"[{i}]" in q), pet.split("from ")[1].split(",")[0]))
+        _filed(w, story, f"Story {len(told)}", people=[jean.id])
+        _filed(w, petition, f"Petition {len(told)}")
+    assert told[0][0] != told[1][0] and [t[1] for t in told] == ["Saltby ward", "Cannery ward"]
+    assert "a resident who has not been at the lectern tonight (NOT Jean Corran, who have spoken)" in pet
+
+
+def test_the_agenda_says_which_motions_are_voted_and_who_has_spoken(monkeypatch):
+    """On 2026-11-19 the links said "three votes settled, bowling green left" after the fourth was carried, and
+    Jean Corran of Harbour Row came to the lectern three times."""
+    w = _town()
+    motion = lambda tid, applied: {"thread_id": tid, "title": tid, "motion": f"That {tid} goes ahead",  # noqa: E731
+                                   "mover": NAMES[0], "carried": True, "for": 5, "against": 1, "applied": applied,
+                                   "votes": []}
+    w.chambers = [{"date": w.last_date, "motions": [motion("t1", True), motion("t2", False)]}]
+    said = chamber.for_prompt(w)
+    assert '1. "That t1 goes ahead" (moved by Gerald Thorne) — VOTED: CARRIED 5-1' in said
+    assert '2. "That t2 goes ahead" (moved by Gerald Thorne) — not yet voted on' in said
+    assert "1 of 2 voted on so far" in said and "FROM THE PUBLIC" not in said
+    w.chambers[0]["motions"][1]["applied"] = True
+    jean = w.ensure_person("Jean Corran", "Resident, Harbour Row")
+    _filed(w, "public question time", "Pool question", people=[jean.id, w.person_by_name(NAMES[0]).id])
+    said = chamber.for_prompt(w)
+    assert "ALL of the agenda has been voted on: no motion is left to come" in said
+    assert "FROM THE PUBLIC ALREADY TONIGHT" in said and "street): Jean Corran\n" in said
+
+
+def test_a_loop_item_the_chamber_has_had_is_asked_for_again_but_never_a_motion():
+    w = _town()
+    show = schedule.SHOWS["chamber"]
+    _filed(w, "x", "Cannery Shed Sign-Off Stands, Plaque Quote Requested")
+    _filed(w, "y", "Who Won and Lost Tonight in the Port Wexley Chamber", kind="links")
+    again = "Cannery Plaque Quote Requested as Shed Sign-Off Stands"
+    assert writers._repeated(again, w, show, T.interview, "a question to the mayor from {who}") is not None
+    assert writers._repeated(again, w, show, T.interview, "the THIRD motion, {m3}") is None
+    assert writers._repeated(again, w, show, T.interview, "a question about {vote}") is None
+    assert writers._repeated("Who Won and Lost Tonight in the Port Wexley Chamber", w, show, T.links, "y") is not None
+    assert writers._repeated("Who Won and Lost Tonight in the Port Wexley Chamber", w, show, T.links, "z") is None
+    _filed(w, "p", "Splash pool petition of 418 names goes to budget committee")
+    assert writers._repeated("Splash Pool Petition of 418 Names Heads to Costing", w, show, T.interview, "p")

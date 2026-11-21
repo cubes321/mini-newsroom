@@ -1561,8 +1561,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if done := _repeated(getattr(script, "headline", ""), world, show, seg.type, seg.brief):   # asked not to, models do; ask again once
             log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
                      seg.slot_id, done, show.id)
-            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW[show.id].title()} earlier today. Write "
-                     "about a different subject, with a different person and place, as THIS ITEM says.")
+            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today. Write "
+                     + ("it again as THIS ITEM says, from what has happened since, in other words and under its own "
+                        "headline." if show.id == chamber.SHOW and seg.type is SegmentType.links else
+                        "about a different subject, with a different person and place, as THIS ITEM says."))
             script = llm.complete_json(seg.type.value, schema, system, user)
         if quay.about_the_auction(getattr(script, "headline", "")) and (done := _auction_on_news(world, show)):
             log.info("%s slot %d: the auction was on the news already (%r); asking for another story",
@@ -1758,9 +1760,14 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     Links count against earlier links on the same brief only (a story time against the story times), as
     Rock Pool's pieces are links: on 2026-11-06 its five story times were the giant who built the harbour
     wall twice and "Mabel the Seal and the Quay Bell" three times. Letters and drawings keep their title."""
-    if show.id not in REMEMBERS_ITS_SHOW or seg_type not in _SHOW_TYPES:
-        return None
     links = seg_type is SegmentType.links
+    # The Chamber's loop after the agenda, too (2026-11-19: the Cannery shed question and the harbour office
+    # accounts twice each; Dana's link "Who Won and Lost Tonight" twice). Not its motions, which are booked, nor
+    # a question on one of them ("{vote}"), which shares its headline's words and takes its turn in code: asked
+    # for "a different subject", it left the fire engine vote for the Cannery plaque again (the 2026-11-21 replay).
+    council_loop = show.id == chamber.SHOW and chamber.motion_in(brief) is None and "{vote}" not in brief
+    if (show.id not in REMEMBERS_ITS_SHOW and not council_loop) or seg_type not in _SHOW_TYPES:
+        return None
     if links and (not brief or brief in schedule.SAME_TITLE_BRIEFS):
         return None
     new = _words(headline or "")
@@ -1771,7 +1778,8 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
         earlier = [e["headline"] for e in world.archive if e["date"] == world.last_date
                    and e.get("show") == show.id and e["type"] in kinds and e.get("headline")
                    and (not links or e.get("brief") == brief)]
-    likeness = RETOLD_LIKENESS if links and brief in schedule.RETOLD_BRIEFS else REPEAT_LIKENESS
+    likeness = (RETOLD_LIKENESS if (links and brief in schedule.RETOLD_BRIEFS) or (council_loop and not links)
+                else REPEAT_LIKENESS)
     for head in reversed(earlier):
         old = _words(head)
         if old and len(new & old) / len(new | old) >= likeness:

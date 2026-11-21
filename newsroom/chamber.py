@@ -228,16 +228,100 @@ def brief_for(world: World, brief: str) -> str:
                 f"THE RESULT, which Helen Strand reads out exactly: {_result(m)}. What follows: "
                 f"{(m['if_carried'] if m['carried'] else m['if_lost']).rstrip('.')}"
                 + (f". From the public: {m['public'].rstrip('.')}" if m.get("public") else ""))
-    return _SLOT.sub(motion, brief)
+    return _in_turn(world, brief, motions) if motion_in(brief) is None else _SLOT.sub(motion, brief)
+
+
+# The officers' reports the council receives without a vote, one each time "{report}" comes round.
+REPORTS = ("the harbour office's report on the quay, the moorings and its winter works",
+           "the town clerk's report on the council's correspondence and its committees' dates",
+           "the treasurer's report on the town's accounts for the quarter")
+_ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth")
+
+
+def _tonights(world: World) -> list[dict]:
+    """What tonight's Chamber has written so far (filed as each item is written, aired or not yet)."""
+    with world.lock:
+        return [e for e in world.archive if e["date"] == world.last_date and e.get("show") == SHOW
+                and e["type"] != SegmentType.ad_break.value]
+
+
+def _ward(role: str) -> str:
+    return role.removeprefix("Councillor, ").split(";")[0]
+
+
+def _public(world: World, aired: list[dict]) -> list[str]:
+    """Who has spoken from the public tonight: the people in tonight's items who don't sit on the council."""
+    seats = {council.CHAIR, *(name for name, *_ in council.COUNCILLORS)}
+    return list(dict.fromkeys(
+        p.name for e in aired for pid in e.get("people", []) if (p := world.person(pid)) and p.name not in seats))
+
+
+def _in_turn(world: World, brief: str, motions: list[dict]) -> str:
+    """A brief from the loop after the agenda, with whose turn it is. The six angles come round two or three
+    times in the hour, and word for word the same brief got the same item: on 2026-11-19 Lucy Hammond asked
+    about the Cannery shed twice (and a resident a third time), the harbour office accounts were noted twice,
+    Jean Corran brought the pool petition three times, and "do NOT do any of these again" stopped none of it.
+    So the code takes the turns: "{who}" is the next councillor round the table, "{vote}" the next of
+    tonight's motions, "{report}" the next officer's report, "{ward}" the next ward to bring a petition,
+    "{story}" the next of the week's stories off the agenda, each counted from the items already written
+    with that mark; "{resident}" is somebody who hasn't spoken; and a brief that has been round before is
+    told what it made then."""
+    aired = _tonights(world)
+    turn = lambda mark: sum(1 for e in aired if mark in (e.get("brief") or ""))  # noqa: E731
+    out = brief
+    if "{who}" in out:
+        name, role, *_ = council.COUNCILLORS[turn("{who}") % len(council.COUNCILLORS)]
+        out = out.replace("{who}", f"{name} ({_ward(role)})")
+    if "{vote}" in out:
+        put = [(i, m) for i, m in enumerate(motions) if m.get("applied")]
+        if put:
+            i, m = put[turn("{vote}") % len(put)]
+            out = out.replace("{vote}", f"tonight's {_ORDINALS[i]} vote, on [{m['thread_id']}] {m['title']} "
+                                        f"({'carried' if m['carried'] else 'lost'} {m['for']}-{m['against']}, moved "
+                                        f"by {m['mover']})")
+        else:
+            out = out.replace("{vote}", "one of tonight's motions")
+    if "{report}" in out:
+        out = out.replace("{report}", REPORTS[turn("{report}") % len(REPORTS)])
+    if "{ward}" in out:                        # the petitions go round the table the other way from the questions
+        wards = [_ward(role) for _, role, *_ in reversed(council.COUNCILLORS)]
+        out = out.replace("{ward}", wards[turn("{ward}") % len(wards)])
+    if "{story}" in out:                       # a story of the week's that the agenda doesn't have, a new one each time
+        agenda = {m["thread_id"] for m in motions}
+        pool = sorted((t for t in world.briefing_threads() if t.id not in agenda), key=lambda t: t.id)
+        t = pool[turn("{story}") % len(pool)] if pool else None
+        out = out.replace("{story}", f"[{t.id}] {t.title}" if t else "one of the week's stories")
+    if "{resident}" in out:
+        spoke = _public(world, aired)
+        out = out.replace("{resident}", "a resident who has not been at the lectern tonight"
+                          + (f" (NOT {', '.join(spoke)}, who have spoken)" if spoke else ""))
+    before = [e["headline"] for e in aired if e.get("brief") == brief and e.get("headline")]
+    if before:
+        out += (". This kind of item has come round before tonight, as " + "; ".join(f"\"{h}\"" for h in before)
+                + ": do NOT write that again. Something new this time: other people, another subject and its own "
+                  "headline, or what has happened in the chamber since")
+    return out
 
 
 def for_prompt(world: World) -> str:
     """The council in session for every item in the show: the members, the agenda, what has happened so far."""
     c = _booked(world)
-    agenda = "\n".join(f"  {i + 1}. \"{m['motion']}\" (moved by {m['mover']})" for i, m in enumerate(c["motions"]))
-    with world.lock:
-        aired = [e for e in world.archive if e["date"] == world.last_date and e.get("show") == SHOW
-                 and e["type"] != SegmentType.ad_break.value]
+    # Each motion with where it stands: on 2026-11-19 the links said "three votes settled, bowling green left"
+    # three times after the fourth was carried, from an agenda with no results on it and an earlier link to copy.
+    voted = [m for m in c["motions"] if m.get("applied")]
+    agenda = "\n".join(
+        f"  {i + 1}. \"{m['motion']}\" (moved by {m['mover']}) — "
+        + (f"VOTED: {'CARRIED' if m['carried'] else 'LOST'} {m['for']}-{m['against']}" if m.get("applied")
+           else "not yet voted on")
+        for i, m in enumerate(c["motions"]))
+    if voted:
+        agenda += ("\n  ALL of the agenda has been voted on: no motion is left to come, and nobody says one is."
+                   if len(voted) == len(c["motions"]) else
+                   f"\n  {len(voted)} of {len(c['motions'])} voted on so far.")
+    aired = _tonights(world)
+    public = _public(world, aired)
+    spoke = ("\nFROM THE PUBLIC ALREADY TONIGHT (anyone new at the lectern or in the gallery is somebody else, from "
+             f"another street): {', '.join(public)}" if public else "")
     # "Don't repeat it" wasn't enough: on 2026-11-01 the loop came round three times with the same
     # Gull's Rest debate, the same Christmas-lights petition and the same three vox pops.
     done = ("\nSO FAR TONIGHT (do NOT do any of these again, even when this kind of item comes round: no motion "
@@ -246,7 +330,7 @@ def for_prompt(world: World) -> str:
         f"  - {e['type'].replace('_', ' ')}: {e['headline']}: {e['text'][:SO_FAR_CHARS]}" for e in aired)) if aired else ""
     return (f"FULL COUNCIL IN SESSION, live from the council chamber.\nTHE COUNCIL (speak as speaker \"guest\" with "
             f"guest_name their exact name):\n{_council_rows(world)}\nTONIGHT'S AGENDA, in this order:\n{agenda}"
-            f"{promises.for_chamber(world, date.fromisoformat(world.last_date))}{done}")
+            f"{promises.for_chamber(world, date.fromisoformat(world.last_date))}{spoke}{done}")
 
 
 def settle(world: World, i: int) -> str | None:

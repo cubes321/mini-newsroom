@@ -194,6 +194,30 @@ saved route from the real `data/`.
        them).
    - **The Chamber's second half repeated itself**: Hammond's question (slots 98 and 110) and the harbour office
      accounts (104 and 116) written twice, and links still saying "bowling green left" after motion 4 was debated.
+     **Fixed 2026-11-21 evening.** The cause: the loop's six interview briefs came round two or three times in the
+     hour (14 loop interviews), word for word the same, and the same brief got the same item whatever "do NOT do
+     these again" listed.
+     - **The code takes the turns** (`chamber._in_turn`, marks in the loop's briefs): `{who}` is the next councillor
+       round the table, `{vote}` the next of tonight's motions, `{report}` the next of three officers' reports,
+       `{ward}` the next ward to bring a petition, `{story}` the next story off the agenda, `{resident}` somebody who
+       hasn't spoken. A brief that has been round before is told the headlines it made then.
+     - **The agenda says where each motion stands** ("VOTED: CARRIED 5-1" or "not yet voted on", and "no motion is
+       left to come" once all are).
+     - **The writer's repeat check covers the loop** (`writers._repeated`): one more ask when a headline is 0.4 like
+       an earlier item's (links: 0.5, same brief). Not the motions, nor a question on one.
+     - **Replayed twice with a real booking and Haiku**, the whole hour on a copy of the town from before that night
+       (37 and 39 items). In the second: six councillors took the six turns, three different reports, seven
+       different people at the lectern, two petitions from two wards, and no link had a vote still to come. One
+       pair alike (the Cannery plaque quote, at 20:16 and 20:34), which the last change (no re-ask on a `{vote}`
+       question) is meant to stop; that change has unit tests but was not replayed.
+     - **Still open:**
+       - Miles's gallery has regulars: Dougal Crane and Ruth Penhaligon were asked four or five times each.
+       - Dana's recap links are alike by nature ("Four Votes Carried, ..." three times).
+       - A councillor's "not on tonight's agenda" question still strays onto the agenda (the harbour wall).
+       - The items run at about 40% of their targets (interviews ~125 s of 330, 7 to 14 lines, under the cap of
+         24), which is why the loop goes round so often.
+       - "Who has spoken" comes from the names found in each item's first 400 characters, so it also lists people
+         only mentioned.
    - **The senior editor undid the votes within the hour**: its 20:52 memo had t476 closed (p004 lapsed) and t447 moved
      to 4 December while p002 stands for the 3rd.
    - **Fixed 2026-11-20 evening** (`Thread.closes_on`, `desk._kept`): **the close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a

@@ -639,24 +639,26 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.interview, brief="the FOURTH motion, {m4}"),
             T.ad_break,
             # The order wraps back to here once the agenda is done, taking the angles in `briefs` in turn
-            # (items come in near half their targets, as The Inquiry's and The Panel's did).
+            # (items come in near half their targets, as The Inquiry's and The Panel's did). They come round two
+            # or three times in the hour: "{who}", "{vote}", "{report}" and the rest are whose turn it is (chamber._in_turn).
             I(T.interview), I(T.vox_pop), I(T.interview), I(T.links),
         ),
         loop_from=10,
         briefs={
             T.interview: (
-                "public question time: a member of the public at the lectern puts a question to the mayor about "
-                "one of tonight's votes, what happens now and when; Helen Strand and the motion's mover answer",
-                "a councillor's question to the mayor on something in their ward that isn't on tonight's agenda; "
-                "Helen Strand answers, and another councillor comes in",
-                "any other business: a councillor raises something small and local; one or two others have a "
-                "view; Helen Strand moves it on",
-                "public question time: a resident asks the council about one of the week's stories that isn't on "
-                "the agenda; Helen Strand answers, and the ward councillor adds to it",
-                "a report to note: an officer's update the council receives without a vote (the harbour office, "
-                "the clerk, the town's accounts); two councillors question it, Helen Strand moves on",
-                "a petition handed in: a resident presents it from the lectern, the ward councillor speaks for "
-                "it, Helen Strand says which committee it goes to",
+                "public question time: {resident} puts a question to the mayor from the lectern about {vote}: "
+                "what happens now and when; Helen Strand and the motion's mover answer",
+                "a question to the mayor from {who}, on something in their own ward that isn't on tonight's "
+                "agenda; Helen Strand answers, and another councillor comes in",
+                "any other business: {who} raises something small and local from their own ward; one or two "
+                "others have a view; Helen Strand moves it on",
+                "public question time: {resident} asks the council about {story}, which isn't on tonight's "
+                "agenda; Helen Strand answers, and the ward councillor adds to it",
+                "a report to note: {report}, an officer's update the council receives without a vote; two "
+                "councillors question it, Helen Strand moves on",
+                "a petition handed in from {ward}, about something on its own streets that isn't on tonight's "
+                "agenda: {resident} presents it from the lectern, the ward councillor speaks for it, Helen Strand "
+                "says which committee it goes to",
             ),
             T.vox_pop: (
                 "Miles in the public gallery: what the people who came tonight make of the votes so far",
