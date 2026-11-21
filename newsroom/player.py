@@ -586,7 +586,8 @@ class Player:
         if travelboard.is_travel(seg.brief) and seg.type is SegmentType.links:
             # The travel: whoever reads it stands at the wall, with the bus, the ferry and the tide on its screen.
             v.shot, v.wall_label, v.board = "wall", "TRAVEL", "travel"
-            v.presenter = v.speaker or v.presenter
+            # Whoever reads it, between their lines too: the view's own presenter is the anchor, who isn't here.
+            v.presenter = next((l.speaker for l in seg.lines if l.speaker != "guest"), v.presenter)
         elif seg.type in OUTSIDE and handing_over and v.backdrop and seg.show != "chamber":   # Dana stays in the room
             v.shot, v.wall_label = "wall", OUTSIDE[seg.type]
             v.presenter = v.speaker or v.presenter

@@ -43,6 +43,9 @@ def test_whoever_reads_the_travel_stands_at_the_wall_with_the_board_up():
     v = View(mode="studio", show="phonein", speaker="host_b")
     player.Player._studio_shot(me, seg, v)
     assert (v.shot, v.board, v.wall_label, v.presenter) == ("wall", "travel", "TRAVEL", "host_b")
+    gap = View(mode="studio", show="phonein", speaker=None)                 # between two lines: nobody speaking
+    player.Player._studio_shot(me, seg, gap)
+    assert (gap.board, gap.presenter) == ("travel", "host_b")              # still Jonah at the wall, not the anchor
     seg.brief = "Jonah opens Have Your Say: today's question"
     v = View(mode="studio", show="phonein", speaker="host_b")
     player.Player._studio_shot(me, seg, v)

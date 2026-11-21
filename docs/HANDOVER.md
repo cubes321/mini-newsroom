@@ -259,6 +259,10 @@ saved route from the real `data/`.
      place oddly (leg 2 all at Saltby, leg 3 from the Quarry Field to Greymouth Point). Not aired yet.
    - **The locator reads the report's own location first** (f6865d0): expect it up on nearly every one of Miles's
      reports now, not about half. Look at where it puts them on the next night.
+     A name inside a longer one still counts: "Harbour Row" (5 of the 118) is captioned Port Wexley harbour, and
+     "the Cannery Tap" the old cannery. Both are a few hundred yards out; a more detailed town map would fix it.
+   - Checked 2026-11-21: this morning's planned route places 18 of its 18 stops; both graphics render in under
+     half a millisecond; whoever reads the travel stays at the wall between lines.
    - **Next on the list:** Out and About's walks, Full Time's away grounds (some league towns aren't in the
      gazetteer), the callers' streets; and, new: The Chamber's wards, breaking news, Tideline, Seventext's coast.
 
