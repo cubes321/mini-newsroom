@@ -15,7 +15,7 @@ years): that one is cancelled, not moved, and the next is a fortnight on as usua
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from .config import CONFIG
 
@@ -80,11 +80,43 @@ def next_meetings(day: date, n: int = 2) -> list[date]:
     return out
 
 
-def calendar_line(day: date) -> str:
-    """One line for the briefings: when full council meets, so council business heads there."""
-    when = " and ".join(f"{d:%A} {d.day} {d:%B}" + (" (tonight)" if d == day else "") for d in next_meetings(day))
-    return (f"Council: full council meets on {when}, live on The Chamber at eight. Council decisions (votes, "
-            "budgets, planning) are taken at those meetings, not on other days.")
+LENGTH_S = 3600                    # The Chamber's hour: full council has risen by nine
+
+
+def sits_at(day: date) -> float:
+    """When full council sits down on `day`, on the broadcast clock: The Chamber's start."""
+    h, m = (int(x) for x in CONFIG.chamber.airs_at.split(":"))
+    return datetime(day.year, day.month, day.day, h, m).timestamp()
+
+
+def calendar_line(day: date, now: float | None = None, meeting: dict | None = None, short: bool = False) -> str:
+    """One line for the briefings: when full council meets, so council business heads there.
+
+    `now` (the broadcast clock) is given by everyone but The Chamber's own items. From the meeting's start
+    the line says it is over, since news written during The Chamber's hour airs after it, and gives what was
+    voted from `meeting` (chamber.py's record of the night) and nothing else. On 2026-11-19 the line said
+    "(tonight)" all day: bulletins written up to 23:45 had the council still to sit, and one, knowing of a
+    meeting and no result, made one up ("Ferry Rail Costings Sent Back Again", never on the agenda).
+    `short` is for Seventext's three rows."""
+    said = lambda d: f"{d:%A} {d.day} {d:%B}"  # noqa: E731
+    rule = "Council decisions (votes, budgets, planning) are taken at those meetings, not on other days."
+    if now is None or not meets_on(day) or now < sits_at(day):
+        when = " and ".join(said(d) + (" (tonight)" if d == day else "") for d in next_meetings(day))
+        return f"Council: full council meets on {when}, live on The Chamber at eight. {rule}"
+    after = f"It next meets on {said(next_meetings(day + timedelta(days=1), 1)[0])}, live on The Chamber at eight."
+    if short:
+        return f"Council: full council met tonight. {after}"
+    # Once it has risen, only the motions that were put: one the hour never reached was not voted on.
+    risen = now >= sits_at(day) + LENGTH_S
+    put = [m for m in (meeting or {}).get("motions", []) if m.get("applied") or not risen]
+    votes = "; ".join(f"[{m['thread_id']}] \"{m['motion']}\" {'CARRIED' if m['carried'] else 'LOST'} "
+                      f"{m['for']}-{m['against']}" for m in put)
+    voted = (f"It voted on these and nothing else: {votes}. Report no other council vote, decision or result "
+             "from tonight." if votes else
+             "What it voted is not known here: report no council vote, decision or result from tonight.")
+    return (f"Council: full council MET tonight ({said(day)}), live on The Chamber at eight, and the meeting is "
+            f"OVER: say it met or voted tonight, never that it sits, meets or is still to come tonight. {voted} "
+            f"{after} {rule}")
 
 
 def who(world) -> list:

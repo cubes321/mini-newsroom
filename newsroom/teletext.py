@@ -249,7 +249,7 @@ def _notices(day: date) -> dict:
         for line in _wrap(said)[:3]:
             rows.append(row(line, "white"))
         rows.append(row())
-    for line in _wrap(council.calendar_line(day))[:3]:
+    for line in _wrap(council.calendar_line(day, schedule.now(), short=True))[:3]:
         rows.append(row(line, "cyan"))
     return _page(170, "NOTICES", rows[:ROWS - 2])
 

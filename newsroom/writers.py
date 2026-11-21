@@ -975,7 +975,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                            source=work.get("source", breaking.FROM_VIEWER))
     auction = not _auction_on_news(world, show)
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction)}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction, sitting=show.id == chamber.SHOW)}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "

@@ -272,6 +272,12 @@ class World:
                 + "; ".join(f"{name} ({role.removeprefix('Councillor, ')})" for name, role, *_ in council.COUNCILLORS)
                 + ".\n")
 
+    def _council_calendar(self, sitting: bool = False) -> str:
+        """Council's calendar line (council.calendar_line): from eight on a council night the meeting is over
+        and its votes are given, for everyone but The Chamber itself (`sitting`)."""
+        meeting = next((c for c in reversed(self.chambers) if c.get("date") == self.last_date), None)
+        return council.calendar_line(date.fromisoformat(self.last_date), None if sitting else schedule.now(), meeting)
+
     def _history(self, *, full: bool) -> str:
         """What the documentaries established, so later pieces keep to it: the invented background
         especially (the town's founding in 1871), which nothing else on record holds. In full for
@@ -318,9 +324,11 @@ class World:
                 "is fine, and a follow-up keeps its id):\n" + "\n".join(rows) + "\n") if rows else ""
 
     @_locked
-    def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True) -> str:
+    def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True,
+                           sitting: bool = False) -> str:
         """The town briefing. `cast` limits the presenters to one show's (see schedule.py); `auction`
-        False leaves the quay's latest auction out (the news, once it has reported it: writers.py)."""
+        False leaves the quay's latest auction out (the news, once it has reported it: writers.py);
+        `sitting` is The Chamber's own items, for which tonight's meeting is never over."""
         chars = "\n".join(
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
@@ -348,7 +356,7 @@ class World:
             f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             + (f"{QUAY_LABEL}{q}\n" if auction and (q := quay.summary(datetime.fromtimestamp(schedule.now())))
                else "") +
-            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n{CACHE_BREAK}"
+            f"{self._council_calendar(sitting)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"Last weather: {wx_line}\n"
             f"{talk.line(self, date.fromisoformat(self.last_date))}"
@@ -378,7 +386,7 @@ class World:
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
         return (
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
-            f"{council.calendar_line(date.fromisoformat(self.last_date))}\n"
+            f"{self._council_calendar()}\n"
             f"{calendar.for_editor(date.fromisoformat(self.last_date))}\n"
             f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{self._council_line()}{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"

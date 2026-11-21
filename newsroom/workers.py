@@ -20,13 +20,14 @@ import hashlib
 import json
 import logging
 import random
+import re
 import threading
 import time
 from collections import deque
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import pictures, schedule, tts, world as world_mod, writers
+from . import council, pictures, schedule, tts, world as world_mod, writers
 from .buffer import Buffer
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
@@ -138,6 +139,19 @@ def repeat_since(now: float) -> float:
     return datetime(d.year, d.month, d.day, REPEAT_DAY_STARTS_H).timestamp()
 
 
+_COUNCIL = re.compile(r"council|the chamber", re.I)
+
+
+def before_council_sat(c: Segment, written: float, now: float) -> bool:
+    """A piece about the council written before tonight's meeting began, once it has: it has full council
+    still to sit. On 2026-11-19 "Frost locks the harbour boats as council sits tonight" went out again at
+    02:10 and 02:57. `written` and `now` are on the broadcast clock."""
+    day = datetime.fromtimestamp(repeat_since(now)).date()
+    sat = council.sits_at(day)
+    return (council.meets_on(day) and written < sat <= now
+            and bool(_COUNCIL.search(" ".join([c.headline or "", *(l.text for l in c.lines)]))))
+
+
 def repeat_segment(seg: Segment) -> Segment:
     """Overnight: fill the slot with an earlier segment from the cache, aired again.
 
@@ -148,16 +162,18 @@ def repeat_segment(seg: Segment) -> Segment:
     from .assets import testcard_segment
 
     now = schedule.now()
-    cutoff = repeat_since(now) - (now - time.time())      # files carry real times; --clock shifts the broadcast
+    shift = now - time.time()                             # files carry real times; --clock shifts the broadcast
+    cutoff = repeat_since(now) - shift
     candidates: list[tuple[str, Segment]] = []
     for meta in CONFIG.paths.cache.glob("*.json"):
-        if meta.stat().st_mtime < cutoff:
+        if (written := meta.stat().st_mtime) < cutoff:
             continue
         try:
             c = Segment.model_validate_json(meta.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             continue
-        if repeatable(c) and c.lines and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines):
+        if (repeatable(c) and c.lines and not before_council_sat(c, written + shift, now)
+                and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines)):
             candidates.append((meta.stem, c))
     if not candidates:
         log.info("slot %d: nothing to repeat; test card", seg.slot_id)

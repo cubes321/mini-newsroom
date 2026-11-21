@@ -178,6 +178,18 @@ saved route from the real `data/`.
    - **The news said council "sits tonight" until 05:42**: 20 airings after it had risen, and one invented a result
      ("Ferry Rail Costings Sent Back Again", t585, never on the agenda). `council.calendar_line` keeps "(tonight)" all
      day; the briefing never says the meeting is over.
+     **Fixed 2026-11-21 evening:**
+     - From eight on a council night the briefings (writers, desk, editors) say the meeting is over and give its votes
+       from the night's record, "and nothing else"; with no record (Channel 8's night, a late start) they say to
+       report no result. The Chamber's own items still get "(tonight)" (`summary_for_prompt(sitting=True)`), and
+       Seventext's notices a short "met tonight".
+     - The overnight repeats leave out a piece that mentions the council and was written before the meeting began
+       (`workers.before_council_sat`): 02:10 and 02:57's "council sits tonight" were repeats.
+     - Replayed with Haiku on a copy of the town at 23:06 on the 19th: none of 8 bulletins had the council still to
+       sit, 7 reported the four votes as carried 5-0, and none gave a vote that wasn't taken. Not aired yet: the
+       next full council is Thursday 3 December.
+     - Still open: the day after, the briefing has only the next meetings, not last night's votes (the stories carry
+       them).
    - **The Chamber's second half repeated itself**: Hammond's question (slots 98 and 110) and the harbour office
      accounts (104 and 116) written twice, and links still saying "bowling green left" after motion 4 was debated.
    - **The senior editor undid the votes within the hour**: its 20:52 memo had t476 closed (p004 lapsed) and t447 moved

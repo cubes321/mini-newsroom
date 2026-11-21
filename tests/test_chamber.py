@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 
 from newsroom import chamber, council, desk, inquiry, panel, schedule, world as world_mod, writers
 from newsroom.models import ChamberAgenda, CouncilVote, Motion, PanelScript, Segment, SegmentType as T
@@ -309,3 +309,48 @@ def test_a_motions_vote_is_on_screen_only_once_it_has_been_taken(monkeypatch):
     assert all(h != seg.headline for _, h in pl.ticker)
     pl._finish(_at(20, 4))
     assert (chamber.SHOW, seg.headline) in pl.ticker
+
+
+def _met(applied=(True, True)):
+    """The 19th's record, as chamber.py keeps it: one motion carried, one lost."""
+    return {"date": "2026-11-19", "motions": [
+        {"thread_id": "t484", "motion": "That the pool petition goes to officers", "carried": True, "for": 5,
+         "against": 1, "applied": applied[0]},
+        {"thread_id": "t447", "motion": "That the bowling green is sold", "carried": False, "for": 2, "against": 4,
+         "applied": applied[1]}]}
+
+
+def test_from_eight_on_a_council_night_the_meeting_is_over_and_only_its_votes_are_given():
+    """On 2026-11-19 the briefing said "(tonight)" all day: bulletins written up to 23:45 had the council still
+    to sit, and one made a result up ("Ferry Rail Costings Sent Back Again", never on the agenda)."""
+    day = date(2026, 11, 19)
+    at = lambda h, m=0: datetime(2026, 11, 19, h, m).timestamp()  # noqa: E731
+    before = council.calendar_line(day, at(19, 30), _met())
+    assert before == council.calendar_line(day) and "Thursday 19 November (tonight)" in before
+    news = council.calendar_line(day, at(20, 50), _met())            # written in The Chamber's hour, aired after it
+    assert "(tonight)" not in news and "MET tonight (Thursday 19 November)" in news and "is OVER" in news
+    assert '[t484] "That the pool petition goes to officers" CARRIED 5-1' in news
+    assert '[t447] "That the bowling green is sold" LOST 2-4' in news and "nothing else" in news
+    assert "It next meets on Thursday 3 December" in news
+    late = council.calendar_line(day, at(23, 45), _met(applied=(True, False)))
+    assert "t484" in late and "t447" not in late                      # the hour never reached it: not voted on
+    unknown = council.calendar_line(day, at(21, 30), None)             # no record: Channel 8's night, a late start
+    assert "is OVER" in unknown and "not known here: report no council vote" in unknown
+    short = council.calendar_line(day, at(22), _met(), short=True)
+    assert short == ("Council: full council met tonight. It next meets on Thursday 3 December, live on The "
+                     "Chamber at eight.")
+    assert "(tonight)" not in council.calendar_line(date(2026, 11, 20), at(23) + 86400, _met())   # the day after
+    assert "meets on Thursday 3 December and" in council.calendar_line(date(2026, 11, 20), at(23) + 86400)
+
+
+def test_the_briefings_say_the_meeting_is_over_except_to_the_chamber_itself(monkeypatch):
+    w = _town()
+    w.last_date = "2026-11-19"
+    w.chambers = [_met()]
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 19, 20, 50).timestamp())
+    for text in (w.summary_for_prompt(), w.summary_for_editor()):
+        assert "the meeting is OVER" in text and "CARRIED 5-1" in text and "(tonight)" not in text
+    sitting = w.summary_for_prompt(sitting=True)                       # The Chamber's own items: still in session
+    assert "Thursday 19 November (tonight)" in sitting and "OVER" not in sitting
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 19, 19, 59).timestamp())
+    assert "Thursday 19 November (tonight)" in w.summary_for_prompt()

@@ -129,3 +129,27 @@ def test_a_script_that_has_aired_is_written_afresh_after_a_restart(tmp_cache):
 
     made(0, "h0")                                        # the restart writes slot 0 again under its old key
     assert workers._load_cached(slot(0), "h0") is not None                             # new, and not aired yet
+
+
+def test_a_piece_with_the_council_still_to_sit_isnt_repeated_after_it_has(tmp_cache, monkeypatch):
+    """On 2026-11-19 "Frost locks the harbour boats as council sits tonight" went out again at 02:10 and 02:57."""
+    now = datetime(2026, 11, 20, 2, 10).timestamp()                   # the small hours after full council
+    shift = now - time.time()
+    monkeypatch.setattr(schedule, "now", lambda: now)
+    for key, headline, text, at in (
+            ("early", "Frost locks the harbour boats as council sits tonight", "Hi.", (19, 30)),
+            ("quiet", "Frost on the quay", "Full council meets tonight at eight.", (18, 0)),
+            ("frost", "Gorse fire out", "Hi.", (19, 30)),
+            ("after", "Council votes the pool petition through", "Hi.", (20, 50))):
+        wav = tmp_cache / f"{key}_00.wav"
+        wav.write_bytes(b"")
+        workers._save_cached(Segment(slot_id=1, type=SegmentType.bulletin, show="news", state=SegmentState.ready,
+                                     headline=headline, lines=[Line(speaker="anchor", text=text, wav_path=wav)]), key)
+        t = datetime(2026, 11, 19, *at).timestamp() - shift
+        os.utime(tmp_cache / f"{key}.json", (t, t))
+    heads = {workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight")).headline
+             for _ in range(40)}
+    assert heads == {"Gorse fire out", "Council votes the pool petition through"}
+    now = datetime(2026, 11, 19, 19, 45).timestamp()                  # before it sits, nothing is held back
+    assert not workers.before_council_sat(Segment(slot_id=1, type=SegmentType.bulletin, headline="Council sits tonight"),
+                                          now - 600, now)
