@@ -351,6 +351,31 @@ def test_a_close_waits_for_a_piece_after_its_endings_time(monkeypatch):
     assert row.phase == "closed" and row.closes_on == ""
 
 
+def test_a_close_naming_no_day_waits_for_todays_ending_in_the_story_s_own_next(monkeypatch):
+    """The 2026-11-21 scratch evening: the desk closed t586, never held, at 18:06 with "ended one apiece" and no day;
+    its NEXT had the match today at three, and no report of it was written. The close stood."""
+    w, story = _town(monkeypatch)
+    nxt = "On Wednesday 4 November the Tides kick off at three on a pitch still hard with frost"
+    match = story("Tides host Saltby on the frost-hard pitch", "2026-11-03", 13, nxt)
+    _at(monkeypatch, 8, 0)
+    w.update_thread(match.id, "Tides face Saltby this afternoon", nxt)              # a morning preview
+    _at(monkeypatch, 18, 6)
+    _close(w, match, "The Tides and Saltby ended one apiece, the home crowd on the referee, as the report closes it")
+    assert match.phase == "resolving" and match.closes_on == "2026-11-04" and match.next_development == nxt
+    _at(monkeypatch, 18, 40)
+    w.update_thread(match.id, "Tides and Saltby share the points", "one apiece")       # the report
+    _close(w, match, "The Tides and Saltby ended one apiece, the home crowd on the referee, as the report closes it")
+    assert match.phase == "closed" and match.closes_on == ""
+
+    # A NEXT with no day, or another day's, leaves a close naming no day as it was: it stands.
+    rye = story("Rye on Harrow Street", "2026-11-03", 4, "The rye sells")
+    old = story("The allotment fence", "2026-11-03", 4, "On Monday 2 November the fence goes up")
+    for t in (rye, old):
+        t.moved_ts = 1_800_000_000.0
+        _close(w, t, "That is that, and the story closes")
+    assert rye.phase == old.phase == "closed"
+
+
 def test_a_close_with_no_time_still_stands_on_any_piece_that_day(monkeypatch):
     w, story = _town(monkeypatch)
     sail = story("Bernard Moss airs the red spinnaker", "2026-11-02", 3, "On Wednesday 4 November he lays it flat")

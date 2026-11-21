@@ -348,8 +348,8 @@ def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
     minutes of coming back from the pool for the day, each with that day's ending: none of the three
     was covered again. `_redate` held only a story waiting in the pool, and only for a later day.
 
-    The day is the first one the closing NEXT names. None, or one gone by: the story is over and the
-    close stands. A later day: the story waits for it in the pool whatever its length (left on the board
+    The day is the first one the closing NEXT names; if it names none, today when the story's own NEXT
+    has its ending today. None, or one gone by: the story is over and the close stands. A later day: the story waits for it in the pool whatever its length (left on the board
     it would be covered with nothing new, and that would look like the ending). Today: the close stands
     only if the story has been covered today since the desk last wrote its NEXT (`Thread.next_mentions`;
     covered is counted when a piece is written, a few minutes before it airs); a story back from the pool
@@ -363,6 +363,11 @@ def _held(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate:
     due = due_date(u.next_development, today, looking_back=True)
     note = u.next_development                       # before `_kept` puts the held NEXT back in its place
     due, u = _kept(t, u, due, today)
+    if due is None and due_date(t.next_development, today) == today:
+        # A close naming no day, for a story whose own NEXT has its ending today, never held: on the scratch evening
+        # of 2026-11-21 the desk closed t586 at 18:06 with "ended one apiece", NEXT "On Saturday 21 November the
+        # Tides kick off at three", and no report of the match was ever written. It waits for that report.
+        due = today
     if due is None or due < today:
         t.closes_on = ""
         return u
