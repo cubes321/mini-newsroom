@@ -7,6 +7,34 @@ launcher with `$pictures = $false`, because the user wanted no ComfyUI tonight. 
 `night_channel7.cmd` still makes the pictures. The backup is `data/world.backup-2026-11-20-pre-night.json`. It is the
 first airing of the news locator (b645a77). Review its log with the checks in "The overnight run" below.
 
+### The night's review (2026-11-21 morning)
+
+It ran 20:51 to 08:51 (`data/logs/station-2026-11-20-2051.log`) and exited cleanly: 710 segments, 72 adverts, no
+filler, no stand-ins, no fallbacks, worst p99 14.7 ms. Four Haiku calls failed validation once and passed on the second ask.
+DeepSeek refuses strict json_schema now and drops to json_object mode at the first call, as it did on the 19th.
+Sound is in every recording checked (The Panel, The Last Ferry, Seventext, Morning Tide; mean -26 to -32 dB, no
+silences of five seconds).
+
+- **As intended:**
+  - The senior editor reviewed at 21:09, 23:10, 01:10 and 06:45, then 08:45, and held off at 20:58 and 03:10.
+  - Each memo's crowded day was a different one, and the desk moved stories in the pool (t529, t594, t430, t454, t445).
+  - Seven quiet rounds, eight seeds, and the editors' meeting at 20:58.
+  - The overnight repeats were in line with the 18th and 19th (184 against 175 and 188).
+- **The locator works:** on Morning Tide's 06:02 fish quay report it went up top right for its first seconds and
+  cleared. It stays off when it isn't sure: the 06:22 report was "the Quay Steps by the lifeboat slipway" in its
+  words, filmed on the cannery slipway. By headline alone, 15 of the 27 field reports have a place (more with their
+  briefs and backdrops). The news itself isn't recorded, so the studio wall's locator hasn't been seen on air yet.
+- **The Last Ferry booked Dev Ramachandran four times in one show** (slots 115, 117, 137 and 139). He had also just
+  been on The Panel. At slot 137, "Jo Pascoe was just on" was asked again and the answer, Dev, wasn't checked again.
+  The "has been on before" ask then booked Owen Kersey instead, so "keeping the script before" kept Dev. Ruth Averill
+  was picked again three times too (slots 129, 140 and 146), and caught each time.
+- **A close stood on a morning preview:** t506 (Ruby Tennant's row) was held "to close once its ending for Saturday
+  21 November has been reported". The breakfast reports ("Nears the Finish", "Keeps Rowing") counted as coverage,
+  so the desk closed it at 07:58 with the finish at 16:10, the time and the £2,880 written as done. t569, t586, t604
+  and t606 were still held when the run ended, waiting on this afternoon.
+- **Morning Tide's field reports go round the same few things:** 27 in under three hours on a quiet Saturday. Eight
+  were on the big tides, four on the lifeboat crew at the slipway, and three on the morning rush.
+
 ### What changed on 2026-11-20 (all pushed, `ba6d6de..153d902`)
 
 - **High Water's art and sound**, done and approved:
@@ -43,7 +71,8 @@ first airing of the news locator (b645a77). Review its log with the checks in "T
 
 ### To do next, in order
 
-1. **Review tonight's run** (`data/logs/station-2026-11-20-2051.log`) with the checks in "The overnight run".
+1. **Fix what the 2026-11-20 night's review found** (above): The Last Ferry's double booking first, then the close on
+   a preview.
 2. **Fix what the 2026-11-19 council night's review found.** The station itself ran cleanly: no errors, no filler, sound
    in every recording checked, memos, pool moves, quiet rounds and seeds all as intended. But:
    - **The Chamber ran on the stand-in's four motions** (log line 224, 18:53): already fixed in ba6d6de. Its four
