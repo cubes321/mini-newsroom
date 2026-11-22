@@ -152,7 +152,21 @@ def for_desk(world, today: date, only: set[str] | None = None) -> str:
             + "\nWhen a thread's NEXT development this round delivers one of these, or shows it will not happen, "
               "give the verdict in `promises` (its id, kept or broken, a line on how) and write that NEXT "
               "development to match. An OVERDUE promise is a story in itself: somebody in the town asks where it "
-              "is. Leave `promises` empty when nothing settles one.")
+              "is. Leave `promises` empty when nothing settles one. Until its verdict, a story with a promise still "
+              "to come is not closed, and its NEXT is not put off past the promise's day: such an update is dropped.")
+
+
+def for_senior(world, today: date) -> str:
+    """Every open promise, for the senior editor, whose memo the desk acts on: on 2026-11-19 it asked for a
+    voted story closed and another moved past its promise's day, within the hour of the votes. Empty if none."""
+    rows = _rows(world, today, limit=KEPT)
+    if not rows:
+        return ""
+    return ("COUNCIL PROMISES STILL OPEN (what full council voted would happen; the town is counting):\n"
+            + "\n".join(rows)
+            + "\nEach of these stories keeps its promise's day. Do not ask the desk to close one, fold it away or "
+              "move it past that day: the desk cannot until the promise has its verdict (kept or broken, which the "
+              "desk gives when the day's step is reported). A step before the day is fine.\n\n")
 
 
 def for_chamber(world, today: date) -> str:

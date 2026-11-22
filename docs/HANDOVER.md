@@ -266,6 +266,20 @@ saved route from the real `data/`.
          only mentioned.
    - **The senior editor undid the votes within the hour**: its 20:52 memo had t476 closed (p004 lapsed) and t447 moved
      to 4 December while p002 stands for the 3rd.
+     **Fixed 2026-11-22.** The senior editor was told nothing of the council's promises, and nothing stopped the
+     desk acting on its memo.
+     - **The desk can't** (`desk._promise_stands`): while a story's promise is open and not yet due, an update that
+       closes the story, or gives it a NEXT for a day past the promise's, is dropped. A verdict on the promise in
+       the same plan lets either through; an overdue promise no longer holds its story.
+     - **The senior editor is told** (`promises.for_senior`): every open promise, and that those stories keep their
+       day. The desk's own promise note says the same.
+     - **Replayed on a copy of the town from before that night:** the four motions carried, then the memo from the
+       real model (it left all four alone: "No council steps before 3 December except t433") and the desk's two
+       updates of that night, both dropped. All four promises still open. One memo only, so watch the next council
+       night (Thursday 3 December).
+     - **In the real town the damage stands:** t447 waits for Friday 4 December with its promise (p002) due on the
+       3rd, and p004 lapsed when t476 was closed. Not repaired: that is an edit to the real town, for the user to
+       say. On the 3rd p002 would come up a day late, as overdue.
    - **Fixed 2026-11-20 evening** (`Thread.closes_on`, `desk._kept`): **the close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
      memo's "close them on the board now", with closing notes naming no day; two never aired again.
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.

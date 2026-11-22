@@ -289,6 +289,34 @@ def _kept(t: Thread, u: ThreadUpdate, due: date | None, today: date) -> tuple[da
     return held, u.model_copy(update={"next_development": t.next_development})
 
 
+def _promise_stands(world: World, t: Thread, u: ThreadUpdate, settled: set[str]) -> bool:
+    """Is this update refused because full council's promise on the story is still open: a close, or a NEXT that
+    waits for a day past the promise's own? A verdict on the promise in the same plan (`settled`) lets either
+    through, and so does an overdue promise, which is a story in itself.
+
+    On the council night of 2026-11-19 the four motions were carried at eight, each "officers report back to full
+    council on Thursday 3 December". The senior editor's 20:52 memo, which is told nothing of the promises, asked
+    for t476 closed and t447 moved on; by 21:52 the desk had closed t476, so its promise lapsed ("the story ended
+    without it"), and moved t447 to Friday 4 December, the day after its promise falls due."""
+    today = date.fromisoformat(world.last_date)
+    mine = [pr for pr in promises.open_(world) if pr["thread_id"] == t.id and pr["id"] not in settled
+            and date.fromisoformat(pr["due"]) >= today]
+    if not mine:
+        return False
+    pr = mine[0]                                    # the soonest due (promises.open_)
+    by = date.fromisoformat(pr["due"])
+    if u.phase == "closed":
+        log.info("thread %s: council promise %s is open until %s; not closed without its verdict", t.id, pr["id"],
+                 said_date(by))
+        return True
+    nxt = due_date(u.next_development, today)
+    if nxt is not None and nxt > by:
+        log.info("thread %s: its NEXT would wait for %s, past council promise %s (due %s); left as it is", t.id,
+                 said_date(nxt), pr["id"], said_date(by))
+        return True
+    return False
+
+
 def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     """A waiting story's new day, from the NEXT the desk gave it: the update to apply, or None to leave
     the story as it is. `world.pool_threads` leaves a story already in the pool alone, so the date is
@@ -411,6 +439,8 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -
             continue
         if only is not None and t.id not in only and t.id not in reach:
             log.info("story desk planned %s out of turn; skipping", t.id)
+            continue
+        if _promise_stands(world, t, u, {v.id for v in p.promises}):
             continue
         if world.waiting(t) and (u := _redate(world, t, u)) is None:
             continue

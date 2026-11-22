@@ -142,3 +142,56 @@ def test_seventext_has_a_council_watch_page(monkeypatch):
     assert teletext.height(page["rows"]) <= len(teletext.BODY)
     empty = next(p for p in teletext.pages(world_mod.seed(), datetime(2026, 11, 15, 2, 14)) if p["num"] == 175)
     assert any("Nothing promised yet" in r.get("t", "") for r in empty["rows"])
+
+
+def test_a_voted_story_is_not_closed_or_put_off_past_its_promise(monkeypatch):
+    """On the council night of 2026-11-19 the senior editor's memo, an hour after the votes, had t476 closed (its
+    promise lapsed, "the story ended without it") and t447 moved to the day after its promise fell due."""
+    w = _town()
+    ids = _meeting(w, monkeypatch)
+    tender, engine = w.thread(ids[0]), w.thread(ids[1])              # due Friday 13 and Saturday 28 November
+    by = {p["thread_id"]: p for p in promises.open_(w)}
+    was = (tender.phase, tender.next_development)
+
+    def plan(tid, phase, nxt, **kw):
+        desk.apply(w, StoryPlan(updates=[ThreadUpdate(thread_id=tid, phase=phase, next_development=nxt)], **kw), only=set(ids))
+
+    plan(ids[0], "closed", "Closed: folded into the winter works.")
+    assert (tender.phase, tender.next_development) == was and by[ids[0]]["state"] == "open"
+    assert promises.lapse(w, MEETING) == 0                            # nothing ended without its promise
+    plan(ids[0], "resolving", "On Monday 16 November the bids are opened again.")       # past Friday the 13th
+    assert tender.next_development == was[1]
+    plan(ids[0], "resolving", "On Tuesday 10 November the clerk posts the three bids.")  # a step before the day
+    assert tender.next_development == "On Tuesday 10 November the clerk posts the three bids."
+    plan(ids[0], "developing", "The surveyor walks the wall again.")                     # no day: nothing put off
+    assert tender.next_development == "The surveyor walks the wall again."
+    # with its verdict in the same plan, the close goes through
+    plan(ids[0], "closed", "Closed: the tender went to Pascoe's on Friday 13 November.",
+         promises=[PromiseVerdict(id=by[ids[0]]["id"], state="kept", note="Awarded to Pascoe's.")])
+    assert by[ids[0]]["state"] == "kept" and tender.phase in ("closed", "resolving")
+    # an overdue promise no longer holds its story: it is a story in itself
+    w.last_date = "2026-11-30"
+    plan(ids[1], "closed", "Closed: the committee never named a date.")
+    assert engine.phase == "closed"
+
+
+def test_the_senior_editor_is_told_the_promises_it_must_leave_standing(monkeypatch):
+    from newsroom import senior
+    from newsroom.models import SeniorMemo
+
+    w = _town()
+    seen = []
+
+    def complete_json(task, schema, system, user, **kw):
+        seen.append(user)
+        return SeniorMemo(memo="1) Hold the board as it is.", merges=[], new_thread=None)
+    monkeypatch.setattr(senior.llm, "complete_json", complete_json)
+    senior.review(w, dry=True)
+    assert "COUNCIL PROMISES STILL OPEN" not in seen[0]               # before any vote: nothing to say
+    ids = _meeting(w, monkeypatch)
+    monkeypatch.setattr(senior.llm, "complete_json", complete_json)
+    senior.review(w, dry=True)
+    told = seen[1].split("COUNCIL PROMISES STILL OPEN")[1].split("Write the memo")[0]
+    assert all(f"on [{tid}]" in told for tid in ids[:3]) and f"on [{ids[3]}]" not in told      # the lost motion: none
+    assert "Do not ask the desk to close one" in told and "due Friday 13 November" in told
+    assert "not put off past the promise's day" in promises.for_desk(w, MEETING)
