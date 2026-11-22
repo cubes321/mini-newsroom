@@ -187,3 +187,68 @@ def test_the_writer_is_asked_again_for_a_time_that_is_none_of_those_given(monkey
     seg = writers.script_segment(Segment(slot_id=5, type=T.weather, show="news", target_s=60.0, nominal_start_ts=airs), w)
     assert len(asked) == 2 and 'WRONG TIMES: the script said "twenty-five past four"' in asked[1]
     assert "twenty-five to five" in seg.lines[0].text and not seg.fallback
+
+
+def test_a_tide_or_ferry_told_the_wrong_way_round_is_caught():
+    """The sentences of the 2026-11-21 night, each a time given and each told as done when it was to come, or the
+    reverse, or today's as tomorrow's: what `clock_slips` can't see."""
+    from datetime import datetime
+
+    sat = lambda h, m, *lines: tides.tense_slips(list(lines), datetime(2026, 11, 21, h, m), "sunny")  # noqa: E731
+    sun = lambda h, m, *lines: tides.tense_slips(list(lines), datetime(2026, 11, 22, h, m), "sunny")  # noqa: E731
+    # Saturday: 04:10, 10:22, 16:35, 22:48; ferry 07:00 to 23:40, none 09:32-11:12 and 21:58-23:38
+    assert "is already gone" in sat(23, 38, "Low water came and went at twenty-two minutes past ten today, and the "
+                                            "next one is at twelve minutes to eleven tonight.")[0]
+    assert "is already gone" in sat(21, 41, "High water is at twenty-five past four this afternoon and again just "
+                                            "after half past four.")[0]
+    assert "has not finished" in sat(21, 11, "The foot ferry ran its last sailing for the night at twenty to midnight.")[0]
+    assert "not running right now" in sat(22, 24, "Out here on the last ferry, with the lights going small behind us.")[0]
+    assert "today's times" in sat(23, 50, "Low water came at ten to eleven and high water is due at ten past four "
+                                          "in the morning.")[0]
+    assert "none of the times given" in sat(19, 19, "High water near half past four tomorrow morning.")[0]
+    # Sunday: 05:00, 11:13, 17:25; ferry from 07:00
+    assert "is already gone" in sun(6, 0, "High water is at five this morning, so mind the quay.")[0]
+    assert "not running right now" in sun(6, 40, "The first ferry is already rattling across the estuary.")[0]
+    assert "not running right now" in sun(6, 20, "The Saltby foot ferry has been running since seven.")[0]
+    # told as it is: nothing
+    assert sat(21, 11, "The evening high water at twenty-five to five this afternoon was five point two metres.") == []
+    assert sat(22, 58, "High water came in at twenty-five past four this morning and again at twenty-five to five "
+                       "this afternoon.") == []
+    assert sat(21, 47, "The last Saltby foot ferry leaves at twenty to twelve, so wrap up warm.") == []
+    assert sun(6, 19, "The morning high water at five is five point three metres.") == []
+    assert sun(6, 2, "The Saltby ferry is running every half hour from seven, so there's no excuse.") == []
+    assert sat(22, 0, "It is ten o'clock on a Saturday, and the tide is doing its big spring thing.") == []
+    assert sun(6, 33, "Is the Saltby foot ferry still running today?") == []
+    assert sat(21, 53, "The afternoon high at thirty-five minutes past four tomorrow comes in at five point two.") == []
+
+
+def test_the_writer_is_asked_again_for_a_tide_told_the_wrong_way_round(monkeypatch):
+    from datetime import datetime
+
+    from newsroom import llm, world as world_mod, writers
+    from newsroom.models import Segment, SegmentType as T
+
+    w = world_mod.seed()
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        again = "WRONG WAY ROUND" in user
+        return schema.model_validate({
+            "headline": "A sunny Sunday with big tides", "map_state": "sunny", "temp_c": 4,
+            "lines": [{"speaker": "weather", "text": "High water " + ("was" if again else "is") + " at five this morning."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    monkeypatch.setattr(llm, "provider_for", lambda task: "claude_haiku")
+    airs = datetime(2026, 11, 22, 6, 0).timestamp()
+    seg = writers.script_segment(Segment(slot_id=5, type=T.weather, show="news", target_s=60.0, nominal_start_ts=airs), w)
+    assert len(asked) == 2 and "WRONG WAY ROUND (it is 06:00" in asked[1] and '"at five" is already gone' in asked[1]
+    assert seg.lines[0].text == "High water was at five this morning."
+
+
+def test_a_span_of_the_ferry_is_not_a_tense():
+    """The replay of 2026-11-22, 22:24 in the ferry's gap: told right, and caught as "already gone"."""
+    from datetime import datetime
+
+    now = datetime(2026, 11, 21, 22, 24)
+    assert tides.tense_slips(["The Saltby landing has gone dry, and there is no boat from just before ten o'clock "
+                              "tonight until just before twenty to twelve."], now, "sunny") == []

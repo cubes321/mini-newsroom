@@ -211,7 +211,7 @@ _H24 = _H12 + "|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|tw
 _MINS = "|".join(sorted((k for k in _NUM if k not in ("zero",)), key=len, reverse=True))
 _WATER = re.compile(r"\b(high water|low water|high tide|low tide|ferry|ferries|crossing|crossings|sailing|sailings)\b", re.I)
 _WATER_LOWER = re.compile(r"\b(tides?|[Tt]he low|[Tt]he high|landing)\b")       # lower case only: not "the Tides"
-_PAST_TO = re.compile(rf"\b({_MINS}|\d{{1,2}})(?: minutes?)? (past|to) ({_H12}|midnight|midday|noon)\b", re.I)
+_PAST_TO = re.compile(rf"(?<![-\w])({_MINS}|\d{{1,2}})(?: minutes?)? (past|to) ({_H12}|midnight|midday|noon)\b", re.I)
 _OCLOCK = re.compile(rf"\b({_H12}) o'clock\b", re.I)
 _DIGITS = re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b")
 _SPOKEN_24 = re.compile(rf"\b({_H24}) ({'|'.join(sorted(_TENS, key=len, reverse=True))})\b", re.I)
@@ -231,12 +231,17 @@ def clock_times(text: str) -> list[tuple[str, int, int]]:
     """The clock times a piece of text says, as (the words, minutes round a twelve-hour clock, how many minutes
     out it may be): "twenty-five to five" and "16:35" are both 275. A bare hour ("just before eleven") is looser.
     A 24-hour time read aloud ("sixteen thirty-five") has -1 for its minutes: it is never how anyone says it."""
+    return [(w, mins, slack) for w, mins, slack, _ in _clock_spans(text)]
+
+
+def _clock_spans(text: str) -> list[tuple[str, int, int, tuple[int, int]]]:
+    """`clock_times`, each with where it is in the text."""
     found, taken = [], []
 
     def add(m, minutes, slack=SLACK_MIN):
         if not any(a < m.end() and m.start() < b for a, b in taken):
             taken.append(m.span())
-            found.append((m.group(0), -1 if minutes is None else minutes % 720, slack))
+            found.append((m.group(0), -1 if minutes is None else minutes % 720, slack, m.span()))
     for m in _PAST_TO.finditer(text):
         n = int(m.group(1)) if m.group(1).isdigit() else _NUM[m.group(1).lower()]
         h = _hour(m.group(3))
@@ -250,7 +255,7 @@ def clock_times(text: str) -> list[tuple[str, int, int]]:
         add(m, _hour(m.group(1)) * 60)
     for m in _BARE.finditer(text):
         add(m, _hour(m.group(1)) * 60, BARE_SLACK_MIN)
-    return found
+    return sorted(found, key=lambda f: f[3])
 
 
 def given(now: datetime, map_state: str | None = None) -> list[datetime]:
@@ -280,6 +285,126 @@ def clock_slips(lines: list[str], now: datetime, map_state: str | None = None) -
                 if minutes < 0 or not any(min(abs(minutes - t), 720 - abs(minutes - t)) <= slack for t in ok):
                     slips.append(words)
     return list(dict.fromkeys(slips))
+
+
+_PAST = re.compile(r"\b(was|were|came|went|reached|peaked|turned|left|made|ran|sailed|had|has been|have been|"
+                   r"earlier|already|gone)\b", re.I)
+_TO_COME = re.compile(r"\b(will|'ll|is due|are due|due|comes|coming|is at|are at|next|later|expected|leaves|sails|"
+                      r"is|are|drops|rises)\b", re.I)
+_RANGE = re.compile(r"\b(from|since|until|till|between|every)\s*(?:(?:about|around|just|roughly)\s+)?(?:before\s+|after\s+)?$",
+                    re.I)                  # "no boat from just before ten o'clock until just before twenty to twelve"
+_CLAUSE_CUT = re.compile(r",|;|:| and | so | but | with | then ")
+_DAY_WORDS = re.compile(r"\b(tomorrow|today|tonight|this morning|this afternoon|this evening|in the morning)\b", re.I)
+_PARTS = {"morning": (0, 12), "afternoon": (12, 18), "evening": (17, 24), "tonight": (17, 24)}   # 17:25 is either
+_PART_SAID = re.compile(r"\b(?:this|tomorrow|in the|on \w+day) (morning|afternoon|evening)\b|\b(tonight)\b", re.I)
+_GOES_ON = re.compile(r"^\W*(?:and\s+)?(?:again|then)\b", re.I)     # "and again at Y": the clause before's tense
+_FERRY_DONE = re.compile(r"\b(stopped for the night|finished for the night|done for the night|made its last crossing|"
+                         r"ran its last|last (?:ferry|crossing|sailing|boat) (?:has )?(?:gone|went|left|sailed)|"
+                         r"no more (?:ferries|crossings|sailings) tonight)\b", re.I)
+_FERRY_RUNNING = re.compile(r"\b(has been running|running since|been running|is already (?:rattling|crossing|running|"
+                            r"out)|already (?:rattling|crossing) |is running|still running|out here on the (?:last )?"
+                            r"(?:foot )?ferry|on board the ferry|aboard the ferry|catch the next one)\b", re.I)
+
+
+def _near(minutes: int, t: datetime, slack: int) -> bool:
+    d = abs(minutes - ((t.hour % 12) * 60 + t.minute))
+    return min(d, 720 - d) <= slack
+
+
+def _day_of(upto: str, now: datetime) -> str | None:
+    """"tomorrow" or "today", from the last word for a day said up to here; "in the morning" said in the evening is
+    tomorrow's."""
+    days = _DAY_WORDS.findall(upto)
+    if not days:
+        return None
+    last = days[-1].lower()
+    if last == "tomorrow" or (last == "in the morning" and now.hour >= 17):
+        return "tomorrow"
+    return None if last == "in the morning" else "today"
+
+
+def tense_slips(lines: list[str], now: datetime, map_state: str | None = None) -> list[str]:
+    """What a script tells as done that is still to come, or as to come that is done, of the tide and the ferry: a
+    note for each, to put to the writer. With the right times given, about one item in four still did it on the
+    replays of 2026-11-22 ("the ferry has stopped for the night" at 21:41, an hour and a quarter early; "the first
+    boat was seven o'clock this morning" at 06:31; "High water is at five this morning" at 06:00, an hour gone).
+
+    Three kinds, none of which `clock_slips` sees, since each time is one of the times given:
+    - the ferry finished for the night before its last boat, or running (or somebody on it) while it isn't;
+    - a tide or ferry time told in the past ("came in at") while it is to come, or as to come ("is due", "comes",
+      "is at") once it is gone, from the words in its own clause (a clause with none takes the one before's);
+    - one of today's times given as tomorrow's ("High water tomorrow comes at twenty to five in the morning": today's).
+    A time that could be either, the time of day itself, a question, and a time that opens or closes a span ("from
+    seven", "until twenty past ten") are left."""
+    f = ferry(now.date(), map_state)
+    first, last = (f["sailings"][0], f["sailings"][-1]) if f["sailings"] else (None, None)
+    in_gap = any(a <= now <= b for a, b in f["gaps"])
+    running = bool(first) and first <= now <= last and not in_gap and not f["suspended"]
+    times_given = given(now, map_state)[1:]
+    notes = []
+    for line in lines:
+        for sentence in re.split(r"(?<=[.!?])\s+", line or ""):
+            if not (_WATER.search(sentence) or _WATER_LOWER.search(sentence)) or sentence.rstrip().endswith("?"):
+                continue
+            if re.search(r"\b(ferry|ferries|crossing|sailing|boat)\b", sentence, re.I) and "tomorrow" not in sentence.lower():
+                if last and now < last and not f["suspended"] and _FERRY_DONE.search(sentence):
+                    notes.append(f"\"{sentence.strip()}\": the ferry has not finished, its last boat leaves "
+                                 f"{said(last, now)}")
+                elif not running and (m := _FERRY_RUNNING.search(sentence)) and not (
+                        m.group(0).lower().startswith(("is running", "catch")) and first and now < first
+                        and "now" not in sentence.lower()):
+                    notes.append(f"\"{sentence.strip()}\": the ferry is not running right now ({ferry_now(now, map_state)})")
+                elif first and now < first and re.search(r"\b(has been running|running since|first (?:ferry|boat) "
+                                                         r"(?:was|went|left|sailed))\b", sentence, re.I):
+                    notes.append(f"\"{sentence.strip()}\": no ferry has sailed yet today; the first is {said(first, now)}")
+            spans = _clock_spans(sentence)
+            tense = None                       # the clause before's: "came in at X, and again at Y"
+            for i, (words, minutes, slack, (a, b)) in enumerate(spans):
+                lo = spans[i - 1][3][1] if i else 0
+                hi = spans[i + 1][3][0] if i + 1 < len(spans) else len(sentence)
+                cuts = [m.end() for m in _CLAUSE_CUT.finditer(sentence, lo, a)]
+                start = cuts[-1] if cuts else lo
+                tail = _CLAUSE_CUT.split(sentence[b:hi], maxsplit=1)[0]
+                clause = sentence[start:b] + tail
+                # The past may come after the time ("at twenty-five to five was five point two metres"), the future
+                # only before it: "The morning high water at five is five point three metres" is its height.
+                past, to_come = _PAST.search(clause), _TO_COME.search(sentence[start:a])
+                if past and not to_come:
+                    tense = "past"
+                elif to_come and not past:
+                    tense = "to come"
+                elif past or not _GOES_ON.search(sentence[start:a]):
+                    tense = None
+                if minutes < 0 or _RANGE.search(sentence[start:a]) or _near(minutes, now, slack):
+                    continue
+                near = [t for t in times_given if _near(minutes, t, slack)]
+                day = _day_of(sentence[:b] + tail, now)
+                # "this afternoon", "tomorrow morning", "tonight": not "the evening high water at twenty-five to five"
+                for part in {(m.group(1) or m.group(2)).lower() for m in _PART_SAID.finditer(clause)}:
+                    h0, h1 = _PARTS[part]
+                    if near:
+                        theirs = [t for t in near if h0 <= t.hour < h1]
+                        if not theirs:     # "high water near half past four tomorrow morning": 16:35's figures
+                            notes.append(f"\"{words}\" in the {part} is none of the times given (the nearest is "
+                                         f"{near[0]:%H:%M}): use a time from TIDES or FERRY as it is given")
+                        near = theirs
+                if day == "tomorrow":
+                    theirs = [t for t in near if t.date() > now.date()]
+                    if near and not theirs:
+                        notes.append(f"\"{words}\" is one of today's times ({near[0]:%H:%M}), not tomorrow's: TOMORROW's "
+                                     "are given on their own line")
+                        continue
+                    near = theirs
+                elif day == "today":
+                    near = [t for t in near if t.date() == now.date()]
+                if not near or len({t <= now for t in near}) > 1 or tense is None:
+                    continue
+                gone = near[0] <= now
+                if gone and tense == "to come":
+                    notes.append(f"\"{words}\" is already gone at {now:%H:%M}: say it as past (\"was\", \"came\")")
+                elif not gone and tense == "past":
+                    notes.append(f"\"{words}\" is still to come at {now:%H:%M}: say it as to come")
+    return list(dict.fromkeys(notes))
 
 
 if __name__ == "__main__":

@@ -1830,19 +1830,28 @@ def script_segment(seg: Segment, world: World) -> Segment:
             airs = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
             sky = world.last_weather.get("map_state")
             said = [getattr(l, "text", "") for l in getattr(script, "lines", [])]
-            if slips := tides.clock_slips(said, airs, sky):
+            slips, tense = tides.clock_slips(said, airs, sky), tides.tense_slips(said, airs, sky)
+            if slips or tense:
                 # The facts were right and a time was still reworded now and then: "twenty-five past four" for
                 # 16:35, "five to twelve" for 12:03 (the replays of 2026-11-22). One more ask, naming them.
-                log.info("%s slot %d: tide or ferry time(s) %s are none of the times given; asking again",
-                         seg.type.value, seg.slot_id, ", ".join(f"\"{x}\"" for x in slips))
-                user += ("\n\nWRONG TIMES: the script said " + ", ".join(f"\"{x}\"" for x in slips) + " of the tide "
-                         "or the ferry, and no tide or ferry time is that. Write it again with only the times under "
-                         "TIDES and FERRY, each in the words given there, unchanged; or leave the time out.")
+                # And told as done when it is to come, or the reverse, in about one item in four: "the ferry has
+                # stopped for the night" at 21:41; "High water is at five this morning" at 06:00 (tides.tense_slips).
+                log.info("%s slot %d: tide or ferry slips %s; asking again", seg.type.value, seg.slot_id,
+                         "; ".join([*(f"\"{x}\" not a time given" for x in slips), *tense]))
+                if slips:
+                    user += ("\n\nWRONG TIMES: the script said " + ", ".join(f"\"{x}\"" for x in slips) + " of the "
+                             "tide or the ferry, and no tide or ferry time is that. Write it again with only the times "
+                             "under TIDES and FERRY, each in the words given there, unchanged; or leave the time out.")
+                if tense:
+                    user += (f"\n\nWRONG WAY ROUND (it is {airs:%H:%M} as this airs; TIDES and FERRY say what is "
+                             "already gone, what is still to come, and what is tomorrow's):\n"
+                             + "\n".join(f"  - {x}" for x in tense)
+                             + "\nWrite it again with each of these told as it is at this minute.")
                 script = llm.complete_json(seg.type.value, schema, system, user)
                 said = [getattr(l, "text", "") for l in getattr(script, "lines", [])]
-                if still := tides.clock_slips(said, airs, sky):
-                    log.warning("%s slot %d: tide or ferry time(s) %s again after the second ask; it stands",
-                                seg.type.value, seg.slot_id, ", ".join(still))
+                if still := tides.clock_slips(said, airs, sky) + tides.tense_slips(said, airs, sky):
+                    log.warning("%s slot %d: tide or ferry slips again after the second ask; they stand: %s",
+                                seg.type.value, seg.slot_id, "; ".join(still))
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
         # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
         # booked for tonight however recently they were on elsewhere.
