@@ -206,7 +206,8 @@ alternating lines, as their PLACE IN THE SHOW says: a bit of banter about someth
 (Clive has usually found an odd fact), and what is coming up: a filmed report, a guest in the
 studio, the vox pop or the consumer slot. No guests speak. Do not open a new story; thread_id is null unless you
 mention an open thread in passing.
-headline = the evening's theme in under 12 words. lower_third = "Coastwide" plus a short tag.
+headline = what THIS link is about (its banter, Clive's fact) in under 12 words: not the evening's theme, and not
+an earlier link's. lower_third = "Coastwide" plus a short tag for this link's own subject.
 """,
     SegmentType.feature: _COMMON_RULES + _GUEST_RULES + """
 This is a FILMED FEATURE on Coastwide: a few minutes on one local person, place or tradition,
@@ -805,6 +806,50 @@ def _still_to_come(show: schedule.Show, part: str, at: float) -> str:
             "item, so nobody calls anything the \"final\" or \"last\" round, question or word, and nothing is summed up.")
 
 
+_COMING_KIND = {SegmentType.feature: "a filmed report", SegmentType.interview: "a guest in the studio",
+                SegmentType.vox_pop: "the vox pop", SegmentType.consumer: "the consumer slot",
+                SegmentType.weather: "the weather", SegmentType.review: "a review",
+                SegmentType.field_report: "a report"}
+COMING_UP = 2                    # the items a link may trail
+
+
+def _coming_up(world: World, show: schedule.Show, pos, at: float) -> str:
+    """What really comes after a link, in order, to the next link: the kind of item, and tonight's planned subject
+    and guest when the running order has one. Told only the kinds ("a filmed report, a guest in the studio"),
+    Coastwide's links trailed guests and films that never came: "Dougal Crane on the roof of the old cannery, and
+    a studio guest from the harbour who has very firm views on the hake" (2026-11-21, 18:56). Only what fits before
+    the programme's close: the last link of the replay trailed two items the hour never reached."""
+    if pos is None or show.id not in REMEMBERS_ITS_SHOW:
+        return ""
+    rows, brk = [], False
+    t = at + show.target_for(show.item(pos))
+    room = schedule.show_end(at) - show.closing_s
+    for p in range(pos + 1, pos + 10):
+        it = show.item(p)
+        if it.type is SegmentType.links or len(rows) == COMING_UP:
+            break
+        t += show.target_for(it)
+        if t > room:
+            break
+        if it.type is SegmentType.ad_break:
+            brk = brk or not rows
+            continue
+        kind = _COMING_KIND.get(it.type)
+        if not kind:
+            continue
+        slot = rundown.peek(world, show, p)
+        what = (slot or {}).get("subject") or it.brief
+        guest = (slot or {}).get("guest")
+        rows.append(kind + (f": {what.rstrip('.')}" if what else "") + (f" (with {guest})" if guest else ""))
+    if not rows:
+        return ("\n\nWHAT COMES NEXT: nothing more of this programme but its goodbye, so trail nothing; a nod to "
+                f"{_title(schedule.show_at(schedule.show_end(at)))} later is fine.") if t > room else ""
+    return ("\n\nWHAT COMES NEXT, in this order" + (", after the break" if brk else "") + ":\n"
+            + "\n".join(f"  - {r}" for r in rows)
+            + "\nTrail only these, as they are given here, or nothing: no other guest, film, place or subject is "
+              "coming, so name none, and don't promise anything later in the programme.")
+
+
 def _guest_has_gone(world: World) -> str:
     """The Inquiry, once THE GUEST's second part is written: they have left. On 2026-11-21 Gerald Thorne finished
     at 20:07 and was trailed four more times ("the same questions go to you when we come back")."""
@@ -831,9 +876,11 @@ def _place(show: schedule.Show, seg_type: SegmentType, part: str) -> str:
 
 # The programme is named: Pat is "presenter, Coastwide" in the briefing, and every goodbye of The Inquiry
 # from 2026-10-31 to 11-02 thanked viewers for watching Coastwide.
+# No hello: all five closes of 2026-11-21 opened "Good evening", Coastwide's "Good evening, and welcome to Coastwide".
 _CLOSE = """This is the END of {title}. Wrap up warmly: a nod to what was on, thanks to anyone
 who joined you, a {goodbye} from {title} (if the programme is named, it is {title}, never another
-programme); {next_title} follows at {next_at}. No new stories."""
+programme); {next_title} follows at {next_at}. No new stories. No hello or welcome: the viewers have been
+watching all along, so it opens straight into the wrap-up, never "good evening" or "welcome to"."""
 
 # The last interview per show, so a "cont" part keeps the same guest (see schedule.py).
 _last_interview: dict[str, dict] = {}
@@ -1212,6 +1259,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     place = _place(show, seg_type, part)
     if place:
         user += "\n\n" + place.rstrip() + _still_to_come(show, part, at_ts or schedule.now())
+    if seg_type is SegmentType.links and part != "close":
+        user += _coming_up(world, show, work.get("order_pos"), at_ts or schedule.now())
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
         after = schedule.show_at(end)
@@ -1783,7 +1832,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        if done := _repeated(getattr(script, "headline", ""), world, show, seg.type, seg.brief):   # asked not to, models do; ask again once
+        if seg.part != "close" and (done := _repeated(getattr(script, "headline", ""), world, show, seg.type,
+                                                      seg.brief)):   # asked not to, models do; ask again once
             log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
                      seg.slot_id, done, show.id)
             user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today. Write "
@@ -2046,7 +2096,9 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     # The Last Ferry and Full Time too: the letter five times, a second half that was its first half again.
     if (show.id not in REMEMBERS_ITS_SHOW and show.id not in LOOP_NET and not council_loop) or seg_type not in _SHOW_TYPES:
         return None
-    if links and (not brief or brief in schedule.SAME_TITLE_BRIEFS):
+    # A link with no brief against the others with none, on a show that remembers its own: Coastwide's middle links
+    # have none, and nine of them aired as "The town settles into winter, one story at a time" (2026-11-21).
+    if links and (brief in schedule.SAME_TITLE_BRIEFS or (not brief and show.id not in REMEMBERS_ITS_SHOW)):
         return None
     new = _words(headline or "")
     if len(new) < 3:

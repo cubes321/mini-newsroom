@@ -184,6 +184,12 @@ def _entry(world: World, show: schedule.Show) -> dict | None:
     return r if r and r.get("title") == show.title and not show.location else None
 
 
+def peek(world: World, show: schedule.Show, pos) -> dict | None:
+    """The plan for the slot at `pos`, without taking it: what a link trails as coming up."""
+    r = _entry(world, show)
+    return None if r is None or pos is None else r["slots"].get(str(pos))
+
+
 def take(world: World, show: schedule.Show, pos) -> dict | None:
     """The plan for the slot at `pos` of tonight's `show`, once: a slot already written (before a restart) or a
     special version of the show gets none."""

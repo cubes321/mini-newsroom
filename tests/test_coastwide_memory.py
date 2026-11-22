@@ -77,3 +77,60 @@ def test_an_item_sees_the_last_on_its_own_brief_however_far_back():
     assert "Nell Harrower paints the boats" in user.split("THE LAST FEATURES")[1]
     other = writers.build_prompt(T.feature, w, target_s=120.0, show=show, brief="angle 9")[1]
     assert "Nell Harrower paints the boats" not in other.split("THE LAST FEATURES")[1]
+
+
+def test_a_middle_link_with_no_brief_is_caught_repeating_another():
+    """Coastwide's middle links have no brief: nine aired as "The town settles into winter, one story at a time"."""
+    w = world_mod.seed()
+    w.record_aired("links", "The town settles into winter, one story at a time", None, "Clive...", show="magazine")
+    assert writers._repeated("The town settles into winter, one story at a time", w, MAG, T.links, "") is not None
+    assert writers._repeated("Clive counts the town hall clock's steps", w, MAG, T.links, "") is None
+    # a show that doesn't remember its own items still leaves its unbriefed links alone
+    w.record_aired("links", "Four votes carried tonight", None, "...", show="chamber")
+    assert writers._repeated("Four votes carried tonight", w, schedule.get("chamber"), T.links, "") is None
+
+
+def test_the_links_headline_is_the_links_own_not_the_theme():
+    system = writers.build_prompt(T.links, world_mod.seed(), target_s=60.0, show=MAG)[0]
+    assert "not the evening's theme" in system and "the evening's theme in under 12 words" not in system
+
+
+def test_a_link_trails_only_what_comes_next(monkeypatch):
+    """18:56 on 2026-11-21: "Coming up after the break, we have Dougal Crane on the roof of the old cannery, and a
+    studio guest from the harbour who has very firm views on the hake": neither came."""
+    from newsroom import rundown
+
+    w = world_mod.seed()
+    pos = next(i for i, e in enumerate(MAG.pattern) if schedule.as_item(e).type is T.links and not schedule.as_item(e).part
+               and not schedule.as_item(e).brief)                     # the first middle link, before the interview
+    after = [MAG.item(p) for p in range(pos + 1, pos + 3)]
+    plan = {str(pos + 1): {"subject": "Bea Kowalczyk on her allotment", "guest": "Bea Kowalczyk"}}
+    monkeypatch.setattr(rundown, "peek", lambda world, show, p: plan.get(str(p)))
+    user = writers.build_prompt(T.links, w, target_s=60.0, show=MAG, work={"order_pos": pos})[1]
+    coming = user.split("WHAT COMES NEXT")[1]
+    assert "a guest in the studio: Bea Kowalczyk on her allotment (with Bea Kowalczyk)" in coming
+    assert f"a filmed report: {after[1].brief}" in coming
+    assert "no other guest, film, place or subject is coming" in coming
+    # the close trails nothing, and a show without a running order of its own gets nothing
+    assert "WHAT COMES NEXT" not in writers.build_prompt(T.links, w, target_s=60.0, show=MAG, part="close",
+                                                         work={"order_pos": pos})[1]
+    assert "WHAT COMES NEXT" not in writers.build_prompt(T.links, w, target_s=60.0, show=schedule.get("chamber"),
+                                                         work={"order_pos": 3})[1]
+
+
+def test_the_close_says_no_hello():
+    """All five closes of 2026-11-21 opened "Good evening"; Coastwide's "Good evening, and welcome to Coastwide"."""
+    user = _prompt(world_mod.seed(), T.links, part="close")
+    assert "No hello or welcome" in user
+
+
+def test_the_last_link_trails_nothing_the_hour_wont_reach():
+    from datetime import datetime
+
+    w = world_mod.seed()
+    pos = next(i for i, e in enumerate(MAG.pattern) if schedule.as_item(e).type is T.links and not schedule.as_item(e).part
+               and not schedule.as_item(e).brief)
+    early = writers._coming_up(w, MAG, pos, datetime(2026, 11, 21, 19, 0).timestamp())
+    late = writers._coming_up(w, MAG, pos, datetime(2026, 11, 21, 19, 56).timestamp())
+    assert "WHAT COMES NEXT, in this order" in early
+    assert "nothing more of this programme but its goodbye" in late and "The Inquiry" in late
