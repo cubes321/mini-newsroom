@@ -63,8 +63,9 @@ def store(tmp_path, monkeypatch):
     object.__setattr__(CONFIG, "pictures", old_pics)
 
 
-def _seg(type_=T.bulletin, show="news", headline="Gorse fire out behind the Salting", thread=None, lines=None, **kw):
-    return Segment(slot_id=1, type=type_, show=show, headline=headline, thread_id=thread, nominal_start_ts=AT,
+def _seg(type_=T.bulletin, show="news", headline="Gorse fire out behind the Salting", thread=None, lines=None,
+         at=AT, **kw):
+    return Segment(slot_id=1, type=type_, show=show, headline=headline, thread_id=thread, nominal_start_ts=at,
                    lines=lines or [Line(speaker="anchor", text="Hello.")], **kw)
 
 
@@ -142,6 +143,53 @@ def test_a_bulletin_leading_on_another_story_paints_its_own_thread(store, monkey
     p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
     assert p.offer(pictures.request_for(_seg(T.sport, "news", "Tides Beat Saltby Three-One at Home"), w))
     assert p.offer(req)
+
+
+def _seg_on(day: int, **kw):
+    return _seg(at=datetime(2026, 11, day, 19, 30).timestamp(), **kw)
+
+
+def test_a_story_keeps_its_picture_for_a_week_and_every_request_knows_which_picture_it_shows(store):
+    w = world_mod.seed()
+    t = w.seed_thread("Hake Glut Softens the Quay Price", "ten boats out", "", [])
+    p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
+    assert p.offer(pictures.request_for(_seg_on(10, headline="Hake glut on the quay", thread=t.id), w)) and p.step()
+    made_on_10 = pictures.picture_for(t.id, "2026-11-10")
+    assert made_on_10 and made_on_10.exists()
+    # Two days on, and again the same day: no new picture, one alias, and the lookup finds the 10th's.
+    restarted = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)              # it reads the index, not memory
+    for _ in range(2):
+        assert not restarted.offer(pictures.request_for(_seg_on(12, headline="Hake price eases", thread=t.id), w))
+    [alias] = pictures.aliases("2026-11-12")
+    assert alias["why"] == "story" and alias["to_day"] == "2026-11-10" and alias["to_key"] == t.id
+    assert pictures.picture_for(t.id, "2026-11-12") == made_on_10
+    # Past reuse_days, or with it off, the story gets a new picture.
+    assert restarted.offer(pictures.request_for(_seg_on(18, headline="Hake price eases", thread=t.id), w))
+    object.__setattr__(CONFIG, "pictures", dataclasses.replace(CONFIG.pictures, reuse_days=0))
+    assert pictures.Painter(FakeComfy(), gpu=lambda: 15.0).offer(
+        pictures.request_for(_seg_on(11, headline="Hake price eases", thread=t.id), w))
+    # A reworded headline shows today's picture; one never made shows nothing.
+    reworded = pictures.request_for(_seg_on(12, show="breakfast", headline="Remembrance Parade and Lifeboat Wreath Today"), w)
+    assert restarted.offer(reworded)
+    again = pictures.request_for(_seg_on(12, show="breakfast", headline="Remembrance Parade and Lifeboat Wreath This Morning"), w)
+    assert not restarted.offer(again)
+    assert pictures.aliases("2026-11-12")[-1]["to_key"] == reworded.key
+    assert pictures.picture_for(again.key, "2026-11-12") is None              # queued, not made yet
+    restarted.step(), restarted.step()
+    assert pictures.picture_for(again.key, "2026-11-12") == pictures.picture_for(reworded.key, "2026-11-12")
+    assert pictures.picture_for("nothing|at-all", "2026-11-12") is None
+
+
+def test_a_picture_made_for_a_bulletin_led_by_another_story_is_not_kept(store):
+    """Before 2acebe6, t641's picture was the Tides' football match: it mustn't stand for Gordon all week."""
+    w = world_mod.seed()
+    t = w.seed_thread("Gordon Lark Books the Back Room Behind the Railway", "three new minutes", "", [])
+    old = pictures.request_for(_seg_on(10, headline="Tides Beat Saltby Three-One; Darts Team Win", thread=t.id), w)
+    old.mixed = False                                                         # as the index has it from before
+    p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
+    assert p.offer(old) and p.step()
+    later = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
+    assert later.offer(pictures.request_for(_seg_on(11, headline="Gordon Lark books the back room", thread=t.id), w))
 
 
 def test_a_big_tide_is_high_water_not_a_wave():

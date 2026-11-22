@@ -5,7 +5,8 @@ the day's stories and every show's pieces, but nothing on screen shows them. Eac
 contact sheet (`--sheet`) to judge how they would look and fit, and only then is it decided where
 they show.
 
-- One picture per story a day (by thread id), else one per piece (show and headline). The prompt is
+- One picture per story (by thread id), kept for `[pictures] reuse_days`, else one per piece a day (show and
+  headline); a request that gets none records which picture it shows instead (`picture_for`). The prompt is
   made here, not by the writers, so the live scripts are untouched: a short back-office call (task
   `picture_brief`) turns the headline, the story and the script's opening into a sentence of what to
   draw, and the headline stands in when that call fails (`[pictures] brief = false` skips it).
@@ -291,6 +292,35 @@ def made(day: str | None = None) -> list[Request]:
     return [Request(**r) for r in rows if day is None or r.get("day") == day]
 
 
+# Requests that got no picture of their own, and the picture each one would show: a story pictured on an
+# earlier day keeps that picture ("story"), and a reworded headline shows today's ("again"). Nothing reads
+# this on air yet; once pictures show, picture_for() is the lookup.
+def aliases_path() -> Path:
+    return root() / "aliases.jsonl"
+
+
+def aliases(day: str | None = None) -> list[dict]:
+    """The aliases recorded (on `day`, or ever), oldest first."""
+    try:
+        rows = [json.loads(l) for l in aliases_path().read_text(encoding="utf-8").splitlines() if l.strip()]
+    except FileNotFoundError:
+        return []
+    return [r for r in rows if day is None or r.get("day") == day]
+
+
+def picture_for(key: str, day: str) -> Path | None:
+    """The picture a request key shows on `day`: its own, else the one an alias points to; None if neither
+    has been made (yet, or ever: a queued picture that failed)."""
+    own = {r.key: r.file for r in made(day)}
+    if key in own:
+        return root() / own[key]
+    for a in reversed(aliases(day)):
+        if a["key"] == key:
+            to = {r.key: r.file for r in made(a["to_day"])}.get(a["to_key"])
+            return root() / to if to else None
+    return None
+
+
 def _store(req: Request, png: bytes) -> None:
     folder = root() / req.day
     folder.mkdir(parents=True, exist_ok=True)
@@ -432,7 +462,9 @@ class Painter:
         self.q: queue.Queue[Request] = queue.Queue(maxsize=cfg.queue_max)
         self.known: dict[str, set[str]] = {}          # day -> keys made or queued
         self.headlines: dict[str, dict[str, tuple[str, str]]] = {}   # day -> key -> (headline, subject)
-        self.warm = False                             # our models are loaded in ComfyUI: we /free when idle
+        self.stories: dict[str, set[str]] | None = None   # thread -> days it was pictured, from the index
+        self.aliased: dict[str, set[str]] = {}        # day -> keys with an alias recorded
+        self.warm = False                            # our models are loaded in ComfyUI: we /free when idle
         self.last_render = 0.0
         self.last_said = ""
         self.freed_once = False                       # one /free to clear models left from before a restart
@@ -449,8 +481,41 @@ class Painter:
             self.headlines[day] = {r.key: _told_as(r) for r in made(day)}
         return self.headlines[day]
 
+    def _stories(self) -> dict[str, set[str]]:
+        """thread -> the days it has a picture. Not a picture made before 2acebe6 for a bulletin led by another
+        story: its brief may have painted that one (t641's football match), and it would stay for a week."""
+        if self.stories is None:
+            self.stories = {}
+            for r in made():
+                if r.thread and not (r.show != PANEL and not r.mixed and _mixed(r.headline, r.subject)):
+                    self.stories.setdefault(r.thread, set()).add(r.day)
+        return self.stories
+
+    def earlier_picture(self, req: Request) -> str:
+        """The latest earlier day, within reuse_days, whose picture of this story it keeps; "" for a new one.
+        On the 11-06 to 11-21 nights 43 of 567 pictures were a story pictured on an earlier day."""
+        if not req.thread or self.cfg.reuse_days <= 0:
+            return ""
+        today = date.fromisoformat(req.day)
+        days = [d for d in self._stories().get(req.thread, ())
+                if 0 < (today - date.fromisoformat(d)).days <= self.cfg.reuse_days]
+        return max(days, default="")
+
+    def _alias(self, req: Request, to_day: str, to_key: str, why: str) -> bool:
+        """Record once a day which picture `req` shows instead of its own; True the first time."""
+        done = self.aliased.setdefault(req.day, {a["key"] for a in aliases(req.day)})
+        if req.key in done:
+            return False
+        done.add(req.key)
+        row = {"day": req.day, "key": req.key, "show": req.show, "kind": req.kind, "headline": req.headline,
+               "thread": req.thread, "to_day": to_day, "to_key": to_key, "why": why, "ts": time.time()}
+        root().mkdir(parents=True, exist_ok=True)
+        with aliases_path().open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
+        return True
+
     def same_picture(self, req: Request) -> str:
-        """The headline of today's picture that already shows this story, or "". A light show's items have
+        """The key of today's picture that already shows this story, or "". A light show's items have
         no thread, so they are keyed by headline, and Breakfast rewords its bulletins every time: on the
         2026-11-08 morning 27 of 89 pictures were the same Remembrance wreath and 14 the quay waking up.
         Two headlines (or story titles) that world.same_story_words would file under one thread draw the
@@ -458,17 +523,25 @@ class Painter:
         from .world import same_story_words
 
         mine, _ = _told_as(req)
-        for headline, subject in self._told(req.day).values():
+        for key, (headline, subject) in self._told(req.day).items():
             if same_story_words(mine, headline) or same_story_words(req.subject, subject):
-                return headline or subject
+                return key
         return ""
 
     def offer(self, req: Request) -> bool:
         keys = self._keys(req.day)
-        if req.key in keys or len(keys) >= self.cfg.per_day:
+        if req.key in keys:
+            return False
+        if day := self.earlier_picture(req):
+            if self._alias(req, day, req.thread, "story"):
+                log.info("pictures: %s keeps its picture of %s; no new picture", req.key, day)
+            return False
+        if len(keys) >= self.cfg.per_day:
             return False
         if seen := self.same_picture(req):
-            log.info("pictures: %r is %r again; no new picture", req.headline[:80], seen[:80])
+            headline, subject = self._told(req.day)[seen]
+            self._alias(req, req.day, seen, "again")
+            log.info("pictures: %r is %r again; no new picture", req.headline[:80], (headline or subject)[:80])
             return False
         try:
             self.q.put_nowait(req)
@@ -534,6 +607,8 @@ class Painter:
             return False
         req.seconds, req.ts = round(time.perf_counter() - t0, 1), time.time()
         _store(req, png)
+        if req.thread:
+            self._stories().setdefault(req.thread, set()).add(req.day)
         self.warm, self.last_render = True, time.monotonic()
         self._say("making pictures")
         log.info("pictures: %s for %s %r in %.1fs%s", req.file, req.show, (req.brief or req.subject)[:90],
@@ -689,7 +764,11 @@ def _cli() -> int:
               + (f", {'busy' if c.busy() else 'idle'}" if up else ""))
         free = gpu_free_gb()
         print(f"GPU free: {'unknown' if free is None else f'{free:.1f} GB'} (needs {CONFIG.pictures.min_free_gb:.0f} from cold)")
-        print(f"made today: {len(made(date.today().isoformat()))} of {CONFIG.pictures.per_day}; on tonight: {enabled()}")
+        today = date.today().isoformat()
+        kept = aliases(today)
+        print(f"made today: {len(made(today))} of {CONFIG.pictures.per_day}; on tonight: {enabled()}")
+        print(f"shown again instead: {sum(a['why'] == 'story' for a in kept)} stories with an earlier day's "
+              f"picture, {sum(a['why'] == 'again' for a in kept)} reworded headlines")
         return 0
     if a.sheet:
         pages = sheet(a.sheet, a.out or root() / f"sheet-{a.sheet}.png")

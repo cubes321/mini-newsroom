@@ -185,6 +185,7 @@ class PicturesCfg:
     wait_s: float = 120.0                # how long it waits when ComfyUI is down or busy, or the GPU is full
     queue_max: int = 40                  # requests waiting at most; past that new ones are dropped
     brief: bool = True                   # one short call per picture says what to draw (task picture_brief)
+    reuse_days: int = 7                  # a story pictured this many days back keeps that picture; 0 = new each day
 
 
 @dataclass(frozen=True)
