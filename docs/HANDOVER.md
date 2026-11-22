@@ -133,7 +133,8 @@ against the scripts. None is fixed yet, except the hake.
    - The Panel's email brief says the question was already debated, not "the first question tonight".
    - **Replayed whole with Haiku and real bookings** on a copy of the town from before that night:
      - The Last Ferry, twice (31 items each): no two headlines alike; three different letters and three different
-       papers each time; every second half was the same guest on something new.
+       papers each time. In the second run (the first didn't link the halves, a fault in the replay script) every
+       second half was the same guest on something new.
      - Full Time (14 items): three different round-ups; its guests a Tides player, a sea swimmer and a baker.
      - The Panel (12 items, against 14 to 16): no "final round" before the end. The first question still came up
        three times: its own debate, the viewer's email on it, and "the question that split them most". Two of the
