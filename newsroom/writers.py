@@ -56,6 +56,9 @@ Everything is invented; never reference real people, real companies, or real eve
 Tone: {tone}. Specific, concrete details (street names, prices, a quote from a resident).
 {weight}Rules:
 - Use ONLY the speaker ids given in the town briefing. Never invent new speakers.
+- Nobody thanks or greets themselves: a line never opens "Thanks, <the speaker's own name>". An item's first
+  line does not open with thanks at all, least of all to the person it hands over to, who hasn't spoken yet:
+  unless THIS ITEM says who handed over, nobody did.
 - Spoken lines only: no stage directions, no brackets, no markdown, no emojis.
 - Numbers as words when short ("twelve degrees"); write out units.
 - Do not repeat recent headlines. When you follow up an open thread (by id), report its NEXT
@@ -1526,6 +1529,69 @@ MOODS_PER_ITEM = 3
 COMMON_MOODS = ("laughing", "happy", "smug")
 
 
+def own_thanks_dropped(text: str, me: str) -> str:
+    """A presenter's line without the thanks to themselves it opens with. "Thanks, Rosie. Gordon, over to you" from
+    Rosie is "Gordon, over to you"; "Thanks, Fran here at the sports corner" from Fran is "Fran here at the sports
+    corner"; "Thanks, Pat and Clive. Gordon..." from Pat loses the lot. A line that is nothing else is left alone."""
+    m = re.match(rf"(?:thanks|thank you|cheers)(?: very much)?\W+(?:\w+ and )?{re.escape(me)}(?: and \w+)?\b(\s+here\b)?",
+                 text.strip(), re.IGNORECASE)
+    if not m:
+        return text
+    rest = text.strip()[m.end():]
+    if m.group(1):
+        return f"{me} here{rest}"
+    rest = rest.lstrip(" ,.!;:\u2014-")
+    return rest[0].upper() + rest[1:] if rest else text
+
+
+def nobody_thanks_themselves(lines: list[Line], world: World) -> int:
+    """Take a presenter's thanks to themselves off the front of their lines; how many were changed.
+
+    On the 2026-11-21 night 22 lines did it, and 50 over the two days' calls, nearly all the first line of an
+    item that hands over: "Thanks, Rosie. Gordon, over to you" from Rosie (30 of Morning Tide's weathers), "Thanks,
+    Dana here, and the weather is in the safe hands of Gordon Pell", "Thanks, Fran here at the sports corner".
+    The item follows another, so the model answers a hand-over nobody made, with the name it was just given."""
+    n = 0
+    for i, l in enumerate(lines):
+        c = world.character(l.speaker) if l.speaker != "guest" else None
+        if c is None or not c.name:
+            continue
+        fixed = own_thanks_dropped(l.text, c.name.split()[0])
+        if i == 0 and fixed == l.text:
+            # Told not to thank themselves, the item's first speaker thanked whoever they were handing to, who
+            # hadn't spoken yet: "Thanks, Gordon. Over to the weather" (the replay of 2026-11-22).
+            for other in lines[1:]:
+                who = other.guest_name if other.speaker == "guest" else getattr(world.character(other.speaker), "name", "")
+                if who and who.split()[0] != c.name.split()[0]:
+                    fixed = own_thanks_dropped(l.text, who.split()[0])
+                    if fixed != l.text:
+                        break
+        if fixed != l.text:
+            l.text, n = fixed, n + 1
+    return n
+
+
+def guests_reply_split_off(lines: list[Line], world: World) -> list[Line]:
+    """A guest's first reply that was written into the presenter's own line, given back to the guest. Four of
+    Coastwide's interviews on the 2026-11-21 night opened with Pat saying both halves: "Our next guest knows more
+    about the bees of Port Wexley than anyone has a right to. Welcome to Coastwide. Thank you, Pat. Happy to be
+    here, though the bees would rather I wasn't talking about them." The thanks to the speaker's own name, after a
+    sentence of their own, is where the guest begins: the rest goes to the next guest to speak."""
+    out: list[Line] = []
+    for i, l in enumerate(lines):
+        c = world.character(l.speaker) if l.speaker != "guest" else None
+        nxt = next((g for g in lines[i + 1:] if g.speaker == "guest" and g.guest_name), None)
+        m = c and nxt and re.search(rf"(?<=[.!?])\s+(?=(?:thanks|thank you)\W+{re.escape(c.name.split()[0])}\s*[.,!])",
+                                    l.text, re.IGNORECASE)
+        if not m:
+            out.append(l)
+            continue
+        out.append(l.model_copy(update={"text": l.text[:m.start()].strip()}))
+        out.append(Line(speaker="guest", text=l.text[m.end():].strip(), guest_name=nxt.guest_name,
+                        guest_role=nxt.guest_role))
+    return out
+
+
 def ration_moods(lines: list[Line]) -> list[Line]:
     """Clear the moods past MOODS_PER_ITEM, the common faces and the later lines first; never a retry."""
     if lines and lines[-1].speaker == "anchor":
@@ -1776,6 +1842,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
                  for before, l in zip([None, *script.lines], script.lines) if l.text.strip()
                  and not _just_their_name(l, script)]
     ration_moods(seg.lines)
+    seg.lines = guests_reply_split_off(seg.lines, world)
+    if fixed := nobody_thanks_themselves(seg.lines, world):
+        log.info("%s slot %d: took a presenter's thanks to themselves off %d line(s)", seg.type.value, seg.slot_id, fixed)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
     seg.work.pop("studio_guest", None)

@@ -92,6 +92,18 @@ against the scripts. None is fixed yet, except the hake.
 5. **Who is speaking.**
    - A presenter thanks themselves at a hand-over, 22 times: Fran ("Thanks, Fran here at the sports corner"), Pat,
      Dana, Rosie.
+     **Fixed 2026-11-22.** Over the two days' calls it was 50 lines, nearly all the first line of an item that hands
+     over (30 of them Rosie's hand to Gordon): the item follows another, so the model answers a hand-over nobody made,
+     with the name it was just given.
+     - A rule in every writer's prompt: nobody thanks themselves, and an item's first line doesn't open with thanks.
+     - A repair as the script is filed (`writers.nobody_thanks_themselves`): a presenter's opening thanks to their own
+       name comes off ("Thanks, Rosie. Gordon, over to you" is "Gordon, over to you"; "Thanks, Fran here at the sports
+       corner" is "Fran here at the sports corner"), and so does a first line's thanks to someone who speaks later in
+       the item. Run over the 50 lines it mends 46.
+     - The other four were a guest's reply written into the presenter's line ("Welcome to Coastwide. Thank you, Pat.
+       Happy to be here"): `writers.guests_reply_split_off` gives it back to the guest.
+     - Replayed three times with Haiku, twelve hand-overs each: no presenter thanked themselves. In the first, three
+       thanked Gordon before he had spoken, which the repair now takes off; in the next two it fired once in 24.
    - Lines go to the wrong mouth: The Last Ferry's second-guest items give the host's line to the guest (4 of 8);
      Gordon and Miles speak a guest's answer.
    - On Morning Tide Rosie reads every headline and Dana never speaks: check whether that is meant.
