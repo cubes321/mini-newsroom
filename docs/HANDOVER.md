@@ -277,6 +277,14 @@ saved route from the real `data/`.
        real model (it left all four alone: "No council steps before 3 December except t433") and the desk's two
        updates of that night, both dropped. All four promises still open. One memo only, so watch the next council
        night (Thursday 3 December).
+     - **Two holes closed the same morning:** a verdict the desk then skips (on a story only within the memo's
+       reach, the way t447 and t476 came on the 19th) no longer lets a close through; and a promise that came with
+       a story folded into another holds the story it joined.
+     - **Two real desk rounds under that night's own memo** ("Move t447 to Friday 4 December, off the council day
+       ... Take t476 off the 3 December council: close it quietly"): both times the desk gave t447 a NEXT for the
+       4th and it was dropped; no verdict was given early; all four promises stayed open.
+     - **Still open:** a promised story left on the board that goes quiet still fades, and its promise lapses with
+       it, as before. The four of the 19th all wait in the pool for their days, where nothing fades.
      - **In the real town the damage stands:** t447 waits for Friday 4 December with its promise (p002) due on the
        3rd, and p004 lapsed when t476 was closed. Not repaired: that is an edit to the real town, for the user to
        say. On the 3rd p002 would come up a day late, as overdue.

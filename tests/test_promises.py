@@ -168,7 +168,8 @@ def test_a_voted_story_is_not_closed_or_put_off_past_its_promise(monkeypatch):
     # with its verdict in the same plan, the close goes through
     plan(ids[0], "closed", "Closed: the tender went to Pascoe's on Friday 13 November.",
          promises=[PromiseVerdict(id=by[ids[0]]["id"], state="kept", note="Awarded to Pascoe's.")])
-    assert by[ids[0]]["state"] == "kept" and tender.phase in ("closed", "resolving")
+    # the verdict is given, and the close waits for its own day as any close does (desk._held)
+    assert by[ids[0]]["state"] == "kept" and (tender.phase, tender.closes_on) == ("resolving", "2026-11-13")
     # an overdue promise no longer holds its story: it is a story in itself
     w.last_date = "2026-11-30"
     plan(ids[1], "closed", "Closed: the committee never named a date.")
@@ -195,3 +196,22 @@ def test_the_senior_editor_is_told_the_promises_it_must_leave_standing(monkeypat
     assert all(f"on [{tid}]" in told for tid in ids[:3]) and f"on [{ids[3]}]" not in told      # the lost motion: none
     assert "Do not ask the desk to close one" in told and "due Friday 13 November" in told
     assert "not put off past the promise's day" in promises.for_desk(w, MEETING)
+
+
+def test_a_verdict_the_desk_wont_give_doesnt_let_the_close_through(monkeypatch):
+    """A story the memo brings within reach settles no promise (desk.apply's `only`): on 2026-11-19 t447 and t476
+    both came to the desk that way. A close with a verdict that is then skipped would lapse the promise as before."""
+    w = _town()
+    ids = _meeting(w, monkeypatch)
+    by = {p["thread_id"]: p for p in promises.open_(w)}
+    engine = w.thread(ids[1])
+    plan = StoryPlan(updates=[ThreadUpdate(thread_id=ids[1], phase="closed", next_development="Closed: no date was named.")],
+                     promises=[PromiseVerdict(id=by[ids[1]]["id"], state="broken", note="No date.")])
+    desk.apply(w, plan, only={ids[0]}, reach={ids[1]})                 # within reach, not this round's
+    assert engine.phase != "closed" and by[ids[1]]["state"] == "open"
+    # and a promise that came with a story folded in holds the story it joined
+    assert w.merge_thread(ids[0], ids[2])                              # the tender folds into the lights
+    lights = w.thread(ids[2])
+    desk.apply(w, StoryPlan(updates=[ThreadUpdate(thread_id=ids[2], phase="closed", next_development="Closed.")]),
+               only=set(ids))
+    assert lights.phase != "closed" and by[ids[0]]["state"] == "open"

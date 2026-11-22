@@ -299,7 +299,15 @@ def _promise_stands(world: World, t: Thread, u: ThreadUpdate, settled: set[str])
     for t476 closed and t447 moved on; by 21:52 the desk had closed t476, so its promise lapsed ("the story ended
     without it"), and moved t447 to Friday 4 December, the day after its promise falls due."""
     today = date.fromisoformat(world.last_date)
-    mine = [pr for pr in promises.open_(world) if pr["thread_id"] == t.id and pr["id"] not in settled
+
+    def story(tid: str) -> str:                     # a promise goes with a story folded into another (promises.lapse)
+        for _ in range(5):
+            other = world.thread(tid)
+            if other is None or not other.merged_into:
+                break
+            tid = other.merged_into
+        return tid
+    mine = [pr for pr in promises.open_(world) if story(pr["thread_id"]) == t.id and pr["id"] not in settled
             and date.fromisoformat(pr["due"]) >= today]
     if not mine:
         return False
@@ -429,6 +437,11 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -
             log.info("story desk merged thread %s into %s: %s", m.duplicate, m.into, world.thread(m.into).title[:60])
         else:
             log.info("story desk merge %s into %s skipped (not two live threads)", m.duplicate, m.into)
+    # The verdicts this plan will really give (the loop below): one on a story only within reach, which settles
+    # no promise, must not let its close through.
+    open_now = {pr["id"]: pr for pr in promises.open_(world)}
+    settling = {v.id for v in p.promises
+                if v.id in open_now and (only is None or open_now[v.id]["thread_id"] in only)}
     for u in p.updates:
         t = world.thread(u.thread_id)
         if t is None:
@@ -440,7 +453,7 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -
         if only is not None and t.id not in only and t.id not in reach:
             log.info("story desk planned %s out of turn; skipping", t.id)
             continue
-        if _promise_stands(world, t, u, {v.id for v in p.promises}):
+        if _promise_stands(world, t, u, settling):
             continue
         if world.waiting(t) and (u := _redate(world, t, u)) is None:
             continue
