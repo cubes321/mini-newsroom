@@ -78,6 +78,7 @@ class Request:
     subject: str = ""                 # what the picture is of: the story's title, else the headline
     serious: bool = False             # a fire or an accident: the user decides whether these get pictures
     context: str = ""                 # the story's status and the script's opening, for the brief
+    mixed: bool = False               # the headline leads on another story than the thread's (a bulletin)
     brief: str = ""                   # the brief writer's sentence of what to draw; "" = the subject alone
     prompt: str = ""
     file: str = ""
@@ -114,16 +115,40 @@ def request_for(seg: Segment, world) -> Request | None:
     key = thread.id if thread else f"{seg.show}|{_slug(seg.headline)}"     # a story's picture, whichever show
     subject = thread.title if thread else seg.headline
     spoken = " ".join(l.text for l in seg.lines)
+    mixed = bool(thread) and not debate and _mixed(seg.headline, thread.title)
+    if mixed:
+        spoken = _about(spoken, thread.title)
     # A debate's words wander over every side of it and more: the story's own status says what it is about.
     context = " ".join(p for p in (thread.status if thread else "", "" if debate else spoken) if p)[:CONTEXT_CHARS]
     req = Request(key=key, day=day, show=seg.show, kind=seg.type.value, headline=seg.headline,
-                  thread=thread.id if thread else "", subject=subject,
+                  thread=thread.id if thread else "", subject=subject, mixed=mixed,
                   serious=bool(SERIOUS.search(f"{subject} {seg.headline}")), context=context)
     req.prompt = prompt_for(req)
     return req
 
 
 PANEL = "panel"
+
+
+# A bulletin of several items is filed under one of their threads, while its headline and opening lead on
+# another: on the 11-21 night "Tides Beat Saltby Three-One; Darts Team Win at Home" was t641's, Gordon Lark
+# booking a back room, and its brief painted a football match under Gordon's key. A reworded headline of the
+# story itself shares at least two of its telling words; one that shares fewer is another story's.
+MIXED_WORDS = 2
+
+
+def _mixed(headline: str, title: str) -> bool:
+    from .world import _story_words
+
+    return len(_story_words(headline) & _story_words(title)) < MIXED_WORDS
+
+
+def _about(spoken: str, title: str) -> str:
+    """The script's sentences about the story `title` (two of its telling words), for a mixed bulletin."""
+    from .world import _story_words
+
+    words = _story_words(title)
+    return " ".join(s for s in re.split(r"(?<=[.!?])\s+", spoken) if len(_story_words(s) & words) >= MIXED_WORDS)
 
 
 def _panel_story(seg: Segment, world):
@@ -171,7 +196,9 @@ BRIEF_SYSTEM = (
     "they are called: a local food, dish or custom by its look, colour and shape, so someone who has never "
     "heard its name could paint it. Never the television studio, the presenters, the interview or the chat "
     "itself: paint what they are talking about. In Port Wexley the Tides are the football (soccer) club and "
-    "the Wreckers the rugby club; a story about them shows their game. At most two people, described by "
+    "the Wreckers the rugby club; a story about them shows their game. A big or spring tide is high, calm "
+    "water brimming near the top of the harbour wall and the slipways, not a wave: paint rough sea, breakers "
+    "or spray only when the script says there is a storm or a gale. At most two people, described by "
     "their job or look, "
     "never by name. A serious story (a fire, a crash, a death) shows the place or the aftermath, calm, "
     "with nobody hurt in view and nothing that could look like harm. A council or committee story shows the thing being decided (the harbour "
@@ -206,8 +233,9 @@ def brief_for(req: Request) -> str:
     from . import llm
     from .models import PictureBrief
 
-    user = (f"Show: {req.show} ({req.kind})\nHeadline: {req.headline}\n"
-            + (f"Story: {req.subject}\n" if req.subject != req.headline else "")
+    # A mixed bulletin's headline is another story's: the picture is its thread's, so the brief never sees it.
+    user = (f"Show: {req.show} ({req.kind})\n" + ("" if req.mixed else f"Headline: {req.headline}\n")
+            + (f"Story: {req.subject}\n" if req.mixed or req.subject != req.headline else "")
             + (f"From the script: {req.context}\n" if req.context else "")
             + "\nWhat should the picture show?")
     try:
@@ -228,6 +256,12 @@ def brief_for(req: Request) -> str:
             log.info("pictures: the second brief for %s won't do either (%r); the headline will do", req.key, text)
             return ""
     return text
+
+
+def _told_as(req: Request) -> tuple[str, str]:
+    """(headline, subject) for the near-repeat check: a mixed bulletin's headline is another story's, so only
+    its story counts, or one bulletin leading on the Tides' win would turn away every other story it carries."""
+    return ("" if req.mixed else req.headline), req.subject
 
 
 def _slug(s: str) -> str:
@@ -412,7 +446,7 @@ class Painter:
     def _told(self, day: str) -> dict[str, tuple[str, str]]:
         """The day's pictures made or queued, key -> (headline, subject), for the near-repeat check."""
         if day not in self.headlines:
-            self.headlines[day] = {r.key: (r.headline, r.subject) for r in made(day)}
+            self.headlines[day] = {r.key: _told_as(r) for r in made(day)}
         return self.headlines[day]
 
     def same_picture(self, req: Request) -> str:
@@ -423,9 +457,10 @@ class Painter:
         same picture; it caught 27 of 69 on 2026-11-08 and 34 of 150 on 2026-11-07, none of them wrong."""
         from .world import same_story_words
 
+        mine, _ = _told_as(req)
         for headline, subject in self._told(req.day).values():
-            if same_story_words(req.headline, headline) or same_story_words(req.subject, subject):
-                return headline
+            if same_story_words(mine, headline) or same_story_words(req.subject, subject):
+                return headline or subject
         return ""
 
     def offer(self, req: Request) -> bool:
@@ -440,7 +475,7 @@ class Painter:
         except queue.Full:
             return False
         keys.add(req.key)
-        self._told(req.day)[req.key] = (req.headline, req.subject)
+        self._told(req.day)[req.key] = _told_as(req)
         return True
 
     def _say(self, msg: str) -> None:

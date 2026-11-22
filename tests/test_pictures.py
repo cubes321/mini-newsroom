@@ -17,6 +17,7 @@ from newsroom.config import CONFIG
 from newsroom.models import Line, Segment, SegmentType as T
 
 AT = datetime(2026, 11, 6, 19, 30).timestamp()
+REAL_BRIEF = pictures.brief_for                  # the store fixture stands a blank brief in for it
 
 
 def _png(colour=(40, 90, 160)) -> bytes:
@@ -113,6 +114,38 @@ def test_a_reworded_headline_is_the_same_picture(store):
     restarted = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)                # a restart knows the day's headlines
     assert not restarted.offer(pictures.request_for(_seg(show="news", headline="Remembrance Sunday parade and lifeboat wreath this morning"), w))
     assert restarted.offer(pictures.request_for(_seg(headline="Fire Station Engine Bid Waits on Council Vote"), w))
+
+
+def test_a_bulletin_leading_on_another_story_paints_its_own_thread(store, monkeypatch):
+    """The 11-21 night: a bulletin headlined on the Tides' win was filed under t641, Gordon Lark booking a back
+    room, and its brief painted a football match under Gordon's key."""
+    from newsroom import llm
+    from newsroom.models import PictureBrief
+    w = world_mod.seed()
+    t = w.seed_thread("Gordon Lark Books the Back Room Behind the Railway", "his three new minutes went down well", "", [])
+    lines = [Line(speaker="anchor", text="The Tides beat Saltby Rovers three-one at home this afternoon. "
+                                         "And Gordon Lark has been busy. He wants a back room behind the Railway "
+                                         "for a January night.")]
+    req = pictures.request_for(_seg(headline="Tides Beat Saltby Three-One; Darts Team Win at Home", thread=t.id,
+                                    lines=lines), w)
+    assert req.mixed and req.key == t.id
+    assert "Gordon Lark" in req.context and "Saltby" not in req.context        # only the story's own sentences
+    asked = []
+    monkeypatch.setattr(llm, "complete_json", lambda task, schema, system, user, **k:
+                        asked.append(user) or PictureBrief(picture="A small pub back room with a wooden stage."))
+    REAL_BRIEF(req)
+    assert "Tides" not in asked[0] and f"Story: {t.title}" in asked[0]
+    # A reworded headline of the story itself is not mixed, and keeps its script.
+    same = pictures.request_for(_seg(headline="Gordon Lark books a back room at the Railway", thread=t.id, lines=lines), w)
+    assert not same.mixed and "Saltby" in same.context
+    # The repeat check: the Tides' own picture doesn't turn away the stories a Tides-led bulletin carries.
+    p = pictures.Painter(FakeComfy(), gpu=lambda: 15.0)
+    assert p.offer(pictures.request_for(_seg(T.sport, "news", "Tides Beat Saltby Three-One at Home"), w))
+    assert p.offer(req)
+
+
+def test_a_big_tide_is_high_water_not_a_wave():
+    assert "not a wave" in pictures.BRIEF_SYSTEM and "storm or a gale" in pictures.BRIEF_SYSTEM
 
 
 def test_the_painter_waits_for_comfyui_someone_elses_job_and_a_full_gpu(store):
