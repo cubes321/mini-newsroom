@@ -826,7 +826,11 @@ def _coming_up(world: World, show: schedule.Show, pos, at: float) -> str:
         return ""
     rows, brk = [], False
     t = at + show.target_for(show.item(pos))
-    room = schedule.show_end(at) - show.closing_s
+    # The opening is timed a moment before the show starts (after the bumper, as Full Time ends): its end is the
+    # show's, not Full Time's. Asked at 18:59, the scratch evening of 2026-11-22 told Coastwide's opening "nothing
+    # more of this programme but its goodbye", and it trailed the Christmas lights.
+    probe = at if schedule.show_at(at).id == show.id else at + 300
+    room = schedule.show_end(probe) - show.closing_s
     for p in range(pos + 1, pos + 10):
         it = show.item(p)
         if it.type is SegmentType.links or len(rows) == COMING_UP:

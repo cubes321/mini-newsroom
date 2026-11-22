@@ -137,3 +137,14 @@ def test_the_last_link_trails_nothing_the_hour_wont_reach():
     late = writers._coming_up(w, MAG, pos, datetime(2026, 11, 21, 19, 56).timestamp())
     assert "WHAT COMES NEXT, in this order" in early
     assert "nothing more of this programme but its goodbye" in late and "The Inquiry" in late
+
+
+def test_the_opening_written_before_the_hour_trails_its_own_show():
+    """The scratch evening of 2026-11-22: Coastwide's opening, timed at 18:59 as Full Time ended, was told nothing
+    more of the programme was coming."""
+    from datetime import datetime
+
+    w = world_mod.seed()
+    pos = next(i for i, e in enumerate(MAG.pattern) if schedule.as_item(e).part == "open")
+    trail = writers._coming_up(w, MAG, pos, datetime(2026, 11, 22, 18, 59, 50).timestamp())
+    assert "WHAT COMES NEXT, in this order" in trail
