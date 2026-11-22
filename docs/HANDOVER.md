@@ -179,6 +179,124 @@ scripts': The Inquiry is Pat's, and the sheet's 11 degrees was the night before'
 the hand-over that thanks the speaker; turns in code for the other loops, as for The Chamber; the hour and the day
 for the documentaries and for Sunday; why Coastwide had the match as still to come.
 
+### The rest of the review, fixed on the afternoon of 2026-11-22 (`1c7b43a..f038c37`, not pushed, not aired)
+
+Eight commits, one fault each, 1,187 tests passing.
+
+**How they were checked.**
+- Each was run over that night's aired scripts: the 322 that went out via the model, matched to their final
+  calls in `data/llm_calls`, re-asks left out.
+- Most were then replayed with Haiku (DeepSeek for the special) on a copy of the town from before that night,
+  at the night's own times.
+- **A fault in the replay harness, now fixed:** the first replays loaded the copy before setting the clock, so
+  it rolled to the real date. Every Saturday item's briefing said "TODAY IS ... Sunday" against a clock line
+  saying Saturday. Those replays were run again with the date right. The numbers below are from the second runs.
+- The harness is in this session's scratchpad, not the repo: `env.py` (paths first), `replay.py`,
+  `replay_special.py`.
+
+1. **The tense of the tides and the ferry** (`bcfc8d5`).
+   - **The check:** `tides.tense_slips` looks at each tide or ferry time in its own clause, against the minute
+     the item airs. It catches:
+     - a time told as done when it is to come, or the reverse;
+     - one of today's times given as tomorrow's, or put in a part of the day it isn't;
+     - the ferry finished before its last boat, or running (or somebody on it) while it isn't.
+   - A slip gets the clock check's one more ask, with both kinds of note in it.
+   - **On the night's sentences:** of 221 tide and ferry sentences it flags 18, all wrong by hand.
+   - **Replayed:** 18 items at the night's times, of which 1 stood wrong after its second ask: 06:40's gap end,
+     "twelve minutes past twelve" for 12:03. On the night 13 of the 14 news weathers had something wrong.
+   - "thirty-five minutes past four" no longer parses as "five minutes past four".
+   - **Still open:** a sentence with no word for the day ("Ferry runs every half hour from seven..." at 21:41,
+     about tomorrow) passes.
+2. **Who is speaking** (`1c7b43a`).
+   - **The couch:** `writers.wrong_mouths` gives back a guest's line that speaks to its own speaker or opens
+     telling of them. It goes to the other guest, or to the host when it speaks to both. Not a debate, and not a
+     call (test_phonein: a studio guest's answer often starts with their own name). Over the aired scripts it
+     moves The Last Ferry's four wrong lines and nothing else.
+   - **"Gordon and Miles speak a guest's answer":** these were field reports, where Miles put a question to
+     someone with no voice ("Ivy, what's the story?") and a presenter answered.
+     - The news and Morning Tide field reports are told only the presenters speak, and `asked_with_no_voice`
+       asks once more.
+     - It flags 4 of the night's 40 field reports, all real. Replayed: 5 of 5 asked nobody.
+   - **Morning Tide's Dana is by design:** its cast has no newsreader. The headlines are Rosie's, with one line
+     from Jonah.
+3. **The hour and the day** (`4d5f56a`).
+   - **The clock line every writer gets** now also says that anything timed later today hasn't happened. In the
+     small hours it says the day's morning hasn't come, "last night" is the day before, and anyone in a piece
+     was spoken to then.
+   - **Specials and documentaries** are told when they air (`special.airs_at`): a special as it is made, a
+     documentary in its 21:00 slot. `nominal_start_ts` was only a far deadline, six hours on.
+   - **Weekends:** `schedule.day_note` says what a Saturday or Sunday is, and Morning Tide's school run is a
+     weekday's.
+   - **The darts:** the facts say the last match night was two days ago, with no darts tonight.
+   - **Replayed:**
+     - Sunday's commute, bakery and sofa had no school run, the shops opening at ten, and the ferry not yet
+       running.
+     - Full Time's darts told Thursday's as Thursday's.
+     - A special made for real at 02:10: "It's ten past two", and the spinnaker "is due to fly at first light.
+       That is still some hours off". It also had the MP on the town hall stairs at half past one, which the
+       last sentence of the small-hours note is for. **Not replayed since.**
+4. **Coastwide** (`c03e459`).
+   - **The headline:** the links prompt asked for "the evening's theme" as each link's headline, and the running
+     order's theme was "The town settles into winter, one story at a time": nine links aired under it. Each
+     link's headline and caption are now its own.
+   - **The repeat check:** a link with no brief is checked against the others with none.
+   - **Trails:** a middle link is told what comes next, to the next link (`_coming_up`): the kind of item and
+     the planned subject and guest (`rundown.peek`), only what fits before the close.
+   - **The close:** all five closes that night opened "Good evening". The close is told no hello.
+   - **Replayed:** four links, the items between them and the close. Every trail matched what came next, the
+     headlines all differed, and the close had no hello.
+   - **Still open:**
+     - Two middle links opened "Good evening, and welcome back to the middle of Coastwide", parroting the
+       prompt's place line.
+     - Four links opened "Clive, you have been quiet...".
+     - The Inquiry's four questions to each new guest are as they were.
+5. **The 24-hour clock and the sport facts** (`b950e21`).
+   - **The repair:** `writers.clock_read_out` says a 24-hour time read aloud as people say it, where a time's cue
+     comes before it ("at", "kick-off", "leaves") or "hours" after it. Over the night's aired lines it changes
+     15, all right. Years are left ("nineteen forty-three"), and so is one with no cue ("the same day, fourteen
+     thirty").
+   - **The football and rugby facts** give kick-offs in words, how long ago a result was ("(a week ago)"), and
+     the goals as "Shore, Kemp, Price, one each". The clean sheet appears only where there was one.
+   - **Replayed:** five Full Time and news items, all right. One bulletin had the Wreckers "host" Saltby, an
+     away game.
+6. **Council business** (`3117942`).
+   - **The briefing:** the council line says no committee has met, minuted, agreed or decided anything but what
+     an open story says, and none has a meeting date.
+   - **The Inquiry:** its paper-trail brief no longer asks "what the minutes show".
+   - **The Panel:** it is told the next council is a fact for the debate, not a line to read out. Its goodbye
+     says when it is back (`panel.back_on`).
+   - **Replayed** with that night's bookings:
+     - Thorne said "The budget committee has not decided anything on the wall", and the mayor "there is no date
+       set for a decision yet".
+     - The close said "back tomorrow night at half past eight".
+     - One invented date was left: "The costing lands by Friday the thirteenth".
+7. **The same few people and tics** (`d67e634`).
+   - **The rest line:** after the cache break the briefing names:
+     - the residents named in 6 of the last 150 items, at most eight, to rest unless the item is about them;
+     - first names worn by three or more people today;
+     - Miles's breath once said three times lately.
+   - **Weak:** in 13 news items from 21:00 the listed people were named 10 times, against 12 on the night.
+     Dolores Finch went 5 to 3 and Dev Ramachandran 4 to 1, but Brenda Fisk went 0 to 4 while listed. Watch it
+     on air; a check in code would cost a call an item.
+   - **Not done:** the Coastwide guest named Gordon Pell (a presenter booked as a guest is allowed:
+     `presenter_named`).
+8. **The guest a plan names** (`f038c37`).
+   - The running order had "Ruby Tennant on finishing her twelve-hour row" with no guest, and Coastwide booked
+     "Ned Carrow", who told her row under her caption.
+   - An interview slot whose subject names someone we know now books them. Unit tested only.
+
+**Still open from the review:**
+- Results and details that drift within a show: the rope fitted at 18:41 and "on order" at 21:58; the red
+  spinnaker flown, to fly and still wrapped; the hospice tin counted early.
+- "back to the rolling news", and lines that mean nothing.
+- **New, not on the review's list:** 102 of the night's 285 middle items opened with a greeting, nearly all the
+  rolling news's "Good evening": its bulletins, and its field reports despite their rule. A bulletin's may be
+  right; the field reports' aren't.
+- **To watch on the next night:** each of the eight fixes in the log:
+  - "tide or ferry slips", "gave ... line(s) back", "a question to ... who has no voice";
+  - the WHAT COMES NEXT and ON A LOT LATELY lines in the prompts;
+  - The Panel's goodbye.
+
 ## Picking up on the evening of 2026-11-20
 
 **Tonight** is a real Channel 7 night on the real town, started 20:51 from `data/night_channel7_nopictures.cmd`: the usual
