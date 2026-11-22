@@ -1031,8 +1031,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             show.id == "breakfast" and seg_type is not SegmentType.interview) or (
             show.id == phonein.SHOW and seg_type is SegmentType.links) or (   # the travel: the ferries and the tide
             show.id == outabout.SHOW and seg_type is SegmentType.field_report):   # Meg's walk: the tide
-        today = datetime.fromtimestamp(at_ts or schedule.now()).date()
-        user += "\n\n" + tides.for_prompt(today, world.last_weather.get("map_state"))
+        airs = datetime.fromtimestamp(at_ts or schedule.now())      # the tide and the ferry as they are when it airs
+        user += "\n\n" + tides.for_prompt(airs.date(), world.last_weather.get("map_state"), now=airs)
     if seg_type is SegmentType.weather:       # the figures on the map behind him (weathermap.py)
         user += "\n\n" + weathermap.for_prompt()
     if seg_type is SegmentType.sport or show.id == "sport":

@@ -62,3 +62,78 @@ def test_the_last_ferry_always_sails_after_the_last_ferry_starts():
         day = date(2026, 1, 1) + timedelta(days=i)
         s = tides.ferry(day)["sailings"]
         assert s[-1].date() == day and s[-1].hour >= 22 and s[-1] - s[-2] >= timedelta(minutes=30), day
+
+
+def test_the_writer_is_told_what_has_gone_what_is_to_come_and_tomorrow():
+    """On the 2026-11-21 night 13 of the evening's 14 forecasts had a tide or the ferry wrong: given today's table
+    alone they read it out as tomorrow's ("High water tomorrow comes at twenty to five in the morning, five point
+    one metres"; Sunday's was 05:00, 5.3 m) and told the afternoon's high water as still to come at seven."""
+    from datetime import datetime
+
+    said = tides.for_prompt(date(2026, 11, 21), "sunny", now=datetime(2026, 11, 21, 21, 35))
+    gone, ahead, tomorrow = (next(l for l in said.splitlines() if l.strip().startswith(k))
+                             for k in ("TODAY, ALREADY GONE", "TODAY, STILL TO COME", "TOMORROW, Sunday 22 November"))
+    assert "high water at twenty-five to five this afternoon (16:35), 5.2 m" in gone and "04:10" in gone
+    assert "22:48" not in gone
+    assert ahead.strip() == "TODAY, STILL TO COME: low water just before ten to eleven tonight (22:48), 0.6 m."
+    assert "high water at five o'clock tomorrow morning (05:00), 5.3 m" in tomorrow and "04:10" not in tomorrow
+    assert "high water at twenty-five past five tomorrow evening (17:25), 5.4 m" in tomorrow
+    assert ("TOMORROW: every half hour, the first at seven o'clock tomorrow morning (07:00); no ferry from just before "
+            "twenty-five past ten tomorrow morning (10:23) until just before five past twelve tomorrow afternoon (12:03), round low "
+            "water; the last ferry leaves at quarter to eleven tomorrow night (22:45).") in said
+    assert "today's are never given as tomorrow's" in said and "say the words as they are given" in said
+    late = tides.for_prompt(date(2026, 11, 21), "sunny", now=datetime(2026, 11, 21, 23, 50))
+    assert "TODAY, STILL TO COME: nothing more today." in late
+    early = tides.for_prompt(date(2026, 11, 22), "sunny", now=datetime(2026, 11, 22, 0, 30))
+    assert 'ALREADY GONE (say "was"): nothing yet.' in early and "TOMORROW, Monday 23 November" in early
+
+
+def test_the_ferry_is_given_as_it_is_at_that_minute():
+    """Miles was "out here on the last ferry" at 22:24 that night, in the low-water gap (none 21:58 to 23:38), and
+    Morning Tide had it "running since seven" at 06:20."""
+    from datetime import datetime
+
+    at = lambda d, h, m: tides.ferry_now(datetime(2026, 11, d, h, m), "sunny")  # noqa: E731
+    assert at(21, 21, 35) == ("running, every half hour; then no ferry from just before ten o'clock tonight (21:58) until "
+                              "just before twenty to twelve tonight (23:38), round low water; the last ferry leaves at "
+                              "twenty to twelve tonight (23:40)")
+    assert at(21, 22, 24) == ("NOT running: the Saltby landing is dry, no ferry from just before ten o'clock tonight (21:58) "
+                              "until just before twenty to twelve tonight (23:38), round low water; the next one is at "
+                              "twenty to twelve tonight (23:40), which is the last ferry")
+    assert at(21, 23, 50) == "finished for the night: the last ferry left at twenty to twelve tonight (23:40)"
+    assert at(22, 6, 20) == ("NOT running yet, and none has sailed today: the first ferry is at seven o'clock this morning "
+                             "(07:00); then no ferry from just before twenty-five past ten this morning (10:23) until just "
+                             "before five past twelve this afternoon (12:03), round low water; the last ferry leaves at "
+                             "quarter to eleven tonight (22:45)")
+    assert at(22, 14, 0) == "running, every half hour; the last ferry leaves at quarter to eleven tonight (22:45)"
+    assert tides.ferry_now(datetime(2026, 11, 22, 14, 0), "fog").startswith("not running at all today")
+    said = tides.for_prompt(date(2026, 11, 21), "sunny", now=datetime(2026, 11, 21, 22, 24))
+    assert "RIGHT NOW it is NOT running" in said and "Nobody is on the ferry, or just off it, while it is not running" in said
+
+
+def test_the_weather_writer_gets_the_tides_as_they_are_when_the_item_airs():
+    from datetime import datetime
+
+    from newsroom import schedule, world as world_mod, writers
+    from newsroom.models import SegmentType as T
+
+    w = world_mod.seed()
+    airs = datetime(2026, 11, 21, 19, 6).timestamp()
+    user = writers.build_prompt(T.weather, w, target_s=60, show=schedule.get("news"), at_ts=airs)[1]
+    assert "It is 19:06 on Saturday 21 November" in user and "TOMORROW, Sunday 22 November" in user
+    assert "high water at twenty-five to five this afternoon (16:35), 5.2 m" in user.split("ALREADY GONE")[1].split("STILL TO COME")[0]
+
+
+def test_a_time_is_given_in_the_words_to_say():
+    """Told "16:35", Haiku said "twenty-five past four"; told "05:00", "five past five" (the replay of 2026-11-22)."""
+    from datetime import datetime
+
+    now = datetime(2026, 11, 21, 21, 35)
+    for t, words in ((datetime(2026, 11, 21, 4, 10), "at ten past four this morning (04:10)"),
+                     (datetime(2026, 11, 21, 16, 35), "at twenty-five to five this afternoon (16:35)"),
+                     (datetime(2026, 11, 21, 22, 48), "just before ten to eleven tonight (22:48)"),
+                     (datetime(2026, 11, 22, 5, 0), "at five o'clock tomorrow morning (05:00)"),
+                     (datetime(2026, 11, 22, 11, 13), "just before quarter past eleven tomorrow morning (11:13)"),
+                     (datetime(2026, 11, 22, 17, 25), "at twenty-five past five tomorrow evening (17:25)"),
+                     (datetime(2026, 11, 22, 23, 38), "just before twenty to twelve tomorrow night (23:38)")):
+        assert tides.said(t, now) == words

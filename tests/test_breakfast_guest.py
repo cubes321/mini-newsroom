@@ -56,10 +56,7 @@ def test_the_writer_gets_the_breakfast_guest_prompt_and_the_sort_of_guest():
 
 
 def test_the_guest_chat_has_no_tide_table_but_the_sofa_still_does():
-    from datetime import date
-
-    from newsroom import tides
-    tide = tides.for_prompt(date.today()).splitlines()[0]
+    tide = "TIDES AT PORT WEXLEY"                     # the table's first words (tides.for_prompt)
     w = world_mod.seed()
     _, guest = writers.build_prompt(T.interview, w, target_s=150.0, show=BREAKFAST, brief="a chef")
     _, sofa = writers.build_prompt(T.sofa, w, target_s=75.0, show=BREAKFAST, brief="a chef")

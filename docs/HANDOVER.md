@@ -53,6 +53,19 @@ against the scripts. None is fixed yet, except the hake.
    - Times already past are told as to come ("high water at sixteen thirty-five" at 19:06), and the reverse.
    - The ferry sails in its low-water gap (none 21:58 to 23:38): Miles is "out here on the last ferry" at 22:24 on
      The Last Ferry; Morning Tide has it "running since seven" at 06:20.
+   - **Fixed 2026-11-22** (`tides.for_prompt(day, state, now=...)`, `tides.said`, `tides.ferry_now`). The writer now
+     gets, for the minute the item airs: today's waters split into those gone and those to come, tomorrow's table,
+     the ferry as it is right then (not yet running, running, in its gap, finished, off) and tomorrow's ferry. Every
+     time is given in the words to say with its figures after it ("at twenty-five to five this afternoon (16:35)"):
+     told the figures alone, Haiku said "twenty-five past four".
+     - Replayed four times with Haiku on a copy of the town, the same twelve items each time (ten weathers at the
+       night's own times, The Last Ferry's vox pop in the ferry's gap, Morning Tide's report before the first boat).
+       On the night 13 of 14 weathers were wrong. In the last replay seven of the twelve were clean; nobody was on
+       the ferry while it wasn't running and no item gave today's table as tomorrow's.
+     - **Still open:** Haiku still rewords a time now and then. In the last replay one weather had the ferry
+       "stopped for the night" two hours early, three were a few minutes out ("twenty to eleven" for 22:48, "five to
+       twelve" for 12:03) and one told a low water just gone as still to come. A check on the script's clock
+       words against the ones it was given, with one more ask, would catch these; not built.
 2. **Results and people change between items.**
    - Coastwide gave the Tides' result three ways in twenty minutes: "at home to Saltby Rovers this afternoon" (19:00),
      "shared the points" and "draw one apiece" (19:03 to 19:20), then three-one. The news and Full Time had it right.

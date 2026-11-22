@@ -90,25 +90,107 @@ def ferry(day: date, map_state: str | None = None) -> dict:
     return {"suspended": "", "sailings": sailings, "gaps": gaps}
 
 
-def for_prompt(day: date, map_state: str | None = None) -> str:
-    """The facts a script may use, in words."""
+def _water(tt: list, kind: str) -> str:
+    return " and ".join(f"{t:%H:%M} ({h:.1f} m)" for t, k, h in tt if k == kind) or "none"
+
+
+def _ferry_day(f: dict) -> str:
+    """A day's ferry in a clause: when it runs, its gaps, its last boat; or why it is off."""
+    if f["suspended"]:
+        return f"off: {f['suspended']}"
+    gaps = "; ".join(f"none {a:%H:%M}-{b:%H:%M} around low water" for a, b in f["gaps"])
+    return (f"every half hour from {f['sailings'][0]:%H:%M}" + (f" ({gaps})" if gaps else "")
+            + f"; the last ferry leaves at {f['sailings'][-1]:%H:%M}")
+
+
+def said(t: datetime, now: datetime) -> str:
+    """A time as it is said at `now`, with the figures after it: "at twenty-five to five this afternoon (16:35)",
+    "just before ten to eleven tonight (22:48)", "at five o'clock tomorrow morning (05:00)". Told "16:35" alone, Haiku said "twenty-five past four", and "five past
+    five" for 05:00 (the replay of 2026-11-22): the words are worked out here, as the clock's are (schedule.py)."""
+    from .schedule import spoken_time
+
+    part = ("morning" if t.hour < 12 else "afternoon" if t.hour < 17 else "evening" if t.hour < 21 else "night")
+    days = (t.date() - now.date()).days
+    when = ("tonight" if part == "night" else f"this {part}") if days == 0 else (
+        f"tomorrow {part}" if days == 1 else f"yesterday {part}" if days == -1 else f"on {t:%A} {part}")
+    words = spoken_time(t.timestamp())
+    words = words.replace("coming up to ", "just before ") if words.startswith(("coming up to ", "just after ")) else f"at {words}"
+    return f"{words} {when} ({t:%H:%M})"
+
+
+def _gap(a: datetime, b: datetime, now: datetime) -> str:
+    return f"no ferry from {said(a, now).removeprefix('at ')} until {said(b, now).removeprefix('at ')}, round low water"
+
+
+def ferry_now(now: datetime, map_state: str | None = None) -> str:
+    """The ferry at this minute, in words: off, not yet running, in its low-water gap, running, or finished."""
+    f = ferry(now.date(), map_state)
+    if f["suspended"]:
+        return f"not running at all today: {f['suspended']}"
+    first, last = f["sailings"][0], f["sailings"][-1]
+    if now < first:                       # with the rest of its day, or tomorrow's gap is taken for today's
+        gaps = "".join(f"; then {_gap(a, b, now)}" for a, b in f["gaps"])
+        return (f"NOT running yet, and none has sailed today: the first ferry is {said(first, now)}{gaps}; the last "
+                f"ferry leaves {said(last, now)}")
+    if now > last:
+        return f"finished for the night: the last ferry left {said(last, now)}"
+    for a, b in f["gaps"]:
+        if a <= now <= b:
+            back = next((x for x in f["sailings"] if x >= b), last)
+            return (f"NOT running: the Saltby landing is dry, {_gap(a, b, now)}; the next one is {said(back, now)}"
+                    + (f", and the last {said(last, now)}" if back != last else ", which is the last ferry"))
+    ahead = next(((a, b) for a, b in f["gaps"] if a > now), None)
+    return ("running, every half hour" + (f"; then {_gap(*ahead, now)}" if ahead else "")
+            + f"; the last ferry leaves {said(last, now)}")
+
+
+def ferry_then(day: date, now: datetime) -> str:
+    """Another day's ferry, in the words to say: its first boat, its gaps, its last."""
+    f = ferry(day)
+    if f["suspended"]:
+        return f"off: {f['suspended']}"
+    gaps = "".join(f"; {_gap(a, b, now)}" for a, b in f["gaps"])
+    return (f"every half hour, the first {said(f['sailings'][0], now)}{gaps}; the last ferry leaves "
+            f"{said(f['sailings'][-1], now)}")
+
+
+def for_prompt(day: date, map_state: str | None = None, now: datetime | None = None) -> str:
+    """The facts a script may use, in words. With `now` (when the item airs), today's waters are split into those
+    gone and those to come, the ferry is given as it is at that minute, and tomorrow's table comes too.
+
+    Given today's table alone, the forecasts of the 2026-11-21 night read it out as tomorrow's ("High water tomorrow
+    comes at twenty to five in the morning, five point one metres": Sunday's was 05:00, 5.3 m), told the afternoon's
+    high water as still to come at seven in the evening, and had Miles "out here on the last ferry" at 22:24, in the
+    low-water gap: 13 of the evening's 14 weathers had a tide or the ferry wrong."""
     tt = tides(day)
     springs = _spring(datetime.combine(day, datetime.min.time()).replace(hour=12))
-
-    def times(kind: str) -> str:
-        return " and ".join(f"{t:%H:%M} ({h:.1f} m)" for t, k, h in tt if k == kind) or "none today"
-    lines = [f"TIDES AT PORT WEXLEY TODAY: high water {times('high')}; low water {times('low')}"
-             + ("; spring tides, so big ones" if springs > 0.6 else "; neap tides, so small ones" if springs < -0.6 else "")
-             + "."]
+    size = ("; spring tides, so big ones" if springs > 0.6 else "; neap tides, so small ones" if springs < -0.6 else "")
     f = ferry(day, map_state)
-    if f["suspended"]:
-        lines.append(f"FERRY: {FERRY} across the Grey estuary is off: {f['suspended']}.")
-    else:
-        gaps = "; ".join(f"none {a:%H:%M}-{b:%H:%M} around low water" for a, b in f["gaps"])
-        lines.append(f"FERRY: {FERRY} across the Grey estuary runs every half hour from "
-                     f"{f['sailings'][0]:%H:%M}" + (f" ({gaps})" if gaps else "")
-                     + f"; the last ferry leaves at {f['sailings'][-1]:%H:%M}.")
-    lines.append("Use these exact times if the tide or the ferry comes up; don't invent others.")
+    if now is None:
+        lines = [f"TIDES AT PORT WEXLEY TODAY: high water {_water(tt, 'high')}; low water {_water(tt, 'low')}{size}."
+                 .replace("none;", "none today;").replace("water none.", "water none today.")]
+        if f["suspended"]:
+            lines.append(f"FERRY: {FERRY} across the Grey estuary is off: {f['suspended']}.")
+        else:
+            lines.append(f"FERRY: {FERRY} across the Grey estuary runs {_ferry_day(f)}.")
+        lines.append("Use these exact times if the tide or the ferry comes up; don't invent others.")
+        return "\n".join(lines)
+    nxt = day + timedelta(days=1)
+    water = lambda t, k, h: f"{k} water {said(t, now)}, {h:.1f} m"  # noqa: E731
+    gone = [water(*e) for e in tt if e[0] <= now]
+    ahead = [water(*e) for e in tt if e[0] > now]
+    lines = [f"TIDES AT PORT WEXLEY. It is {now:%H:%M} on {now:%A} {now.day} {now:%B}{size}.",
+             "  TODAY, ALREADY GONE (say \"was\"): " + ("; ".join(gone) or "nothing yet") + ".",
+             "  TODAY, STILL TO COME: " + ("; ".join(ahead) or "nothing more today") + ".",
+             f"  TOMORROW, {nxt:%A} {nxt.day} {nxt:%B}: " + "; ".join(water(*e) for e in tides(nxt)) + ".",
+             f"FERRY ({FERRY} across the Grey estuary). RIGHT NOW it is {ferry_now(now, map_state)}.",
+             f"  TOMORROW: {ferry_then(nxt, now)}.",
+             "Use these exact times if the tide or the ferry comes up; don't invent others, and don't work one out. "
+             "Each time is given in the words to say, then its figures in brackets: say the words as they are given "
+             "(\"twenty-five to five this afternoon\"), never the figures (not \"sixteen thirty-five\"), and never "
+             "change them. A time already gone is told as past, one to come as to come, and TOMORROW's are only ever "
+             "tomorrow's: today's are never given as tomorrow's. Nobody is on the ferry, or just off it, while it is "
+             "not running."]
     return "\n".join(lines)
 
 
