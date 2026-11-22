@@ -1,9 +1,9 @@
 """The weather map: Gordon's wall screen drawn from the town's map (geography.py), not a made-up coast.
 
 The coast from Greymouth to Pellow Harbour with the Grey running up to Polgrey, the same shore the locator and
-The Coast Road use, and four spots with a temperature each. The script still gives one temperature, Port
+The Coast Road use, and five spots with a temperature each. The script still gives one temperature, Port
 Wexley's; the others are worked out here from it and the sky (`spots`), so the model writes nothing new and
-the four always agree with each other. Drawn at the canvas's size, in the pixels, like the rest of the set.
+the five always agree with each other. Drawn at the canvas's size, in the pixels, like the rest of the set.
 """
 from __future__ import annotations
 
@@ -24,14 +24,18 @@ DIM = {"storm": 0.62, "rain": 0.8, "fog": 0.88, "snow": 0.94, "cloudy": 0.9}    
 SPOTS = (("greymouth", "Greymouth", 5, -14, ""),
          ("polgrey", "Polgrey", 6, -5, ""),
          ("harbour", "Port Wexley", 7, -4, ""),
-         ("pellow_harbour", "Pellow Harbour", 4, -15, "l"))
+         ("pellow_harbour", "Pellow Harbour", 4, -15, "l"),
+         # Saltby, straight across the water, named in the weather and the news most nights and off the map
+         # until 2026-11-22: its label reads leftwards, clear of Port Wexley's and above Greymouth's.
+         ("saltby", "Saltby", -4, -6, "l"))
 
 
 def spots(temp_c: int, state: str | None) -> dict[str, int]:
     """Each spot's temperature from Port Wexley's: Polgrey, five miles up the estuary, is a degree colder (two
     in frost, fog or snow); Greymouth, out on the open coast, a degree down in wind and rain; Pellow Harbour,
-    tucked in under Carrow Point, a degree up in the sun."""
+    tucked in under Carrow Point, a degree up in the sun; Saltby, a mile across the water, the same as the town."""
     return {"harbour": temp_c,
+            "saltby": temp_c,
             "polgrey": temp_c - (2 if state in ("snow", "fog") or temp_c <= 3 else 1),
             "greymouth": temp_c - (1 if state in ("wind", "storm", "rain") else 0),
             "pellow_harbour": temp_c + (1 if state == "sunny" else 0)}
@@ -41,11 +45,12 @@ def for_prompt() -> str:
     """The spots, for Gordon, in words that can't disagree with the map behind him. Given the rules and asked for
     figures, Haiku named a spot in all six forecasts of a trial and got one wrong (Greymouth "a degree colder, at
     ten" on a sunny day, with eleven on the map: 2026-11-21). So no figure but Port Wexley's, and one place at most."""
-    return ("THE WEATHER MAP behind Gordon shows Port Wexley's temperature (temp_c) and three more worked out from "
-            "it: Polgrey, up the estuary; Greymouth, on the open coast to the west; Pellow Harbour, along the coast "
-            "to the east. Now and then, not in every forecast, Gordon may point to ONE of them, in these words and "
-            "no figure: Polgrey is \"a degree or two colder\" than the town, always; Greymouth is \"a degree down\" "
-            "only in wind, rain or a storm; Pellow Harbour is \"a degree up\" only when it is sunny. Otherwise he "
+    return ("THE WEATHER MAP behind Gordon shows Port Wexley's temperature (temp_c) and four more worked out from "
+            "it: Saltby, across the water; Polgrey, up the estuary; Greymouth, on the open coast to the west; Pellow "
+            "Harbour, along the coast to the east. Now and then, not in every forecast, Gordon may point to ONE of "
+            "them, in these words and no figure: Saltby is \"the same as the town\", always; Polgrey is \"a degree "
+            "or two colder\" than the town, always; Greymouth is \"a degree down\" only in wind, rain or a storm; "
+            "Pellow Harbour is \"a degree up\" only when it is sunny. Otherwise he "
             "leaves them to the map. The only temperature he gives in figures is Port Wexley's.")
 
 

@@ -1,4 +1,4 @@
-"""The weather map (weathermap.py): Gordon's wall screen drawn from the town's map, four spots with a temperature
+"""The weather map (weathermap.py): Gordon's wall screen drawn from the town's map, five spots with a temperature
 each worked out from the script's one. Approved on data/contact-sheets/2026-11-21-weather-map.png."""
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ STATES = ("sunny", "cloudy", "rain", "storm", "snow", "fog", "wind")
 
 
 def test_the_spots_temperatures_come_from_port_wexleys():
-    assert weathermap.spots(9, "sunny") == {"harbour": 9, "polgrey": 8, "greymouth": 9, "pellow_harbour": 10}
-    assert weathermap.spots(6, "rain") == {"harbour": 6, "polgrey": 5, "greymouth": 5, "pellow_harbour": 6}
+    assert weathermap.spots(9, "sunny") == {"harbour": 9, "saltby": 9, "polgrey": 8, "greymouth": 9, "pellow_harbour": 10}
+    assert weathermap.spots(6, "rain") == {"harbour": 6, "saltby": 6, "polgrey": 5, "greymouth": 5, "pellow_harbour": 6}
     assert weathermap.spots(0, "snow")["polgrey"] == -2 and weathermap.spots(3, "cloudy")["polgrey"] == 1   # frost
     assert weathermap.spots(4, "fog")["polgrey"] == 2 and weathermap.spots(8, "wind")["greymouth"] == 7
     for state in STATES:                                   # never more than two degrees between any two spots
@@ -49,17 +49,39 @@ def test_every_sky_draws_with_its_spots_named():
         v = View(mode="weather", show="news", speaker="weather", map_state=state, temp_c=4)
         scenes.render(canvas, v, 12.3)
         said = " ".join(s for s, *_ in scenes._layer)
-        for name in ("Greymouth", "Polgrey", "Port Wexley", "Pellow Harbour"):
+        for name in ("Greymouth", "Saltby", "Polgrey", "Port Wexley", "Pellow Harbour"):
             assert name in said, (state, name)
         assert f" {weathermap.spots(4, state)['polgrey']}°" in said
     scenes.render(canvas, View(mode="weather", show="news", speaker="weather"), 1.0)   # before the first forecast
     assert "Polgrey" in " ".join(s for s, *_ in scenes._layer)
 
 
+def test_no_two_labels_cover_each_other():
+    """Saltby (2026-11-22) sits a mile across the water from Port Wexley and just above Greymouth: its plate
+    reads leftwards from its dot, and no plate covers another's or a dot, at the widest temperatures."""
+    pygame.init()
+    w, h = scenes.WALL_SCREEN.size
+    for temp in (-12, 15):
+        temps = weathermap.spots(temp, "sunny")
+        plates, dots = [], []
+        for pid, name, dx, dy, end in weathermap.SPOTS:
+            px, py = weathermap._at(g.BY_ID["main_street" if pid == "harbour" else pid].xy, w)
+            tw, th = scenes.font(8).size(f"{name} {temps[pid]}°")
+            lx = px + dx - (tw + 15 if end else 0)
+            plates.append((pid, pygame.Rect(lx - 2, py + dy - 1, tw + 16, max(th, 10) + 2)))
+            dots.append((pid, pygame.Rect(px - 2, py - 2, 5, 5)))
+        for i, (a, ra) in enumerate(plates):
+            assert 0 <= ra.left and ra.right <= w, (a, temp)
+            for b, rb in plates[i + 1:]:
+                assert not ra.colliderect(rb), (a, b, temp)
+            for b, d in dots:
+                assert not ra.colliderect(d), (a, b, temp)
+
+
 def test_gordon_is_told_the_spots_and_nobody_else_is():
     w = world_mod.seed()
     weather = writers.build_prompt(T.weather, w, target_s=60, show=schedule.get("news"))[1]
-    assert "THE WEATHER MAP behind Gordon" in weather and "Polgrey" in weather
+    assert "THE WEATHER MAP behind Gordon" in weather and "Polgrey" in weather and "Saltby" in weather
     assert "THE WEATHER MAP" not in writers.build_prompt(T.bulletin, w, target_s=60, show=schedule.get("news"))[1]
 
 
