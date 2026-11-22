@@ -113,6 +113,9 @@ This is an ON-SITE FIELD REPORT. Structure:
 1. "anchor" introduces the story and hands to the reporter (one or two lines).
 2. "reporter" reports from the location, includes what people there told them.
 3. "anchor" thanks the reporter and adds a one-line tag.
+Only the presenters speak: what people at the scene said is in the reporter's own words ("Ivy Marchetti tells
+me the boats are in"). Nobody puts a question to them on air ("Ivy, what's the story?"): they have no voice here,
+and a presenter would end up answering for them.
 Choose a backdrop id from the LOCATIONS list for the picture. Separately, location is the
 place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
@@ -171,6 +174,9 @@ This is an ON-SITE FIELD REPORT on the breakfast show. Structure:
 1. "host_a" (or "host_b") introduces the story from the sofa and hands to the reporter.
 2. "reporter" reports live from the location this morning, including what people there said.
 3. "host_a" or "host_b" thanks the reporter with a one-line tag.
+Only the presenters speak: what people at the scene said is in the reporter's own words ("Ivy Marchetti tells
+me the boats are in"). Nobody puts a question to them on air ("Ivy, what's the story?"): they have no voice here,
+and a presenter would end up answering for them.
 Choose a backdrop id from the LOCATIONS list for the picture. Separately, location is the
 place name as a viewer would say it ("the slipway behind the old cannery"), never a backdrop id.
 If this follows up an open thread, set thread_id and a new thread_status.
@@ -988,6 +994,23 @@ def _send_miles(world: World, show: schedule.Show, was: str) -> str:
               "and give it a headline of its own.")
 
 
+def asked_with_no_voice(script, world: World) -> list[str]:
+    """The people a field report puts a question to, who have no voice in it, or []. On the 2026-11-21 night Miles
+    asked "Ivy, what's the story?" and Gordon answered ("Gordon Pell here, and I'll just add that the clear sky...");
+    "Colin, how's the bin looking?" got Gordon's frost; "Ivy, what's the quay looking like tonight?" got Miles's own
+    answer. Only the presenters speak in a field report, so the answer goes to one of them."""
+    if not isinstance(script, FieldReportScript):
+        return []
+    with world.lock:
+        cast = {c.name.split()[0] for c in world.characters if c.name}
+        known = {p.name.split()[0] for p in world.people if p.name} - cast
+    asked = []
+    for l in script.lines:
+        for q in re.findall(r"[^.!?]*\?", l.text):
+            asked += [n for n in re.findall(r"\b([A-Z][a-z]+)\b(?=\s*[,?])", q) if n in known]
+    return list(dict.fromkeys(asked))
+
+
 def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str:
     """Open threads the briefing doesn't list, for a news field report to pick up before it
     invents a story: told to go somewhere other than Miles's last three, with only the
@@ -1639,6 +1662,59 @@ def guests_reply_split_off(lines: list[Line], world: World) -> list[Line]:
     return out
 
 
+_NAMES_SELF = r"(?:i'm|i am|it's|it is|this is|name's|name is|call me|called|just)\s+"
+_OF_THEM = r"(?:is|was|has|had|says|said|tells|told|runs|chairs|knows|will|would|can|did|keeps|kept)\b"
+
+
+def _own_name(text: str, first: str, full: str) -> str | None:
+    """How a guest's line uses their own name, which nobody does: "to" when it speaks to them ("And he's never let me
+    forget it, has he, Dev?" from Dev), "of" when it opens telling of them ("Marjorie was in the stands with a
+    flask. She shouted the splits at me" from Marjorie). Not a guest giving their name ("I'm Ruth, ...", "Dougal
+    Crane here", "Bernard Moss, sailmaker") or thanking someone."""
+    if not first:
+        return None
+    for m in re.finditer(rf"\b{re.escape(first)}\b(?=\s*[,?!])", text):
+        if not re.search(_NAMES_SELF + r"$", text[:m.start()], re.IGNORECASE):
+            return "to"
+    if re.match(rf"(?:{re.escape(full)}|{re.escape(first)})\s+{_OF_THEM}", text.strip()) and not re.match(
+            rf"(?:{re.escape(full)}|{re.escape(first)})\s+here\b", text.strip()):
+        return "of"
+    return None
+
+
+def wrong_mouths(lines: list[Line], world: World) -> int:
+    """Give a guest's line that can't be theirs to whoever said it; how many were moved.
+
+    On the 2026-11-21 night The Last Ferry's second-guest items, two guests on the couch, filed lines under the wrong
+    one: "And he's never let me forget it, has he, Dev?" under Dev, "Marjorie was in the stands with a flask. She
+    shouted the splits at me" under Marjorie, and "Lewis, you have never once ... Mary, did he teach you to brake?",
+    Vincent's question to both, under Mary. A line that speaks to its own speaker, or opens telling of them, is the
+    other guest's; one that speaks to both guests is the host's. With one guest, the presenter's. Three or more
+    guests (The Panel) can't be told apart, so they are left."""
+    guests = list(dict.fromkeys(l.guest_name for l in lines if l.speaker == "guest" and l.guest_name))
+    host = next((l.speaker for l in lines if l.speaker != "guest" and world.character(l.speaker)), None)
+    if not guests or len(guests) > 2:
+        return 0
+    roles = {l.guest_name: l.guest_role for l in lines if l.speaker == "guest" and l.guest_name}
+    n = 0
+    for l in lines:
+        if l.speaker != "guest" or not l.guest_name:
+            continue
+        how = _own_name(l.text, l.guest_name.split()[0], l.guest_name)
+        if how is None:
+            continue
+        other = next((g for g in guests if g != l.guest_name), None)
+        to_other = other and re.search(rf"\b{re.escape(other.split()[0])}\b(?=\s*[,?!])", l.text)
+        if other and not (how == "to" and to_other):
+            l.guest_name, l.guest_role = other, roles.get(other)
+        elif host:
+            l.speaker, l.guest_name, l.guest_role = host, None, None
+        else:
+            continue
+        n += 1
+    return n
+
+
 def ration_moods(lines: list[Line]) -> list[Line]:
     """Clear the moods past MOODS_PER_ITEM, the common faces and the later lines first; never a retry."""
     if lines and lines[-1].speaker == "anchor":
@@ -1743,6 +1819,13 @@ def script_segment(seg: Segment, world: World) -> Segment:
             if _reported_already(script, world, show):
                 log.warning("field_report slot %d: %r again after the second ask; it stands", seg.slot_id,
                             getattr(script, "headline", ""))
+        if asked := asked_with_no_voice(script, world):
+            log.info("field_report slot %d: a question to %s, who has no voice; asking again", seg.slot_id,
+                     ", ".join(asked))
+            user += (f"\n\nNO QUESTION TO {' OR '.join(asked).upper()}: only the presenters speak in this report, so "
+                     f"nobody asks {' or '.join(asked)} anything on air. The reporter tells what they said, in his own "
+                     "words.")
+            script = llm.complete_json(seg.type.value, schema, system, user)
         if "TIDES AT PORT WEXLEY. It is" in user:        # given the tides and the ferry (tides.for_prompt)
             airs = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
             sky = world.last_weather.get("map_state")
@@ -1892,6 +1975,10 @@ def script_segment(seg: Segment, world: World) -> Segment:
                  and not _just_their_name(l, script)]
     ration_moods(seg.lines)
     seg.lines = guests_reply_split_off(seg.lines, world)
+    # Not a call: _guest_of has its own rules there, and a studio guest's answer often starts with their own name
+    # ("Lowenna, the bay tree is a Mediterranean plant", test_phonein).
+    if not debate and not call and (moved := wrong_mouths(seg.lines, world)):
+        log.info("%s slot %d: gave %d line(s) back to who said them", seg.type.value, seg.slot_id, moved)
     if fixed := nobody_thanks_themselves(seg.lines, world):
         log.info("%s slot %d: took a presenter's thanks to themselves off %d line(s)", seg.type.value, seg.slot_id, fixed)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
