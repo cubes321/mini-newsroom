@@ -1196,7 +1196,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             # Asked after the fact, the model booked THE GUEST again three times in one half hour (2026-10-31).
             not_the_guest = _not_the_guest(world, guest, brief, seg_type)
     if show.id == panel.SHOW:
-        user += "\n\n" + panel.for_prompt(world)
+        user += "\n\n" + panel.for_prompt(world) + ("\n" + panel.back_on(at_ts) if part == "close" else "")
     if show.id == chamber.SHOW:
         user += "\n\n" + chamber.for_prompt(world)
     if show.id in PROMPT_HOOKS:

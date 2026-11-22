@@ -99,7 +99,12 @@ def calendar_line(day: date, now: float | None = None, meeting: dict | None = No
     meeting and no result, made one up ("Ferry Rail Costings Sent Back Again", never on the agenda).
     `short` is for Seventext's three rows."""
     said = lambda d: f"{d:%A} {d.day} {d:%B}"  # noqa: E731
-    rule = "Council decisions (votes, budgets, planning) are taken at those meetings, not on other days."
+    # On 2026-11-21 The Inquiry's guest said the budget committee "agreed the two-panel booking. That was a
+    # decision", with minutes, none of it in the story; The Panel had "Gerald Thorne's committee decides on the
+    # twelfth". A committee is somewhere a question goes, never a decision, a meeting date or minutes of its own.
+    rule = ("Council decisions (votes, budgets, planning) are taken at those meetings, not on other days. No "
+            "committee has met, minuted, agreed or decided anything except what an open story says, and none has a "
+            "meeting date: never invent one, or a decision, a vote or minutes.")
     if now is None or not meets_on(day) or now < sits_at(day):
         when = " and ".join(said(d) + (" (tonight)" if d == day else "") for d in next_meetings(day))
         return f"Council: full council meets on {when}, live on The Chamber at eight. {rule}"

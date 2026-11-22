@@ -700,8 +700,11 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.interview, brief="THE GUEST in the studio, part one: Pat puts only the first one or two of THE "
                                  "QUESTIONS, and does not let a vague answer go; the rest come after the break"),
             T.ad_break,
-            I(T.feature, brief="the paper trail: what the minutes, letters, plans and the archive show, and what "
-                               "they leave out", target_s=120.0),
+            # "What the minutes show" got minutes nobody had: on 2026-11-21 the budget committee's, which "show the
+            # two-panel limit was agreed", and its guest said the committee "agreed the two-panel booking".
+            I(T.feature, brief="the paper trail: what the record in the story shows (its letters, plans, bookings "
+                               "and what was said on air), and what it leaves out; no minutes, vote or decision that "
+                               "the story doesn't have", target_s=120.0),
             I(T.vox_pop, brief="Miles asks the people most affected one question about it"),
             I(T.interview, "cont", brief="THE GUEST, part two: the questions not yet put; Pat holds them to what "
                                          "they said in part one and what the film and the papers showed"),

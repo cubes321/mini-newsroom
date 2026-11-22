@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from . import inquiry, llm, schedule
+from . import council, inquiry, llm, schedule
 from .config import CONFIG
 from .models import PanelLineup, SegmentType
 from .world import World
@@ -141,4 +141,18 @@ def for_prompt(world: World) -> str:
     return (f"TONIGHT'S PANEL, chaired by Dana Ferris (\"anchor\"):\n{who}\nTONIGHT'S QUESTIONS (one debate "
             f"each, in this order):\n{qs}\n"
             "Panellists speak as speaker \"guest\" with guest_name set to their exact name above; keep each to "
-            "their stance, in their own voice." + done)
+            "their stance, in their own voice. The next full council is a fact for the debate (where a question "
+            "goes next), said once at most and in the panel's own words; never read out the briefing's line about "
+            "it." + done)
+
+
+def back_on(now: float | None = None) -> str:
+    """When The Panel is next on, for its goodbye. On 2026-11-21 Dana signed off "Back on the third of December,
+    live on The Chamber at eight", the council line from the briefing read out: The Panel is on every night but a
+    council night, and the council's date is a fact for the debate, not a line to read."""
+    today = datetime.fromtimestamp(now or schedule.now()).date()
+    day = today + timedelta(days=1)
+    while council.meets_on(day):
+        day += timedelta(days=1)
+    when = "tomorrow night" if day == today + timedelta(days=1) else f"on {day:%A}"
+    return f"THE PANEL is back {when} at half past eight: say so in the goodbye."
