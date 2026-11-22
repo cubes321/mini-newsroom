@@ -329,6 +329,42 @@ Eight commits, one fault each, then one that tightens them (`b60c15a`, below). 1
 - **New, not on the review's list:** 102 of the night's 285 middle items opened with a greeting, nearly all the
   rolling news's "Good evening": its bulletins, and its field reports despite their rule. A bulletin's may be
   right; the field reports' aren't.
+**The scratch evening, 2026-11-22 15:52 to 18:12 real time** (`data/evening_channel7_scratch.cmd`).
+- **The run:** a copy of the town, the clock at 18:25 on Sunday 22 November, 140 minutes, code `b60c15a`. The
+  real `data/world.json` was untouched.
+- **What aired:** the news and Full Time, all of Coastwide, The Inquiry and The Panel to 20:42.
+  - 147 items played, with no filler, no stand-in scripts and no errors; worst p99 11.5 ms.
+  - Haiku made 200 calls (1 failed). The running order was booked for real: 28 of 28 slots.
+- **Read through:**
+  - **Tides:** 0 of 8 items given the tides had a slip; two were asked again and came back right.
+  - **The 24-hour clock:** none said aloud; "nineteen fifty-one", a year, was left alone.
+  - **Self-thanks:** none left in a first line.
+  - **The rolling greetings:** 27 of 119 middle items opened with a greeting, against 102 of 285 on the night.
+  - **Coastwide:**
+    - All 11 links had different headlines and captions. The repeat check caught 4 that copied an earlier
+      link's headline ("Eleven goalposts..." twice).
+    - Every middle link was told exactly the items that then aired, from the booked running order, and
+      trailed them.
+    - Two still added things that weren't coming: the opening trailed the Christmas lights, and the 19:44
+      link "the lights and the carols on the bandstand".
+    - The opening was told "nothing more of this programme": it is timed at 18:59, while Full Time is still on.
+      Fixed after the run (`dde4e2c`).
+  - **Closes:** Full Time's, Coastwide's and The Inquiry's had no hello.
+  - **The Inquiry:** booked THE GUEST once and the second ask moved it, so no stand-in.
+  - **Miles out of breath:** 4 items of 130.
+  - **The rest line:** in every prompt, never naming a booked guest.
+- **Wrong, and still open:**
+  - **The Panel read the council line out again**, twice in eight items: "Full council meets on the third of
+    December, live on The Chamber at eight". The prompt's rule isn't enough; a repair in code would be next.
+  - **A Panel line under the wrong panellist:** "Good, that's three in agreement ... Winifred, last word." was
+    filed under Winifred Cobb. It is the chair's. `wrong_mouths` leaves a debate alone; a line that speaks to its
+    own panellist could go to the chair.
+  - **Gordon Pell as a guest:** a Coastwide film interviewed "Marjorie Pell's nephew, Gordon Pell, who has been a
+    harbour hand for nineteen years". Gordon Pell is the presenter, so a check on a guest who has a presenter's
+    name and another job would catch it.
+  - **A garbled line in the same film:** "I'm with Ruth, sorry, with ..." Perhaps the first-names rest line,
+    perhaps not.
+  - **The council's date** came up in passing on the news and The Inquiry. That's fine.
 - **To watch on the next night:** each of the eight fixes in the log:
   - "tide or ferry slips", "gave ... line(s) back", "a question to ... who has no voice";
   - the WHAT COMES NEXT and ON A LOT LATELY lines in the prompts;
