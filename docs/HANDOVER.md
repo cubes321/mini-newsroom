@@ -120,6 +120,34 @@ against the scripts. None is fixed yet, except the hake.
    - Coastwide: ten links under one caption, about 25 subjects in 61 items, and a close that is an opening ("Good
      evening, and welcome to Coastwide").
    - The news: the Tides' result in about 34 of the evening's 75 items.
+   **Fixed 2026-11-22 for The Last Ferry, Full Time, The Panel and The Inquiry** (not Coastwide: see below).
+   - **A brief that comes round again is told what it made before** (`writers._came_round`): "This kind of item has
+     come round before on today's programme, as ...: do NOT write that again." The same brief had got the same
+     item, as on The Chamber.
+   - **A middle item knows the programme isn't over** (`_still_to_come`): "About 22 minutes of The Panel are still to
+     come after this: it is not the last item."
+   - **The Inquiry's guest has left** once both parts are written (`_guest_has_gone`), and a title before the name
+     no longer lets them back in (`same_person`: the replay booked "Chief Inspector Raymond Doyle" again).
+   - **The repeat check covers The Last Ferry and Full Time** (`LOOP_NET`), with its own words for a second half:
+     "the same guest, but other questions".
+   - The Panel's email brief says the question was already debated, not "the first question tonight".
+   - **Replayed whole with Haiku and real bookings** on a copy of the town from before that night:
+     - The Last Ferry, twice (31 items each): no two headlines alike; three different letters and three different
+       papers each time; every second half was the same guest on something new.
+     - Full Time (14 items): three different round-ups; its guests a Tides player, a sea swimmer and a baker.
+     - The Panel (12 items, against 14 to 16): no "final round" before the end. The first question still came up
+       three times: its own debate, the viewer's email on it, and "the question that split them most". Two of the
+       loop's five briefs go back to an earlier question by design.
+     - The Inquiry (19 items): nobody trailed the guest after he left. He was booked again under his title for the
+       last film, which led to `same_person`; that fix has a unit test and was not replayed.
+   - **Still open:**
+     - **Coastwide.** It has its own memory for a repeated brief, so none of this touches it. Its ten links under
+       one caption, the trails for things that never come, and a close that reads as an opening are as they were.
+     - The Inquiry still puts much the same four questions to each new guest.
+     - **A wrong result, found on the way:** both Last Ferry replays opened "Tides draw one apiece". The story desk
+       had written the result into the match's story before it was played ("Saltby lead at the break, the Tides
+       level from a corner, and it ends one apiece"), against the 3-1 that sport.py works out. That is where
+       Coastwide's "shared the points" came from on the night.
 7. **The same few people and tics.** Dolores Finch in about 28 evening news items; Marjorie Pell in 18 scripts on four
    shows; Brenda Fisk four times in seven minutes of Morning Tide. Miles "out of breath" 22 times. Seven Ruths on
    Coastwide, five on The Inquiry; a Coastwide guest named Gordon Pell.

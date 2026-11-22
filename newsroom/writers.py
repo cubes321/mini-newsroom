@@ -764,6 +764,51 @@ _NO_PLACE = {SegmentType.bumper, SegmentType.ad_break, SegmentType.testcard, Seg
              SegmentType.advert, SegmentType.continuity, SegmentType.filler}
 
 
+CAME_ROUND = 6                     # the earlier headlines a brief that has come round again is shown
+CAME_ROUND_SHOWS = ("late", "sport", "panel", "inquiry")
+
+
+def _came_round(world: World, show: schedule.Show, seg_type: SegmentType, brief: str) -> str:
+    """For a brief this show has already used today: what it made then, and that this time is something new.
+
+    A show's order wraps, and its briefs come round with it, word for word. On the 2026-11-21 night The Last
+    Ferry read the same viewer's letter five times and the same papers four, Full Time gave its league round-up
+    three times, and every show listed the earlier items under "do NOT do these again". The same brief got the
+    same item; told what that brief made before, The Chamber's stopped (chamber._in_turn, which does its own).
+    Coastwide, Morning Tide and Out and About have their own memory of an item on the same brief."""
+    if not brief or show.id not in CAME_ROUND_SHOWS:       # the others have a memory of their own for it
+        return ""
+    with world.lock:
+        before = [e["headline"] for e in world.archive if e["date"] == world.last_date and e.get("show") == show.id
+                  and e.get("brief") == brief and e["type"] == seg_type.value and e.get("headline")]
+    if not before:
+        return ""
+    return (". This kind of item has come round before on today's programme, as "
+            + "; ".join(f"\"{h}\"" for h in dict.fromkeys(before[-CAME_ROUND:]))
+            + ": do NOT write that again. Something new this time: other people, another subject and a headline of "
+              "its own")
+
+
+def _still_to_come(show: schedule.Show, part: str, at: float) -> str:
+    """For an item in the middle of a programme with an ending of its own: how long is left, so nothing in it is
+    the last. The Panel said "our final round of the evening" at 20:38 and ran six more items (2026-11-21)."""
+    left = schedule.show_end(at) - at
+    if part or not show.closing or left < 240:
+        return ""
+    return (f" About {round(left / 60)} minutes of {_title(show)} are still to come after this: it is not the last "
+            "item, so nobody calls anything the \"final\" or \"last\" round, question or word, and nothing is summed up.")
+
+
+def _guest_has_gone(world: World) -> str:
+    """The Inquiry, once THE GUEST's second part is written: they have left. On 2026-11-21 Gerald Thorne finished
+    at 20:07 and was trailed four more times ("the same questions go to you when we come back")."""
+    with world.lock:
+        done = any(e["date"] == world.last_date and e.get("show") == inquiry.SHOW
+                   and (e.get("brief") or "").startswith("THE GUEST, part two") for e in world.archive)
+    return ("\n\nTHE GUEST has given both parts of their interview and has LEFT the studio: nobody says they are "
+            "here, back with us, coming up or still to answer, and nothing is put to them.") if done else ""
+
+
 def _place(show: schedule.Show, seg_type: SegmentType, part: str) -> str:
     """Where a piece sits in its show: _PLACE's word for it, or else, in a show with an opening of its own, the
     middle of it (not its opening or its close). Until 2026-11-18 a piece _PLACE didn't name had none: in two
@@ -1045,12 +1090,14 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += _FROM_THE_SCENE.format(id=scene.id, title=scene.title, status=scene.status,
                                        mins=int(max(0, (at_ts or schedule.now()) - scene.breaking_ts) // 60))
     elif brief:
+        raw_brief = brief                    # as the running order has it: what the archive files it under
         if show.id == panel.SHOW:            # "{q2}": tonight's second question, in its own words
             brief = panel.brief_for(world, brief)
         elif show.id == chamber.SHOW:        # "{m2}": the second motion, every vote and the result
             brief = chamber.brief_for(world, brief)
         elif show.id in BRIEF_HOOKS:
             brief = BRIEF_HOOKS[show.id](world, brief)
+        brief = brief.rstrip(".") + _came_round(world, show, seg_type, raw_brief)
         user += f"\n\nTHIS ITEM: {brief}."
     if show is not None and (plan := rundown.for_prompt(world, show, seg_type, work.get("planned"))):
         user += "\n\n" + plan
@@ -1073,7 +1120,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += "\n\n" + quiet
     not_the_guest = ""
     if show.id == inquiry.SHOW:
-        user += "\n\n" + inquiry.for_prompt(world)
+        user += "\n\n" + inquiry.for_prompt(world) + _guest_has_gone(world)
         guest = (inquiry.tonight(world) or {}).get("guest")
         if guest and (part == "other" or seg_type is SegmentType.feature):
             # Asked after the fact, the model booked THE GUEST again three times in one half hour (2026-10-31).
@@ -1141,7 +1188,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                  + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(tips)))
     place = _place(show, seg_type, part)
     if place:
-        user += "\n\n" + place.rstrip()
+        user += "\n\n" + place.rstrip() + _still_to_come(show, part, at_ts or schedule.now())
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
         after = schedule.show_at(end)
@@ -1667,6 +1714,8 @@ def script_segment(seg: Segment, world: World) -> Segment:
                      + ("it again as THIS ITEM says, with other people and other words, from what has happened "
                         "since, under its own headline."
                         if show.id == chamber.SHOW and seg.type in (SegmentType.links, SegmentType.vox_pop) else
+                        "PART TWO again: the same guest, but other questions and another story of theirs, never part "
+                        "one over again." if seg.part == "cont" else
                         "about a different subject, with a different person and place, as THIS ITEM says."))
             script = llm.complete_json(seg.type.value, schema, system, user)
         if quay.about_the_auction(getattr(script, "headline", "")) and (done := _auction_on_news(world, show)):
@@ -1773,7 +1822,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 seg.work["loose_end_of"] = known.name
         # Still THE GUEST, out of place: one last ask, with the item restated last (on 2026-11-06 a film asked
         # once more booked Dev Ramachandran instead of Ivy Marchetti, and it aired).
-        if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
+        if taken and same_person(getattr(script, "guest_name", None), taken):
             log.info("%s slot %d: booked THE GUEST, %s, again; asking once more", seg.type.value, seg.slot_id, taken)
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\nAgain: " + _not_the_guest(
                 world, taken, seg.brief, seg.type))
@@ -1795,7 +1844,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 except llm.AskAgain as again:
                     raise llm.LLMError(str(again)) from again
         # Asked again, the model sat THE GUEST in the chair once more four times in one night (2026-10-31).
-        if taken and (getattr(script, "guest_name", None) or "").strip().lower() == taken.lower():
+        if taken and same_person(getattr(script, "guest_name", None), taken):
             raise llm.LLMError(f"booked THE GUEST, {taken}, again for an item that isn't theirs")
         source = "llm"
         used = getattr(script, "tip_used", None)
@@ -1898,7 +1947,8 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     # a question on one of them ("{vote}"), which shares its headline's words and takes its turn in code: asked
     # for "a different subject", it left the fire engine vote for the Cannery plaque again (the 2026-11-21 replay).
     council_loop = show.id == chamber.SHOW and chamber.motion_in(brief) is None and "{vote}" not in brief
-    if (show.id not in REMEMBERS_ITS_SHOW and not council_loop) or seg_type not in _SHOW_TYPES:
+    # The Last Ferry and Full Time too: the letter five times, a second half that was its first half again.
+    if (show.id not in REMEMBERS_ITS_SHOW and show.id not in LOOP_NET and not council_loop) or seg_type not in _SHOW_TYPES:
         return None
     if links and (not brief or brief in schedule.SAME_TITLE_BRIEFS):
         return None
@@ -1919,6 +1969,7 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     return None
 
 
+LOOP_NET = ("late", "sport")    # shows with a wrapping order and no ON ... ALREADY TODAY list of their own
 REPEAT_LIKENESS = 0.5           # headline words in common (of both together) that make an item a repeat
 # A story told again: "Biscuit the dog outwits the harbour smugglers" and "... outwits smugglers with the Town Hall
 # clock" share 3 of 7 words (2026-11-13). Not for every item: Gully's poems all share "Gully reads ... poem".
@@ -1990,6 +2041,17 @@ def _auction_on_news(world: World, show: schedule.Show) -> str | None:
                      and e.get("date", "") >= since and quay.about_the_auction(e.get("headline"))), None)
 
 
+_TITLES = {"councillor", "cllr", "chief", "inspector", "superintendent", "sergeant", "constable", "mayor", "dr",
+           "doctor", "mr", "mrs", "ms", "miss", "captain", "reverend", "rev", "father", "sir", "lady", "professor"}
+
+
+def same_person(a: str | None, b: str | None) -> bool:
+    """Are two names the same person, give or take a title? The Inquiry's guest, Raymond Doyle, came back for a
+    film at the end of the replay of 2026-11-22 as "Chief Inspector Raymond Doyle", and an exact match let him."""
+    ta, tb = ({w.strip(".,").lower() for w in (x or "").split()} - _TITLES for x in (a, b))
+    return bool(ta) and bool(tb) and (ta <= tb or tb <= ta) and len(ta & tb) >= min(2, len(ta), len(tb))
+
+
 def _rebooked(script, world: World, taken: str | None = None, show: str = "") -> str | None:
     """The guest's name if they were just on, have been on `show` already today, or are `taken` (booked
     for another part of the show). (Vox-pop passers-by may recur, and a presenter may be a guest: Gordon
@@ -1998,7 +2060,7 @@ def _rebooked(script, world: World, taken: str | None = None, show: str = "") ->
     if not name or not any(l.speaker == "guest" for l in script.lines):
         return None
     been = {g.lower() for g in [*_recent_guests, *world.guests_today(show)]}
-    return name if name.lower() in been | {(taken or "").lower()} - {""} else None
+    return name if name.lower() in been - {""} or same_person(name, taken) else None
 
 
 def _remembered(script, world: World, skip: set) -> Person | None:

@@ -592,8 +592,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "the quick-fire round: Dana's short questions on the week's smaller stories not discussed tonight, a "
                 "line or two from each panellist",
                 # "one of TONIGHT'S QUESTIONS" was the last one, five times over (2026-10-31)
-                "a viewer's email on the first question, {q1}, read out by Dana and put to the panel; they answer "
-                "it and each other",
+                "a viewer's email about tonight's opening question, {q1}, which the panel has already debated: Dana "
+                "reads it out as a reply to what they said then, and they answer it and each other (it is not the "
+                "first question over again, and not \"the first question tonight\")",
                 "back to the question that split them most tonight: Dana puts the others' arguments to each "
                 "panellist and asks whether anything has changed their mind",
                 "the week ahead: what each expects from the next council or harbour board meeting, and what they "
