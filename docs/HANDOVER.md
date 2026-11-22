@@ -40,6 +40,69 @@ Seventext, Morning Tide: mean -26.6 to -31.6 dB, no silence of five seconds).
   out; DeepSeek thinking 102 calls, 796k in and 251k out; Sonnet 7 calls, 130k in and 17k out.
 - **Small:** in the replay Haiku put "the Ferryman bar" in Saltby; the Ferryman is by the Quay Steps on the new map.
 
+### The night's scripts, read closely (2026-11-22)
+
+All 325 scripts first aired that night (about 65,000 words; the 173 repeats left out) were checked mechanically
+and read line by line, a reader a show, against a sheet of the station's own facts. The claims below were checked
+against the scripts. None is fixed yet, except the hake.
+
+1. **The tides and the ferry are wrong in nearly every forecast.** 13 of the evening news's 14 weathers, 4 of the 6
+   late ones, and Coastwide's.
+   - Saturday's table is given as "tomorrow" ("High water tomorrow comes at twenty to five in the morning, five
+     point one metres": Sunday's was 05:00, 5.3 m). `tides.for_prompt` gives today's table only.
+   - Times already past are told as to come ("high water at sixteen thirty-five" at 19:06), and the reverse.
+   - The ferry sails in its low-water gap (none 21:58 to 23:38): Miles is "out here on the last ferry" at 22:24 on
+     The Last Ferry; Morning Tide has it "running since seven" at 06:20.
+2. **Results and people change between items.**
+   - Coastwide gave the Tides' result three ways in twenty minutes: "at home to Saltby Rovers this afternoon" (19:00),
+     "shared the points" and "draw one apiece" (19:03 to 19:20), then three-one. The news and Full Time had it right.
+   - Full Time: Shore and Price given two goals each, a "clean sheet" in a 3-1, the Wreckers' win "a fortnight ago".
+   - Coastwide's interview captioned Ruby Tennant (19:36) has "Ned Carrow, retired ferry deckhand" answering as
+     the rower.
+   - The rope is fitted at 18:41 and "on order from the chandler in Greymouth" at 21:58; the red spinnaker has
+     flown, will fly on Sunday, and stays wrapped; the hospice tin is counted before its Tuesday count.
+3. **Council business is made up.** The Inquiry's guest says the budget committee "agreed the two-panel booking.
+   That was a decision", with minutes, none of it in the story; its close then says "what we have not been able to
+   establish is who drew that limit". The Panel has "Gerald Thorne's committee decides on the twelfth".
+4. **No sense of the hour or the day.**
+   - The overnight documentaries tell Sunday morning as past at 01:00 to 03:30 ("By ten past eight the slip was
+     empty"; "The mayor came down the steps at half past ten").
+   - Morning Tide on Sunday is a weekday: a school run at 06:07 ("Parents are queuing at the gates by the Academy"),
+     shops selling out "before nine" at 06:31.
+   - Thursday's darts is live tonight; the match crowd is still arriving at 21:01.
+5. **Who is speaking.**
+   - A presenter thanks themselves at a hand-over, 22 times: Fran ("Thanks, Fran here at the sports corner"), Pat,
+     Dana, Rosie.
+   - Lines go to the wrong mouth: The Last Ferry's second-guest items give the host's line to the guest (4 of 8);
+     Gordon and Miles speak a guest's answer.
+   - On Morning Tide Rosie reads every headline and Dana never speaks: check whether that is meant.
+   - The briefing is read out: "Full council sits on Thursday the third of December, live on The Chamber at eight"
+     on The Panel, which then signs off "Back on the third of December, live on The Chamber at eight".
+6. **The loops repeat, as The Chamber's did.**
+   - The Last Ferry is one five-item cycle five times: the same viewer's letter five times, the papers four, and two
+     second halves that rerun the first half nearly line for line.
+   - The Panel asks its four questions, says "our final round of the evening", then runs six more items, the first
+     question again as "the first question tonight".
+   - The Inquiry's four questions are all asked by 20:07 and put again to six more guests; its guest is trailed four
+     times after he has gone.
+   - Full Time's round-up airs three times; all three guests are Tides players.
+   - Coastwide: ten links under one caption, about 25 subjects in 61 items, and a close that is an opening ("Good
+     evening, and welcome to Coastwide").
+   - The news: the Tides' result in about 34 of the evening's 75 items.
+7. **The same few people and tics.** Dolores Finch in about 28 evening news items; Marjorie Pell in 18 scripts on four
+   shows; Brenda Fisk four times in seven minutes of Morning Tide. Miles "out of breath" 22 times. Seven Ruths on
+   Coastwide, five on The Inquiry; a Coastwide guest named Gordon Pell.
+8. **Writing.** The 24-hour clock read aloud ("kick-off fifteen hundred", "twenty-two forty-eight"); "back to the
+   rolling news" (6); lines that mean nothing ("Sit in the tea urn and wait for it").
+
+Came back clean: the greetings fit the hour, nobody gives the wrong name for themselves, and the news never had the
+score wrong. The Last Ferry's empty first lines are the band's sting. Two flags were the sheet's fault, not the
+scripts': The Inquiry is Pat's, and the sheet's 11 degrees was the night before's.
+
+**Fixes, in the order they would pay:** the tides and ferry in the prompts (tomorrow's table, and what has passed);
+the hand-over that thanks the speaker; turns in code for the other loops, as for The Chamber; the hour and the day
+for the documentaries and for Sunday; why Coastwide had the match as still to come.
+
 ## Picking up on the evening of 2026-11-20
 
 **Tonight** is a real Channel 7 night on the real town, started 20:51 from `data/night_channel7_nopictures.cmd`: the usual
