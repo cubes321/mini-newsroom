@@ -285,9 +285,12 @@ saved route from the real `data/`.
        4th and it was dropped; no verdict was given early; all four promises stayed open.
      - **Still open:** a promised story left on the board that goes quiet still fades, and its promise lapses with
        it, as before. The four of the 19th all wait in the pool for their days, where nothing fades.
-     - **In the real town the damage stands:** t447 waits for Friday 4 December with its promise (p002) due on the
-       3rd, and p004 lapsed when t476 was closed. Not repaired: that is an edit to the real town, for the user to
-       say. On the 3rd p002 would come up a day late, as overdue.
+     - **In the real town:** t447 had been left waiting for Friday 4 December with its promise (p002) due on the
+       3rd. At the user's word it was repaired on 2026-11-22, with the station off: it waits for Thursday 3 December
+       and its NEXT is the officers' report to full council. The NEXT it had (Marjorie Pell and Winifred Cobb putting
+       the front-row woman down as a Denshaw) is in the backup,
+       `data/world.backup-2026-11-22-before-t447-repair.json`. Nothing else in the town was changed. p004 lapsed
+       when t476 was closed, and stays lapsed: the story is gone.
    - **Fixed 2026-11-20 evening** (`Thread.closes_on`, `desk._kept`): **the close hold was bypassed**: t513, t558 and t560, held at 19:22 till their days, were closed at 21:22 after a
      memo's "close them on the board now", with closing notes naming no day; two never aired again.
    - Small: one sport stand-in (a line over 900 characters, 23:34); t587 held for Friday's thaw, never covered.
