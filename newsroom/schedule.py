@@ -1036,6 +1036,19 @@ def _on_the_five(h: int, m: int) -> str:
     return f"{_FIVES[m]} {_HOUR_WORDS[(h + (m > 30)) % 12]}"
 
 
+_UNITS = ("", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+          "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty")
+
+
+def said_clock(h: int, m: int) -> str:
+    """Any minute as people say it: "three o'clock", "half past two", "twelve minutes to eleven"."""
+    if m % 5 == 0:
+        return _on_the_five(h, m)
+    n = m if m < 30 else 60 - m
+    words = _UNITS[n] if n <= 20 else f"twenty-{_UNITS[n - 20]}"
+    return f"{words} minute{'s' if n > 1 else ''} {'past' if m < 30 else 'to'} {_HOUR_WORDS[(h + (m > 30)) % 12]}"
+
+
 def spoken_time(ts: float) -> str:
     """The time as a presenter says it, worked out here: on 2026-11-07 Haiku, told 09:54, 09:57 and
     09:59, said "ten to ten" for all three. 09:59 is "coming up to ten o'clock", 09:41 "just after

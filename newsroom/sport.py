@@ -150,7 +150,12 @@ def _score_line(r: Result) -> str:
     other = fx.away if home else fx.home
     verb = "beat" if us > them else "drew with" if us == them else "lost to"
     where = "at home" if home else "away"
-    goals = f" ({', '.join(n.split()[-1] for n in r.scorers)})" if r.scorers else ""
+    # Who scored how many, and whether the other side did: from "(Shore, Kemp, Price)" Full Time gave Shore and
+    # Price two goals each and the keeper "a clean sheet" in a 3-1 (2026-11-21).
+    counts = {n.split()[-1]: r.scorers.count(n) for n in r.scorers}
+    goals = (" (goals: " + ", ".join(f"{n} {k}" if k > 1 else n for n, k in counts.items())
+             + (", one each" if len(counts) > 1 and all(k == 1 for k in counts.values()) else "")
+             + ("; a clean sheet" if them == 0 else "") + ")") if r.scorers else ""
     if us < them:
         return f"{NICK} lost {them}-{us} to {other} {where}{goals}"
     return f"{NICK} {verb} {other} {us}-{them} {where}{goals}"
@@ -161,7 +166,18 @@ def ordinal(n: int) -> str:
 
 
 def _when(fx: Fixture) -> str:
-    return f"{fx.kickoff:%A %d %B, %H:%M}"
+    """"Saturday 28 November, three o'clock (15:00)": given "15:00" alone, the sport said "kick-off fifteen
+    hundred" eleven times on 2026-11-21."""
+    from .schedule import said_clock        # schedule imports this module (through calendar)
+
+    return f"{fx.kickoff:%A %d %B}, {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M})"
+
+
+def ago(day: date, now: datetime) -> str:
+    """How long ago a day was, in words: the Wreckers' win of Saturday 14 November was "a fortnight ago" on the
+    21st (Full Time, 2026-11-21)."""
+    n = (now.date() - day).days
+    return {0: "today", 1: "yesterday", 7: "a week ago", 14: "a fortnight ago"}.get(n, f"{n} days ago")
 
 
 def summary(now: datetime) -> str:
@@ -172,7 +188,8 @@ def summary(now: datetime) -> str:
     nxt = next((f for f in ours if f.kickoff > now), None)
     parts = []
     if done:
-        parts.append(f"on {done[-1].fixture.kickoff:%A %d %B} {_score_line(done[-1])}")
+        k = done[-1].fixture.kickoff
+        parts.append(f"on {k:%A %d %B} ({ago(k.date(), now)}) {_score_line(done[-1])}")
     if live:
         f = live[0]
         parts.append(f"they are playing {f.away if f.home == CLUB else f.home} right now (kicked off at {f.kickoff:%H:%M})")

@@ -1764,6 +1764,39 @@ def wrong_mouths(lines: list[Line], world: World) -> int:
     return n
 
 
+_H24_WORDS = {w: 13 + i for i, w in enumerate("thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty "
+                                               "twenty-one twenty-two twenty-three".split())}
+_UNIT_WORDS = "one two three four five six seven eight nine".split()
+_MIN_WORDS = {**{f"oh {u}": i for i, u in enumerate(_UNIT_WORDS, 1)},          # "fifteen oh five"
+              **{w: 10 + i for i, w in enumerate("ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+                                                 "eighteen nineteen".split())},
+              **{t: base for t, base in (("twenty", 20), ("thirty", 30), ("forty", 40), ("fifty", 50))},
+              **{f"{t}-{u}": base + i for t, base in (("twenty", 20), ("thirty", 30), ("forty", 40), ("fifty", 50))
+                 for i, u in enumerate(_UNIT_WORDS, 1)}}
+_H24_WORDS.update({w.replace("-", " "): h for w, h in _H24_WORDS.items() if "-" in w})     # "twenty two forty-eight"
+# A time, not a year or a count: "kick-off fifteen hundred", "at twenty-two forty-eight", "fourteen thirty hours".
+_CLOCK_CUE = re.compile(r"\b(?:at|from|until|till|by|before|after|kick-?off|kicks off|kick off|leaves?|sails?|comes|"
+                        r"came|due|starts?|opens?|back|kick-?off is)\s+(?:about |around |just |roughly )?$", re.I)
+_MIN_WORDS.update({w.replace("-", " "): n for w, n in _MIN_WORDS.items() if "-" in w})      # "forty five"
+_READ_24 = re.compile(r"\b(" + "|".join(sorted(_H24_WORDS, key=len, reverse=True)) + r")[ -](hundred|"
+                      + "|".join(sorted(_MIN_WORDS, key=len, reverse=True)) + r")\b(?! (?:metres|degrees|pounds|points|"
+                      r"people|years|miles|minutes|feet|tonnes|kilos))( hours)?", re.I)
+
+
+def clock_read_out(text: str) -> str:
+    """A 24-hour time read aloud, said as people say it: "kick-off fifteen hundred" is "kick-off three o'clock",
+    "twenty-two forty-eight" "twelve minutes to eleven". Nobody says the 24-hour clock: on the 2026-11-21 night the
+    sport said "fifteen hundred" and "fourteen thirty", and the weather "twenty-two forty-eight", from figures."""
+    def say(m: re.Match) -> str:
+        hours = bool(m.group(3))
+        if not (hours or _CLOCK_CUE.search(text[max(0, m.start() - 30):m.start()])):
+            return m.group(0)            # "in nineteen fifty-two", "twenty twenty-six was a good year"
+        h = _H24_WORDS[m.group(1).lower()]
+        mins = 0 if m.group(2).lower() == "hundred" else _MIN_WORDS[m.group(2).lower()]
+        return schedule.said_clock(h, mins)
+    return _READ_24.sub(say, text)
+
+
 def ration_moods(lines: list[Line]) -> list[Line]:
     """Clear the moods past MOODS_PER_ITEM, the common faces and the later lines first; never a retry."""
     if lines and lines[-1].speaker == "anchor":
@@ -1879,7 +1912,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if "TIDES AT PORT WEXLEY. It is" in user:        # given the tides and the ferry (tides.for_prompt)
             airs = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
             sky = world.last_weather.get("map_state")
-            said = [getattr(l, "text", "") for l in getattr(script, "lines", [])]
+            said = [clock_read_out(getattr(l, "text", "")) for l in getattr(script, "lines", [])]
             slips, tense = tides.clock_slips(said, airs, sky), tides.tense_slips(said, airs, sky)
             if slips or tense:
                 # The facts were right and a time was still reworded now and then: "twenty-five past four" for
@@ -1898,7 +1931,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
                              + "\n".join(f"  - {x}" for x in tense)
                              + "\nWrite it again with each of these told as it is at this minute.")
                 script = llm.complete_json(seg.type.value, schema, system, user)
-                said = [getattr(l, "text", "") for l in getattr(script, "lines", [])]
+                said = [clock_read_out(getattr(l, "text", "")) for l in getattr(script, "lines", [])]
                 if still := tides.clock_slips(said, airs, sky) + tides.tense_slips(said, airs, sky):
                     log.warning("%s slot %d: tide or ferry slips again after the second ask; they stand: %s",
                                 seg.type.value, seg.slot_id, "; ".join(still))
@@ -2026,7 +2059,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if (debate or studio) and (p := world.person_by_name(name)):
             return p.role                     # each panellist, or the phone-in's guest, under their own caption
         return getattr(script, "guest_role", None)
-    seg.lines = [Line(speaker=l.speaker, text=l.text.strip(),
+    seg.lines = [Line(speaker=l.speaker, text=clock_read_out(l.text.strip()),
                       guest_name=(name := _guest_of(l, script, stayed, studio, before)),
                       guest_role=role(name) if l.speaker == "guest" else None,
                       mood=getattr(l, "mood", None))
