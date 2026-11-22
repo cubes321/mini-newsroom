@@ -187,7 +187,7 @@ def _tides(day: date, state: str | None) -> dict:
 
 def _sport(now: datetime) -> dict:
     rows = _banner("SPORT", "black", "yellow")
-    said = sport.summary(now).split(": ", 1)[-1].rstrip(".")    # the Tides' last result; next; position
+    said = sport.summary(now, said=False).split(": ", 1)[-1].rstrip(".")    # the Tides' last result; next; position
     for part in said.split("; ")[:2]:
         for line in _wrap(part[:1].upper() + part[1:] + ".")[:2]:
             rows.append(row(line, "cyan"))

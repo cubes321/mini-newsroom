@@ -106,7 +106,10 @@ def test_a_link_trails_only_what_comes_next(monkeypatch):
     after = [MAG.item(p) for p in range(pos + 1, pos + 3)]
     plan = {str(pos + 1): {"subject": "Bea Kowalczyk on her allotment", "guest": "Bea Kowalczyk"}}
     monkeypatch.setattr(rundown, "peek", lambda world, show, p: plan.get(str(p)))
-    user = writers.build_prompt(T.links, w, target_s=60.0, show=MAG, work={"order_pos": pos})[1]
+    from datetime import datetime
+
+    at = datetime(2026, 11, 21, 19, 0).timestamp()          # the trail is only what fits before the close
+    user = writers.build_prompt(T.links, w, target_s=60.0, show=MAG, work={"order_pos": pos}, at_ts=at)[1]
     coming = user.split("WHAT COMES NEXT")[1]
     assert "a guest in the studio: Bea Kowalczyk on her allotment (with Bea Kowalczyk)" in coming
     assert f"a filmed report: {after[1].brief}" in coming

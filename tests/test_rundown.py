@@ -154,3 +154,34 @@ def test_an_interview_about_someone_we_know_is_with_them(evening):
     assert not rundown.take(w, show, 4).get("guest")         # a film isn't booked a guest
     assert not rundown.take(w, show, 5).get("guest")
     assert "guest" not in w.rundowns[0]["slots"]["3"]          # the plan itself is as it was
+
+
+def test_each_coastwide_link_trails_the_items_the_producer_plans_next(evening):
+    """The trail is worked out from the show's order; the producer walks the same order with its own positions
+    (through the wrap) and its own angles. Every middle link's trail is the kinds and angles that really follow."""
+    w = _town()
+    p = Producer(Buffer(), 600, start_ts=_at(19, 0))
+    segs = [p.plan_one() for _ in range(45)]
+    segs = [s for s in segs if s.show == "magazine"]
+    kinds = {v: k for k, v in writers._COMING_KIND.items()}
+    checked = 0
+    for i, s in enumerate(segs):
+        if s.type is not T.links or s.part or s.work.get("order_pos") is None:
+            continue
+        trail = writers._coming_up(w, schedule.SHOWS["magazine"], s.work["order_pos"], s.nominal_start_ts)
+        rows = [r.removeprefix("  - ") for r in trail.splitlines() if r.startswith("  - ")]
+        nxt = []
+        for later in segs[i + 1:]:
+            if later.type is T.links or len(nxt) == len(rows):
+                break
+            if later.type in writers._COMING_KIND:
+                nxt.append(later)
+        assert len(nxt) == len(rows), (s.work["order_pos"], rows, [x.type for x in nxt])
+        for row, later in zip(rows, nxt):
+            assert row.startswith(writers._COMING_KIND[later.type]), (row, later.type)
+            assert not later.brief or later.brief.rstrip(".") in row, (row, later.brief)
+        checked += 1
+    assert checked >= 3 and kinds
+    # the other shows that remember their items get no trail
+    for sid in ("outabout", "rockpool", "quayside"):
+        assert writers._coming_up(w, schedule.SHOWS[sid], 3, _at(15, 0)) == ""

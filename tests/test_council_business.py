@@ -21,9 +21,10 @@ def test_the_inquirys_paper_trail_asks_for_no_minutes():
     assert "what the minutes" not in trail and "no minutes, vote or decision that the story doesn't have" in trail
 
 
-def test_the_panel_says_when_it_is_back_and_only_in_its_goodbye():
+def test_the_panel_says_when_it_is_back_and_only_in_its_goodbye(monkeypatch):
     """"Back on the third of December, live on The Chamber at eight": the council line, read out as the goodbye.
-    The Panel is on every night but a council night (Thursday 3 December 2026)."""
+    The Panel is on every night but a council night (Thursday 3 December 2026), as the schedule has it."""
+    monkeypatch.setattr(schedule.council, "council_night", lambda d: d == date(2026, 12, 3))
     assert "back tomorrow night at half past eight" in panel.back_on(datetime(2026, 11, 21, 20, 40).timestamp())
     assert "back on Friday at half past eight" in panel.back_on(datetime(2026, 12, 2, 20, 40).timestamp())
     w = world_mod.seed()

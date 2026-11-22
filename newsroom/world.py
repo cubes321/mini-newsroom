@@ -334,10 +334,11 @@ class World:
 
     @_locked
     def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True,
-                           sitting: bool = False) -> str:
+                           sitting: bool = False, booked: frozenset[str] | None = frozenset()) -> str:
         """The town briefing. `cast` limits the presenters to one show's (see schedule.py); `auction`
         False leaves the quay's latest auction out (the news, once it has reported it: writers.py);
-        `sitting` is The Chamber's own items, for which tonight's meeting is never over."""
+        `sitting` is The Chamber's own items, for which tonight's meeting is never over. `booked`: the people
+        this item has booked, never told to rest (rested_line); None leaves that line out."""
         chars = "\n".join(
             f"  - {c.id}: {c.name}, {c.role}; {', '.join(c.traits)}"
             for c in self.characters if cast is None or c.id in cast
@@ -367,7 +368,7 @@ class World:
                else "") +
             f"{self._council_calendar(sitting)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
-            f"{self.rested_line()}"
+            f"{self.rested_line(booked) if booked is not None else ''}"
             f"Last weather: {wx_line}\n"
             f"{talk.line(self, date.fromisoformat(self.last_date))}"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
@@ -375,7 +376,7 @@ class World:
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
 
-    def rested_line(self) -> str:
+    def rested_line(self, booked: frozenset[str] = frozenset()) -> str:
         """Who and what has been on a lot today, for the writers to rest: on the 2026-11-21 night Dolores Finch was
         in about 28 of the evening news's items and Marjorie Pell in 18 scripts on four shows, seven Coastwide
         guests were called Ruth, and Miles was "out of breath" 22 times (his trait in the briefing, said aloud). The
@@ -389,8 +390,12 @@ class World:
                 counts[pid] = counts.get(pid, 0) + 1
         # Not "except a story's people": naming someone in a filed item puts them on its thread (record_aired), so
         # Dolores Finch, the most named of all, would be let off. An item about them may still have them.
+        # Nor whoever this item has booked: The Panel names its three panellists every round, and by the third its
+        # prompt would have rested the people it requires to speak.
+        spare = {n.lower() for n in booked if n}
         seen = sorted(((p, n) for pid, n in counts.items() if n >= OFTEN_TODAY
-                       and (p := self.person(pid)) and p.kind in ("resident", "worthy")), key=lambda x: -x[1])[:RESTED]
+                       and (p := self.person(pid)) and p.kind in ("resident", "worthy")
+                       and p.name.lower() not in spare), key=lambda x: -x[1])[:RESTED]
         firsts: dict[str, set] = {}
         for pid in {pid for e in today for pid in e.get("people") or []}:
             if (p := self.person(pid)) and p.name:

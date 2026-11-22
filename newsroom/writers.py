@@ -811,6 +811,9 @@ _COMING_KIND = {SegmentType.feature: "a filmed report", SegmentType.interview: "
                 SegmentType.weather: "the weather", SegmentType.review: "a review",
                 SegmentType.field_report: "a report"}
 COMING_UP = 2                    # the items a link may trail
+# The shows whose middle links are told what comes next, and checked against each other with no brief: Coastwide only.
+# Out and About, Rock Pool and Quayside remember their own items too, but their links were never tried with it.
+LINKS_TRAIL = ("magazine",)
 
 
 def _coming_up(world: World, show: schedule.Show, pos, at: float) -> str:
@@ -819,7 +822,7 @@ def _coming_up(world: World, show: schedule.Show, pos, at: float) -> str:
     Coastwide's links trailed guests and films that never came: "Dougal Crane on the roof of the old cannery, and
     a studio guest from the harbour who has very firm views on the hake" (2026-11-21, 18:56). Only what fits before
     the programme's close: the last link of the replay trailed two items the hour never reached."""
-    if pos is None or show.id not in REMEMBERS_ITS_SHOW:
+    if pos is None or show.id not in LINKS_TRAIL:
         return ""
     rows, brk = [], False
     t = at + show.target_for(show.item(pos))
@@ -1106,6 +1109,24 @@ def _greeting(show: schedule.Show) -> str:
     return "evening" if part == "night" else part
 
 
+def _booked_here(world: World, show: schedule.Show, part: str, work: dict) -> frozenset[str] | None:
+    """Who this item has booked, never told to rest (World.rested_line): The Panel's panellists, The Inquiry's
+    guest, the phone-in's, the running order's, a guest asked back or still on the couch. None for a show whose
+    every guest is booked elsewhere (a quiz, a debate from outside): no rest line at all."""
+    if show.id in BOOKED_SHOWS or show.id in DEBATE_SHOWS:
+        return None
+    names = {(work.get("planned") or {}).get("guest"), work.get("return_guest")}
+    if part in ("cont", "couch"):
+        names.add(_last_interview.get(show.id, {}).get("name"))
+    if show.id == panel.SHOW:
+        names |= {p.get("name") for p in (panel.tonight(world) or {}).get("panellists", [])}
+    if show.id == inquiry.SHOW:
+        names.add((inquiry.tonight(world) or {}).get("guest"))
+    if show.id == phonein.SHOW:
+        names.add((phonein.today(world) or {}).get("guest"))
+    return frozenset(n for n in names if n)
+
+
 def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                  show: schedule.Show | None = None, part: str = "", brief: str = "",
                  at_ts: float | None = None, work: dict | None = None,
@@ -1126,8 +1147,9 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
                            interrupting=work.get("interrupting", "the programme"),
                            source=work.get("source", breaking.FROM_VIEWER))
     auction = not _auction_on_news(world, show)
+    booked = _booked_here(world, show, part, work)
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction, sitting=show.id == chamber.SHOW)}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction, sitting=show.id == chamber.SHOW, booked=booked)}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
         f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
@@ -1469,7 +1491,7 @@ def _template(seg_type: SegmentType, world: World, rng: random.Random, show: sch
             lower_third=f"{_title(show)}, channel seven",
         )
     if seg_type is SegmentType.sport:
-        latest = sport.summary(datetime.fromtimestamp(schedule.now()))
+        latest = sport.summary(datetime.fromtimestamp(schedule.now()), said=False)
         return BulletinScript(
             lines=[LiveLine(speaker="sport", text="Time for the sport." if part_ != "close" else "That's Full Time."),
                    LiveLine(speaker="sport", text=latest.replace("Tidewater Town FC (the Tides): ", "For the Tides: ")),
@@ -1723,7 +1745,10 @@ def _own_name(text: str, first: str, full: str) -> str | None:
     if not first:
         return None
     for m in re.finditer(rf"\b{re.escape(first)}\b(?=\s*[,?!])", text):
-        if not re.search(_NAMES_SELF + r"$", text[:m.start()], re.IGNORECASE):
+        before = text[:m.start()]
+        # "Thanks, Fran, ..." to a presenter of the same first name (nobody_thanks_themselves has a guest's own)
+        if not re.search(_NAMES_SELF + r"$", before, re.IGNORECASE) and not re.search(
+                r"\b(?:thanks|thank you|cheers)\W*$", before, re.IGNORECASE):
             return "to"
     if re.match(rf"(?:{re.escape(full)}|{re.escape(first)})\s+{_OF_THEM}", text.strip()) and not re.match(
             rf"(?:{re.escape(full)}|{re.escape(first)})\s+here\b", text.strip()):
@@ -1775,12 +1800,15 @@ _MIN_WORDS = {**{f"oh {u}": i for i, u in enumerate(_UNIT_WORDS, 1)},          #
                  for i, u in enumerate(_UNIT_WORDS, 1)}}
 _H24_WORDS.update({w.replace("-", " "): h for w, h in _H24_WORDS.items() if "-" in w})     # "twenty two forty-eight"
 # A time, not a year or a count: "kick-off fifteen hundred", "at twenty-two forty-eight", "fourteen thirty hours".
-_CLOCK_CUE = re.compile(r"\b(?:at|from|until|till|by|before|after|kick-?off|kicks off|kick off|leaves?|sails?|comes|"
-                        r"came|due|starts?|opens?|back|kick-?off is)\s+(?:about |around |just |roughly )?$", re.I)
+# Not "by", "from", "until", "before" or "after": "by nineteen thirty", "before twenty twenty-seven" are years.
+_CLOCK_CUE = re.compile(r"\b(?:at|kick-?off|kicks off|kick off|leaves?|sails?|comes|came|due|starts?|opens?|"
+                        r"kick-?off is)\s+(?:about |around |just |roughly )?$", re.I)
 _MIN_WORDS.update({w.replace("-", " "): n for w, n in _MIN_WORDS.items() if "-" in w})      # "forty five"
 _READ_24 = re.compile(r"\b(" + "|".join(sorted(_H24_WORDS, key=len, reverse=True)) + r")[ -](hundred|"
-                      + "|".join(sorted(_MIN_WORDS, key=len, reverse=True)) + r")\b(?! (?:metres|degrees|pounds|points|"
-                      r"people|years|miles|minutes|feet|tonnes|kilos))( hours)?", re.I)
+                      + "|".join(sorted(_MIN_WORDS, key=len, reverse=True)) + r")(?![\w-])(?<!hundred(?= and\b))"
+                      r"(?! (?:metres|degrees|pounds|points|"
+                      r"people|years|miles|minutes|feet|tonnes|kilos|pence|quid|per|each|an hour|a (?:kilo|pound|box|"
+                      r"head|ticket|night|week|month|year|pint)))( hours)?", re.I)    # "went at twenty-three thirty-eight a kilo"
 
 
 def clock_read_out(text: str) -> str:
@@ -2131,7 +2159,7 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
         return None
     # A link with no brief against the others with none, on a show that remembers its own: Coastwide's middle links
     # have none, and nine of them aired as "The town settles into winter, one story at a time" (2026-11-21).
-    if links and (brief in schedule.SAME_TITLE_BRIEFS or (not brief and show.id not in REMEMBERS_ITS_SHOW)):
+    if links and (brief in schedule.SAME_TITLE_BRIEFS or (not brief and show.id not in LINKS_TRAIL)):
         return None
     new = _words(headline or "")
     if len(new) < 3:

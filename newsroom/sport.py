@@ -142,8 +142,9 @@ def _ours(fx: Fixture) -> bool:
     return CLUB in (fx.home, fx.away)
 
 
-def _score_line(r: Result) -> str:
-    """'the Tides beat Saltby Rovers 2-1 at home (Kemp, Shore)'."""
+def _score_line(r: Result, said: bool = True) -> str:
+    """'the Tides beat Saltby Rovers 2-1 at home (goals: Kemp, Shore, one each)'; `said` False is Seventext's
+    '(Kemp, Shore)'."""
     fx = r.fixture
     home = fx.home == CLUB
     us, them = (r.home_goals, r.away_goals) if home else (r.away_goals, r.home_goals)
@@ -156,6 +157,8 @@ def _score_line(r: Result) -> str:
     goals = (" (goals: " + ", ".join(f"{n} {k}" if k > 1 else n for n, k in counts.items())
              + (", one each" if len(counts) > 1 and all(k == 1 for k in counts.values()) else "")
              + ("; a clean sheet" if them == 0 else "") + ")") if r.scorers else ""
+    if not said:
+        goals = f" ({', '.join(n.split()[-1] for n in r.scorers)})" if r.scorers else ""
     if us < them:
         return f"{NICK} lost {them}-{us} to {other} {where}{goals}"
     return f"{NICK} {verb} {other} {us}-{them} {where}{goals}"
@@ -165,11 +168,13 @@ def ordinal(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
-def _when(fx: Fixture) -> str:
+def _when(fx: Fixture, said: bool = True) -> str:
     """"Saturday 28 November, three o'clock (15:00)": given "15:00" alone, the sport said "kick-off fifteen
     hundred" eleven times on 2026-11-21."""
     from .schedule import said_clock        # schedule imports this module (through calendar)
 
+    if not said:
+        return f"{fx.kickoff:%A %d %B, %H:%M}"
     return f"{fx.kickoff:%A %d %B}, {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M})"
 
 
@@ -180,8 +185,9 @@ def ago(day: date, now: datetime) -> str:
     return {0: "today", 1: "yesterday", 7: "a week ago", 14: "a fortnight ago"}.get(n, f"{n} days ago")
 
 
-def summary(now: datetime) -> str:
-    """One line for every writer's briefing: the Tides' last result, the next game, the position."""
+def summary(now: datetime, said: bool = True) -> str:
+    """One line for every writer's briefing: the Tides' last result, the next game, the position. `said` False is
+    for the screen (Seventext) and the stand-in script: figures, no "(today)", as before 2026-11-22."""
     ours = [f for f in fixtures(now.date()) if _ours(f)]
     done = [result(f) for f in ours if f.kickoff <= now - timedelta(minutes=FULL_TIME_MIN)]
     live = [f for f in ours if f.kickoff <= now < f.kickoff + timedelta(minutes=FULL_TIME_MIN)]
@@ -189,13 +195,13 @@ def summary(now: datetime) -> str:
     parts = []
     if done:
         k = done[-1].fixture.kickoff
-        parts.append(f"on {k:%A %d %B} ({ago(k.date(), now)}) {_score_line(done[-1])}")
+        parts.append(f"on {k:%A %d %B}" + (f" ({ago(k.date(), now)})" if said else "") + f" {_score_line(done[-1], said)}")
     if live:
         f = live[0]
         parts.append(f"they are playing {f.away if f.home == CLUB else f.home} right now (kicked off at {f.kickoff:%H:%M})")
     elif nxt:
         parts.append(f"next: {'at home to' if nxt.home == CLUB else 'away at'} "
-                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt)}")
+                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt, said)}")
     else:
         parts.append("the season is over")
     pos = next(i for i, row in enumerate(table(now), 1) if row["club"] == CLUB)

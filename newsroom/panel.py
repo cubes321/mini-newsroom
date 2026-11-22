@@ -13,7 +13,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from . import council, inquiry, llm, schedule
+from . import inquiry, llm, schedule
 from .config import CONFIG
 from .models import PanelLineup, SegmentType
 from .world import World
@@ -150,9 +150,13 @@ def back_on(now: float | None = None) -> str:
     """When The Panel is next on, for its goodbye. On 2026-11-21 Dana signed off "Back on the third of December,
     live on The Chamber at eight", the council line from the briefing read out: The Panel is on every night but a
     council night, and the council's date is a fact for the debate, not a line to read."""
+    # The schedule says, not the council's calendar: a council night gives The Chamber the hour, and a special day
+    # (Christmas) has a grid of its own.
     today = datetime.fromtimestamp(now or schedule.now()).date()
-    day = today + timedelta(days=1)
-    while council.meets_on(day):
-        day += timedelta(days=1)
-    when = "tomorrow night" if day == today + timedelta(days=1) else f"on {day:%A}"
-    return f"THE PANEL is back {when} at half past eight: say so in the goodbye."
+    h, m = (int(x) for x in CONFIG.panel.airs_at.split(":"))
+    for n in range(1, 8):
+        day = today + timedelta(days=n)
+        if schedule.show_at(datetime(day.year, day.month, day.day, h, m).timestamp()).id == SHOW:
+            when = "tomorrow night" if n == 1 else f"on {day:%A}"
+            return f"THE PANEL is back {when} at {schedule.said_clock(h, m)}: say so in the goodbye."
+    return "The Panel's next night isn't set: say goodnight without naming one."

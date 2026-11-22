@@ -1090,13 +1090,14 @@ def day_note(ts: float) -> str:
     """What sort of day it is, where the writers would otherwise assume a weekday. On Sunday 22 November 2026
     Morning Tide had parents "queuing at the gates by the Academy" at 06:07 (its brief offers "the school run"
     every morning) and the shops selling out "before nine"."""
+    if special_day(date.fromtimestamp(ts)):     # Christmas Eve, Christmas Day, Boxing Day: christmas.py says what they are
+        return ""
     wd = time.localtime(ts).tm_wday
     if wd == 6:
         return (" It is Sunday: no school and no school run, no fish auction and hardly a commute; the shops on "
                 "Harrow Street open late (about ten) and shut early; church bells, the Sunday papers, a roast.")
-    if wd == 5:
-        return (" It is Saturday: no school and no school run, and no fish auction; the market and the shops are "
-                "open, and the football and the rugby are in the afternoon.")
+    if wd == 5:                 # not the sport: a Saturday may have no game (SPORT FACTS say)
+        return " It is Saturday: no school and no school run, and no fish auction; the market and the shops are open."
     return ""
 
 

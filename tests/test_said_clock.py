@@ -17,7 +17,10 @@ def test_a_24_hour_time_read_aloud_is_said_as_people_say_it():
     assert fix("fourteen thirty hours") == "half past two"
     # not a year, a count or a time with nothing to say it is one
     for t in ("a near thing in nineteen forty-three.", "In nineteen fifty-two I came over", "twenty twenty-six was a year",
-              "There were fifteen twenty people there", "He was nineteen forty when he left"):
+              "There were fifteen twenty people there", "He was nineteen forty when he left",
+              "by nineteen thirty the cannery had shut", "before twenty twenty-seven, they say", "by nineteen hundred",
+              "The dearest bass went at twenty-three thirty-eight a kilo",       # every reply on record, 2026-11-22
+              "the petition is at thirteen hundred and forty-one names"):
         assert fix(t) == t
 
 
