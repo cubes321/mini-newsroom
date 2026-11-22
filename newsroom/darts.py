@@ -145,6 +145,15 @@ def for_prompt(now: datetime) -> str:
     last = _last_night(now)
     if last:
         lines.append(f"{last[0].fixture.start:%A %d %B}'s matches: " + "; ".join(_line(r) for r in last) + ".")
+        # On Saturday 21 November 2026 Full Time had Tamsin in the Cannery Tap "where the Thursday match night has
+        # just been settled", and the late news "Tonight's darts news": its brief is "the last match night's".
+        ago = (now.date() - last[0].fixture.start.date()).days
+        if ago > 0:
+            lines.append(f"That was {'last night' if ago == 1 else f'{ago} days ago'}, not tonight: "
+                         + ("there is a match night tonight too, from eight."
+                            if any(f.start.date() == now.date() for f in fixtures(now.date())) else
+                            "there is no darts tonight. Its results are told as "
+                            f"{last[0].fixture.start:%A}'s, and nobody is reporting live from one of its matches."))
     rows = table(now)
     if any(r["p"] for r in rows):
         lines.append(f"The table (a point for every game won, nine games a match): "

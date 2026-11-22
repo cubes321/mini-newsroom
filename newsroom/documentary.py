@@ -238,7 +238,7 @@ def _extract(e: dict) -> str:
 def research(seg: Segment, world: World) -> DocumentaryResearch:
     """The researcher's notes from the archive: every piece on the thread, then a keyword search.
     A review's notes come from the annals instead, in code (review.research)."""
-    from . import review
+    from . import review, special
 
     if review.is_review(seg):
         return review.research(seg, world)
@@ -255,6 +255,7 @@ def research(seg: Segment, world: World) -> DocumentaryResearch:
     past = [d for d in world.documentaries if d.get("thread_id") == seg.thread_id and thread] or []
     user = (
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
+        f"{special.airs_at(seg)}\n\n"
         f"DOCUMENTARY: {seg.headline}\nAngle: {seg.work.get('angle', '')}\n{subject}\n\n"
         "ARCHIVE: the pieces on this thread\n" + ("\n".join(map(_extract, on_thread)) or "  (none)") + "\n\n"
         f"ARCHIVE: a search for {terms!r}\n" + ("\n".join(map(_extract, found)) or "  (nothing found)")

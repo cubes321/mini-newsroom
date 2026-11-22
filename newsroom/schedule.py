@@ -190,7 +190,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             ),
             T.field_report: (
                 "somewhere waking up: the fish market, the first ferry, a bakery",
-                "the morning commute: the buses, the quay, the school run",
+                # Every morning, Sunday's too: "Parents are queuing at the gates by the Academy" (06:07, 22 Nov).
+                "the morning commute: the buses, the quay, the school run on a weekday (at the weekend: who "
+                "is up and out early, and where they're going)",
                 "a business opening up for the day",
                 "volunteers or a club out early",
                 "a follow-up on an open story, from where it is happening",
@@ -1049,9 +1051,37 @@ def clock_line(ts: float) -> str:
     """The time on the broadcast clock, and what it means for today's dated plans. On 2026-11-05 the
     news still said "bonfire gates open at six" at eleven at night: the prompts gave the date and
     "it is the evening", never the time, so the six o'clock start in the calendar read as to come."""
-    return (f"It is {time.strftime('%H:%M', time.localtime(ts))} on the broadcast clock: if anyone gives "
+    lt = time.localtime(ts)
+    # The overnight documentaries of 2026-11-22, written at 02:15 and 03:17 with the date and no time, told that
+    # Sunday's morning as done: "By ten past eight the slip was empty" (the spinnaker trial, due at first light),
+    # "The mayor came down the steps at half past ten".
+    small = ""
+    if lt.tm_hour < 5:
+        day = time.strftime("%A", lt)
+        before = time.strftime("%A", time.localtime(ts - 86400))
+        # Told the hour, a special at 02:10 had the MP on the town hall stairs "just after half past one" (replay).
+        small = (f" It is the small hours of {day}: {day}'s morning hasn't come yet, so nothing planned for {day} "
+                 f"has happened, and nobody has been out and about in it; \"last night\" and \"yesterday\" are "
+                 f"{before}. The town is asleep: anyone a piece hears from was spoken to on {before}, not at this "
+                 "hour.")
+    return (f"It is {time.strftime('%H:%M', lt)} on the broadcast clock: if anyone gives "
             f"the time, they say \"{spoken_time(ts)}\". Anything timed earlier today has already happened: "
-            "tell it as done or under way, never as still to come.")
+            "tell it as done or under way, never as still to come; anything timed later today has not happened "
+            f"yet: never tell it as done.{small}{day_note(ts)}")
+
+
+def day_note(ts: float) -> str:
+    """What sort of day it is, where the writers would otherwise assume a weekday. On Sunday 22 November 2026
+    Morning Tide had parents "queuing at the gates by the Academy" at 06:07 (its brief offers "the school run"
+    every morning) and the shops selling out "before nine"."""
+    wd = time.localtime(ts).tm_wday
+    if wd == 6:
+        return (" It is Sunday: no school and no school run, no fish auction and hardly a commute; the shops on "
+                "Harrow Street open late (about ten) and shut early; church bells, the Sunday papers, a roast.")
+    if wd == 5:
+        return (" It is Saturday: no school and no school run, and no fish auction; the market and the shops are "
+                "open, and the football and the rugby are in the afternoon.")
+    return ""
 
 
 def get(show_id: str | None, ts: float | None = None) -> Show:

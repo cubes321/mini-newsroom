@@ -233,12 +233,23 @@ def story_so_far(world: World, thread_id: str | None) -> str:
                if t.next_development else ""))
 
 
+def airs_at(seg: Segment) -> str:
+    """When the piece goes out, on the broadcast clock (schedule.clock_line): with the date alone the specials
+    written at 02:15 and 03:17 on 2026-11-22 told that Sunday's morning as done. A special airs as soon as it is
+    made, a documentary in its evening slot; `nominal_start_ts` is neither, only a far deadline (commission)."""
+    now = schedule.now()
+    when = now
+    if _is_doc(seg) and (slot := documentary._today_at(CONFIG.documentary.airs_at, now)) > now:
+        when = slot
+    return "WHEN IT AIRS: " + schedule.clock_line(when)
+
+
 def write_outline(seg: Segment, world: World) -> SpecialOutline:
     angle = seg.work.get("angle", "")
     subject = story_so_far(world, seg.thread_id) or f"Subject: {seg.headline}"
     doc = _is_doc(seg)
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n{airs_at(seg)}\n\n"
         f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'} COMMISSION\nWorking title: {seg.headline}\n{subject}\n"
         f"Angle: {angle}\n"
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
@@ -307,7 +318,7 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
     doc = _is_doc(seg)
     record = story_so_far(world, seg.thread_id) if not doc else ""   # a documentary has its research notes
     user = (
-        f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
+        f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n{airs_at(seg)}\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
         + (record + "\n\n" if record else "")
         + f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'}: {outline.title}\n{outline.standfirst}\n"
