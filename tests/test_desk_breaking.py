@@ -141,3 +141,44 @@ def test_the_scene_report_is_filed_on_the_breaking_thread(monkeypatch):
     assert seg.work["scene"] == tid and seg.thread_id == tid
     assert w.thread(tid).status == "fire out, cause not known"
     assert writers.scene_due(w, schedule.now()) is None
+
+
+def test_a_field_report_that_tells_the_last_one_again_is_sent_to_a_story_the_code_names(monkeypatch):
+    """On the 2026-11-21 night "Hake Glut Keeps Fish Quay Busy Into the Night" was written fourteen times running,
+    with the same headline three times in MILES'S LAST REPORTS: one item a cycle never makes two of the news's last
+    four, so nothing asked again."""
+    from newsroom import llm
+
+    w = world_mod.seed()
+    hake = w.update_thread(None, "Hake Glut Softens the Quay Price", "boxes stacked on the quay")
+    quiet = [w.update_thread(None, title, "so far") for title in (
+        "Reading torch comes back cracked", "Dry suits go in for taking in", "Grit bin down to the scraping",
+        "A second grey glove on the bollard", "Brass band needs a tuba", "Allotment squash turns orange",
+        "Library tin gives up four shillings", "Chess club sets up its boards")]
+    for tid in quiet:
+        w.thread(tid).next_development = "On Wednesday the next thing happens."
+    w.record_aired("field_report", "Hake Glut Keeps Fish Quay Busy Into the Night", hake, "...", show="news")
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        again = "Miles has only just reported that" not in user
+        return schema.model_validate({
+            "headline": "Hake Glut Keeps Fish Quay Busy Into the Night" if again else "The torch's cracked lens",
+            "lower_third": "Fish quay" if again else "Harrow Street", "backdrop": "fish_quay" if again else "market",
+            "location": "the fish quay" if again else "Harrow Street", "thread_id": None if again else quiet[0],
+            "lines": [{"speaker": "anchor", "text": "Over to Miles."}, {"speaker": "reporter", "text": "Thanks, Dana."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    monkeypatch.setattr(llm, "provider_for", lambda task: "claude_haiku")
+    seg = writers.script_segment(Segment(slot_id=9, type=T.field_report, show="news", target_s=90.0), w)
+    assert len(asked) == 2 and seg.headline == "The torch's cracked lens" and not seg.fallback
+    sent = asked[1].split("NOT ")[-1]
+    assert sent.startswith('"Hake Glut Keeps Fish Quay Busy Into the Night": Miles has only just reported that')
+    named = [tid for tid in quiet if f"This report is on [{tid}]" in sent]
+    assert len(named) == 1 and f'Set thread_id to "{named[0]}"' in sent and hake not in sent.split("This report")[1]
+    # a report on a story he hasn't just done is taken as it comes
+    asked.clear()
+    w2 = world_mod.seed()
+    w2.record_aired("field_report", "Fire crew times the far berths", None, "...", show="news")
+    writers.script_segment(Segment(slot_id=10, type=T.field_report, show="news", target_s=90.0), w2)
+    assert len(asked) == 1

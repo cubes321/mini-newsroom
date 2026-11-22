@@ -903,6 +903,43 @@ def _field_so_far(world: World, show: schedule.Show) -> str:
 QUIET_THREADS = 4               # open threads beyond the briefing's offered to a news field report
 
 
+def _quiet(world: World, exclude: set[str], auction: bool = True) -> list:
+    """The quiet stories themselves, the ones `_quiet_threads` lists, in its order."""
+    shown = {t.id for t in world.briefing_threads(auction)} | exclude
+    return sorted((t for t in world.board_threads()
+                   if t.id not in shown and (auction or not quay.about_the_auction(t.title))),
+                  key=lambda t: (not t.next_development, t.moved_ts))[:QUIET_THREADS]
+
+
+def _reported_already(script, world: World, show: schedule.Show) -> str | None:
+    """The headline of one of Miles's last reports on this show that the new one tells again, by its thread or
+    its headline's words, or None. The prompt lists them ("this one goes to a different story and place"), and
+    on the 2026-11-21 night Haiku wrote "Hake Glut Keeps Fish Quay Busy Into the Night" fourteen times running
+    from 23:06 to 23:48, the same headline three times in that list. One item a cycle never makes two of the
+    news's last four (`_same_story_again`), so nothing caught it."""
+    headline, tid = getattr(script, "headline", "") or "", getattr(script, "thread_id", None)
+    for e in reversed(world.aired_today(SegmentType.field_report.value, show.id)[-FIELD_MEMORY:]):
+        if (tid and e.get("thread_id") == tid) or (headline and same_story_words(headline, e.get("headline") or "")):
+            return e.get("headline") or headline
+    return None
+
+
+def _send_miles(world: World, show: schedule.Show, was: str) -> str:
+    """The second ask for a field report that told his last one again: the code names the story he goes to, the
+    first quiet one he hasn't just done, since "a different story" alone got the same one back."""
+    recent = {e.get("thread_id") for e in world.aired_today(SegmentType.field_report.value, show.id)[-FIELD_MEMORY:]}
+    auction = not _auction_on_news(world, show)
+    go = next(iter(_quiet(world, recent - {None}, auction)), None) or next(
+        (t for t in world.briefing_threads(auction) if t.id not in recent), None)
+    out = f"\n\nNOT \"{was}\": Miles has only just reported that (MILES'S LAST REPORTS), from that very place. "
+    if go is None:
+        return out + "This report is another story altogether, from somewhere else in the town."
+    return (out + f"This report is on [{go.id}] {go.title}: {go.status}"
+            + (f"; NEXT: {go.next_development}" if go.next_development else "")
+            + f". Set thread_id to \"{go.id}\", put him where that story is (another backdrop and location), "
+              "and give it a headline of its own.")
+
+
 def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str:
     """Open threads the briefing doesn't list, for a news field report to pick up before it
     invents a story: told to go somewhere other than Miles's last three, with only the
@@ -910,10 +947,7 @@ def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str
     five "estuary tide in the wind" on 2026-10-27). Those with a planned NEXT first, then the
     longest quiet, which they also keep from fading. `auction` False (the news has reported it)
     leaves out a thread made of the auction, as the briefing does."""
-    shown = {t.id for t in world.briefing_threads(auction)} | exclude
-    quiet = sorted((t for t in world.board_threads()
-                    if t.id not in shown and (auction or not quay.about_the_auction(t.title))),
-                   key=lambda t: (not t.next_development, t.moved_ts))[:QUIET_THREADS]
+    quiet = _quiet(world, exclude, auction)
     if not quiet:
         return ""
     rows = "\n".join(f"  - [{t.id}] {t.title}: {t.status}" + (f"; NEXT: {t.next_development}" if t.next_development else "")
@@ -1585,6 +1619,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
                      "another open story from the briefing, on another subject, with its own thread_id (or a new "
                      "one with thread_id null); this one can come back later.")
             script = llm.complete_json(seg.type.value, schema, system, user)
+        if (seg.type is SegmentType.field_report and show.id != outabout.SHOW and not seg.work.get("scene")
+                and (was := _reported_already(script, world, show))):
+            log.info("field_report slot %d: Miles has just reported %r; sending him to another story",
+                     seg.slot_id, was)
+            user += _send_miles(world, show, was)
+            script = llm.complete_json(seg.type.value, schema, system, user)
+            if _reported_already(script, world, show):
+                log.warning("field_report slot %d: %r again after the second ask; it stands", seg.slot_id,
+                            getattr(script, "headline", ""))
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
         # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
         # booked for tonight however recently they were on elsewhere.

@@ -1,5 +1,44 @@
 # Handover
 
+## Picking up after the Channel 7 night of 2026-11-21
+
+A real Channel 7 night on the real town, started 18:34 from `data/night_channel7.cmd` with the pictures on. The backup
+is `data/world.backup-2026-11-21-pre-night.json`, the log `data/logs/station-2026-11-21-1834.log`. It ran the code as
+it stood at 18:34: none of that evening's work (the council fixes, The Chamber's turns, the weather map, the travel
+board, the route map, the town close up) was in it.
+
+### The night's review (2026-11-22 morning)
+
+It ran 18:34 to 06:34 and exited cleanly: 660 segments, 48 adverts, no filler, no fallbacks, no stand-ins, worst p99
+12.0 ms. Sound is in all seven recordings checked (Full Time, Coastwide, The Inquiry, The Panel, The Last Ferry,
+Seventext, Morning Tide: mean -26.6 to -31.6 dB, no silence of five seconds).
+
+- **As intended:**
+  - The senior editor reviewed at 18:52, 20:52, 22:52 and 00:52, and held off at 18:38 and 02:52. Eight merges.
+  - The desk made 24 rounds, six of them with nothing to do; nine seeds; stories moved in the pool.
+  - The editors' meeting at 18:41, four turns and the minutes.
+  - 173 overnight repeats, in line with the nights before (175, 188, 184).
+- **Both of the 20th's fixes aired and worked:**
+  - **The Last Ferry booked nine guests, each once** (an interview and its second part). No guest came back.
+  - **The closes waited for their endings.** t506 (the row) closed at 19:09, after the 18:35 bulletin on it. t586
+    (the match) was held at 19:09 ("is to close once its ending at 15:00 has been reported") and closed at 21:09,
+    once the desk had folded the result's own thread into it. t606 (half-time, no clock time) was held twice and
+    closed at 21:39.
+- **Miles's report was the hake fourteen times running.** "Hake Glut Keeps Fish Quay Busy Into the Night", from the
+  fish quay, was written for every field report from 23:06 to 23:48, and went out again in the repeats (13 times).
+  - The prompt listed it three times under MILES'S LAST REPORTS, "this one goes to a different story and place".
+  - Nothing asked again: one item a cycle never makes two of the news's last four (`_same_story_again`).
+  - **Fixed the same morning:** a field report that tells one of his last three again, by its thread or its
+    headline's words, gets one more ask, and the code names the story he goes to: the first quiet one he hasn't just
+    done (`writers._reported_already`, `_send_miles`). Replayed with Haiku on a copy of the town, from three hake
+    reports: eight reports, eight different headlines, the new ask twice. Not aired yet.
+- **Two templates:** Coastwide's interview at 19:29 (Dev Ramachandran: no valid output in two attempts), and The
+  Inquiry's feature at 20:14 (it booked THE GUEST, Gerald Thorne, for an item that isn't his).
+- **The pictures** (shadow mode): ComfyUI came up at 18:37 and the painter worked through the night.
+- **Model use:** Haiku 575 calls (7 failed validation once), 3.59M tokens in (1.70M read from the cache) and 294k
+  out; DeepSeek thinking 102 calls, 796k in and 251k out; Sonnet 7 calls, 130k in and 17k out.
+- **Small:** in the replay Haiku put "the Ferryman bar" in Saltby; the Ferryman is by the Quay Steps on the new map.
+
 ## Picking up on the evening of 2026-11-20
 
 **Tonight** is a real Channel 7 night on the real town, started 20:51 from `data/night_channel7_nopictures.cmd`: the usual
