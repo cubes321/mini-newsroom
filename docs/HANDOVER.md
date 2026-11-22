@@ -34,7 +34,8 @@ Seventext, Morning Tide: mean -26.6 to -31.6 dB, no silence of five seconds).
     reports: eight reports, eight different headlines, the new ask twice. Not aired yet.
 - **Two templates:** Coastwide's interview at 19:29 (Dev Ramachandran: no valid output in two attempts), and The
   Inquiry's feature at 20:14 (it booked THE GUEST, Gerald Thorne, for an item that isn't his).
-- **The pictures** (shadow mode): ComfyUI came up at 18:37 and the painter worked through the night.
+- **The pictures** (shadow mode): ComfyUI came up at 18:37 and the painter made 101 pictures, the last at 06:26; 47
+  more were skipped as the same story again. The launcher stopped ComfyUI at the end and the card is free.
 - **Model use:** Haiku 575 calls (7 failed validation once), 3.59M tokens in (1.70M read from the cache) and 294k
   out; DeepSeek thinking 102 calls, 796k in and 251k out; Sonnet 7 calls, 130k in and 17k out.
 - **Small:** in the replay Haiku put "the Ferryman bar" in Saltby; the Ferryman is by the Quay Steps on the new map.
