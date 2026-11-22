@@ -149,6 +149,22 @@ against the scripts. None is fixed yet, except the hake.
        had written the result into the match's story before it was played ("Saltby lead at the break, the Tides
        level from a corner, and it ends one apiece"), against the 3-1 that sport.py works out. That is where
        Coastwide's "shared the points" came from on the night.
+       **Fixed 2026-11-22.** The editors' briefing had no sport in it at all, and the desk's own instructions offered
+       "a match" as a day to plan a story for.
+       - The editors' briefing has the Sport line now, and the desk is told a game's score, scorers and winner are
+         the sports desk's (`world.summary_for_editor`, the desk's `_SYSTEM`).
+       - A planned NEXT that names a side and gives a result loses it, back to the clause before
+         (`sport.without_result`, from `desk._no_scripted_result`), for the desk's updates and for a new story's
+         plan. Not a closing note; not a NEXT for a day gone by, or for today after five. A score the story already
+         has in its title or status stands ("the 28-19 card goes up").
+       - Run over every planned NEXT in the town and its backups of the fortnight (363), it cuts 12, all of them
+         games: "the Tides draw 1-1 at Greymouth Athletic", "Liam Tregear's side take it 2-1", "the match goes down
+         five-three". Four wrong cuts found on the way were tuned out ("won't", "one short beat", "the meeting ends
+         with", "the sand goes down").
+       - **Not tested with the model:** in three real desk rounds on a copy of the town, on the match's morning, the
+         desk planned none of the stories about games, so whether the new rule stops it writing a score isn't known.
+         The cut doesn't depend on it.
+       - The real town has no such NEXT now: the match's story is closed.
 7. **The same few people and tics.** Dolores Finch in about 28 evening news items; Marjorie Pell in 18 scripts on four
    shows; Brenda Fisk four times in seven minutes of Morning Tide. Miles "out of breath" 22 times. Seven Ruths on
    Coastwide, five on The Inquiry; a Coastwide guest named Gordon Pell.

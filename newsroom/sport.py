@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -183,6 +184,47 @@ def summary(now: datetime) -> str:
     pos = next(i for i, row in enumerate(table(now), 1) if row["club"] == CLUB)
     parts.append(f"{ordinal(pos)} in the {LEAGUE}" if done else f"the {LEAGUE} season starts soon")
     return f"{CLUB} ({NICK}): " + "; ".join(parts) + "."
+
+
+_RESULT = re.compile(
+    r"\b(?:(?:nil|one|two|three|four|five|six|seven|\d{1,2})[- ](?:nil|one|two|three|four|five|six|seven|all|apiece|\d{1,2})\b"
+    r"|draws?\b|drew\b|drawn\b|beat(?:s|en)?\b(?= (?:the )?(?-i:[A-Z]))|wins?\b|won\b(?!')|loses?\b|lost\b|defeat(?:s|ed)?\b"
+    r"|victory\b|leads? at (?:the break|half[- ]time)|a goal up\b|levels?\b|levelled\b|equalis\w+|winner\b"
+    r"|scores?\b|scored\b|hat[- ]trick|clean sheet|full[- ]time score|final score|(?:match|game|side|team) go(?:es)? down\b|go(?:es)? down (?:\d|nil|one|two|three|four|five|by)"
+    r"|ends? (?:level|all square|one|two|nil|\d))", re.I)
+
+
+def sides() -> tuple[str, ...]:
+    """Every side whose results are worked out here, as a story would name it: the clubs of both leagues, the Tides
+    and the Wreckers by their nicknames, the darts league's pubs."""
+    from . import darts, rugby              # they import this module's helpers
+
+    names = [c for c, _ in CLUBS] + [c for c, _ in rugby.CLUBS] + [p for p, *_ in darts.PUBS]
+    names += [NICK, rugby.NICK, "Tidewater Town", "Saltby Rovers"]
+    return tuple(dict.fromkeys(n.removeprefix("the ") for n in names))
+
+
+def without_result(text: str, known: str = "") -> str:
+    """A story's planned NEXT with any result of a game taken off: the text up to the clause that gives one, or the
+    whole of it when it names none of the sides or gives no result.
+
+    The scores are worked out in code, the same for every writer. On 2026-11-21 the story desk planned the Tides'
+    match before it was played ("Saltby lead at the break, the Tides level from a corner, and it ends one apiece"),
+    the sports desk made it 3-1, and Coastwide and The Last Ferry gave the draw from the story. Over the town's
+    backups of that fortnight the desk had done it in 12 of 363 planned NEXTs: "the Tides draw 1-1 at Greymouth
+    Athletic", "Liam Tregear's side take it 2-1", "the match goes down five-three"."""
+    if not text or not any(re.search(rf"\b{re.escape(n)}\b", text) for n in sides()):
+        return text
+    # A result the story already has (`known`: its title and where it stands) is not one being made up: "the 28-19
+    # card goes up beside the board" on "The Crown at Saltby Take the Ferryman 28-19".
+    m = next((m for m in _RESULT.finditer(text) if m.group(0).lower() not in known.lower()), None)
+    if not m:
+        return text
+    cut = max(text.rfind(mark, 0, m.start()) for mark in (";", " \u2014 ", ": ", ". "))
+    if cut < 0:
+        cut = text.rfind(", ", 0, m.start())
+    kept = text[:cut].rstrip(" ,;:\u2014-") if cut > 0 else ""
+    return kept + "." if kept else ""
 
 
 def briefing(now: datetime) -> str:

@@ -27,7 +27,7 @@ import re
 import time
 from datetime import date, datetime
 
-from . import chamber, llm, meeting, promises, safety, schedule
+from . import chamber, llm, meeting, promises, safety, schedule, sport
 from .config import CONFIG
 from .models import NewThread, StoryPlan, ThreadUpdate
 from .world import STALE_WARNING_S, THREAD_PEOPLE, Thread, World, due_date, due_time, fade_after_s, said_date
@@ -45,7 +45,10 @@ by its day and date ("on Thursday 5 November, Bonfire Night, the new barriers ar
 for an event that isn't listed. A long story whose next step is days away waits for that day in the
 running-stories pool, off the bulletins (the board marks it WAITING); give it a dated NEXT rather than
 holding it or closing it. Involve the named
-public figures when natural; they have positions and reputations to keep. Close threads that have
+public figures when natural; they have positions and reputations to keep. A match, a darts night
+or any game is the sports desk's: plan what happens round it (the pitch, the crowd, who is watching,
+a row in the stand), NEVER its score, who scores, who leads or who wins; a game already played has
+its result in the briefing's Sport line, to be used as it stands. Close threads that have
 run their course. If there is room, seed one or two new threads with a first status and a planned
 next step. Prefer continuity and consequence over novelty. Everything is fiction; never reference
 real people or events. Return ONLY JSON.
@@ -325,6 +328,21 @@ def _promise_stands(world: World, t: Thread, u: ThreadUpdate, settled: set[str])
     return False
 
 
+def _no_scripted_result(world: World, text: str, who: str = "", known: str = "") -> str:
+    """A NEXT the desk wrote, with any result of a game still to be played taken off (sport.without_result). A NEXT
+    for a day gone by, or for today after the afternoon's games, is left: by then the result is the sports desk's own
+    and in the briefing. Empty when nothing is left of it."""
+    today = date.fromisoformat(world.last_date)
+    due = due_date(text, today)
+    if due is not None and (due < today or (due == today and time.localtime(schedule.now()).tm_hour >= 17)):
+        return text
+    cut = sport.without_result(text, known)
+    if cut != text:
+        log.info("%s: a NEXT scripted a game's result before it is played; kept %r", who or "story desk",
+                 cut[:90] or "none of it")
+    return cut
+
+
 def _redate(world: World, t: Thread, u: ThreadUpdate) -> ThreadUpdate | None:
     """A waiting story's new day, from the NEXT the desk gave it: the update to apply, or None to leave
     the story as it is. `world.pool_threads` leaves a story already in the pool alone, so the date is
@@ -455,6 +473,10 @@ def _apply(world: World, p: StoryPlan, only: set[str] | None, reach: set[str]) -
             continue
         if _promise_stands(world, t, u, settling):
             continue
+        known = f"{t.title} {t.status}"
+        if u.phase != "closed" and (cut := _no_scripted_result(world, u.next_development, f"thread {t.id}",
+                                                               known)) != u.next_development:
+            u = u.model_copy(update={"next_development": cut or sport.without_result(t.next_development, known)})
         if world.waiting(t) and (u := _redate(world, t, u)) is None:
             continue
         u = _held(world, t, u)
@@ -490,7 +512,8 @@ def seed(world: World, nt: NewThread, who: str = "story desk") -> Thread:
         log.info("%s seeded from %r's loose end, but nobody has that name", who, nt.from_guest)
     if guest is not None and guest.id not in people:
         people.insert(0, guest.id)                 # their loose end is news now, not a chat to come
-    t = world.seed_thread(nt.title, nt.status, nt.next_development, people)
+    t = world.seed_thread(nt.title, nt.status,
+                          _no_scripted_result(world, nt.next_development, who, f"{nt.title} {nt.status}"), people)
     log.info("seeded thread %s: %s%s", t.id, t.title, f" (from {guest.name}'s loose end)" if guest else "")
     return t
 

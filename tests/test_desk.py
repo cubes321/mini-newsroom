@@ -156,3 +156,32 @@ def test_a_story_from_before_the_desk_kept_what_it_saw_is_planned_once_more(monk
         t.pop("planned_seen")
     old = world_mod._from_dict(d)
     assert {t.id for t in desk.batch(old)} == {t.id for t in old.board_threads()[: len(desk.batch(old))]} and desk.batch(old)
+
+
+def test_the_desk_cant_script_a_game_before_it_is_played(monkeypatch):
+    """The Tides' match of 2026-11-21: the desk's NEXT had the score before kick-off, against the sports desk's."""
+    from datetime import datetime
+
+    from newsroom import desk, schedule, world as world_mod
+    from newsroom.models import NewThread, StoryPlan, ThreadUpdate
+
+    w = world_mod.seed()
+    w.last_date = "2026-11-21"
+    tid = w.update_thread(None, "Tides Host Saltby Saturday", "Kick-off at three today")
+    t = w.thread(tid)
+    t.next_development = "On Saturday 21 November the Tides kick off at three."
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 21, 9, 0).timestamp())
+    scripted = ("On Saturday 21 November the Tides kick off at three on a frosty pitch, Hal Anand in the stand; "
+                "Saltby lead at the break and it ends one apiece.")
+    desk.apply(w, StoryPlan(updates=[ThreadUpdate(thread_id=tid, phase="peak", next_development=scripted)]), only={tid})
+    assert t.next_development == "On Saturday 21 November the Tides kick off at three on a frosty pitch, Hal Anand in the stand."
+    # a new story's plan too
+    new = desk.seed(w, NewThread(title="Wreckers away at Saltby", status="The coach is booked.",
+                                 next_development="On Saturday 28 November the Wreckers go to Saltby: they win 20-12.", people=[]))
+    assert new.next_development == "On Saturday 28 November the Wreckers go to Saltby."
+    # once the afternoon's games are over, the result is the sports desk's and the desk may carry it
+    monkeypatch.setattr(schedule, "now", lambda: datetime(2026, 11, 21, 18, 30).timestamp())
+    after = "On Saturday 21 November the Tides beat Saltby three-one, and the crowd stays for the pies."
+    desk.apply(w, StoryPlan(updates=[ThreadUpdate(thread_id=tid, phase="peak", next_development=after)]), only={tid})
+    assert t.next_development == after
+    assert "an editor NEVER writes a score" in w.summary_for_editor() and "Tidewater Town FC (the Tides)" in w.summary_for_editor()

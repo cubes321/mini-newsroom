@@ -388,6 +388,10 @@ class World:
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
             f"{self._council_calendar()}\n"
             f"{calendar.for_editor(date.fromisoformat(self.last_date))}\n"
+            # The editors had no sport at all, and planned a match's score themselves (2026-11-21: "it ends one
+            # apiece", against the sports desk's 3-1).
+            f"Sport, worked out by the sports desk (an editor NEVER writes a score, a scorer or who wins: once a "
+            f"game is played its result is here): {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{self._council_line()}{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n"

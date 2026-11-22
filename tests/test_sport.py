@@ -43,3 +43,32 @@ def test_the_tides_scorers_match_their_goals():
 def test_every_writer_hears_the_last_result_and_the_next_game():
     brief = world_mod.seed().summary_for_prompt()
     assert "Sport: Tidewater Town FC (the Tides):" in brief
+
+
+def test_a_planned_next_loses_the_result_of_a_game():
+    """On 2026-11-21 the story desk planned the Tides' match before it was played, "it ends one apiece"; the sports
+    desk made it 3-1, and Coastwide and The Last Ferry gave the draw from the story."""
+    planned = ("On Saturday 21 November the Tides kick off at three on a pitch still hard with frost, Hal Anand "
+               "watching from the stand with his shoulder strapped; Saltby lead at the break, the Tides level from a "
+               "corner, and it ends one apiece with the home crowd on the referee \u2014 the match report closes the thread.")
+    assert sport.without_result(planned) == ("On Saturday 21 November the Tides kick off at three on a pitch still hard "
+                                            "with frost, Hal Anand watching from the stand with his shoulder strapped.")
+    assert sport.without_result("On Thursday the Cannery Tap beat the Railway seven-two at darts.") == ""
+    assert sport.without_result("On Saturday the Wreckers travel to Saltby: Mitchell is fit, and they win by ten.") == \
+        "On Saturday the Wreckers travel to Saltby."
+    # nothing to take off: no side named, or no result given
+    for fine in ("On Tuesday the harbour office wins the tender it wanted.",
+                 "On Saturday 28 November the Tides are away at Polgrey Rangers, and the supporters' coach leaves at one.",
+                 "On Monday the two panels are surveyed, three on the list still to do.", ""):
+        assert sport.without_result(fine) == fine
+    # words that only look like a result, in stories that happen to name a side
+    for fine in ("On Saturday Alan weighs the squash and won't say which show, and a plot-holder from Saltby Road enters one.",
+                 "On Saturday, with the Tides crowd on the quay, Dougal fits the rope: one short beat on the bulletin and done.",
+                 "On Wednesday the traders' meeting at the Anchor and Bell ends with no start date."):
+        assert sport.without_result(fine) == fine
+    # a result the story already has is not being made up
+    card = "On Thursday 26 November, darts night, the 28-19 card goes up beside the Ferryman's board."
+    assert sport.without_result(card, known="The Crown at Saltby Take the Ferryman 28-19") == card
+    assert sport.without_result(card) == "On Thursday 26 November, darts night."
+    assert sport.without_result("On Tuesday the Railway go to the Lantern and the match goes down five-three.") == ""
+    assert {"Tides", "Wreckers", "Saltby Rovers", "Cannery Tap", "Tidewater Town FC"} <= set(sport.sides())
