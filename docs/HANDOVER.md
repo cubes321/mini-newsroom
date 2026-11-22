@@ -62,10 +62,16 @@ against the scripts. None is fixed yet, except the hake.
        night's own times, The Last Ferry's vox pop in the ferry's gap, Morning Tide's report before the first boat).
        On the night 13 of 14 weathers were wrong. In the last replay seven of the twelve were clean; nobody was on
        the ferry while it wasn't running and no item gave today's table as tomorrow's.
-     - **Still open:** Haiku still rewords a time now and then. In the last replay one weather had the ferry
-       "stopped for the night" two hours early, three were a few minutes out ("twenty to eleven" for 22:48, "five to
-       twelve" for 12:03) and one told a low water just gone as still to come. A check on the script's clock
-       words against the ones it was given, with one more ask, would catch these; not built.
+     - **A check on the clock words** (`tides.clock_slips`, 2026-11-22): every clock time a script says in a
+       sentence about the tide or the ferry must be one of the times it was given (within five minutes; a bare hour
+       within fifteen), and a 24-hour time read aloud never passes. One that doesn't match gets one more ask, naming
+       it (`WRONG TIMES`). Run over the night's own news weathers it flags 13 of 20. In two more replays of the
+       twelve items it asked again once in 24, and the retry was right; read by hand, every clock time in both runs
+       was a time given.
+     - **Still open, and the check can't see it:** the tense. With the right times, about one item in four still
+       tells something to come as done or the reverse ("the ferry has stopped for the night" at 21:41, an hour
+       and a quarter early; "the first boat was seven o'clock this morning" at 06:31). A slip that happens to be
+       another of the given times also gets by ("twenty to eleven" for 22:48 is tomorrow's last ferry).
 2. **Results and people change between items.**
    - Coastwide gave the Tides' result three ways in twenty minutes: "at home to Saltby Rovers this afternoon" (19:00),
      "shared the points" and "draw one apiece" (19:03 to 19:20), then three-one. The news and Full Time had it right.

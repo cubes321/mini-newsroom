@@ -18,6 +18,7 @@ at 22:36 made it 21:30, and the show kept saying so).
 from __future__ import annotations
 
 import math
+import re
 from datetime import date, datetime, timedelta
 
 EPOCH_HW = datetime(2026, 1, 1, 4, 52)    # a high water at Port Wexley
@@ -192,6 +193,93 @@ def for_prompt(day: date, map_state: str | None = None, now: datetime | None = N
              "tomorrow's: today's are never given as tomorrow's. Nobody is on the ferry, or just off it, while it is "
              "not running."]
     return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ what a script said
+
+_NUM = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+    "eighteen nineteen twenty".split())}
+_NUM.update({"twenty-one": 21, "twenty-two": 22, "twenty-three": 23, "twenty-four": 24, "twenty-five": 25,
+             "twenty-six": 26, "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29, "quarter": 15, "a quarter": 15,
+             "half": 30})
+_TENS = {"oh five": 5, "ten": 10, "fifteen": 15, "twenty": 20, "twenty-five": 25, "thirty": 30, "thirty-five": 35,
+         "forty": 40, "forty-five": 45, "fifty": 50, "fifty-five": 55, "forty-eight": 48, "thirty-eight": 38,
+         "twenty-two": 22, "thirteen": 13}
+_H12 = "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve"
+_H24 = _H12 + "|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty-one|twenty-two|twenty-three|twenty"
+_MINS = "|".join(sorted((k for k in _NUM if k not in ("zero",)), key=len, reverse=True))
+_WATER = re.compile(r"\b(high water|low water|high tide|low tide|ferry|ferries|crossing|crossings|sailing|sailings)\b", re.I)
+_WATER_LOWER = re.compile(r"\b(tides?|[Tt]he low|[Tt]he high|landing)\b")       # lower case only: not "the Tides"
+_PAST_TO = re.compile(rf"\b({_MINS}|\d{{1,2}})(?: minutes?)? (past|to) ({_H12}|midnight|midday|noon)\b", re.I)
+_OCLOCK = re.compile(rf"\b({_H12}) o'clock\b", re.I)
+_DIGITS = re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b")
+_SPOKEN_24 = re.compile(rf"\b({_H24}) ({'|'.join(sorted(_TENS, key=len, reverse=True))})\b", re.I)
+_BARE = re.compile(rf"\b(?:at|from|until|till|by|before|after)(?: just| about| around)? ({_H12}|midnight|midday|noon)\b"
+                   r"(?! (?:point|degrees|metres|minutes|past|to|o'clock|and a|or|of|hundred|thousand|boats|people|years)\b)"
+                   r"(?!-)", re.I)
+SLACK_MIN = 5                      # "ten to eleven" for 22:48, "quarter past eleven" for 11:13
+BARE_SLACK_MIN = 15                # "just before eleven" for 22:48, "from seven" for 07:00
+
+
+def _hour(word: str) -> int:
+    word = word.lower()
+    return 0 if word in ("midnight", "midday", "noon", "twelve") else _NUM[word]
+
+
+def clock_times(text: str) -> list[tuple[str, int, int]]:
+    """The clock times a piece of text says, as (the words, minutes round a twelve-hour clock, how many minutes
+    out it may be): "twenty-five to five" and "16:35" are both 275. A bare hour ("just before eleven") is looser.
+    A 24-hour time read aloud ("sixteen thirty-five") has -1 for its minutes: it is never how anyone says it."""
+    found, taken = [], []
+
+    def add(m, minutes, slack=SLACK_MIN):
+        if not any(a < m.end() and m.start() < b for a, b in taken):
+            taken.append(m.span())
+            found.append((m.group(0), -1 if minutes is None else minutes % 720, slack))
+    for m in _PAST_TO.finditer(text):
+        n = int(m.group(1)) if m.group(1).isdigit() else _NUM[m.group(1).lower()]
+        h = _hour(m.group(3))
+        add(m, h * 60 + n if m.group(2).lower() == "past" else h * 60 - n)
+    for m in _SPOKEN_24.finditer(text):
+        h = _NUM[m.group(1).lower()]
+        add(m, None if h > 12 else h * 60 + _TENS[m.group(2).lower()])
+    for m in _DIGITS.finditer(text):
+        add(m, int(m.group(1)) * 60 + int(m.group(2)))
+    for m in _OCLOCK.finditer(text):
+        add(m, _hour(m.group(1)) * 60)
+    for m in _BARE.finditer(text):
+        add(m, _hour(m.group(1)) * 60, BARE_SLACK_MIN)
+    return found
+
+
+def given(now: datetime, map_state: str | None = None) -> list[datetime]:
+    """Every time `for_prompt` gives the writer at `now`: today's and tomorrow's waters, each day's first and last
+    ferry and the edges of its gaps, and the hour itself."""
+    out = [now]
+    for day in (now.date(), now.date() + timedelta(days=1)):
+        out += [t for t, _, _ in tides(day)]
+        f = ferry(day, map_state if day == now.date() else None)
+        if f["sailings"]:
+            out += [f["sailings"][0], f["sailings"][-1]] + [x for gap in f["gaps"] for x in gap]
+    return out
+
+
+def clock_slips(lines: list[str], now: datetime, map_state: str | None = None) -> list[str]:
+    """The clock times said in a sentence about the tide or the ferry that are none of the times given, within
+    SLACK_MIN minutes: the words, as said. The facts were right and Haiku still reworded one now and then: "twenty
+    to eleven" for 22:48, "five to twelve" for 12:03, a 21:58 gap as "two minutes to two" (the replays of
+    2026-11-22)."""
+    ok = [(t.hour % 12) * 60 + t.minute for t in given(now, map_state)]
+    slips = []
+    for line in lines:
+        for sentence in re.split(r"(?<=[.!?])\s+", line or ""):
+            if not (_WATER.search(sentence) or _WATER_LOWER.search(sentence)):
+                continue
+            for words, minutes, slack in clock_times(sentence):
+                if minutes < 0 or not any(min(abs(minutes - t), 720 - abs(minutes - t)) <= slack for t in ok):
+                    slips.append(words)
+    return list(dict.fromkeys(slips))
 
 
 if __name__ == "__main__":

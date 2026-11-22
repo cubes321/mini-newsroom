@@ -137,3 +137,53 @@ def test_a_time_is_given_in_the_words_to_say():
                      (datetime(2026, 11, 22, 17, 25), "at twenty-five past five tomorrow evening (17:25)"),
                      (datetime(2026, 11, 22, 23, 38), "just before twenty to twelve tomorrow night (23:38)")):
         assert tides.said(t, now) == words
+
+
+def test_a_reworded_tide_or_ferry_time_is_caught():
+    """The facts were right and Haiku still reworded a time now and then (the replays of 2026-11-22)."""
+    from datetime import datetime
+
+    now = datetime(2026, 11, 21, 21, 35)                # Saturday: 04:10, 10:22, 16:35, 22:48; Sunday: 05:00, 11:13, 17:25
+    slips = lambda *lines: tides.clock_slips(list(lines), now, "sunny")  # noqa: E731
+    assert slips("High water was twenty-five to five this afternoon, five point two metres.") == []
+    assert slips("High water was twenty-five past four this afternoon.") == ["twenty-five past four"]
+    assert slips("Low water comes just before ten to eleven tonight.", "Low water is just before eleven tonight.") == []
+    assert slips("The low at twenty past eleven tomorrow is the one to watch.") == ["twenty past eleven"]   # 11:13
+    # a slip that happens to be another of the times given gets by: "twenty to eleven" is tomorrow's last ferry
+    assert slips("The low at twenty to eleven tonight is the last one.") == []
+    assert slips("High water tomorrow is at five o'clock in the morning and again at twenty-five past five.") == []
+    assert slips("The evening high tide is at twenty-five to six.") == ["twenty-five to six"]
+    assert slips("The last ferry leaves at twenty to twelve tonight.", "The last crossing is at twenty to midnight.") == []
+    assert slips("There is no ferry from two minutes to two.") == ["two minutes to two"]
+    assert slips("The ferry stops from just before ten until twenty to twelve.") == []
+    assert slips("Tomorrow the ferry runs from seven, with none from twenty-five past ten until five to twelve.") == ["five to twelve"]
+    assert slips("High water at sixteen thirty-five was a big one.") == ["sixteen thirty-five"]       # never a 24-hour clock
+    assert slips("High water was at 16:35, five point two metres.") == []
+    # only where the tide or the ferry is the subject, and never the Tides
+    assert slips("The Tides kicked off at three and won three-one.", "Dougal has been up the ladder since six.") == []
+    assert slips("It is twenty-five to ten and the ferry is still running.") == []                    # the hour itself
+    assert slips("The tide is at five point two metres, and it is four degrees.") == []
+
+
+def test_the_writer_is_asked_again_for_a_time_that_is_none_of_those_given(monkeypatch):
+    from datetime import datetime
+
+    from newsroom import llm, schedule, world as world_mod, writers
+    from newsroom.models import Segment, SegmentType as T
+
+    w = world_mod.seed()
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        again = "WRONG TIMES" in user
+        return schema.model_validate({
+            "headline": "Clear and cold, with big tides", "map_state": "sunny", "temp_c": 4,
+            "lines": [{"speaker": "weather", "text": "High water was " + ("twenty-five to five" if again else
+                                                                           "twenty-five past four") + " this afternoon."}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    monkeypatch.setattr(llm, "provider_for", lambda task: "claude_haiku")
+    airs = datetime(2026, 11, 21, 21, 35).timestamp()
+    seg = writers.script_segment(Segment(slot_id=5, type=T.weather, show="news", target_s=60.0, nominal_start_ts=airs), w)
+    assert len(asked) == 2 and 'WRONG TIMES: the script said "twenty-five past four"' in asked[1]
+    assert "twenty-five to five" in seg.lines[0].text and not seg.fallback
