@@ -49,6 +49,15 @@ MAX_ARCHIVE = 1000
 UNAIRED_KEEP_S = 3600.0         # a written segment not on air within the hour never will be (the buffer is ten minutes)
 MAX_THREADS = 120               # closed, then faded, threads beyond this are dropped; open ones never are
 THREAD_PEOPLE = 4               # a thread's people, as the desk lists them; appended to, t220 reached 22 (2026-10-31)
+RECENT_ITEMS = 150              # today's last items that rested_line counts people and traits in: about two hours
+OFTEN_TODAY = 6                 # of those, the items naming a resident before the writers are told to rest them
+RESTED = 8                      # the most named at once
+SAME_FIRST_NAME = 3             # different people today with one first name before it is rested
+TIC_TODAY = 3                   # times today a presenter's trait has been said aloud before it is rested
+# A presenter's trait that the writers say aloud, as (how it is put to them, what finds it said in an item's text).
+TICS = {"always slightly out of breath": ("out of breath", r"out of breath|breathless|puffed|run the length|"
+                                                         r"ran all the way|catch(?:es|ing)? his breath")}
+# not "been running": "Dolores Finch has been running this" (an appeal) in the replay of 2026-11-22
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
@@ -358,12 +367,49 @@ class World:
                else "") +
             f"{self._council_calendar(sitting)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
+            f"{self.rested_line()}"
             f"Last weather: {wx_line}\n"
             f"{talk.line(self, date.fromisoformat(self.last_date))}"
             f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
             f"{self._waiting_line()}"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
+
+    def rested_line(self) -> str:
+        """Who and what has been on a lot today, for the writers to rest: on the 2026-11-21 night Dolores Finch was
+        in about 28 of the evening news's items and Marjorie Pell in 18 scripts on four shows, seven Coastwide
+        guests were called Ruth, and Miles was "out of breath" 22 times (his trait in the briefing, said aloud). The
+        briefing's residents are the most seen, so the same few were offered all night; this comes after the cache
+        break, as it changes with every item. People in public office are left: stories need them."""
+        today = [e for e in self.archive if e.get("date") == self.last_date and not e.get("fiction")]
+        recent = today[-RECENT_ITEMS:]                 # the last couple of hours: the morning's don't rest anyone
+        counts: dict[str, int] = {}
+        for e in recent:
+            for pid in set(e.get("people") or []):
+                counts[pid] = counts.get(pid, 0) + 1
+        # Not "except a story's people": naming someone in a filed item puts them on its thread (record_aired), so
+        # Dolores Finch, the most named of all, would be let off. An item about them may still have them.
+        seen = sorted(((p, n) for pid, n in counts.items() if n >= OFTEN_TODAY
+                       and (p := self.person(pid)) and p.kind in ("resident", "worthy")), key=lambda x: -x[1])[:RESTED]
+        firsts: dict[str, set] = {}
+        for pid in {pid for e in today for pid in e.get("people") or []}:
+            if (p := self.person(pid)) and p.name:
+                firsts.setdefault(p.name.split()[0], set()).add(p.name)
+        names = sorted((f, len(s)) for f, s in firsts.items() if len(s) >= SAME_FIRST_NAME)
+        tics = [(c.name.split()[0], what, n) for c in self.characters for trait in c.traits
+                if (pat := TICS.get(trait)) and (what := pat[0])
+                and (n := sum(1 for e in recent if re.search(pat[1], e.get("text") or "", re.I))) >= TIC_TODAY]
+        out = []
+        if seen:
+            out.append("ON A LOT LATELY (give someone else a turn: none of these unless the item is about them): "
+                       + ", ".join(f"{p.name} ({n} items)" for p, n in seen))
+        if names:
+            out.append("FIRST NAMES ALREADY WORN BY SEVERAL PEOPLE TODAY (anyone new is called something else): "
+                       + ", ".join(f"{f} ({n})" for f, n in names))
+        if tics:
+            out.append("SAID ENOUGH TODAY (leave it out of this item): "
+                       + "; ".join(f"{who} {what} ({n} times)" for who, what, n in tics))
+        return "".join(f"{line}\n" for line in out)
 
     @_locked
     def briefing_threads(self, auction: bool = True) -> list[Thread]:
