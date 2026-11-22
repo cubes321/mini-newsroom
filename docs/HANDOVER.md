@@ -179,9 +179,9 @@ scripts': The Inquiry is Pat's, and the sheet's 11 degrees was the night before'
 the hand-over that thanks the speaker; turns in code for the other loops, as for The Chamber; the hour and the day
 for the documentaries and for Sunday; why Coastwide had the match as still to come.
 
-### The rest of the review, fixed on the afternoon of 2026-11-22 (`1c7b43a..f038c37`, not pushed, not aired)
+### The rest of the review, fixed on the afternoon of 2026-11-22 (`1c7b43a..b60c15a`, not pushed, not aired)
 
-Eight commits, one fault each, 1,187 tests passing.
+Eight commits, one fault each, then one that tightens them (`b60c15a`, below). 1,189 tests pass.
 
 **How they were checked.**
 - Each was run over that night's aired scripts: the 322 that went out via the model, matched to their final
@@ -190,7 +190,12 @@ Eight commits, one fault each, 1,187 tests passing.
   at the night's own times.
 - **A fault in the replay harness, now fixed:** the first replays loaded the copy before setting the clock, so
   it rolled to the real date. Every Saturday item's briefing said "TODAY IS ... Sunday" against a clock line
-  saying Saturday. Those replays were run again with the date right. The numbers below are from the second runs.
+  saying Saturday.
+  - The tide, darts and Sunday, Coastwide, and Inquiry and Panel replays were run again on the final code
+    (`b60c15a`) with the date right; their numbers below are from those runs.
+  - The sport and the 21:00 news replays were not re-run.
+- No replay went through the producer or a real running order: no booked rundown, no buffer, no voices. A
+  scratch hour would be the next check.
 - The harness is in this session's scratchpad, not the repo: `env.py` (paths first), `replay.py`,
   `replay_special.py`.
 
@@ -202,8 +207,12 @@ Eight commits, one fault each, 1,187 tests passing.
      - the ferry finished before its last boat, or running (or somebody on it) while it isn't.
    - A slip gets the clock check's one more ask, with both kinds of note in it.
    - **On the night's sentences:** of 221 tide and ferry sentences it flags 18, all wrong by hand.
-   - **Replayed:** 18 items at the night's times, of which 1 stood wrong after its second ask: 06:40's gap end,
-     "twelve minutes past twelve" for 12:03. On the night 13 of the 14 news weathers had something wrong.
+   - **Replayed on the final code:** 18 items at the night's times. It asked again three times, and every item
+     given the tides came out right. On the night 13 of the 14 news weathers had something wrong.
+     - One sentence was wrong in an item that isn't given the tides, so isn't checked: a news field report at
+       22:50, "the tide is high by ten tonight".
+     - An earlier run had one standing after its second ask: 06:40's gap end, "twelve minutes past twelve" for
+       12:03.
    - "thirty-five minutes past four" no longer parses as "five minutes past four".
    - **Still open:** a sentence with no word for the day ("Ferry runs every half hour from seven..." at 21:41,
      about tomorrow) passes.
@@ -243,12 +252,20 @@ Eight commits, one fault each, 1,187 tests passing.
    - **Trails:** a middle link is told what comes next, to the next link (`_coming_up`): the kind of item and
      the planned subject and guest (`rundown.peek`), only what fits before the close.
    - **The close:** all five closes that night opened "Good evening". The close is told no hello.
-   - **Replayed:** four links, the items between them and the close. Every trail matched what came next, the
-     headlines all differed, and the close had no hello.
+   - **Coastwide only** (`LINKS_TRAIL`). Out and About, Rock Pool and Quayside remember their items too, but
+     their links were never tried with the trail.
+   - **A test walks the producer through Coastwide**, through the wrap, and checks each link's trail against the
+     items it really plans next.
+   - **Replayed on the final code:** four links, the items between them and the close.
+     - The headlines all differed, and the close had no hello.
+     - Each trail was the kind of item that came next. Twice, with no running order booked, a trail named a
+       subject the next writer didn't take: "the Port Wexley Rowing Club", where the brief was only "a club, a
+       team or a society", and the film was the Wexley Ramblers.
    - **Still open:**
-     - Two middle links opened "Good evening, and welcome back to the middle of Coastwide", parroting the
-       prompt's place line.
-     - Four links opened "Clive, you have been quiet...".
+     - The links open alike: "Clive, you've got the look of a man with a fact in his pocket" three times in
+       four.
+     - An earlier run had two middle links open "Good evening, and welcome back to the middle of Coastwide",
+       parroting the prompt's place line.
      - The Inquiry's four questions to each new guest are as they were.
 5. **The 24-hour clock and the sport facts** (`b950e21`).
    - **The repair:** `writers.clock_read_out` says a 24-hour time read aloud as people say it, where a time's cue
@@ -265,11 +282,17 @@ Eight commits, one fault each, 1,187 tests passing.
    - **The Inquiry:** its paper-trail brief no longer asks "what the minutes show".
    - **The Panel:** it is told the next council is a fact for the debate, not a line to read out. Its goodbye
      says when it is back (`panel.back_on`).
-   - **Replayed** with that night's bookings:
+   - **Replayed** with that night's bookings, twice:
      - Thorne said "The budget committee has not decided anything on the wall", and the mayor "there is no date
-       set for a decision yet".
-     - The close said "back tomorrow night at half past eight".
-     - One invented date was left: "The costing lands by Friday the thirteenth".
+       set for a decision yet" and "There is no date I can give you tonight, and I won't invent one".
+     - Both closes said "The Panel is back tomorrow night at half past eight".
+   - **Slipped through:**
+     - An invented date: "The costing lands by Friday the thirteenth" (first run).
+     - Dana read the council line out in a middle round on the final code: "Thursday the third of December, live
+       on The Chamber at eight".
+     - Marjorie claimed "We have the minutes": the Historical Society's.
+     - On the final code, The Inquiry's paper-trail film booked THE GUEST twice and aired a stand-in, the same
+       fault the night had at 20:14. The run before had that slot right.
 7. **The same few people and tics** (`d67e634`).
    - **The rest line:** after the cache break the briefing names:
      - the residents named in 6 of the last 150 items, at most eight, to rest unless the item is about them;
@@ -284,6 +307,20 @@ Eight commits, one fault each, 1,187 tests passing.
    - The running order had "Ruby Tennant on finishing her twelve-hour row" with no guest, and Coastwide booked
      "Ned Carrow", who told her row under her caption.
    - An interview slot whose subject names someone we know now books them. Unit tested only.
+9. **Tightened after a review of the eight** (`b60c15a`). What they would have got wrong on air:
+   - **The 24-hour repair took years, prices and counts for times:** "by nineteen thirty", "before twenty
+     twenty-seven", "went at twenty-three thirty-eight a kilo", "a petition at thirteen hundred and forty-one".
+     - Its cues are now "at", "kick-off", "leaves", "comes" and the like, not "by", "from", "until", "before" or
+       "after".
+     - Over every reply on record (70,740 texts, all days) it changes 370. Those outside a tide, ferry or
+       kick-off sentence were read one by one, and the rest by their context: all are times.
+   - **The rest line would have told The Panel to rest its own panellists.** An item's booked people are never
+     rested (`writers._booked_here`), and a quiz or a debate from outside gets no rest line.
+   - **The Saturday note** no longer says there's sport in the afternoon, and a Christmas special day gets none.
+   - **The Panel's goodbye** asks the schedule, not the council's calendar.
+   - **Seventext's sport page and the stand-in sports script** keep the old compact line
+     (`sport.summary(said=False)`). Seventext's council notice leaves out the committee sentence.
+   - **New town canon:** Sunday's shops on Harrow Street open about ten and shut early (`schedule.day_note`).
 
 **Still open from the review:**
 - Results and details that drift within a show: the rope fitted at 18:41 and "on order" at 21:58; the red
