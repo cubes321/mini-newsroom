@@ -200,7 +200,16 @@ def take(world: World, show: schedule.Show, pos) -> dict | None:
         if str(pos) in r["taken"]:
             return None
         r["taken"].append(str(pos))
-    return r["slots"][str(pos)]
+    slot = dict(r["slots"][str(pos)])
+    # An interview about someone we know is with them. On 2026-11-21 the plan had "Ruby Tennant on finishing her
+    # twelve-hour row" with no guest, and Coastwide booked "Ned Carrow, retired ferry deckhand", who told her row
+    # as his own under her caption.
+    if slot.get("type") == T.interview.value and not slot.get("guest"):
+        subject = slot.get("subject") or ""
+        named = next((p.name for p in world.people if p.name and p.name in subject), None)
+        if named:
+            slot["guest"] = named
+    return slot
 
 
 def theme(world: World, show: schedule.Show) -> str:

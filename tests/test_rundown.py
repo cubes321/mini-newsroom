@@ -138,3 +138,19 @@ def test_the_producer_tags_each_item_with_its_place_in_the_order(evening):
     segs = [p.plan_one() for _ in range(6)]
     assert [s.show for s in segs] == ["magazine"] * 6
     assert [s.work.get("order_pos") for s in segs] == list(range(6))
+
+
+def test_an_interview_about_someone_we_know_is_with_them(evening):
+    """2026-11-21: "Ruby Tennant on finishing her twelve-hour row", no guest booked, and Coastwide had "Ned Carrow,
+    retired ferry deckhand" tell her row as his own under her caption."""
+    w = _town()
+    w.rundowns = [{"date": w.last_date, "show": "magazine", "title": schedule.SHOWS["magazine"].title, "theme": "",
+                   "taken": [], "slots": {
+                       "3": {"type": "interview", "subject": "Bernard Moss on fifty years of sails"},
+                       "4": {"type": "feature", "subject": "Ivy Marchetti's harbour at dawn"},
+                       "5": {"type": "interview", "subject": "a newcomer who stayed"}}}]
+    show = schedule.SHOWS["magazine"]
+    assert rundown.take(w, show, 3)["guest"] == "Bernard Moss"
+    assert not rundown.take(w, show, 4).get("guest")         # a film isn't booked a guest
+    assert not rundown.take(w, show, 5).get("guest")
+    assert "guest" not in w.rundowns[0]["slots"]["3"]          # the plan itself is as it was
