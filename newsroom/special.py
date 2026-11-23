@@ -247,6 +247,41 @@ def airs_at(seg: Segment) -> str:
     return "WHEN IT AIRS: " + schedule.clock_line(when)
 
 
+EARLIER = 5                        # earlier documentaries and specials a new one is shown
+EARLIER_CHARS = 400                # of each, as the archive keeps it
+_COMMON_WORDS = {"wexley", "about", "their", "there", "where", "which", "story", "night", "after", "before", "still",
+                 "harbour", "town's", "would", "could", "being", "these", "those", "other", "every"}
+
+
+def earlier_programmes(seg: Segment, world: World) -> str:
+    """The documentaries and specials already aired that share this one's people or words, whatever thread they were
+    on, so a new one keeps to what they said. Each piece saw only its own thread's: on 2026-11-22 one put the wage book
+    "here, in the property store" (t447) and the next said it "isn't in this building" (t640); one had the lifeboat
+    crew's suits "every one of them paid for and fitted" (t572), another two with "seals unstitched" (t626)."""
+    t = world.thread(seg.thread_id)
+    people = [p.name for pid in (t.people if t else []) if (p := world.person(pid))]
+    blob = " ".join([seg.headline or "", t.title if t else "", " ".join(seg.work.get("search_terms", [])), *people])
+    words = {w for w in re.findall(r"[a-z']+", blob.lower()) if len(w) > 4} - _COMMON_WORDS
+    if not words:
+        return ""
+    scored = []
+    for e in world.aired_archive():
+        if (e.get("type") not in ("documentary", "special") or e.get("fiction")
+                or (seg.content_hash and e.get("hash") == seg.content_hash)):
+            continue
+        text = f"{e.get('headline', '')} {e.get('text', '')}".lower()
+        score = sum(1 for w in words if w in text) + sum(2 for n in people if n.lower() in text)
+        if score >= 2:
+            scored.append((score, e))
+    picked = [e for _, e in sorted(scored, key=lambda x: -x[0])[:EARLIER]]
+    if not picked:
+        return ""
+    return ("EARLIER PROGRAMMES on related things (they aired: keep to what they said, and contradict none of it; "
+            "where this piece knows more, it says what has changed since):\n"
+            + "\n".join(f"  - {e['date']}, {e['type']}: {e.get('headline', '')}: {e.get('text', '')[:EARLIER_CHARS]}"
+                        for e in sorted(picked, key=lambda e: e.get("date", ""))))
+
+
 def write_outline(seg: Segment, world: World) -> SpecialOutline:
     angle = seg.work.get("angle", "")
     subject = story_so_far(world, seg.thread_id) or f"Subject: {seg.headline}"
@@ -258,6 +293,7 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
         f"Total length about {_word_budget(seg.target_s)} words of speech across all sections, "
         f"plus a short anchor intro and outro.\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
+        + (earlier + "\n\n" if (earlier := earlier_programmes(seg, world)) else "")
         + (documentary.clips_for_prompt(seg) + "\n\n" if doc and seg.work.get("clips") else "")
         + f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     )
@@ -324,6 +360,7 @@ def write_section(seg: Segment, world: World, outline: SpecialOutline, i: int, w
         f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n{airs_at(seg)}\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
         + (record + "\n\n" if record else "")
+        + (earlier + "\n\n" if (earlier := earlier_programmes(seg, world)) else "")
         + f"{'DOCUMENTARY' if doc else 'SPECIAL REPORT'}: {outline.title}\n{outline.standfirst}\n"
         f"Section {i + 1} of {len(outline.sections)}: {sec.heading}\n"
         f"Beats to cover:\n" + "\n".join(f"  - {b}" for b in sec.beats) + "\n"

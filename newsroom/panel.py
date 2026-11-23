@@ -65,6 +65,7 @@ def _stories(world: World):
 
 def _people(world: World):
     _, guest = _not_tonight(world)
+    guest = set(guest) | {p.name for p, _ in world.rested_names()}     # nobody on a lot today
     official = [p for p in world.people if p.kind in ("official", "worthy") and p.name not in guest]
     residents = sorted((p for p in world.people if p.kind == "resident" and p.name not in guest),
                        key=lambda p: -p.appearances)[:RESIDENTS]
@@ -118,12 +119,32 @@ def _booked(world: World) -> dict:
 def brief_for(world: World, brief: str) -> str:
     """An item's brief with tonight's questions in their own words: "{q2}" is the second. Told "the SECOND
     of TONIGHT'S QUESTIONS", the vox pop took another question on three runs in a row (2026-10-30 to 31)."""
-    qs = _booked(world)["questions"]
+    booked = _booked(world)
+    qs = booked["questions"]
 
     def question(m: re.Match) -> str:
         n = int(m.group(1)) - 1
         return f"\"{qs[n]['question'].strip()}\"" if n < len(qs) else "one of TONIGHT'S QUESTIONS"
+    if "{qback}" in brief and qs:
+        n = _back_to(world, booked)
+        brief = brief.replace("{qback}", f"\"{qs[n]['question'].strip()}\"") + (
+            " Don't give the question a number (not \"our fourth question\" or \"the first question\").")
     return re.sub(r"\{q(\d)\}", question, brief)
+
+
+def _back_to(world: World, booked: dict) -> int:
+    """Which of tonight's questions a loop item goes back to: the one gone back to least, then the one with fewest
+    items so far, then the earliest, and recorded on the booking. The opening and the first debate both have the
+    first question, the vox pop and the second debate the second; on 2026-11-22 the email ("{q1}") and "the
+    question that split them most" took the first again, and its engine question aired four times."""
+    with world.lock:
+        briefs = [e.get("brief") or "" for e in world.archive if e.get("date") == world.last_date
+                  and e.get("show") == SHOW]
+        back = booked.setdefault("went_back", [])
+        n = min(range(len(booked["questions"])),
+                key=lambda i: (back.count(i), sum(f"{{q{i + 1}}}" in b for b in briefs) + back.count(i), i))
+        back.append(n)
+    return n
 
 
 def for_prompt(world: World) -> str:

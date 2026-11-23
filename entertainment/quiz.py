@@ -287,6 +287,7 @@ def _play(booking: QuizBooking, ts: list[dict], seed: str, quotes: list | None =
 
 
 QUOTE_CHARS = 170
+QUOTE_REACH = (7, 14, 28)          # days back Who Said That? looks for its lines, the week first
 
 
 def _finished(said: str) -> str | None:
@@ -303,25 +304,32 @@ def _finished(said: str) -> str | None:
 def _quotes(world: World, ts: list[dict], booking: QuizBooking) -> list[Question]:
     """Who Said That?: six lines the week's guests said on channel 7, as the town remembers them (Person.memories),
     six different people, none of tonight's contestants, and never a line that names its speaker. A public
-    figure is easy, a resident heard twice middling, a once-heard caller hard. Topped up from the bank if the
-    week is thin, so the round always has six."""
-    since = (date.fromisoformat(world.last_date) - timedelta(days=7)).isoformat()
+    figure is easy, a resident heard twice middling, a once-heard caller hard. A thin week reaches back a fortnight,
+    then a month, before the bank tops it up: the creative editor heard "prune" and "smallest prime" in Who Said That?
+    at the 2026-11-16 rehearsal, where four of the week's lines were all it found ("find six real quotes")."""
     playing = {m for t in ts for m in t["members"]}
+    today = date.fromisoformat(world.last_date)
     lines = []
-    for p in world.people:
-        if p.name in playing:
-            continue
-        words = {w.lower() for w in re.findall(r"[A-Za-z']+", p.name) if len(w) > 2}
-        mine = [(m, said) for m in p.memories if m.get("date", "") >= since and m.get("said")
-                and not words & {w.lower() for w in re.findall(r"[A-Za-z']+", m["said"])}
-                and (said := _finished(m["said"]))]
-        if mine:
-            m, said = mine[-1]
-            level = 1 if p.kind == "official" else 2 if len(p.memories) > 1 else 3
-            day = date.fromisoformat(m["date"]).strftime("%A")
-            lines.append(Question(question=f"Who said this on {m['show']} on {day}: {said}",
-                                  answer=(f"{p.name}, {p.role}" if p.role and p.role != "resident" else p.name)[:80],
-                                  difficulty=level))
+    for back in QUOTE_REACH:
+        since = (today - timedelta(days=back)).isoformat()
+        lines = []
+        for p in world.people:
+            if p.name in playing:
+                continue
+            words = {w.lower() for w in re.findall(r"[A-Za-z']+", p.name) if len(w) > 2}
+            mine = [(m, said) for m in p.memories if m.get("date", "") >= since and m.get("said")
+                    and not words & {w.lower() for w in re.findall(r"[A-Za-z']+", m["said"])}
+                    and (said := _finished(m["said"]))]
+            if mine:
+                m, said = mine[-1]
+                level = 1 if p.kind == "official" else 2 if len(p.memories) > 1 else 3
+                when = date.fromisoformat(m["date"])
+                day = when.strftime("%A") if (today - when).days < 7 else f"{when:%A} {when.day} {when:%B}"
+                lines.append(Question(question=f"Who said this on {m['show']} on {day}: {said}",
+                                      answer=(f"{p.name}, {p.role}" if p.role and p.role != "resident" else p.name)[:80],
+                                      difficulty=level))
+        if len(lines) >= PER_ROUND:
+            break
     rng = random.Random(f"wits-quotes-{world.last_date}")
     picked = rng.sample(lines, min(PER_ROUND, len(lines)))
     names = [q.answer.split(",")[0] for q in lines]

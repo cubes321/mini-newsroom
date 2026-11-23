@@ -604,18 +604,21 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "the quick-fire round: Dana's short questions on the week's smaller stories not discussed tonight, a "
                 "line or two from each panellist",
                 # "one of TONIGHT'S QUESTIONS" was the last one, five times over (2026-10-31)
-                "a viewer's email about tonight's opening question, {q1}, which the panel has already debated: Dana "
-                "reads it out as a reply to what they said then, and they answer it and each other (it is not the "
-                "first question over again, and not \"the first question tonight\")",
-                "back to the question that split them most tonight: Dana puts the others' arguments to each "
+                # "{qback}" is a question debated already that hasn't been gone back to (panel.brief_for): given
+                # "{q1}" here and "the question that split them most", the engine question was asked four times on
+                # 2026-11-22.
+                "a viewer's email about one of tonight's questions the panel has already debated, {qback}: Dana "
+                "reads it out as a reply to what they said then, and they answer it and each other (it is not that "
+                "question over again)",
+                "back to a question that split them tonight, {qback}: Dana puts the others' arguments to each "
                 "panellist and asks whether anything has changed their mind",
                 "the week ahead: what each expects from the next council or harbour board meeting, and what they "
                 "would do in its place",
                 "one thing each would change in Port Wexley tomorrow, and the others say why it wouldn't work",
             ),
             T.vox_pop: (
-                "Miles asks people in town the question the panel argued over most tonight; the last of them puts "
-                "a challenge to one panellist by name",
+                "Miles asks people in town about a question the panel argued over tonight, {qback}; the last of "
+                "them puts a challenge to one panellist by name",
                 "Miles asks people what the panel has missed tonight",
             ),
         },
@@ -1104,11 +1107,20 @@ def day_note(ts: float) -> str:
         return ""
     wd = time.localtime(ts).tm_wday
     if wd == 6:
+        # Not "open late (about ten)": the news read it as open until ten that night, five bulletins from 21:05 on
+        # 2026-11-22.
         return (" It is Sunday: no school and no school run, no fish auction and hardly a commute; the shops on "
-                "Harrow Street open late (about ten) and shut early; church bells, the Sunday papers, a roast.")
+                "Harrow Street don't open until about ten in the morning and shut by mid-afternoon; church bells, the "
+                "Sunday papers, a roast.")
     if wd == 5:                 # not the sport: a Saturday may have no game (SPORT FACTS say)
         return " It is Saturday: no school and no school run, and no fish auction; the market and the shops are open."
-    return ""
+    # A weekday says so: Monday's Morning Tide had "the weekend is nearly here" (2026-11-23), with nothing to say not.
+    if wd == 0:
+        return " It is Monday: the weekend is over and the working week begins."
+    if wd == 4:
+        return " It is Friday: the last working day of the week; the weekend starts tomorrow."
+    return (f" It is {time.strftime('%A', time.localtime(ts))}, a working day; the weekend is "
+            f"{5 - wd} days off.")
 
 
 def get(show_id: str | None, ts: float | None = None) -> Show:

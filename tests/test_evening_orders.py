@@ -63,7 +63,7 @@ def test_the_inquirys_other_voices_are_never_its_guest(monkeypatch):
         name = "Ivy Marchetti" if len(asked) == 1 else "Ruth Abney"
         return schema.model_validate({
             "headline": "Who pays for the wall", "lower_third": "The Inquiry", "guest_name": name,
-            "guest_role": "crabber", "guest_gender": "f",
+            "guest_role": "Harbourmaster" if name == "Ivy Marchetti" else "crabber", "guest_gender": "f",
             "lines": [{"speaker": "mag_a", "text": "Who pays?"}, {"speaker": "guest", "text": "Not the crabbers."}]})
     monkeypatch.setattr(llm, "complete_json", write)
     seg = Segment(slot_id=40, type=T.interview, show="inquiry", part="other", target_s=210,

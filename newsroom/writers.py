@@ -18,7 +18,7 @@ import re
 import string
 import time
 from collections import deque
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Callable
 
 from . import (breaking, calendar, channel, chamber, council, inquiry, llm, outabout, panel, phonein, quay, rundown,
@@ -101,7 +101,7 @@ _SYSTEM: dict[SegmentType, str] = {
 This is the WEATHER segment. The weather presenter speaks (speaker id "weather"),
 optionally after a one-sentence handover from "anchor".
 Pick a plausible map_state for a coastal town and a temperature in Celsius.
-Mention tomorrow briefly. Be cheerful; a small sailing aside is in character.
+Mention tomorrow briefly. Be cheerful; a small sailing aside is in character (after dark, about tomorrow's sailing).
 """,
     SegmentType.bulletin: _COMMON_RULES + """
 This is the NEWS BULLETIN. The anchor (speaker id "anchor") reads two or three short
@@ -774,6 +774,7 @@ _NO_PLACE = {SegmentType.bumper, SegmentType.ad_break, SegmentType.testcard, Seg
 
 CAME_ROUND = 6                     # the earlier headlines a brief that has come round again is shown
 CAME_ROUND_SHOWS = ("late", "sport", "panel", "inquiry")
+CAME_ROUND_CHARS = 220             # of each earlier item's text: the letter's question is in its first lines
 
 
 def _came_round(world: World, show: schedule.Show, seg_type: SegmentType, brief: str) -> str:
@@ -787,14 +788,24 @@ def _came_round(world: World, show: schedule.Show, seg_type: SegmentType, brief:
     if not brief or show.id not in CAME_ROUND_SHOWS:       # the others have a memory of their own for it
         return ""
     with world.lock:
-        before = [e["headline"] for e in world.archive if e["date"] == world.last_date and e.get("show") == show.id
-                  and e.get("brief") == brief and e["type"] == seg_type.value and e.get("headline")]
+        before = [(e["headline"], e.get("text") or "") for e in world.archive if e["date"] == world.last_date
+                  and e.get("show") == show.id and e.get("brief") == brief and e["type"] == seg_type.value
+                  and e.get("headline")]
     if not before:
         return ""
+    # With what each said, not its headline alone: The Last Ferry's three letters of 2026-11-22 asked the same
+    # thing (who keeps the town going at night) under headlines that shared two words of nine.
+    heads = dict(before[-CAME_ROUND:])
     return (". This kind of item has come round before on today's programme, as "
-            + "; ".join(f"\"{h}\"" for h in dict.fromkeys(before[-CAME_ROUND:]))
-            + ": do NOT write that again. Something new this time: other people, another subject and a headline of "
-              "its own")
+            + "; ".join(f"\"{h}\" (\"{_opening_of(t)}\")" if t else f"\"{h}\"" for h, t in heads.items())
+            + ": do NOT write that again, nor ask or answer the same thing in other words. Something new this time: "
+              "other people, another subject and a headline of its own")
+
+
+def _opening_of(text: str, chars: int = CAME_ROUND_CHARS) -> str:
+    """The start of an aired item's text, cut at a word."""
+    text = " ".join(text.split())
+    return text if len(text) <= chars else text[:chars].rsplit(" ", 1)[0] + "..."
 
 
 def _still_to_come(show: schedule.Show, part: str, at: float) -> str:
@@ -1157,12 +1168,32 @@ def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str
             "told as done). Start a new story only if none fits.\n" + rows)
 
 
-def _not_settled(ask: str, world: World | None) -> str:
+_WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+
+def _day_not_come(ask: str, asked: str, today: str) -> str | None:
+    """The weekday a loose end turns on ("whether the rye sold out on a Monday") if none has come since it was asked
+    (`asked`, `today`: ISO dates), or None. Dev Ramachandran was asked it on Saturday and answered it on Sunday."""
+    try:
+        start, end = date.fromisoformat(asked), date.fromisoformat(today)
+    except ValueError:
+        return None
+    days = {(start + timedelta(days=i)).weekday() for i in range(1, (end - start).days + 1)}
+    for m in re.finditer(r"\b(?:on|by|this|next|last|come)\s+(?:a\s+)?(" + "|".join(_WEEKDAYS) + r")s?\b", ask, re.I):
+        wd = _WEEKDAYS.index(m.group(1).lower())
+        if wd not in days:
+            return m.group(1).capitalize()
+    return None
+
+
+def _not_settled(ask: str, world: World | None, asked: str = "") -> str:
     """A loose end whose answer is a story's step that hasn't come yet: the guest says so. On the 2026-11-22 night's
     replay Ivy Marchetti, asked "whether the new mooring rope went on before the big tide", said it "went on
     Thursday", with the rope's fitting the story's NEXT for Monday."""
     if not ask or world is None:
         return ""
+    if asked and (day := _day_not_come(ask, asked, world.last_date)):
+        return f" Its answer isn't known yet: no {day} has come since it was asked, so they say it hasn't happened yet."
     words = status_words(ask)
     with world.lock:
         for t in world.board_threads():
@@ -1180,7 +1211,7 @@ def _return_offer(p, world: World | None = None) -> str:
     said = "; ".join(m["said"] for m in p.memories[-2:]) or "(not noted)"
     return (f"A RETURN VISIT, if it suits THIS ITEM: {p.name} ({p.role}) was on {end['show']} on "
             f"{datetime.fromisoformat(end['date']):%A %d %B}. Last time: {said}. Something to ask them: {end['ask']}."
-            + _not_settled(end["ask"], world) +
+            + _not_settled(end["ask"], world, end.get("date", "")) +
             " Book them again and pick that up (welcome them back, no long reintroduction; keep what they said "
             "last time the same), or book someone new if it doesn't fit.")
 
@@ -1196,14 +1227,15 @@ def _title(show: schedule.Show) -> str:
     return " ".join(w.lower() if i and w.lower() in ("and", "of", "the", "at", "on") else w for i, w in enumerate(words))
 
 
-def _part(show: schedule.Show) -> str:
-    """'morning', 'afternoon', ... for greetings; breakfast is always the morning."""
-    return "morning" if show.id == "breakfast" else schedule.part_of_day(schedule.now())
+def _part(show: schedule.Show, at_ts: float | None = None) -> str:
+    """'morning', 'afternoon', ... for greetings, when the item airs (`at_ts`), not when it is written: an item
+    written at 23:55 airs after midnight. Breakfast is always the morning."""
+    return "morning" if show.id == "breakfast" else schedule.part_of_day(at_ts or schedule.now())
 
 
-def _greeting(show: schedule.Show) -> str:
+def _greeting(show: schedule.Show, at_ts: float | None = None) -> str:
     """The word after "good" in a hello: there is no "good night" hello, so the night says evening."""
-    part = _part(show)
+    part = _part(show, at_ts)
     return "evening" if part == "night" else part
 
 
@@ -1250,8 +1282,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         f"TOWN BRIEFING\n{world.summary_for_prompt(show.cast_for(seg_type), auction=auction, sitting=show.id == chamber.SHOW, booked=booked)}\n\n"
         f"Write the {seg_type.value.replace('_', ' ')} segment. "
         f"Word budget: about {words} words total across all lines (plus or minus fifteen percent). "
-        f"Today is {date.fromtimestamp(schedule.now()):%A %d %B}; it is the {_part(show)}, so any greeting "
-        f"is \"good {_greeting(show)}\". {schedule.clock_line(at_ts or schedule.now())}"
+        f"Today is {date.fromtimestamp(at_ts or schedule.now()):%A %d %B}; it is the {_part(show, at_ts)}, so any "
+        f"greeting is \"good {_greeting(show, at_ts)}\". {schedule.clock_line(at_ts or schedule.now())}"
     )
     if show.light and show.id not in ("sport", outabout.SHOW, "rockpool"):   # their own facts, not the news
         big = big_story(world)
@@ -1290,7 +1322,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             brief = BRIEF_HOOKS[show.id](world, brief)
         brief = brief.rstrip(".") + _came_round(world, show, seg_type, raw_brief)
         user += f"\n\nTHIS ITEM: {brief}."
-    if show is not None and (plan := rundown.for_prompt(world, show, seg_type, work.get("planned"))):
+    if show is not None and (plan := rundown.for_prompt(world, show, seg_type, work.get("planned"), brief)):
         user += "\n\n" + plan
         planned = world.person_by_name(work["planned"].get("guest")) if work.get("planned") else None
         if planned is not None and planned.memories:
@@ -1353,6 +1385,12 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             show.id not in (inquiry.SHOW, panel.SHOW, chamber.SHOW, phonein.SHOW, *BOOKED_SHOWS)):   # their guests are booked, however recent
         recent = list(dict.fromkeys([*world.guests_today(show.id), *_recent_guests]))   # this show's today too
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(recent) or 'none yet'}"
+    if work.get("continues") and seg_type is SegmentType.interview and not cont:
+        # The first part of a guest who is back after the break: seven of The Last Ferry's guests thanked the host
+        # and said goodbye ("Thank you for coming in, and the chips are on me next time") and came back (2026-11-22).
+        user += ("\n\nTHIS IS PART ONE: the guest is back after the break for a second part. End mid-conversation, "
+                 "with the host saying they'll be back after the break: no thanks for coming in, no goodbye, nothing "
+                 "summed up.")
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
         user += "\n\n" + _return_offer(back, world)
@@ -1385,7 +1423,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     if part == "close":
         end = schedule.show_end(at_ts or schedule.now())
         after = schedule.show_at(end)
-        user += "\n\n" + _CLOSE.format(title=_title(show), goodbye="goodbye" if _part(show) == "morning" else "goodnight",
+        user += "\n\n" + _CLOSE.format(title=_title(show), goodbye="goodbye" if _part(show, at_ts) == "morning" else "goodnight",
                                         next_title=_title(after),
                                         next_at=time.strftime("%H:%M", time.localtime(end)))
         # The test card, not a programme (Channel 7's overnight, Channel 8's closedown): Wexley Wits said "Port
@@ -1983,6 +2021,43 @@ def presenter_named(name: str | None, world: World) -> str | None:
     return None
 
 
+_ROLE_GENERIC = {"retired", "former", "local", "port", "wexley", "resident", "owner", "runs", "with", "from", "street",
+                 "road", "town", "worker", "keen", "lifelong", "long", "time", "years", "regular", "volunteer",
+                 "guest", "someone", "person", "caller", "viewer", "expert"}
+
+
+_ROLE_SAME = {"novelist": "author", "writer": "author", "poet": "author", "rower": "charity", "fund": "charity",
+              "fundraiser": "charity", "teacher": "school", "schoolteacher": "school", "head": "school"}
+
+
+def _job_stems(role: str) -> set[str]:
+    return {_ROLE_SAME.get(w, w)[:4] for w in re.findall(r"[a-z]+", (role or "").lower())
+            if len(w) >= 4 and w not in _ROLE_GENERIC}
+
+
+def role_drift(script, world: World) -> tuple[str, str, str] | None:
+    """(name, the job the script gave them, the job on their record) when the script's guest is someone the town
+    knows and its guest_role shares no job word with their record; or None. On 2026-11-22 Coastwide filed Tam Buchanan,
+    a lifeboat coxswain, as "Foot ferry skipper", and the town kept "Has run the Saltby foot ferry for thirty-one years"
+    as his memory (the skipper is Ivy Marchetti). A record with no job ("resident") takes the new one (ensure_person)."""
+    name, role = getattr(script, "guest_name", None), getattr(script, "guest_role", None) or ""
+    p = world.person_by_name(name) if name else None
+    if not p or p.role in ("", "resident") or not (new := _job_stems(role)) or not (old := _job_stems(p.role)):
+        return None
+    return None if new & old else (p.name, role, p.role)
+
+
+def worn_names(script, world: World) -> list[tuple[str, int]]:
+    """The NEW people in a script (the guest, and any guest_name on a line) whose first name has been worn by
+    SAME_FIRST_NAME or more people today (World.first_names_worn), with how many. Someone the town already knows
+    keeps their name."""
+    worn = world.first_names_worn()
+    names = dict.fromkeys([getattr(script, "guest_name", None),
+                           *(getattr(l, "guest_name", None) for l in getattr(script, "lines", []))])
+    return [(n, worn[n.split()[0]]) for n in names
+            if n and n.split() and n.split()[0] in worn and not world.person_by_name(n)]
+
+
 def wrong_mouths(lines: list[Line], world: World) -> int:
     """Give a guest's line that can't be theirs to whoever said it; how many were moved.
 
@@ -2038,6 +2113,13 @@ _READ_24 = re.compile(r"\b(" + "|".join(sorted(_H24_WORDS, key=len, reverse=True
                       r"head|ticket|night|week|month|year|pint)))( hours)?", re.I)    # "went at twenty-three thirty-eight a kilo"
 
 
+_H12_WORDS = "one two three four five six seven eight nine ten eleven twelve".split()
+# A time read off the figures, "twelve-oh-three" for 12:03 (a news weather's low water, 2026-11-22): the hours
+# _READ_24 leaves, with "oh" and a minute under ten. "Eleven-forty" ("my eleven-forty", a skipper's sailing) is speech.
+_READ_OH = re.compile(r"\b(" + "|".join(_H12_WORDS) + r")[ -]oh[ -](" + "|".join(_UNIT_WORDS) + r")\b(?![\w-])",
+                      re.I)
+
+
 def clock_read_out(text: str) -> str:
     """A 24-hour time read aloud, said as people say it: "kick-off fifteen hundred" is "kick-off three o'clock",
     "twenty-two forty-eight" "twelve minutes to eleven". Nobody says the 24-hour clock: on the 2026-11-21 night the
@@ -2049,7 +2131,13 @@ def clock_read_out(text: str) -> str:
         h = _H24_WORDS[m.group(1).lower()]
         mins = 0 if m.group(2).lower() == "hundred" else _MIN_WORDS[m.group(2).lower()]
         return schedule.said_clock(h, mins)
-    return _READ_24.sub(say, text)
+
+    def say_oh(m: re.Match) -> str:
+        if not _CLOCK_CUE.search(text[max(0, m.start() - 30):m.start()]):
+            return m.group(0)            # "oh one six three two, nine six oh, seven oh seven": a phone number
+        return schedule.said_clock(_H12_WORDS.index(m.group(1).lower()) + 1,
+                                   _UNIT_WORDS.index(m.group(2).lower()) + 1)
+    return _READ_OH.sub(say_oh, _READ_24.sub(say, text))
 
 
 def ration_moods(lines: list[Line]) -> list[Line]:
@@ -2142,9 +2230,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if again := _same_story_again(_story_of(script, world), world, show, seg.type,
                                       seg.nominal_start_ts or schedule.now(), headline):
             said = f"[{again}]" if world.thread(again) else f"\"{again}\""
-            log.info("%s slot %d: %s had %d of the news's last %d items; asking for another story",
-                     seg.type.value, seg.slot_id, said, SAME_STORY_MAX, SAME_STORY_WINDOW)
-            user += (f"\n\nNOT {said} (\"{headline}\"): the news has only just covered that story, twice. Cover "
+            log.info("%s slot %d: %s is in %s's last %d items already; asking for another story",
+                     seg.type.value, seg.slot_id, said, show.id, SAME_STORY_SHOWS[show.id][0])
+            user += (f"\n\nNOT {said} (\"{headline}\"): the programme has only just covered that story. Cover "
                      "another open story from the briefing, on another subject, with its own thread_id (or a new "
                      "one with thread_id null); this one can come back later.")
             script = llm.complete_json(seg.type.value, schema, system, user)
@@ -2169,13 +2257,14 @@ def script_segment(seg: Segment, world: World) -> Segment:
             sky = world.last_weather.get("map_state")
             said = [clock_read_out(getattr(l, "text", "")) for l in getattr(script, "lines", [])]
             slips, tense = tides.clock_slips(said, airs, sky), tides.tense_slips(said, airs, sky)
-            if slips or tense:
+            state = tides.state_slips(said, airs)
+            if slips or tense or state:
                 # The facts were right and a time was still reworded now and then: "twenty-five past four" for
                 # 16:35, "five to twelve" for 12:03 (the replays of 2026-11-22). One more ask, naming them.
                 # And told as done when it is to come, or the reverse, in about one item in four: "the ferry has
                 # stopped for the night" at 21:41; "High water is at five this morning" at 06:00 (tides.tense_slips).
                 log.info("%s slot %d: tide or ferry slips %s; asking again", seg.type.value, seg.slot_id,
-                         "; ".join([*(f"\"{x}\" not a time given" for x in slips), *tense]))
+                         "; ".join([*(f"\"{x}\" not a time given" for x in slips), *tense, *state]))
                 if slips:
                     user += ("\n\nWRONG TIMES: the script said " + ", ".join(f"\"{x}\"" for x in slips) + " of the "
                              "tide or the ferry, and no tide or ferry time is that. Write it again with only the times "
@@ -2185,9 +2274,23 @@ def script_segment(seg: Segment, world: World) -> Segment:
                              "already gone, what is still to come, and what is tomorrow's):\n"
                              + "\n".join(f"  - {x}" for x in tense)
                              + "\nWrite it again with each of these told as it is at this minute.")
-                script = llm.complete_json(seg.type.value, schema, system, user)
-                said = [clock_read_out(getattr(l, "text", "")) for l in getattr(script, "lines", [])]
-                if still := tides.clock_slips(said, airs, sky) + tides.tense_slips(said, airs, sky):
+                if state:
+                    # "the tide's still making" and "very high against the steps" while it ebbed to the 23:38 low
+                    # (The Last Ferry, 2026-11-22): the tide's state at this minute (tides.state_slips).
+                    user += (f"\n\nTHE TIDE RIGHT NOW (it is {airs:%H:%M} as this airs): {tides.tide_now(airs)}. "
+                             "These said otherwise:\n" + "\n".join(f"  - {x}" for x in state)
+                             + "\nWrite it again with the tide as it is at this minute, or leave it out.")
+                again = llm.complete_json(seg.type.value, schema, system, user)
+                said2 =[clock_read_out(getattr(l, "text", "")) for l in getattr(again, "lines", [])]
+                still = (tides.clock_slips(said2, airs, sky) + tides.tense_slips(said2, airs, sky)
+                         + tides.state_slips(said2, airs))
+                # The one with fewer stands: on 2026-11-22 the second ask moved the tide into a sentence of its own,
+                # kept "twenty-five to five this afternoon", and was kept because it was the second.
+                if len(still) <= len(slips) + len(tense) + len(state):
+                    script = again
+                else:
+                    still = [*slips, *tense, *state]
+                if still:
                     log.warning("%s slot %d: tide or ferry slips again after the second ask; they stand: %s",
                                 seg.type.value, seg.slot_id, "; ".join(still))
         # The sport against the sports desk's facts: how long ago, a club's place, another match's result
@@ -2324,6 +2427,29 @@ def script_segment(seg: Segment, world: World) -> Segment:
             if not any(presenter_named(n, world) for n in [getattr(again, "guest_name", None),
                                                           *(getattr(l, "guest_name", None) for l in again.lines)] if n) \
                     and not (taken and same_person(getattr(again, "guest_name", None), taken)):
+                script = again
+        # A new person with a first name worn by several today: one more ask; the one with fewer stands. The prompt
+        # said "Ruth (5)", then "Ruth (6)", and The Last Ferry booked Ruth Adair (2026-11-22); Coastwide had nine Ruths.
+        if (worn := worn_names(script, world)) and not cont and not booked:
+            log.info("%s slot %d: %s, a first name worn today already; asking once more", seg.type.value,
+                     seg.slot_id, ", ".join(f"{n} ({c})" for n, c in worn))
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                "\n\nFIRST NAMES TAKEN: " + "; ".join(f"{n} is one of {c} people called {n.split()[0]} on today"
+                                                      for n, c in worn)
+                + ". Anyone new in this item needs a first name nobody on air has had today."))
+            if len(worn_names(again, world)) < len(worn) and not (
+                    taken and same_person(getattr(again, "guest_name", None), taken)):
+                script = again
+        # Someone the town knows given another job: one more ask; kept as it was if the next does it too (and then
+        # the town doesn't keep what they said: _apply_to_world).
+        if drift := role_drift(script, world):
+            log.info("%s slot %d: %s given as %r, but their record says %r; asking once more", seg.type.value,
+                     seg.slot_id, *drift)
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                f"\n\nNOT A {drift[1].upper()}: {drift[0]} is {drift[2]} here, on the town's record. Keep to that job "
+                "(guest_role and everything they say about their work; what this item is about may be added to it, "
+                "as in \"lifeboat coxswain and knitter\"), or book someone else."))
+            if not role_drift(again, world) and not (taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
@@ -2496,6 +2622,9 @@ RETOLD_LIKENESS = 0.4
 NEWS_STORY_TYPES = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview)
 SAME_STORY_WINDOW = 4           # of the news's last this many story items,
 SAME_STORY_MAX = 2              # a story with this many gets no next one
+# Morning Tide tells a story once in its last several: on 2026-11-23 Miles reported the fire station at 06:09 and the
+# bulletin told it again at 06:27, nearly word for word, and the lifeboat at 06:30 and 06:33.
+SAME_STORY_SHOWS = {"news": (SAME_STORY_WINDOW, SAME_STORY_MAX), "breakfast": (8, 1)}
 
 
 def _story_of(script, world: World) -> str | None:
@@ -2514,23 +2643,24 @@ def _same_story_again(thread_id: str | None, world: World, show: schedule.Show, 
     or None: its thread id, or the earlier headline where only the headlines tie them. An earlier item is
     the same story by its thread or by its headline's words, whatever thread it filed under. A story that
     broke within BREAKING_LEAD_S leads as long as it likes."""
-    if show.id != "news" or seg_type not in NEWS_STORY_TYPES or not (thread_id or headline):
+    if show.id not in SAME_STORY_SHOWS or seg_type not in NEWS_STORY_TYPES or not (thread_id or headline):
         return None
+    window, most = SAME_STORY_SHOWS[show.id]
     kinds = {k.value for k in NEWS_STORY_TYPES}
     with world.lock:
         last = [(e.get("thread_id"), e.get("headline") or "") for e in world.archive
-                if e["date"] == world.last_date and e.get("show") == show.id and e["type"] in kinds][-SAME_STORY_WINDOW:]
+                if e["date"] == world.last_date and e.get("show") == show.id and e["type"] in kinds][-window:]
     same = [(tid, head) for tid, head in last
             if (thread_id and tid == thread_id) or (headline and same_story_words(headline, head))]
     for tid in {thread_id, *(tid for tid, _ in same)} - {None}:
         t = world.thread(tid)
         if t and t.breaking_ts and 0 <= now - t.breaking_ts < BREAKING_LEAD_S:
             return None
-    if len(same) < SAME_STORY_MAX:
+    if len(same) < most:
         return None
     # Its thread only if an earlier item shares it: a wreath item filed under the ferry's thread must not
     # have the writer steer clear of the ferry
-    return thread_id if any(tid == thread_id for tid, _ in same) else same[-1][1]
+    return thread_id if thread_id and any(tid == thread_id for tid, _ in same) else same[-1][1]
 
 NEWS_SHOWS = ("news", "overnight")
 
@@ -2592,7 +2722,7 @@ def _remembered_note(p: Person, world: World | None = None) -> tuple[str, dict |
     end = next((e for e in reversed(p.loose_ends) if 0 <= schedule.now() - e["ts"] < RETURN_EXPIRE_S), None)
     note = (f"{p.name} has been on before; what they said then is on record: {said}. Keep to it (no "
             "contradicting it), welcome them back, no long reintroduction."
-            + (f" Something left to ask them last time: {end['ask']}.{_not_settled(end['ask'], world)} Pick it up if "
+            + (f" Something left to ask them last time: {end['ask']}.{_not_settled(end['ask'], world, end.get('date', ''))} Pick it up if "
                "it suits this item." if end else ""))
     return note, end
 
@@ -2777,9 +2907,19 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                          seg.slot_id, back)
             elif (seg.work.get("loose_end_of") or "").lower() == script.guest_name.strip().lower():
                 world.loose_ends_taken(script.guest_name)   # booked again of the writer's accord, and asked
-            # capwords, not title(): "The Kettle'S On" and "Hugh'S Christmas Tales" went into the town's memory
+            # capwords, not title(): "The Kettle'S On" and "Hugh'S Christmas Tales" went into the town's memory.
+            # What someone said in another job isn't kept: it would be told back as theirs (role_drift).
+            # Only a memory about the other job: "talked about her jumpers" stays with a knitter (a widow on record).
+            drift = role_drift(script, world)
+            memory = getattr(script, "guest_memory", None) or ""
+            if drift and not (_job_stems(drift[1]) & _job_stems(memory)):
+                drift = None
+            if drift:
+                log.info("%s slot %d: %s's memory not kept: given as %r, their record says %r", seg.type.value,
+                         seg.slot_id, *drift)
             world.remember_guest(script.guest_name, string.capwords(schedule.get(seg.show).title),
-                                 getattr(script, "guest_memory", None), getattr(script, "ask_next_time", None))
+                                 None if drift else getattr(script, "guest_memory", None),
+                                 getattr(script, "ask_next_time", None))
     if isinstance(script, ReviewScript):          # the verdict card; the town remembers the stars, not a canned one's
         seg.work["review"] = (outabout.record(world, script) if not template else
                               {"place": script.place, "stars": script.stars, "verdict": script.verdict})

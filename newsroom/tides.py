@@ -145,6 +145,36 @@ def ferry_now(now: datetime, map_state: str | None = None) -> str:
             + f"; the last ferry leaves {said(last, now)}")
 
 
+TURN_MIN = 30                      # this near a high or low water, the tide is on the turn: either way is fair
+
+
+def _either_side(now: datetime) -> tuple[tuple[datetime, str, float], tuple[datetime, str, float]]:
+    """The high or low water just gone and the next one to come, from yesterday's, today's and tomorrow's tables."""
+    tt = [e for d in (-1, 0, 1) for e in tides(now.date() + timedelta(days=d))]
+    return max((e for e in tt if e[0] <= now), key=lambda e: e[0]), min((e for e in tt if e[0] > now), key=lambda e: e[0])
+
+
+def tide_way(now: datetime) -> str:
+    """"rising", "falling", or "turning" within TURN_MIN of a high or low water."""
+    (was, _, _), (nxt, kind, _) = _either_side(now)
+    if min(now - was, nxt - now) <= timedelta(minutes=TURN_MIN):
+        return "turning"
+    return "rising" if kind == "high" else "falling"
+
+
+def tide_now(now: datetime) -> str:
+    """The tide as it is at `now`, for the prompt: on 2026-11-22 The Last Ferry had it "still making" and "very high
+    against the steps" in six items while it ebbed to the 23:38 low, given only the times."""
+    (_, was_kind, _), (nxt, kind, _) = _either_side(now)
+    way = tide_way(now)
+    if way == "turning":
+        near = was_kind if now - _either_side(now)[0][0] <= timedelta(minutes=TURN_MIN) else kind
+        return f"the tide is on the turn, at about {near} water"
+    words = ("rising (the flood: coming in, making)" if way == "rising"
+             else "falling (the ebb: going out, dropping)")
+    return f"the tide is {words}, towards {kind} water {said(nxt, now)}"
+
+
 def ferry_then(day: date, now: datetime) -> str:
     """Another day's ferry, in the words to say: its first boat, its gaps, its last."""
     f = ferry(day)
@@ -180,15 +210,19 @@ def for_prompt(day: date, map_state: str | None = None, now: datetime | None = N
     water = lambda t, k, h: f"{k} water {said(t, now)}, {h:.1f} m"  # noqa: E731
     gone = [water(*e) for e in tt if e[0] <= now]
     ahead = [water(*e) for e in tt if e[0] > now]
+    # The example is today's own first time: a fixed "twenty-five to five this afternoon" (Saturday's 16:35) was in
+    # every prompt, and on Sunday 22 November The Last Ferry gave it as that afternoon's high water (17:25).
+    example = re.sub(r" \(\d\d:\d\d\)$", "", said(tt[0][0], now)).removeprefix("at ") if tt else "five o'clock"
     lines = [f"TIDES AT PORT WEXLEY. It is {now:%H:%M} on {now:%A} {now.day} {now:%B}{size}.",
              "  TODAY, ALREADY GONE (say \"was\"): " + ("; ".join(gone) or "nothing yet") + ".",
              "  TODAY, STILL TO COME: " + ("; ".join(ahead) or "nothing more today") + ".",
              f"  TOMORROW, {nxt:%A} {nxt.day} {nxt:%B}: " + "; ".join(water(*e) for e in tides(nxt)) + ".",
+             f"  RIGHT NOW {tide_now(now)}.",
              f"FERRY ({FERRY} across the Grey estuary). RIGHT NOW it is {ferry_now(now, map_state)}.",
              f"  TOMORROW: {ferry_then(nxt, now)}.",
              "Use these exact times if the tide or the ferry comes up; don't invent others, and don't work one out. "
              "Each time is given in the words to say, then its figures in brackets: say the words as they are given "
-             "(\"twenty-five to five this afternoon\"), never the figures (not \"sixteen thirty-five\"), and never "
+             f"(\"{example}\"), never the figures in brackets, and never "
              "change them. A time already gone is told as past, one to come as to come, and TOMORROW's are only ever "
              "tomorrow's: today's are never given as tomorrow's. Nobody is on the ferry, or just off it, while it is "
              "not running."]
@@ -216,8 +250,9 @@ _OCLOCK = re.compile(rf"\b({_H12}) o'clock\b", re.I)
 _DIGITS = re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b")
 _SPOKEN_24 = re.compile(rf"\b({_H24}) ({'|'.join(sorted(_TENS, key=len, reverse=True))})\b", re.I)
 _BARE = re.compile(rf"\b(?:at|from|until|till|by|before|after)(?: just| about| around)? ({_H12}|midnight|midday|noon)\b"
-                   r"(?! (?:point|degrees|metres|minutes|past|to|o'clock|and a|or|of|hundred|thousand|boats|people|years)\b)"
+                   r"(?! (?:point|degrees|metres|minutes|past|to|o'clock|and a|or|of|hundred|thousand|boats|people|years|miles)\b)"
                    r"(?!-)", re.I)
+_CARRIES_ON = re.compile(r"\W*(?:it|it's|that|which|this|and it)\b", re.I)
 SLACK_MIN = 5                      # "ten to eleven" for 22:48, "quarter past eleven" for 11:13
 BARE_SLACK_MIN = 15                # "just before eleven" for 22:48, "from seven" for 07:00
 
@@ -278,9 +313,16 @@ def clock_slips(lines: list[str], now: datetime, map_state: str | None = None) -
     ok = [(t.hour % 12) * 60 + t.minute for t in given(now, map_state)]
     slips = []
     for line in lines:
+        after_water = False
         for sentence in re.split(r"(?<=[.!?])\s+", line or ""):
-            if not (_WATER.search(sentence) or _WATER_LOWER.search(sentence)):
+            # And the sentence after one about the tide: asked again over "twenty-five to five this afternoon",
+            # The Last Ferry moved the tide into a sentence of its own ("The tide is making a fine show tonight. It
+            # came up to five point four metres at twenty-five to five this afternoon", 2026-11-22).
+            # Only one that carries it on ("It came up..."), not the next thing said ("...at two miles").
+            about = bool(_WATER.search(sentence) or _WATER_LOWER.search(sentence))
+            if not (about or (after_water and _CARRIES_ON.match(sentence))):
                 continue
+            after_water = about
             for words, minutes, slack in clock_times(sentence):
                 if minutes < 0 or not any(min(abs(minutes - t), 720 - abs(minutes - t)) <= slack for t in ok):
                     slips.append(words)
@@ -404,6 +446,50 @@ def tense_slips(lines: list[str], now: datetime, map_state: str | None = None) -
                     notes.append(f"\"{words}\" is already gone at {now:%H:%M}: say it as past (\"was\", \"came\")")
                 elif not gone and tense == "past":
                     notes.append(f"\"{words}\" is still to come at {now:%H:%M}: say it as to come")
+    return list(dict.fromkeys(notes))
+
+
+_RISING = re.compile(r"\b(?:(?:tide|water)(?:'s| is)? (?:still |now |just )?(?:making|rising|coming in|coming up|creeping up|"
+                     r"flooding|on the flood|on its way (?:in|up))|(?<!\ba )(?:rising|incoming|flood) tide|tide coming in|"
+                     r"(?:on|with) the flood)\b", re.I)
+_FALLING = re.compile(r"\b(?:(?:tide|water)(?:'s| is)? (?:still |now |just )?(?:ebbing|dropping|falling|going out|draining|"
+                      r"receding|running out|on its way out|on the ebb)|(?<!\ba )(?:falling|outgoing|ebb) tide|"
+                      r"(?:on|with) the ebb|tide going out)\b", re.I)
+_HIGH_NOW = re.compile(r"\b(?:tide|water)(?:'s| is| still)?(?: runs| sits| stands| stays)? (?:very |right |still |now |good and |nice and )?(?:high|up)\b"
+                       r"(?! (?:water|tide|at|tomorrow|this|again)\b)", re.I)
+_LOW_NOW = re.compile(r"\b(?:tide|water)(?:'s| is| still)?(?: runs| sits| stands| stays)? (?:very |right |still |now |well )?(?:low|out)\b"
+                      r"(?! (?:water|tide|at|tomorrow|this|again)\b)", re.I)
+_NOT_NOW = re.compile(r"\b(?:tomorrow|was|were|had|earlier|this morning|this afternoon|in the morning|yesterday|will|'ll|when|if|by the "
+                      r"time|until|once)\b", re.I)
+HIGH_LOW_NEAR = timedelta(hours=2)   # this near low water the tide isn't "high", and the reverse
+
+
+def state_slips(lines: list[str], now: datetime) -> list[str]:
+    """What a script says of the tide's state at this minute that the table says it isn't: rising while it falls, or
+    falling while it rises; high near low water, or low near high water. A note for each, to put to the writer. On
+    2026-11-22 The Last Ferry had "the tide's still making" at 22:27, "very high against the steps" at 22:55 and "still
+    runs high" at 22:57, while it ebbed to the 23:38 low (high water 17:25). Nothing is judged on the turn, in a
+    question, or in a sentence about another time ("tomorrow", "was", "will", "when")."""
+    way = tide_way(now)
+    (was, was_kind, _), (nxt, kind, _) = _either_side(now)
+    near_low = (was_kind == "low" and now - was <= HIGH_LOW_NEAR) or (kind == "low" and nxt - now <= HIGH_LOW_NEAR)
+    near_high = (was_kind == "high" and now - was <= HIGH_LOW_NEAR) or (kind == "high" and nxt - now <= HIGH_LOW_NEAR)
+    notes = []
+    for line in lines:
+        for sentence in re.split(r"(?<=[.!?])\s+", line or ""):
+            if sentence.rstrip().endswith("?") or _NOT_NOW.search(sentence):
+                continue
+            s = sentence.strip()
+            if way == "falling" and (m := _RISING.search(sentence)):
+                notes.append(f"\"{s}\": \"{m.group(0)}\", but the tide is falling right now (towards {kind} water "
+                             f"{said(nxt, now)})")
+            elif way == "rising" and (m := _FALLING.search(sentence)):
+                notes.append(f"\"{s}\": \"{m.group(0)}\", but the tide is rising right now (towards {kind} water "
+                             f"{said(nxt, now)})")
+            elif near_low and (m := _HIGH_NOW.search(sentence)):
+                notes.append(f"\"{s}\": \"{m.group(0)}\", but it is near low water right now")
+            elif near_high and (m := _LOW_NOW.search(sentence)):
+                notes.append(f"\"{s}\": \"{m.group(0)}\", but it is near high water right now")
     return list(dict.fromkeys(notes))
 
 

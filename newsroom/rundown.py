@@ -107,10 +107,13 @@ def slots(show: schedule.Show, length_s: float) -> list[dict]:
 
 def _people(world: World, sid: str) -> list:
     """Who may be booked: anyone with something left to ask first, then the public figures and the residents
-    seen most, none on this show in the last few days."""
+    seen most, none on this show in the last few days and none on a lot today."""
     since = (date.fromisoformat(world.last_date) - timedelta(days=RECENT_DAYS)).isoformat()
     recent = {p.name for p in world.people if any(m.get("show") == sid and m.get("date", "") >= since
                                                   for m in p.memories)}
+    # Nor anyone on a lot today: on 2026-11-22 the plan booked Marjorie Pell for The Last Ferry from this list
+    # (it put the most seen first) while the same prompt's ON A LOT LATELY rested her, 10 items.
+    recent |= {p.name for p, _ in world.rested_names()}
     back = [p for p in world.return_guests(exclude=recent, limit=4)]
     rest = sorted((p for p in world.people if p.name not in recent and p not in back
                    and p.kind in ("official", "worthy", "resident") and p.role != "resident"),
@@ -217,8 +220,13 @@ def theme(world: World, show: schedule.Show) -> str:
     return r["theme"] if r else ""
 
 
-def for_prompt(world: World, show: schedule.Show, seg_type: T, slot: dict | None) -> str:
-    """What the writer is told: this item's planned subject and guest, and the evening's theme for the links."""
+UNTHEMED = ("a letter from a viewer",)   # briefs that keep off the theme: given it, The Last Ferry's three letters
+                                        # of 2026-11-22 all asked who keeps the town going after dark
+
+
+def for_prompt(world: World, show: schedule.Show, seg_type: T, slot: dict | None, brief: str = "") -> str:
+    """What the writer is told: this item's planned subject and guest, and the evening's theme for the links (not
+    for a brief in UNTHEMED)."""
     out = []
     if slot:
         out.append(f"TONIGHT'S RUNNING ORDER has this item as: {slot['subject'].rstrip('.')}.")
@@ -226,7 +234,7 @@ def for_prompt(world: World, show: schedule.Show, seg_type: T, slot: dict | None
             p = world.person_by_name(slot["guest"])
             out.append(f"THE GUEST, booked for it: {slot['guest']}" + (f", {p.role}" if p else "")
                        + ". Use exactly this name as guest_name.")
-    t = theme(world, show) if seg_type in THEMED else ""
+    t = theme(world, show) if seg_type in THEMED and not any(b in brief for b in UNTHEMED) else ""
     if t:
         out.append(f"TONIGHT'S THEME, for the links to come back to now and then (lightly, not every line): {t}.")
     return "\n".join(out)

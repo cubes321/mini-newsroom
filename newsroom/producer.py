@@ -23,6 +23,8 @@ never lands on it, and it counts towards the guest's run.
 from __future__ import annotations
 
 import logging
+import re
+import time
 from collections.abc import Callable
 from dataclasses import replace
 
@@ -31,6 +33,9 @@ from .buffer import Buffer
 from .models import Segment
 
 log = logging.getLogger(__name__)
+
+# A brief about the coming weekend (not "(at the weekend: ...)", which says what to do on one)
+_WEEKEND = re.compile(r"(?<!at )\bthe weekend\b", re.I)
 
 
 class Producer:
@@ -106,6 +111,13 @@ class Producer:
         angles = show.briefs.get(item.type)
         if angles and not item.brief:
             n = self._briefs_given.get(item.type, 0)
+            # Not the weekend from Sunday to Wednesday: Monday's Morning Tide was given "the weekend ahead" and said
+            # "the weekend is nearly here" (2026-11-23). The next angle instead.
+            early = time.localtime(self.cursor_ts).tm_wday in (6, 0, 1, 2)
+            for _ in range(len(angles) if early else 0):
+                if not _WEEKEND.search(angles[n % len(angles)]):
+                    break
+                n += 1
             self._briefs_given[item.type] = n + 1
             item = replace(item, brief=angles[n % len(angles)])
         return item
@@ -149,6 +161,8 @@ class Producer:
         # and a vox pop before its guest's part two, which on 2026-10-30 was written as a fresh interview.
         if item.type is schedule.T.interview and item.part not in ("cont", "couch"):
             self._first_part = seg.slot_id
+            if self._item_pos is not None and self._continues(show, self._pos):
+                seg.work["continues"] = True              # part one: they're back after the break
         self.buffer.submit(seg)
         self.next_slot += 1
         self.cursor_ts += seg.target_s

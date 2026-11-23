@@ -28,7 +28,9 @@ def test_a_weekend_is_not_a_weekday():
     """Morning Tide, Sunday 22 November: a school run at 06:07, shops sold out "before nine"."""
     assert "no school run" in schedule.day_note(_ts(2026, 11, 22, 6, 7))
     assert "no school run" in schedule.day_note(_ts(2026, 11, 21, 9, 0))
-    assert schedule.day_note(_ts(2026, 11, 23, 6, 7)) == ""
+    assert "weekend is over" in schedule.day_note(_ts(2026, 11, 23, 6, 7))      # Monday: not "nearly here"
+    assert "3 days off" in schedule.day_note(_ts(2026, 11, 25, 6, 7))
+    assert "Harrow Street don't open until about ten in the morning" in schedule.day_note(_ts(2026, 11, 22, 23, 10))
     assert "It is Sunday" in schedule.clock_line(_ts(2026, 11, 22, 6, 7))
 
 

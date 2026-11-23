@@ -263,6 +263,8 @@ def research(seg: Segment, world: World) -> DocumentaryResearch:
     if past:
         user += "\n\nEARLIER DOCUMENTARIES ON THIS SUBJECT (keep to what they established):\n" + "\n".join(
             f"  - {d['date']}: {d['title']}: " + "; ".join(t["event"] for t in d.get("timeline", [])[:6]) for d in past)
+    if earlier := special.earlier_programmes(seg, world):      # and those on other threads that touch it
+        user += "\n\n" + earlier
     seg.work["clips"] = find_clips(world, list(reversed(on_thread)) + found)   # the latest pieces first
     notes = llm.complete_json("documentary_research", DocumentaryResearch, _RESEARCH_SYSTEM, user)
     log.info("documentary %r researched: %d archive pieces, %d timeline entries (%d on record), %d clips",

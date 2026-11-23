@@ -52,6 +52,8 @@ THREAD_PEOPLE = 4               # a thread's people, as the desk lists them; app
 RECENT_ITEMS = 150              # today's last items that rested_line counts people and traits in: about two hours
 OFTEN_TODAY = 6                 # of those, the items naming a resident before the writers are told to rest them
 RESTED = 8                      # the most named at once
+OFFICIAL_TODAY = 12             # a public figure is rested later: stories need them, but Ivy Marchetti, the
+                                # Harbourmaster, was in 26 news items on 2026-11-22 and never rested
 SAME_FIRST_NAME = 3             # different people today with one first name before it is rested
 TIC_TODAY = 3                   # times today a presenter's trait has been said aloud before it is rested
 # A presenter's trait that the writers say aloud, as (how it is put to them, what finds it said in an item's text).
@@ -304,9 +306,20 @@ class World:
                          for e in d.get("timeline", []) if not e.get("on_record")][:HISTORY_PER_DOC]
             return ("Documentaries made (their history is canon: plan nothing that contradicts it):\n"
                     + "\n".join(rows) + "\n")
-        facts = [f"  - {e.get('date', '')}: {e['event'][:140]}" for d in reversed(docs)
-                 for e in d.get("timeline", []) if not e.get("on_record") and _before(e.get("date", ""), d["date"])
-                 ][:HISTORY_FACTS]
+        # Each fact once: three documentaries gave the founding, and the briefing listed "1871: Background: Port
+        # Wexley is founded..." three times (2026-11-22), with "the cannery" in one and "the old cannery" in two.
+        # A fact is known by its date and its first six words; the label the model put in front goes.
+        facts, seen = [], set()
+        for d in reversed(docs):
+            for e in d.get("timeline", []):
+                if e.get("on_record") or not _before(e.get("date", ""), d["date"]):
+                    continue
+                event = re.sub(r"^(?:background|context|history)\s*:\s*", "", e["event"], flags=re.I)
+                key = (e.get("date", ""), " ".join(re.findall(r"[a-z']+", event.lower())[:6]))
+                if key not in seen:
+                    seen.add(key)
+                    facts.append(f"  - {e.get('date', '')}: {event[:140]}")
+        facts = facts[:HISTORY_FACTS]
         return ("Town history our documentaries have told (keep to it; never contradict it):\n"
                 + "\n".join(facts) + "\n") if facts else ""
 
@@ -382,12 +395,10 @@ class World:
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
 
-    def rested_line(self, booked: frozenset[str] = frozenset()) -> str:
-        """Who and what has been on a lot today, for the writers to rest: on the 2026-11-21 night Dolores Finch was
-        in about 28 of the evening news's items and Marjorie Pell in 18 scripts on four shows, seven Coastwide
-        guests were called Ruth, and Miles was "out of breath" 22 times (his trait in the briefing, said aloud). The
-        briefing's residents are the most seen, so the same few were offered all night; this comes after the cache
-        break, as it changes with every item. People in public office are left: stories need them."""
+    @_locked
+    def rested_names(self, booked: frozenset[str] = frozenset()) -> list[tuple[Person, int]]:
+        """The people on a lot today, the most named first, with their items: residents and worthies from
+        OFTEN_TODAY items, public figures from OFFICIAL_TODAY. Not whoever this item has booked (`booked`)."""
         today = [e for e in self.archive if e.get("date") == self.last_date and not e.get("fiction")]
         recent = today[-RECENT_ITEMS:]                 # the last couple of hours: the morning's don't rest anyone
         counts: dict[str, int] = {}
@@ -399,14 +410,31 @@ class World:
         # Nor whoever this item has booked: The Panel names its three panellists every round, and by the third its
         # prompt would have rested the people it requires to speak.
         spare = {n.lower() for n in booked if n}
-        seen = sorted(((p, n) for pid, n in counts.items() if n >= OFTEN_TODAY
-                       and (p := self.person(pid)) and p.kind in ("resident", "worthy")
+        bar = {"resident": OFTEN_TODAY, "worthy": OFTEN_TODAY, "official": OFFICIAL_TODAY}
+        return sorted(((p, n) for pid, n in counts.items()
+                       if (p := self.person(pid)) and p.kind in bar and n >= bar[p.kind]
                        and p.name.lower() not in spare), key=lambda x: -x[1])[:RESTED]
+
+    @_locked
+    def first_names_worn(self) -> dict[str, int]:
+        """Each first name worn today by SAME_FIRST_NAME or more different people, with how many."""
         firsts: dict[str, set] = {}
-        for pid in {pid for e in today for pid in e.get("people") or []}:
+        for pid in {pid for e in self.archive if e.get("date") == self.last_date and not e.get("fiction")
+                    for pid in e.get("people") or []}:
             if (p := self.person(pid)) and p.name:
                 firsts.setdefault(p.name.split()[0], set()).add(p.name)
-        names = sorted((f, len(s)) for f, s in firsts.items() if len(s) >= SAME_FIRST_NAME)
+        return {f: len(s) for f, s in sorted(firsts.items()) if len(s) >= SAME_FIRST_NAME}
+
+    def rested_line(self, booked: frozenset[str] = frozenset()) -> str:
+        """Who and what has been on a lot today, for the writers to rest: on the 2026-11-21 night Dolores Finch was
+        in about 28 of the evening news's items and Marjorie Pell in 18 scripts on four shows, seven Coastwide
+        guests were called Ruth, and Miles was "out of breath" 22 times (his trait in the briefing, said aloud). The
+        briefing's residents are the most seen, so the same few were offered all night; this comes after the cache
+        break, as it changes with every item. Public figures are rested later (`rested_names`): stories need them."""
+        today = [e for e in self.archive if e.get("date") == self.last_date and not e.get("fiction")]
+        recent = today[-RECENT_ITEMS:]
+        seen = self.rested_names(booked)
+        names = sorted(self.first_names_worn().items())
         tics = [(c.name.split()[0], what, n) for c in self.characters for trait in c.traits
                 if (pat := TICS.get(trait)) and (what := pat[0])
                 and (n := sum(1 for e in recent if re.search(pat[1], e.get("text") or "", re.I))) >= TIC_TODAY]
@@ -893,7 +921,9 @@ class World:
         """Guests with something to be asked: a loose end at least RETURN_RIPE_S old and not yet
         forgotten. The longest waiting first; nobody in `exclude` (names, the recent guests)."""
         now = now or schedule.now()
-        skip = {n.lower() for n in exclude}
+        # Nor anyone on a lot today: Marjorie Pell was offered to The Last Ferry's running order on 2026-11-22
+        # while the same prompt rested her (10 items).
+        skip = {n.lower() for n in exclude} | {p.name.lower() for p, _ in self.rested_names()}
         ripe = []
         for p in self.people:
             waiting = [e["ts"] for e in p.loose_ends if RETURN_RIPE_S <= now - e["ts"] < RETURN_EXPIRE_S]

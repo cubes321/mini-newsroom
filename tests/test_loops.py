@@ -31,7 +31,7 @@ def test_a_brief_that_comes_round_again_is_told_what_it_made_before():
     w.record_aired("links", "A letter read on another show", None, "...", show="magazine", brief=letter)
     again = writers.build_prompt(T.links, w, target_s=40.0, show=show, brief=letter, at_ts=_at(22, 25))[1]
     item = again.split("THIS ITEM: ")[1].split("\n\n")[0]
-    assert 'come round before on today\'s programme, as "Who keeps the small hours? A viewer asks": do NOT write that again' in item
+    assert 'come round before on today\'s programme, as "Who keeps the small hours? A viewer asks" ("..."): do NOT write that again' in item
     assert "Thin papers" not in item and "another show" not in item        # its own brief, its own show
     # Coastwide has a memory of its own for an item on the same brief: no second note
     mag = writers.build_prompt(T.links, w, target_s=45.0, show=schedule.get("magazine"), brief=letter, at_ts=_at(19, 20))[1]
@@ -76,7 +76,7 @@ def test_the_talk_shows_second_half_isnt_its_first_half_again():
     w.record_aired("interview", "Panel splits on the lifeboat fund", None, "...", show="panel", brief="q")
     assert writers._repeated("Panel splits again on the lifeboat fund", w, panel, T.interview, "r") is None
     email = schedule.SHOWS["panel"].briefs[T.interview][1]
-    assert "already debated" in email and "not \"the first question tonight\"" in email
+    assert "already debated" in email and "{qback}" in email
 
 
 def test_a_title_doesnt_let_the_guest_back_in():
