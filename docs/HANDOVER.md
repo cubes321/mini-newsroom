@@ -47,6 +47,30 @@ mended before air are left out. Nothing below is fixed yet.
    21:21. The briefing's line says "a follow-up must deliver the NEXT development or a step towards it" (`world.py:374`),
    and the threads listed there carry NEXTs dated days ahead; only "waiting" threads are held back. The documentary
    "The Eleventh Label" (01:43) and Morning Tide (06:02, the stamp copied) do the same.
+   **Fixed 2026-11-23 (`66ce8b0`, not aired).**
+   - A NEXT whose day hasn't come, or whose time later today hasn't, reaches the writers marked "NEXT, NOT YET (due
+     on Tuesday 24 November; it has NOT happened…)" (`world.said_next`). That covers the briefing, the quiet stories,
+     the story Miles is sent to, and the big running story. The desk and the editors still see it bare. On the board
+     as it stood before the night, 21 of 22 NEXTs are held at 21:20 on Sunday.
+   - A second way in: statuses. An item's `thread_status` becomes the story's status, and before the night 11 of the
+     board's 22 statuses shared most of their words with a later NEXT ("Tamsin Rowe's oak-chip sack arrives half
+     short", due Tuesday). Three changes:
+     - A status that tells a not-yet NEXT as done (half its words are the NEXT's, and nothing says when) is not
+       filed (`world.tells_next_as_done`, in `writers.py` where the thread is updated).
+     - Such a status already on a thread reaches the writers as "nothing new yet: its planned step is still ahead"
+       (`world.said_status`).
+     - Both status fields now say a step to come is told as due.
+   - **Replayed with Haiku** on the pre-night copy at the night's own times (14 news items, 21:15 to 23:55), against
+     yesterday's code in a worktree:
+     - Yesterday's code had the grit lorry unloaded "this afternoon" (due Monday morning) and the mooring rope on.
+     - With the marking alone, the oak chips and the chess boards were still told as done. Both came in through
+       their statuses.
+     - With the status check too, the oak chips, chess boards, banjo, ladder, roofs and grit were each built up to,
+       not told. One partial slip: Cyril "out with a borrowed tape measure" on the stair the night before his count.
+     - Replayed at Monday-evening times on the morning's town, it changed little: only four stories were not yet due.
+   - **Not covered:** a thread's title can still name its planned step ("Year 9 Chess Club Sets Up Boards in the
+     Academy Hall at Lunch"); a return guest's loose end can still be answered as done (Ivy: the rope "went on
+     Thursday"); the documentaries' own research isn't marked (special.py already says "has NOT happened").
 2. **The Inquiry fell back to templates three times.** Twice the writer booked THE GUEST, the mayor, for "a councillor or
    board member who will vote on it" (20:08) and "how the town handled something like it before" (20:15), three asks
    each; the code then gave up. The third was a closing line over 900 characters, twice. Five councillors were free.
