@@ -29,7 +29,13 @@ from one_off import redirect, say  # noqa: E402  (stdlib only at import: newsroo
 
 
 def _script_hash(folder: Path) -> str:
-    return hashlib.sha1((folder / "script.md").read_bytes() + (folder / "cast.toml").read_bytes()).hexdigest()
+    """What the voicing depends on: the script, and each part's voice and speed (a look or a credit can change
+    in cast.toml without the film being voiced again)."""
+    import tomllib
+
+    cast = tomllib.loads((folder / "cast.toml").read_text(encoding="utf-8"))
+    voices = json.dumps({n: [c["voice"], c.get("speed", 1.0)] for n, c in sorted(cast.items())})
+    return hashlib.sha1((folder / "script.md").read_bytes() + voices.encode("utf-8")).hexdigest()
 
 
 def _setup(folder: Path):
@@ -57,7 +63,9 @@ def voice(folder: Path, only: str | None = None) -> None:
     _, scenes = M.parse(folder / "script.md")
     scenes = [s for s in scenes if s.number in _range(only, len(scenes))]
     have = _voiced(folder)
-    kept = {s["number"]: s for s in _scenes_voiced(folder)}
+    # A whole run starts segments.json afresh (every clip still reused by its key), so a script that has lost scenes
+    # leaves none of its old numbers behind; a run of some scenes merges into what is there.
+    kept = {s["number"]: s for s in _scenes_voiced(folder)} if only else {}
     tts.preload()
     out, n, done = [], sum(len(s.lines) for s in scenes), 0
     for sc in scenes:

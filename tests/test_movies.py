@@ -279,3 +279,25 @@ def test_a_scene_with_markup_left_in_a_line_is_asked_again():
         for i in range(8)]})
     M.check_scene(ok, sc, NAMES)
     assert (ok.lines[3].text, ok.lines[3].mood) == ("Fine words.", "happy")
+
+
+def test_a_one_word_lead_in_is_skipped_in_a_credit():
+    from entertainment.movie_cards import role
+    assert role("Twenty-three, the Wren's barmaid, working her last shift. Quick-witted.") == "the Wren's barmaid"
+
+
+def test_a_cut_scene_stays_in_film_json_but_is_never_written_rendered_or_counted(monkeypatch, film):
+    _stub(monkeypatch)
+    done = M.write(film, world_mod.seed(), say=lambda s: None)
+    done["cut"] = ["1.2", "2.3"]
+    M.save(film, done)
+    path = M.render(film, done, say=lambda s: None)
+    cast, scenes = M.parse(path)
+    n = M.ACTS * M.SCENES_PER_ACT - 2
+    assert [s.number for s in scenes] == list(range(1, n + 1))           # numbered on, with no gaps
+    assert "2 cut" in path.read_text(encoding="utf-8") and M.finished(M.load(film))
+    del done["scenes"]["1.2"]                                            # a cut scene is never written again
+    M.save(film, done)
+    seen = _stub(monkeypatch)
+    M.write(film, world_mod.seed(), say=lambda s: None)
+    assert [s for _, s, _, _ in seen].count(M.Dialogue) == 0

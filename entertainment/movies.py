@@ -364,13 +364,24 @@ def _plan_rows(film: dict) -> list[tuple[str, dict]]:
     return [(_key(a, s), sc) for a, plan in enumerate(film["acts"]) for s, sc in enumerate(plan["scenes"])]
 
 
+def _live_rows(film: dict) -> list[tuple[str, dict]]:
+    """The scenes still in the film: film["cut"] lists the ones taken out after it was written (for length, the user,
+    2026-11-23), kept in film.json but never written again, rendered or voiced."""
+    cut = set(film.get("cut", ()))
+    return [(k, sc) for k, sc in _plan_rows(film) if k not in cut]
+
+
+def finished(film: dict) -> bool:
+    return len(film.get("acts", ())) == ACTS and all(k in film["scenes"] for k, _ in _live_rows(film))
+
+
 def _lines_text(lines: list[dict]) -> str:
     return "\n".join(f"{l['character']}: {l['text']}" for l in lines)
 
 
 def _so_far(film: dict, upto: str) -> str:
     out = []
-    for k, sc in _plan_rows(film):
+    for k, sc in _live_rows(film):
         if k == upto:
             break
         if k in film["scenes"]:
@@ -481,7 +492,7 @@ def write(folder: Path, world: World, say=print) -> dict:
         film["acts"].append(plan_act(film, n).model_dump())
         save(folder, film)
         say(_act_text(film["acts"][-1]))
-    for key, _ in _plan_rows(film):
+    for key, _ in _live_rows(film):
         if key in film["scenes"]:
             continue
         d = write_scene(film, key)
@@ -503,19 +514,25 @@ def script_text(film: dict) -> str:
     o = film["outline"]
     out = [f"# {o['title']}", "", f"*A {o['genre']}. {o['logline']}*", "", "Cast:"]
     out += [f"- {p['name']} ({p['gender']}, {p['age']}): {p['who']}" for p in o["parts"]]
+    live = dict(_live_rows(film))
+    n = 0
     for a, plan in enumerate(film["acts"]):
         out += ["", f"## Act {a + 1}: {o['acts'][a]['name']}"]
         for s, sc in enumerate(plan["scenes"]):
             k = _key(a, s)
+            if k not in live:
+                continue
             lines = film["scenes"].get(k, [])
-            n = a * SCENES_PER_ACT + s + 1
+            n += 1
             out += ["", f"### {n}. {SETS[sc['set']][0]} ({sc['set']}, {sc['when']}): {', '.join(sc['characters'])}"
                         f" [~{seconds(lines):.0f} s]"]
             out += [f"{l['character'].upper()}{' (' + l['mood'] + ')' if l.get('mood') else ''}: {l['text']}"
                     for l in lines] or ["(not written yet)"]
-    total = sum(seconds(v) for v in film["scenes"].values())
+    total = sum(seconds(film["scenes"][k]) for k in live if k in film["scenes"])
+    written = sum(k in film["scenes"] for k in live)
+    cut = f", {len(film['cut'])} cut" if film.get("cut") else ""
     out += ["", "---", f"Estimated running time: {total / 60:.1f} minutes of {TARGET_S / 60:.0f} "
-                       f"({len(film['scenes'])} scenes written of {ACTS * SCENES_PER_ACT}), at {WORDS_PER_S} words a "
+                       f"({written} scenes written of {len(live)}{cut}), at {WORDS_PER_S} words a "
                        "second; the real figure comes once it is voiced."]
     return "\n".join(out) + "\n"
 
@@ -760,7 +777,7 @@ def _cli(argv: list[str]) -> int:
     if a.cmd == "approve":
         folder = Path(a.folder)
         f = load(folder)
-        if len(f["scenes"]) < ACTS * SCENES_PER_ACT:
+        if not finished(f):
             print("not finished: write it first")
             return 1
         f["approved"] = date.today().isoformat()

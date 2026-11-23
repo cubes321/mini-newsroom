@@ -79,8 +79,11 @@ def titles_segment(slot: int, show: str, title: str, first: dict, cache: Path):
 
 
 def role(who: str) -> str:
-    """The credits' few words for a part: "The young auctioneer, who took..." -> "the young auctioneer"."""
-    first = who.split(".")[0].split(",")[0].split(" who ")[0].strip()
+    """The credits' few words for a part: "The young auctioneer, who took..." -> "the young auctioneer"; a one-word
+    lead-in is skipped ("Twenty-three, the Wren's barmaid, ..." -> "the Wren's barmaid"). A part's own `credit` in
+    cast.toml wins over this (credits_segment)."""
+    clauses = [c.strip() for c in who.split(".")[0].split(" who ")[0].split(",")]
+    first = next((c for c in clauses if len(c.split()) > 1), clauses[0])
     for art in ("The ", "A ", "An "):
         if first.startswith(art):
             first = art.lower() + first[len(art):]
@@ -100,7 +103,7 @@ def credits_segment(slot: int, show: str, title: str, cast: dict, sets: list[str
         if name.capitalize() not in places:
             places.append(name.capitalize())
     return _segment(slot, show, wav, {"card": "credits", "title": title, "year": year or date.today().year,
-                                      "cast": [[n, role(c.get("who", ""))] for n, c in cast.items()],
+                                      "cast": [[n, c.get("credit") or role(c.get("who", ""))] for n, c in cast.items()],
                                       "places": places})
 
 
