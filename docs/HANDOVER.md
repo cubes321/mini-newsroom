@@ -269,7 +269,9 @@ check was run over the night's 321 filed scripts first. The counts below are cau
      stall) as "Trading standards advisor". The other 2 were hobbies, and the ask says a hobby may be added to the
      job.
    - **Tam's memory:** "Has run the Saltby foot ferry for thirty-one years…" was taken out of `data/world.json`
-     (backup `data/world.backup-2026-11-23-before-tam-fix.json`; nothing else changed).
+     (backup `data/world.backup-2026-11-23-before-tam-fix.json`; nothing else changed). Then, at the user's say,
+     Dougal Crane's two mooring-rope memories and Kit Anand's roofing-scams one (backup
+     `data/world.backup-2026-11-23-before-dougal-kit-fix.json`).
    - **Not covered:** a claim inside a line (Dolores's "chip van", Brenda Fisk's shop moving).
 5. **Documentaries and specials see each other** (`special.earlier_programmes`, in the research, the outline and
    every section). That means up to five aired ones sharing their people or words, whatever thread they were on.
