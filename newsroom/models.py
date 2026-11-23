@@ -282,7 +282,7 @@ class BulletinScript(BaseModel):
     )
     thread_status: Status = Field(
         default=None, max_length=160,
-        description="if following up: one plain sentence saying what is new, e.g. 'Repair crew now due Tuesday'",
+        description="if following up: one plain sentence saying what is new and has happened, e.g. 'Repair crew now due Tuesday'; a step still to come is said as due, never as done",
     )
 
 
@@ -643,7 +643,7 @@ class ThreadUpdate(BaseModel):
 
 class NewThread(BaseModel):
     title: str = Field(max_length=80)
-    status: Annotated[str, _clip(200)] = Field(max_length=200, description="what is known so far, one sentence")
+    status: Annotated[str, _clip(200)] = Field(max_length=200, description="what has happened so far, one sentence; never the planned next step, which goes in next_development")
     next_development: Annotated[str, _clip(300)] = Field(max_length=300, description="one sentence")
     people: list[str] = Field(default_factory=list, max_length=3)
     from_guest: str | None = Field(default=None, description="the guest's name if this grows from their LOOSE END, else null")

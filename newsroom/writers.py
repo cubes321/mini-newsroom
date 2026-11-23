@@ -46,7 +46,7 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import RETURN_EXPIRE_S, Person, World, same_story_words
+from .world import RETURN_EXPIRE_S, Person, World, said_next, said_status, same_story_words, tells_next_as_done
 
 log = logging.getLogger(__name__)
 
@@ -1042,8 +1042,8 @@ def _send_miles(world: World, show: schedule.Show, was: str) -> str:
     out = f"\n\nNOT \"{was}\": Miles has only just reported that (MILES'S LAST REPORTS), from that very place. "
     if go is None:
         return out + "This report is another story altogether, from somewhere else in the town."
-    return (out + f"This report is on [{go.id}] {go.title}: {go.status}"
-            + (f"; NEXT: {go.next_development}" if go.next_development else "")
+    return (out + f"This report is on [{go.id}] {go.title}: {said_status(go)}"
+            + said_next(go)
             + f". Set thread_id to \"{go.id}\", put him where that story is (another backdrop and location), "
               "and give it a headline of its own.")
 
@@ -1075,10 +1075,10 @@ def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str
     quiet = _quiet(world, exclude, auction)
     if not quiet:
         return ""
-    rows = "\n".join(f"  - [{t.id}] {t.title}: {t.status}" + (f"; NEXT: {t.next_development}" if t.next_development else "")
-                     for t in quiet)
+    rows = "\n".join(f"  - [{t.id}] {t.title}: {said_status(t)}" + said_next(t) for t in quiet)
     return ("QUIET STORIES (open, not in the briefing's list): pick one of these up before starting a new "
-            "story; set thread_id to it and deliver its NEXT step. Start a new story only if none fits.\n" + rows)
+            "story; set thread_id to it and deliver its NEXT step (one marked NOT YET only built up to, never "
+            "told as done). Start a new story only if none fits.\n" + rows)
 
 
 def _return_offer(p) -> str:
@@ -1165,7 +1165,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
             user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. It was covered at the top of the programme: "
                      "a passing mention at most, and nothing about it unless it fits this item.")
         else:
-            user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}. NEXT: {big.next_development or 'no new step yet'}"
+            user += (f"\n\nBIG RUNNING STORY: [{big.id}] {big.title}"
+                     + (said_next(big, at_ts) if big.next_development else "; NEXT: no new step yet")
                      if big else "\n\nNo big running story today: keep it light.")
     cont = _last_interview.get(show.id) if part == "cont" and seg_type is SegmentType.interview else None
     couch = _last_interview.get(show.id) if part == "couch" and seg_type is SegmentType.interview else None
@@ -2456,6 +2457,12 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
                          script.headline[:60], tid, ", ".join(sorted(same[1])))
         if seg.show in UNFILED_SHOWS:
             tid, opens = None, False          # a quiz's news round names stories; it never moves one
+        if tid in known and (t := world.thread(tid)) and tells_next_as_done(status, t, seg.nominal_start_ts or None):
+            # An item that told the story's next step early doesn't file it as the story so far: every later
+            # prompt would read it as done (2026-11-22: "Blue cannery float carried to the museum store", due 30th).
+            log.info("%s slot %d: kept thread %s's status; %r is its NEXT, not due yet", seg.type.value,
+                     seg.slot_id, tid, status[:80])
+            status = None
         if tid in known or opens:
             seg.thread_id = world.update_thread(tid if tid in known else None, script.headline, status)
         if booked:

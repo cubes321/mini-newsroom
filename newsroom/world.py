@@ -314,8 +314,9 @@ class World:
         last = t.beats[-1] if t.beats else None
         last_s = f"; last covered {last['date']}: {last['headline']}" if last else ""
         people = ", ".join(self.person(pid).name for pid in t.people if self.person(pid)) or "nobody named yet"
-        nxt = f"; NEXT: {t.next_development}" if t.next_development else ""
-        extra = f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
+        # The desk and the editors plan the NEXT, so they see it bare; the writers see whether it is due yet.
+        nxt = (f"; NEXT: {t.next_development}" if t.next_development else "") if full else said_next(t)
+        extra =f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
         if full and self.waiting(t):
             nxt += (f"; WAITING in the running-stories pool until {said_date(t.waits_until)}, "
                     "off the bulletins till then; it keeps its history (not stalled: don't close it for being quiet)")
@@ -371,7 +372,8 @@ class World:
             f"{self.rested_line(booked) if booked is not None else ''}"
             f"Last weather: {wx_line}\n"
             f"{talk.line(self, date.fromisoformat(self.last_date))}"
-            f"Open story threads (follow up by id; a follow-up must deliver the NEXT development or a step towards it):\n{threads}\n"
+            f"Open story threads (follow up by id; a follow-up delivers the NEXT development once it is due, or a "
+            f"step towards it; a NEXT marked NOT YET has not happened and is never reported as done):\n{threads}\n"
             f"{self._waiting_line()}"
             f"Recent headlines (do NOT repeat these):\n{heads}"
         )
@@ -1131,6 +1133,56 @@ def due_time(text: str) -> tuple[int, int] | None:
     if not found:
         found = [hm for rx, hm in _PARTS if rx.search(text)]
     return max(found) if found else None
+
+
+def said_next(t: Thread, now: float | None = None) -> str:
+    """A thread's NEXT for the writers, marked NOT YET while its day, or its time later today, hasn't come. The
+    briefing said "a follow-up must deliver the NEXT development", and only long stories wait in the pool
+    (`pool_threads`): on the 2026-11-22 night the news told seven newer stories' NEXTs as done days early, the
+    bottled ship too tall for the sill (due Friday 27) and the oak chips half short (Tuesday 24) on Sunday night,
+    and Morning Tide had Brenda copy the stamp ("by noon") at 06:02. With no day named, it is the writers' to judge."""
+    if not t.next_development:
+        return ""
+    at = datetime.fromtimestamp(now or schedule.now())
+    due = due_date(t.next_development, at.date())
+    if due and due > at.date():
+        when = f"tomorrow, {said_date(due)}" if due == at.date() + timedelta(days=1) else f"on {said_date(due)}"
+        return (f"; NEXT, NOT YET (due {when}; it has NOT happened: for now it is only ahead, so build up to it "
+                f"at most, never report it as done): {t.next_development}")
+    if due == at.date() and (hm := due_time(t.next_development)) and hm > (at.hour, at.minute):
+        return (f"; NEXT, NOT YET (due later today, at about {schedule.said_clock(*hm)}; it has NOT happened "
+                f"yet: build up to it at most): {t.next_development}")
+    return f"; NEXT: {t.next_development}"
+
+
+_STATUS_STOP = set("the a an and of to in on at for with her his their its is are was were be by from as it that "
+                   "this up out into has have had".split())
+# A status that says when ("on Tuesday", "Friday's carols", "due", "ahead of", "still") tells the step as to come.
+_STILL_AHEAD = re.compile(r"\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|due|will|"
+                          r"ahead|before|until|waits?|waiting|still|expected|plans?|planned|set to|going to|next)\b", re.I)
+
+
+def _status_words(s: str) -> set[str]:
+    return {x for x in re.findall(r"[a-z]+", (s or "").lower()) if len(x) > 3 and x not in _STATUS_STOP}
+
+
+def tells_next_as_done(status: str, t: Thread, now: float | None = None) -> bool:
+    """True if `status` is the thread's NEXT, not yet due, told as having happened: half or more of its words are
+    the NEXT's and it says nothing of when. On the 2026-11-22 night an item that told a step early filed it as the
+    story's status ("Blue cannery float carried to the museum store", due Monday 30), and every later prompt read
+    it as done; before that night 11 of the board's 22 statuses shared most of their words with a later NEXT."""
+    if not status or "NOT YET" not in said_next(t, now):
+        return False
+    words = _status_words(status)
+    return bool(words) and len(words & _status_words(t.next_development)) / len(words) >= 0.5 \
+        and not _STILL_AHEAD.search(status)
+
+
+def said_status(t: Thread, now: float | None = None) -> str:
+    """A thread's status for the writers: one that tells its not-yet NEXT as done is not passed on as fact."""
+    if tells_next_as_done(t.status, t, now):
+        return "nothing new yet: its planned step (NEXT) is still ahead"
+    return t.status
 
 
 def fade_after_s(t: Thread) -> float:
