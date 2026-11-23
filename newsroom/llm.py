@@ -126,8 +126,60 @@ def clean_json_text(text: str) -> str:
     return text.strip()
 
 
+LINE_MAX = 900                       # a script line's limit (models.py): about two and a half minutes of speech
+_SENTENCE = re.compile(r"(?<=[.!?])\s+(?=\S)")
+
+
+def split_long_lines(data) -> bool:
+    """Split each script line longer than LINE_MAX at its sentences into lines of the same speaker; True if any
+    was. About once a night a line ran past the limit, failed twice and the item went to a template: The
+    Inquiry's goodnight at 20:18 on 2026-11-22, Pat's one long paragraph both times (14 such in the logs since
+    2026-11-14)."""
+    lines = data.get("lines") if isinstance(data, dict) else None
+    if not isinstance(lines, list):
+        return False
+    out, split = [], False
+    for line in lines:
+        text = line.get("text") if isinstance(line, dict) else None
+        if not isinstance(text, str) or len(text) <= LINE_MAX:
+            out.append(line)
+            continue
+        chunk = ""
+        for s in _SENTENCE.split(text.strip()):
+            while len(s) > LINE_MAX:                 # one sentence past the limit: cut at its last space in reach
+                cut = s.rfind(" ", 0, LINE_MAX) if " " in s[:LINE_MAX] else LINE_MAX
+                head, s = s[:cut], s[cut:].strip()
+                if chunk:
+                    out.append({**line, "text": chunk})
+                out.append({**line, "text": head})
+                chunk = ""
+            if chunk and len(chunk) + 1 + len(s) > LINE_MAX:
+                out.append({**line, "text": chunk})
+                chunk = ""
+            chunk = f"{chunk} {s}".strip()
+        if chunk:
+            out.append({**line, "text": chunk})
+        split = True
+    data["lines"] = out
+    return split
+
+
 def _parse(schema: type[T], text: str) -> T:
-    return schema.model_validate_json(clean_json_text(text))
+    cleaned = clean_json_text(text)
+    try:
+        return schema.model_validate_json(cleaned)
+    except ValidationError as e:
+        if not any(err["type"] == "string_too_long" and err["loc"][:1] == ("lines",) and err["loc"][-1] == "text"
+                   for err in e.errors()):
+            raise
+        try:
+            data = json.loads(cleaned)
+        except ValueError:
+            raise e from None
+        if not split_long_lines(data):
+            raise
+        log.info("%s: split a line over %d characters at its sentences", schema.__name__, LINE_MAX)
+        return schema.model_validate(data)
 
 
 # ------------------------------------------------------------- accounting

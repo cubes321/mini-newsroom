@@ -867,6 +867,33 @@ def _guest_has_gone(world: World) -> str:
             "here, back with us, coming up or still to answer, and nothing is put to them.") if done else ""
 
 
+# The programme's own promises, not any "will": "who should ask the mayor what it will cost" is a fair vox pop.
+_STILL_TO_COME = re.compile(r"\b(?:we'll|we will|we're going to|we are going to|next|coming up|after the break|"
+                            r"in a moment|here to|joins us|is with us|back with us|still to answer|when we come back)\b",
+                            re.I)
+
+
+def trails_gone_guest(script, world: World) -> list[str]:
+    """The sentences of an Inquiry item that speak of THE GUEST as still to come, once they have LEFT. The prompt
+    says so, and on the 2026-11-22 night four of Miles's films after the mayor's second part still had "exactly
+    the question we will put to the mayor in the studio" and "Helen Strand is here to say what that means"."""
+    if not _guest_has_gone(world):
+        return []
+    guest = (inquiry.tonight(world) or {}).get("guest") or ""
+    if not guest:
+        return []
+    p = next((x for x in world.people if x.name and same_person(x.name, guest)), None)
+    office = (p.role.split(",")[0].split(" of ")[0].strip().lower() if p and p.role else "")
+    names = [guest, guest.split()[-1]] + ([f"the {office}"] if office and len(office.split()) <= 2 else [])
+    who = re.compile(r"\b(?:" + "|".join(re.escape(n) for n in names) + r")\b", re.I)
+    out = []
+    for l in getattr(script, "lines", []):
+        for s in re.split(r"(?<=[.!?])\s+", getattr(l, "text", "")):
+            if who.search(s) and _STILL_TO_COME.search(s):
+                out.append(s.strip())
+    return out
+
+
 def _place(show: schedule.Show, seg_type: SegmentType, part: str) -> str:
     """Where a piece sits in its show: _PLACE's word for it, or else, in a show with an opening of its own, the
     middle of it (not its opening or its close). Until 2026-11-18 a piece _PLACE didn't name had none: in two
@@ -1307,21 +1334,49 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
     return system, user
 
 
-def _not_the_guest(world: World, guest: str, brief: str, seg_type: SegmentType, also: tuple[str, ...] = ()) -> str:
+def _not_the_guest(world: World, guest: str, brief: str, seg_type: SegmentType, also: tuple[str, ...] = (),
+                   suggest: bool = False) -> str:
     """The Inquiry's item that isn't THE GUEST's, restated at the very end of its prompt. On 2026-11-15 the model
     booked Gerald Thorne for six of them, copying the night's studio interviews listed above it; replayed, the
     item said again last booked THE GUEST 2 times in 63, against 6 in 18 as it was (films: 1 in 22; said twice, as
     the last ask does, 0 in 8 on the two that wouldn't move). The wording matters: the same note ending "not THE
     QUESTIONS PAT PUTS to THE GUEST", and saying "guest_name is NOT", booked them 8 in 27.
-    Nobody already on tonight either (`also`: whoever the model just booked)."""
+    Nobody already on tonight either (`also`: whoever the model just booked). `suggest`, on a re-ask, names someone
+    free to book (`_free_for_the_inquiry`)."""
     on = list(dict.fromkeys(n for n in (guest, *world.guests_today(inquiry.SHOW), *also) if n))
     note = (f"THIS ITEM, once more: {brief.rstrip('.') or 'a film on the story'}. Its guest is NOT {guest}: they are "
             f"THE GUEST, whose parts in the studio are their own. Nor anyone already on The Inquiry tonight: "
             f"{', '.join(on)}. If THIS ITEM describes a councillor or an official, book a different one (the town "
             "council in the briefing lists them) or a new person with a full name and a role of your own.")
+    if suggest and (free := _free_for_the_inquiry(world, on, brief)):
+        note += (f" Book {free[0]} ({free[1]}) for it: free tonight, and not THE GUEST.")
     if seg_type is SegmentType.interview:
         note += " Pat welcomes this new guest by name."
     return note
+
+
+_COUNCIL_BRIEF = re.compile(r"\b(?:council\w*|board|vote|votes|official|committee)\b", re.I)
+
+
+def _free_for_the_inquiry(world: World, on: list[str], brief: str) -> tuple[str, str] | None:
+    """Someone The Inquiry's item can book, named on the re-ask after it booked THE GUEST: a councillor nobody has
+    booked tonight for a brief about the council, else one of the story's own people who hasn't been on. On the
+    2026-11-22 night the mayor was booked three times running for "a councillor or board member who will vote on
+    it", with five councillors free, and twice the item went to a template."""
+    taken = [n for n in on if n]
+    free = lambda name: not any(same_person(name, n) for n in taken)  # noqa: E731
+    if _COUNCIL_BRIEF.search(brief or ""):
+        for name, role, *_ in council.COUNCILLORS:
+            if free(name):
+                return name, f"councillor, {role.removeprefix('Councillor, ')}"
+    tid = (inquiry.tonight(world) or {}).get("thread_id")
+    t = world.thread(tid) if tid else None
+    with world.lock:
+        for pid in (t.people if t else []):
+            p = world.person(pid)
+            if p and p.name and p.kind in ("resident", "worthy", "official") and free(p.name):
+                return p.name, p.role
+    return None
 
 
 # --------------------------------------------------------------- templates
@@ -1983,7 +2038,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
             # Fisk's and Nora Ellison's items were templates by the next ask (2026-11-15). So THE GUEST's ban comes too.
             again = (f"{rebooked} is already on the couch: guest_name is the NEW guest, someone else."
                      if couch and rebooked.lower() == couch["name"].lower()
-                     else _not_the_guest(world, taken, seg.brief, seg.type, also=(rebooked,))
+                     else _not_the_guest(world, taken, seg.brief, seg.type, also=(rebooked,), suggest=True)
                      if taken
                      else f"NOT {rebooked}: they were a guest very recently. Book a different person.")
             user += "\n\n" + again        # and every later ask keeps it
@@ -2033,7 +2088,21 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if taken and same_person(getattr(script, "guest_name", None), taken):
             log.info("%s slot %d: booked THE GUEST, %s, again; asking once more", seg.type.value, seg.slot_id, taken)
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\nAgain: " + _not_the_guest(
-                world, taken, seg.brief, seg.type))
+                world, taken, seg.brief, seg.type, suggest=True))
+        # THE GUEST trailed after leaving: one more ask naming the sentences; if it does it again, it stands.
+        if show.id == inquiry.SHOW and (trail := trails_gone_guest(script, world)):
+            log.info("%s slot %d: THE GUEST is trailed after leaving (%s); asking once more", seg.type.value,
+                     seg.slot_id, "; ".join(t[:60] for t in trail))
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                "\n\nTHE GUEST has LEFT the studio, so these say they are still to come, which is wrong:\n"
+                + "\n".join(f"  - {t}" for t in trail)
+                + "\nWrite it again with nothing put to them, trailed or promised: what they said earlier tonight "
+                  "may be quoted, in the past."))
+            if taken and same_person(getattr(again, "guest_name", None), taken):
+                log.info("%s slot %d: asked again, it booked THE GUEST; keeping the script before", seg.type.value,
+                         seg.slot_id)
+            else:
+                script = again
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
             user += ("\n\nKeep every word suitable for daytime television: no swearing, no slurs. Channel 7 "

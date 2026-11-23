@@ -76,6 +76,29 @@ mended before air are left out. Nothing below is fixed yet.
    each; the code then gave up. The third was a closing line over 900 characters, twice. Five councillors were free.
    It also trailed the mayor four times after both her parts had aired (20:10 to 20:20), and gave Pat Gordon's line
    "Marjorie Pell is my aunt" (20:00).
+   **Fixed 2026-11-23 (not aired).**
+   - **Booking THE GUEST:** the re-asks after an item books THE GUEST now name someone free
+     (`writers._free_for_the_inquiry`, through `_not_the_guest(suggest=True)`). For a brief about the council or a
+     vote, that is the first councillor nobody has booked tonight. For any other brief, it is one of the story's own
+     people who hasn't been on. If nobody is left, nobody is named.
+   - **Trailing the departed guest:** her trails aired although every one of those four prompts said she had LEFT.
+     Now an Inquiry script that speaks of THE GUEST as still to come is caught (`writers.trails_gone_guest`: her
+     name, surname or office, in a sentence with the programme's own promise: "we will", "next", "here to"…). It
+     gets one more ask naming the sentences, and if the second still does it, it stands. Run over the night's filed
+     scripts it catches three of the four (the fourth says only "her"). It doesn't flag "who should ask the mayor
+     what it will cost".
+   - **Overlong lines:** a line over 900 characters is split at its sentences into lines for the same speaker
+     (`llm.split_long_lines`, in `llm._parse`), not failed twice and sent to a template. That happened about once
+     a night: 14 in the logs since 14 November.
+   - **Replayed whole with Haiku:** the night's 23 Inquiry items at their own times, on the pre-night copy with the
+     night's commission (the mayor, the same four questions), against yesterday's code in a worktree.
+     - Yesterday's code made two templates: an opening link over 900 characters, and the councillor interview after
+       the mayor was booked three times. It also trailed the mayor twice after she had left, and put her in a vox pop.
+     - The new code made none. The councillor interview booked Alan Penhaligon, as the re-ask named, after one ask.
+       Nothing trailed her, so the new check never fired. No line ran long in that run: the split is tested by unit
+       test only.
+     - In the old run the check would also have caught two harmless sentences ("Our next guest sees it very
+       differently from the mayor"; "we will be watching for it"). That costs one extra ask.
 3. **Coastwide's links have a new loop.** Seven open "Clive, you've gone quiet again, which in your case means you're
    sitting on something odd about the harbour at first light" (two word for word with the same reply); "The Harbour at
    First Light" is the caption four times; eight headlines are "Clive's X and What's Coming Up". One link still opens
