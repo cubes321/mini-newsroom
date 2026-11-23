@@ -446,7 +446,9 @@ def _speaking(v: View, who: str, name: str | None) -> bool:
 
 
 def _interview_wide(canvas: pygame.Surface, v: View, t: float) -> None:
-    backdrops.draw(canvas, _interview_set(v))
+    # A drama's scene out of doors (the TV movie on the town's own backdrops) is graded for its time of day, which the
+    # scene sets (view.tod); the studio sets ignore it, so every other show is drawn as before.
+    backdrops.draw(canvas, _interview_set(v), v.tod if getattr(v, "set_id", "") else "day", t=t)
     if v.show in DRESSINGS and _interview_set(v) == SHOW_SETS.get(v.show):     # on its own set only
         DRESSINGS[v.show](canvas, v, t)
     late = v.show == "late"
@@ -886,6 +888,7 @@ SCENES = {"filler": draw_filler, "bumper": draw_bumper, "studio": draw_studio, "
 
 
 PROGRAMMES = ("studio", "weather", "field", "special")
+NO_CLOCK: set[str] = set()      # a show's own whole-frame cards, registered from outside (a film's titles, its credits)
 
 
 def shows_bug(v: View) -> bool:
@@ -923,7 +926,7 @@ def render(canvas: pygame.Surface, v: View, t: float, *, debug: str | None = Non
             draw_ticker(canvas, v, t)
         if shows_bug(v):
             logo.draw_bug(canvas)
-        if overlays and not (getattr(v, "bare", False) and v.mode == "studio"):
+        if overlays and not (getattr(v, "bare", False) and v.mode == "studio") and v.mode not in NO_CLOCK:
             draw_clock(canvas, v)
     if debug:
         # Bottom-left, between the lower third and the ticker, clear of scene tags.

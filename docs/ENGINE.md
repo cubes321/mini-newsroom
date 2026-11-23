@@ -166,10 +166,10 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 | 20:00 | Wexley Wits | |
 | 20:20 | **The soap**, 20 minutes: titles, nine planned scenes asked at 100 s, which Haiku writes at 60-77 (six of 170 s until 2026-11-19, which aired at about 65 s; twelve rehearsed shorter still), all of them aired before the close (`Show.whole_order`), side scenes and a break for the spare minutes, the cliffhanger last | the scene engine |
 | 20:40 | **Factual**: *Tideline*, coastal wildlife with Rowan Polglase (built 2026-11-14, `entertainment/wildlife.py`), alternating with a town celebrity's travelogue (docs/FACTUAL.md) | The Kettle's On's booking, the soap's episode shape |
-| 21:00 | **The TV movie**, an hour | the scene engine |
-| 22:00 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |
-| 22:30 | **Late-night drama**: an anthology first | the scene engine |
-| 23:00 | the closedown (midnight once there is something good for the last hour) | |
+| 21:00 | **The TV movie**, an hour and a half (an hour until 2026-11-23: "The TV movie" below) | the scene engine |
+| 22:30 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |
+| 23:00 | **Late-night drama**: an anthology first | the scene engine |
+| 23:30 | the closedown (midnight once there is something good for the last half hour) | |
 
 - **The Kettle's On first**: the cheap one. It reuses Channel 7's interview and phone-in items through the
   registries; the phone-in needed two more (`writers.STUDIO_HOOKS`, `writers.CALLED`). It keeps the whole hour (the
@@ -180,7 +180,7 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
   prizes (a hamper, a weekend away) give Channel 7's town talk something to say.
 - **The TV movie**: a bank of TV movies planned ahead (outline, cast, sets) and played out live by the engine, in the
   soap's full-figure format (stage B below). Later, "blockbusters" rendered offline into the content bank for
-  special nights.
+  special nights. *Changed 2026-11-23: head-and-shoulders, written in full ahead; see "The TV movie" below.*
 - **Comedy**, in this order: a stand-up night (the monologue item), a comedy panel game (the panel item), then a
   sketch show with recurring sketches, and the sitcom once the soap and the TV movie are done.
 - **Late-night drama**: an anthology first, a self-contained strange tale of the coast each night, cast from the
@@ -244,6 +244,52 @@ three each, the rules approved as below). With it and The Slipway the channel ha
   lately, paddle and swim questions with answers, prizes from the advertisers), the items and their checks,
   rehearsed offline; the gauge, Des's look, the set, his voice and the ident, each for the user's approval; the town
   talk and a scratch Channel 8 run.
+
+## The TV movie (planned 2026-11-23)
+
+Channel 8's 21:00 hour, agreed with the user on 2026-11-23. The writer is built (`entertainment/movies.py`, the same
+day): `pitch` gives three pitches, `new` starts a film from one, and `write` makes the outline (vetted once by the
+creative editor), each act's eight scenes, then the dialogue scene by scene, each given the whole script so far,
+saving after every call into `data/movies/<slug>/film.json`, so a failure costs one call. `script.md` is what the user
+reads and edits (a hand-edited one is never overwritten), with an estimated running time; `read` has the creative
+editor read the finished film, and `approve` puts it in the bank. Nothing of it is on air yet.
+
+`tools/film.py` casts a film (`cast.toml`: pool voices pinned by name, looks drawn from the name), voices it ahead
+into the film's own cache, and plays it out (`preview`, or `air --obs` to record it); *The Last Lot* was recorded
+that way on 2026-11-23. It opens with titles and ends with credits (`entertainment/movie_cards.py`, added the same
+day at the user's asking): "CHANNEL 8 presents" on black, the first scene's place empty with the title written across
+it in the logo's lettering (about 22 s); then a crawl of the cast (each part and a few words of who they are), the
+places it was filmed, the writing and the music, held on Channel 8's card (about 44 s). Both are cards of the film's
+own show (`scenes.SCENES`, `scenes.NO_CLOCK`), bumpers so the station's bed stays quiet under their music, which is
+the station's strings bed cut to its tuneful passes: provisional, to be chosen by ear. While the parts have no
+actors, the credits name the characters.
+
+- **Head-and-shoulders first** (stage A): the soap's seated scenes on the scene engine as it stands. Walking full
+  figures (stage B) are not a prerequisite.
+- **A bank of finished films, grown gradually.** Each film is written in full ahead of air, not live, and kept with
+  its script. The bank starts small and gains a film now and then. Repeats are expected and accepted for now ("we'll
+  see"); rules for how soon one may come round again can wait until the bank has a few films.
+- **Why written ahead:** the soap is written on the night, so its length is only known on air (scenes of 24 to
+  113 s, gaps filled by stock quiet moments). An hour needs about 35 scenes, too many for one plan call (a nine-scene
+  soap plan takes about 15k of its 32k tokens). A film finished and voiced ahead has a known running time, so its ad
+  breaks can be sized to end it at 22:30 with no filler, the creative editor and the user can read the whole thing
+  before it airs, and a repeat costs nothing to write.
+- **An hour and a half, from the first film** (the user, 2026-11-23): *The Last Lot* came out at about 64 minutes of
+  story against the 40 asked for (Sonnet wrote about 240 words a scene, asked 150, in all 32). Rather than cut it, the
+  movie takes 21:00 to 22:30, and comedy and the late drama move back half an hour each. The writer now aims at an
+  hour of story (eight scenes an act of about 120 s), which with the breaks fills the ninety minutes.
+- **Revisit later:** once the drama (the anthology) and comedy productions work well on air, the format comes back
+  up: films written live, walking figures, the offline "blockbusters".
+- **Proposed, to settle at the build:**
+  - planned by acts (an outline, then each act in its own call), on the soap's route, checked by the creative
+    editor, and approved by the user before it joins the bank, like The Coast Road's route and the one-off scripts;
+  - fiction (`writers.FICTION_SHOWS`), its parts played by the town's resident actors (pinned looks and voices, as
+    Marina Row's), so Channel 7 can say who starred, and its premiere can be town talk; Imogen Vance-Ross, the visiting
+    film actress, for a guest part;
+  - the town's existing backdrops and the soap's sets, new art only when a film needs it;
+  - a genre each film in turn (a mystery, a romance, a thriller, a comedy), and a Port Wexley Christmas film for the
+    launch;
+  - the closedown moves to 22:30 while the movie is the last programme.
 
 ## The soap engine, built (2026-11-13)
 

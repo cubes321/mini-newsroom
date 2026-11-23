@@ -140,7 +140,7 @@ bottom with the date.
 - [x] **The rest of the evening** (the user, 2026-11-13: its own closedown): after Wits the announcer's goodnight
   once ("From all of us at WTV, goodnight") and the test card until seven ("PROGRAMMES RESUME AT 19:00 · A WTV
   SERVICE"), with no repeats and no SEVENTEXT (Channel 7's). New shows take hours from it as they come.
-- [ ] **Channel 8's evening, 18:00 to 23:00** (planned with the user 2026-11-13; docs/ENGINE.md "Channel 8's evening"),
+- [ ] **Channel 8's evening, 18:00 to 23:30** (planned with the user 2026-11-13; docs/ENGINE.md "Channel 8's evening"),
   in this order:
   - **Marina Row**, the soap, 20:20 to 20:40 (after Wits, so The Kettle's On keeps its hour): a television street,
     not the real Harbour Row; head-and-shoulders figures first. The bible is agreed (docs/MARINA_ROW.md: the
@@ -237,18 +237,25 @@ bottom with the date.
     two residents climb the harbour steps against the tide, Des Kneebone hosting, prizes from the town's advertisers.
     In order: the game engine and its tests; the booking, items and checks, rehearsed offline; the gauge, Des's look,
     the set, his voice and the ident (each approved); the town talk and a scratch Channel 8 run.
-  - **Comedy**, 22:00 to 22:30: a stand-up night, then a comedy panel game; a sketch show with recurring sketches
+  - **Comedy**, 22:30 to 23:00 (from 22:00 until the movie's hour became an hour and a half, 2026-11-23): a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
-  - **Late-night drama**, 22:30 to 23:00: an anthology of self-contained tales first; series later.
-  - **The TV movie**, 21:00 to 22:00: a bank of movies planned ahead and played out live by the engine in full-
-    figure format (the soap's stage B, walking figures). Later, blockbusters rendered offline for special nights.
+  - **Late-night drama**, 23:00 to 23:30: an anthology of self-contained tales first; series later.
+  - **The TV movie**, 21:00 to 22:30 (the user, 2026-11-23: an hour and a half, as the first film ran an hour of story; docs/ENGINE.md "The TV movie"): head-and-shoulders
+    first, a bank of films each written in full ahead of air, grown gradually, repeats accepted for now. Revisit the
+    format (live-written, walking figures, offline blockbusters) once the drama and comedy productions work well.
+    The writer is built (`entertainment/movies.py`, 2026-11-23, tests/test_movies.py). The first film, *The Last
+    Lot* (a mystery on the fish quay), was written, approved, cast, voiced and recorded on 2026-11-23 with
+    `tools/film.py`, with opening titles and end credits (`entertainment/movie_cards.py`). Open: the user's verdict
+    on the recording; the looks and FILM_MARKS on a contact sheet; the titles' music, by ear; who acts (the credits
+    name characters until there is a company); the name check beyond full names; ad breaks; then the 21:00 slot
+    on the station and the closedown to 22:30 until comedy is built.
   - **The Slipway**, 18:30, built 2026-11-19 in Cartoon Time's place (`entertainment/slipway.py`): Tegan Trevenna and
     Elis Pengilly (looks A and A on data/contact-sheets/2026-11-19-slipway-presenters.png); the feature, a how-to,
     Academy Corner, messages, the big question, what's on, the challenge, Quick Five. Not yet aired. Open: their
     voices (DramaBox designs, by ear; Kokoro stands in under bf_trevenna/bm_pengilly, never a guest pool voice), the
     set's art (the breakfast sofa's painter stands in), the ident's music (provisionally "sport"), and the
     closedown's new words baked into bumper_closedown_slipway.wav. Cartoon Time stays on the shelf.
-  - The closedown at 23:00, midnight once the last hour has
+  - The closedown at 23:30, midnight once the last half hour has
     something good. Rotations go by Channel 8 night, not weekday, while the channels alternate.
   - **A creative editor** (the user, 2026-11-13) for the made-up shows: the soap, the factual/wildlife slot, the
     comedy and the drama. Channel 7's senior editor guards the news (facts, the town's canon, repeats). This one
