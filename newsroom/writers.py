@@ -46,7 +46,8 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import RETURN_EXPIRE_S, Person, World, said_next, said_status, same_story_words, tells_next_as_done
+from .world import (RETURN_EXPIRE_S, Person, World, status_words, said_next, said_status,
+                    same_story_words, tells_next_as_done)
 
 log = logging.getLogger(__name__)
 
@@ -1156,13 +1157,31 @@ def _quiet_threads(world: World, exclude: set[str], auction: bool = True) -> str
             "told as done). Start a new story only if none fits.\n" + rows)
 
 
-def _return_offer(p) -> str:
+def _not_settled(ask: str, world: World | None) -> str:
+    """A loose end whose answer is a story's step that hasn't come yet: the guest says so. On the 2026-11-22 night's
+    replay Ivy Marchetti, asked "whether the new mooring rope went on before the big tide", said it "went on
+    Thursday", with the rope's fitting the story's NEXT for Monday."""
+    if not ask or world is None:
+        return ""
+    words = status_words(ask)
+    with world.lock:
+        for t in world.board_threads():
+            nxt = said_next(t)
+            if "NOT YET" in nxt and words and len(words & status_words(t.next_development)) / len(words) >= 0.4:
+                due = nxt.split("(", 1)[1].split(";")[0]                  # "due on Monday 23 November"
+                return (f" Its answer isn't known yet: it is the next step of [{t.id}] {t.title}, {due}, so they "
+                        "say it hasn't happened yet.")
+    return ""
+
+
+def _return_offer(p, world: World | None = None) -> str:
     """A guest with a loose end, offered back with what they said last time."""
     end = p.loose_ends[-1]
     said = "; ".join(m["said"] for m in p.memories[-2:]) or "(not noted)"
     return (f"A RETURN VISIT, if it suits THIS ITEM: {p.name} ({p.role}) was on {end['show']} on "
-            f"{datetime.fromisoformat(end['date']):%A %d %B}. Last time: {said}. Something to ask them: {end['ask']}. "
-            "Book them again and pick that up (welcome them back, no long reintroduction; keep what they said "
+            f"{datetime.fromisoformat(end['date']):%A %d %B}. Last time: {said}. Something to ask them: {end['ask']}."
+            + _not_settled(end["ask"], world) +
+            " Book them again and pick that up (welcome them back, no long reintroduction; keep what they said "
             "last time the same), or book someone new if it doesn't fit.")
 
 
@@ -1254,7 +1273,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         airs = datetime.fromtimestamp(at_ts or schedule.now())      # the tide and the ferry as they are when it airs
         user += "\n\n" + tides.for_prompt(airs.date(), world.last_weather.get("map_state"), now=airs)
     if seg_type is SegmentType.weather:       # the figures on the map behind him (weathermap.py)
-        user += "\n\n" + weathermap.for_prompt()
+        user += "\n\n" + weathermap.for_prompt() + _last_forecast(world, at_ts or schedule.now())
     if seg_type is SegmentType.sport or show.id == "sport":
         user += "\n\n" + sport.for_prompt(datetime.fromtimestamp(at_ts or schedule.now()))
     scene = world.thread(work.get("scene")) if seg_type is SegmentType.field_report else None
@@ -1275,7 +1294,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + plan
         planned = world.person_by_name(work["planned"].get("guest")) if work.get("planned") else None
         if planned is not None and planned.memories:
-            user += "\n\n" + _remembered_note(planned)[0]
+            user += "\n\n" + _remembered_note(planned, world)[0]
     # Miles's reports on the news: not Meg's pieces to camera on Out and About.
     miles = seg_type is SegmentType.field_report and not scene and show.id != outabout.SHOW
     done = scene_done(world, at_ts or schedule.now()) if miles else []
@@ -1336,7 +1355,7 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += f"\n\nRECENT GUESTS (book someone else): {', '.join(recent) or 'none yet'}"
     back = world.person_by_name(work.get("return_guest")) if seg_type is SegmentType.interview else None
     if back and back.loose_ends:
-        user += "\n\n" + _return_offer(back)
+        user += "\n\n" + _return_offer(back, world)
     if couch:
         user += "\n\n" + _COUCH.format(name=couch["name"], role=couch["role"], asked=couch["asked"][-1500:])
     if seg_type is SegmentType.breaking:
@@ -1864,6 +1883,106 @@ def _own_name(text: str, first: str, full: str) -> str | None:
     return None
 
 
+_CHAMBER_TRAIL = re.compile(r",?\s*(?:shown\s+)?live on The Chamber(?:\s+(?:at|from)\s+eight(?: o'clock)?)?"
+                            r"(?=\s*(?:[,.;!?]|$))", re.I)
+
+
+_HELLO = re.compile(r"^\s*good (?:evening|morning|afternoon)(?:,?\s+(?:port wexley|everyone|all|again|"
+                    r"and welcome(?: back)?(?: to [\w' ]{3,40}?)?))?\s*[.!,:;—-]+\s*", re.I)
+
+
+def no_hello_midway(lines: list[Line], show: schedule.Show, seg_type: SegmentType, part: str, at: float) -> int:
+    """Take a presenter's "Good evening" off the front of their first line, in an item that isn't where its programme
+    begins; how many lines changed. On the 2026-11-22 night 84 of the news's items and all 20 of its weathers opened
+    "Good evening" (Gordon: "Good evening, Port Wexley. Gordon Pell with your weather"), and Coastwide had "Good
+    evening, and welcome back to the middle of Coastwide". The news's bulletin in the first minutes of an hour may
+    greet, as Morning Tide's news on the hour and half hour does; guests may say it to their host."""
+    if show.id == "news":
+        if seg_type is SegmentType.bulletin and datetime.fromtimestamp(at).minute < 3:
+            return 0
+    elif not show.opens or part in ("open", "close") or (show.id == "breakfast" and seg_type is SegmentType.bulletin):
+        return 0
+    n, seen = 0, set()
+    for l in lines:
+        if l.speaker == "guest" or l.speaker in seen:
+            continue
+        seen.add(l.speaker)                          # each presenter's first line only
+        m = _HELLO.match(l.text)
+        rest = l.text[m.end():].strip() if m else ""
+        if m and len(rest) > 3 and not re.match(r"[A-Z][a-z]+[.!?]", rest):     # not "Good evening, Bea."
+            l.text, n = rest[0].upper() + rest[1:], n + 1
+    return n
+
+
+FORECAST_HOLDS_S = 3 * 3600      # a forecast within this of the last keeps to its temperature and sky
+FORECAST_DRIFT = 2               # degrees it may move in that time
+
+
+def _last_forecast(world: World, at: float) -> str:
+    """The last forecast, for the next weather to keep to: on the 2026-11-22 evening Coastwide's weathers gave 12, 8,
+    8 and 11 degrees inside the hour, the last two two minutes apart, from a briefing that said only "Last weather".
+    Within FORECAST_HOLDS_S of it, the temperature stays within FORECAST_DRIFT and the sky the same."""
+    wx = world.last_weather or {}
+    if not wx.get("ts") or wx.get("temp_c") is None or not 0 <= at - wx["ts"] < FORECAST_HOLDS_S:
+        return ""
+    mins = round((at - wx["ts"]) / 60)
+    return (f"\n\nTHE LAST FORECAST, {mins} minutes before this one: {wx.get('map_state')}, {wx['temp_c']}°C "
+            f"({wx.get('headline', '')}). Keep to it: temp_c within {FORECAST_DRIFT} degrees of {wx['temp_c']} "
+            "(a degree or two lower after dark), and the same sky unless that forecast said it would change.")
+
+
+def forecast_drift(script, world: World, at: float) -> int | None:
+    """The last forecast's temperature if this weather's is more than FORECAST_DRIFT from it within
+    FORECAST_HOLDS_S, else None."""
+    wx = world.last_weather or {}
+    temp = getattr(script, "temp_c", None)
+    if temp is None or not wx.get("ts") or wx.get("temp_c") is None or not 0 <= at - wx["ts"] < FORECAST_HOLDS_S:
+        return None
+    return wx["temp_c"] if abs(temp - wx["temp_c"]) > FORECAST_DRIFT else None
+
+
+def no_chamber_trail_from_guests(lines: list[Line]) -> int:
+    """Take the briefing's "live on The Chamber at eight" out of what guests and panellists say; how many lines
+    changed. It is the station's trail, and on the 2026-11-22 night the mayor (23:41) and Gerald Thorne (23:52) said
+    it in the news, word for word ("Full council, Thursday the third of December, live on The Chamber at eight.
+    Nothing gets decided in a corridor"). A presenter may still trail it."""
+    n = 0
+    for l in lines:
+        if l.speaker != "guest":
+            continue
+        fixed = _CHAMBER_TRAIL.sub("", l.text).strip()
+        fixed = re.sub(r"\s+([,.;!?])", r"\1", re.sub(r",\s*([.;!?])", r"\1", fixed))
+        if fixed != l.text and len(fixed) > 3:
+            l.text, n = fixed, n + 1
+    return n
+
+
+def own_name_lines(script) -> list[str]:
+    """A guest's or panellist's lines that speak to or of their own speaker ("Gerald has been waiting for the
+    numbers for months", under Gerald Thorne on The Panel, 2026-11-22). With three panellists the code can't tell
+    whose line it is, so a debate is asked again (`wrong_mouths` mends the shows with one or two guests)."""
+    out = []
+    for l in getattr(script, "lines", []):
+        name = getattr(l, "guest_name", None) or (getattr(script, "guest_name", None) if l.speaker == "guest" else None)
+        if l.speaker == "guest" and name and _own_name(l.text, name.split()[0], name):
+            out.append(f"{name}: \"{l.text[:100]}\"")
+    return out
+
+
+def presenter_named(name: str | None, world: World) -> str | None:
+    """The presenter a NEW guest's name would be taken for, or None: the same first name, or their whole name. On the
+    2026-11-22 night the news booked "Gordon Pell, resident, Harbour Row" with Gordon Pell doing its weather, and
+    The Inquiry and Coastwide had Gordon Ashdown and Gordon Fairlie. Someone the town already knows keeps theirs."""
+    name = (name or "").strip()
+    if not name or world.person_by_name(name):
+        return None
+    with world.lock:
+        for c in world.characters:
+            if c.name and (same_person(name, c.name) or name.split()[0].lower() == c.name.split()[0].lower()):
+                return c.name
+    return None
+
+
 def wrong_mouths(lines: list[Line], world: World) -> int:
     """Give a guest's line that can't be theirs to whoever said it; how many were moved.
 
@@ -2071,6 +2190,29 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 if still := tides.clock_slips(said, airs, sky) + tides.tense_slips(said, airs, sky):
                     log.warning("%s slot %d: tide or ferry slips again after the second ask; they stand: %s",
                                 seg.type.value, seg.slot_id, "; ".join(still))
+        # The sport against the sports desk's facts: how long ago, a club's place, another match's result
+        # (sport.slips). One more ask naming them; the one with fewer stands.
+        if not getattr(script, "fiction", False) and show.id not in FICTION_SHOWS:
+            when = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
+            wrong = sport.slips([getattr(l, "text", "") for l in getattr(script, "lines", [])], when)
+            if wrong:
+                log.info("%s slot %d: sport slips (%s); asking again", seg.type.value, seg.slot_id,
+                         "; ".join(w[-70:] for w in wrong))
+                again = llm.complete_json(seg.type.value, schema, system, user + (
+                    "\n\nSPORT WRONG (the Sport line in the briefing has the facts):\n"
+                    + "\n".join(f"  - {w}" for w in wrong) + "\nWrite it again with these put right."))
+                if len(sport.slips([getattr(l, "text", "") for l in again.lines], when)) < len(wrong):
+                    script = again
+        # A weather that jumps from the last forecast: one more ask; whichever is nearer stands.
+        if seg.type is SegmentType.weather and (was := forecast_drift(script, world, seg.nominal_start_ts
+                                                                       or schedule.now())) is not None:
+            log.info("weather slot %d: %d°C against the last forecast's %d°C; asking again", seg.slot_id,
+                     script.temp_c, was)
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                f"\n\nTEMPERATURE: {script.temp_c}°C is too far from the last forecast's {was}°C. Write it again with "
+                f"temp_c within {FORECAST_DRIFT} degrees of {was}, and say that figure."))
+            if abs(again.temp_c - was) < abs(script.temp_c - was):
+                script = again
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,
         # and on 2026-11-03 the films did. THE GUEST's own interview, part one ("") and two ("cont"), is
         # booked for tonight however recently they were on elsewhere.
@@ -2113,7 +2255,7 @@ def script_segment(seg: Segment, world: World) -> Segment:
         if known:
             log.info("%s slot %d: %s has been on before; asking again with what they said", seg.type.value,
                      seg.slot_id, known.name)
-            note, end = _remembered_note(known)
+            note, end = _remembered_note(known, world)
             before = script
             script = llm.complete_json(seg.type.value, schema, system, user + "\n\n" + note)
             # Asked about one guest, the model may book another: on 2026-11-03, asked about Tam Buchanan it
@@ -2158,6 +2300,30 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 "\n\nNOT LIKE THE LAST LINKS: " + "; ".join(echo) + ". Write it again: it begins with other words "
                 "and another idea, and its caption (lower_third) is one of its own."))
             if len(link_echoes(again, world, show, seg.part)) < len(echo):
+                script = again
+        # A panellist who speaks to or of themselves: one more ask, naming the lines; the better one stands.
+        if debate and (mine := own_name_lines(script)):
+            log.info("%s slot %d: a panellist speaks to or of themselves (%s); asking once more", seg.type.value,
+                     seg.slot_id, "; ".join(m[:50] for m in mine))
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                "\n\nWRONG SPEAKER: nobody speaks to or of themselves by name, so these lines belong to someone "
+                "else (another panellist, or the chair):\n" + "\n".join(f"  - {m}" for m in mine)
+                + "\nWrite it again with every line under the person who says it."))
+            if len(own_name_lines(again)) < len(mine):
+                script = again
+        # A new guest with a presenter's name: one more ask; kept as it was if the next one has one too.
+        named = [n for n in dict.fromkeys([getattr(script, "guest_name", None),
+                                           *(getattr(l, "guest_name", None) for l in getattr(script, "lines", []))])
+                 if n and presenter_named(n, world)]
+        if named and not cont and not booked:
+            log.info("%s slot %d: %s has a presenter's name (%s); asking once more", seg.type.value, seg.slot_id,
+                     named[0], presenter_named(named[0], world))
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                f"\n\nNOT {named[0]}: that is a presenter's name here ({presenter_named(named[0], world)}), and "
+                "viewers would take one for the other. The guest needs a first name no presenter has."))
+            if not any(presenter_named(n, world) for n in [getattr(again, "guest_name", None),
+                                                          *(getattr(l, "guest_name", None) for l in again.lines)] if n) \
+                    and not (taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
@@ -2231,6 +2397,11 @@ def script_segment(seg: Segment, world: World) -> Segment:
         log.info("%s slot %d: gave %d line(s) back to who said them", seg.type.value, seg.slot_id, moved)
     if fixed := nobody_thanks_themselves(seg.lines, world):
         log.info("%s slot %d: took a presenter's thanks to themselves off %d line(s)", seg.type.value, seg.slot_id, fixed)
+    if hello := no_hello_midway(seg.lines, show, seg.type, seg.part, seg.nominal_start_ts or schedule.now()):
+        log.info("%s slot %d: took a mid-programme good evening off %d line(s)", seg.type.value, seg.slot_id, hello)
+    if trimmed := no_chamber_trail_from_guests(seg.lines):
+        log.info("%s slot %d: took the briefing's Chamber trail out of %d guest line(s)", seg.type.value, seg.slot_id,
+                 trimmed)
     if stayed and any(l.guest_name == stayed for l in seg.lines):
         seg.work["couch"] = stayed            # the player seats them further down the couch
     seg.work.pop("studio_guest", None)
@@ -2414,14 +2585,15 @@ def _remembered(script, world: World, skip: set) -> Person | None:
     return p if p is not None and p.memories else None
 
 
-def _remembered_note(p: Person) -> tuple[str, dict | None]:
+def _remembered_note(p: Person, world: World | None = None) -> tuple[str, dict | None]:
     """What a returning guest said before, and their loose end if one is still waiting."""
     said = "; ".join(f"{m['said']} ({m['show']}, {datetime.fromisoformat(m['date']):%A %d %B})"
                      for m in p.memories[-2:])
     end = next((e for e in reversed(p.loose_ends) if 0 <= schedule.now() - e["ts"] < RETURN_EXPIRE_S), None)
     note = (f"{p.name} has been on before; what they said then is on record: {said}. Keep to it (no "
             "contradicting it), welcome them back, no long reintroduction."
-            + (f" Something left to ask them last time: {end['ask']}. Pick it up if it suits this item." if end else ""))
+            + (f" Something left to ask them last time: {end['ask']}.{_not_settled(end['ask'], world)} Pick it up if "
+               "it suits this item." if end else ""))
     return note, end
 
 

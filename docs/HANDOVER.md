@@ -169,6 +169,53 @@ story (2); Coastwide's links told their last two openings, as `_came_round` does
 documentaries re-timed, or not repeated, after midnight (5); the three known faults (6); "Good evening" only on a
 programme's first item (9).
 
+### The rest of the review, fixed on 2026-11-23 (one commit after `7eb8718`, not aired)
+
+1. **The small hours told as evening (review item 5).**
+   - `special.airs_at` gave every documentary its 21:00 slot whenever that was later than now. So one written at
+     02:43 on Monday was told it aired at 21:00 that evening; it went out at 02:46 with the auction at "half past six
+     this evening". Overnight it is now told the minute it airs.
+   - The week's review repeated at 02:02 can't be re-timed (it's audio). Its label now says when it was first shown:
+     "THE WEEK IN PORT WEXLEY · REPEAT FROM SUNDAY" (`documentary.repeat_label`).
+2. **The three faults from the scratch evening (item 6).**
+   - **The Chamber trail:** "live on The Chamber at eight" comes out of guests' and panellists' lines as the script is
+     filed (`writers.no_chamber_trail_from_guests`). A presenter may still trail it.
+   - **A panellist speaking to or of himself:** one more ask, naming the lines (`writers.own_name_lines`). With three
+     panellists the code can't tell whose line it is.
+   - **A new guest with a presenter's first name or whole name** (Gordon Pell, Gordon Ashdown, Gordon Fairlie): one
+     more ask (`writers.presenter_named`). Someone the town already knows keeps their name.
+3. **The sport against the sports desk (item 4).** `sport.slips` checks every script before it is filed: how long
+   ago the Tides' and the Wreckers' last games were, each side's place in its league, and another football match's
+   score or winner. A script with a slip gets one more ask naming it, and the one with fewer slips stands. The
+   briefing's sport line now ends "no other club's result, no points totals, and each side's place exactly as
+   given".
+   - Over the night's 331 filed scripts it flags 7 slips, all real: "this afternoon" and "today" for Saturday's
+     game, "a fortnight back" for eight days ago, and "on top of the league" in fourth. It flags nothing wrongly,
+     once fixtures were left out ("beat Saltby Rovers, next away to Polgrey").
+   - It can't catch Full Time's "Their two-nil win over Greymouth Athletic": the line never names Polgrey.
+4. **"Good evening" midway (item 9).** A presenter's opening "Good evening" comes off as the script is filed
+   (`writers.no_hello_midway`). That covers every news item except a bulletin in the first three minutes of an
+   hour, and every middle item of a programme with an opening. Morning Tide's news, a programme's opening and a
+   hello to a guest by name keep theirs. Over the night's scripts it takes off 113 (all 20 news weathers, 53
+   bulletins, 23 field reports).
+5. **Coastwide's weathers (item 3).**
+   - The lap's weather is gone, which leaves the top of the programme's and the closing's (five became two).
+   - The last forecast is kept with its time. Within three hours, the next is told to keep to its temperature
+     (within two degrees) and its sky (`writers._last_forecast`). One more ask if it doesn't
+     (`writers.forecast_drift`).
+6. **Two ways a step got out early (item 1's leftovers).**
+   - **A story title that names its planned step** is marked in the writers' briefing: "its title names that
+     planned step, which has NOT happened yet".
+   - **A returning guest's loose end whose answer is a step not yet due** says so: "Its answer isn't known yet: it
+     is the next step of [t…], due tomorrow…" (`writers._not_settled`). This is the case where Ivy said the rope
+     "went on Thursday".
+7. **Replayed with Haiku:** 12 mixed items on the pre-night copy (two Coastwide weathers, news bulletins, weathers,
+   field reports, sport and an interview from 23:00). There were no templates or errors.
+   - Six greetings were taken off, and the 23:00 bulletin kept its own.
+   - The news weathers agreed (five, then four degrees).
+   - The sport was right both times, so its check didn't fire.
+   - Not replayed: The Panel (the self-address ask) and a returning guest with a step not due.
+
 ## Picking up after the Channel 7 night of 2026-11-21
 
 A real Channel 7 night on the real town, started 18:34 from `data/night_channel7.cmd` with the pictures on. The backup

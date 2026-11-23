@@ -55,7 +55,7 @@ def test_the_night_documentary_repeats_once_after_two():
                   work={"format": "documentary", "strand": "PORT WEXLEY STORIES"})
     (CONFIG.paths.cache / "doc0001.json").write_text(seg.model_dump_json(), encoding="utf-8")
     rep = documentary.load_repeat(w)
-    assert rep.repeat and rep.work["strand"].endswith("REPEAT") and rep.content_hash == "doc0001"
+    assert rep.repeat and " · REPEAT" in rep.work["strand"] and rep.content_hash == "doc0001"
     assert not documentary.repeat_due(w, _at(2, 10))          # once a night
 
 

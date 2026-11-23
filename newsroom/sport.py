@@ -19,6 +19,7 @@ from __future__ import annotations
 import math
 import random
 import re
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -254,7 +255,10 @@ def briefing(now: datetime) -> str:
     """The sport line in every writer's briefing: the Tides first, then the rugby and the darts."""
     from . import darts, rugby              # they import this module's helpers
 
-    return " ".join((summary(now), rugby.summary(now), darts.summary(now)))
+    # The news had the Tides "on top of the league" in fourth and a points table of its own (2026-11-22).
+    return " ".join((summary(now), rugby.summary(now), darts.summary(now),
+                     "That is all the sport there is here: no other club's result, no points totals, and each side's "
+                     "place exactly as given."))
 
 
 def for_prompt(now: datetime) -> str:
@@ -302,3 +306,102 @@ if __name__ == "__main__":
                   + (f"  ({', '.join(r.scorers)})" if r.scorers else ""))
     print()
     print(for_prompt(at))
+
+
+# ------------------------------------------------------------------ slips: what a script says against the facts
+
+_WORD_N = {w: i for i, w in enumerate("nil one two three four five six seven eight nine ten".split())} | {"zero": 0}
+_N = r"(nil|zero|one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})"
+_SCORE = re.compile(rf"\b{_N}(?:[- ]|\s+goals?\s+to\s+){_N}\b", re.I)
+_PLACES = "first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth".split()
+_PLACE = re.compile(r"\b(?:sit|sits|sitting|are|is|lie|lies|lying|in|now|still|climb to|up to|down to)\s+"
+                    r"(" + "|".join(_PLACES) + r"|\d{1,2}(?:st|nd|rd|th))\b(?!\s+(?:half|minute|goal|try|game|match))",
+                    re.I)
+_TOP = re.compile(r"\btop of the (?:[\w&]+\s+){0,4}?(?:table|league)\b|\bleague leaders\b|\btop the (?:table|league)\b", re.I)
+_AGO = ((re.compile(r"\b(?:this afternoon|today(?!'s)|this evening)\b", re.I), (0, 0), "today"),
+        (re.compile(r"\byesterday\b", re.I), (1, 1), "yesterday"),
+        (re.compile(r"\b(?:last week|a week ago|a week back)\b", re.I), (5, 9), "a week ago"),
+        (re.compile(r"\b(?:a fortnight|two weeks)\b", re.I), (12, 16), "a fortnight ago"))
+_WON = r"\b(?:beat|beats|win over|won|victory over|saw off|edged|thrashed)\b"
+_LOST = r"\b(?:lost|lose|went down|defeat to|beaten by)\b"
+
+
+def _n(s: str) -> int:
+    return _WORD_N.get(s.lower(), None) if not s.isdigit() else int(s)
+
+
+def _sentences(lines: list[str]) -> list[str]:
+    return [s for t in lines for s in re.split(r"(?<=[.!?])\s+", t or "") if s.strip()]
+
+
+def _alias(club: str, clubs: list[str]) -> str:
+    """A club as people say it: "Polgrey" for Polgrey Rangers when no other club starts so."""
+    if club == CLUB:                                 # "Tidewater Town", "the Tides"
+        return r"(?:Tidewater Town(?: FC)?|Tides)"
+    first = club.split()[0]
+    return rf"(?:{re.escape(club)}|{re.escape(first)}(?!\s+(?:and|&)\s+District|\s+\w*(?:RFC|Athletic|Rovers|Rangers|Bay|Town)\b))" \
+        if sum(c.split()[0] == first for c in clubs) == 1 and first not in ("St", "The") else re.escape(club)
+
+
+def slips(lines: list[str], now: datetime) -> list[str]:
+    """What a script says about the sport against the sports desk's facts: how long ago a result was, a club's place
+    in its league, and another match's score or winner. On the 2026-11-22 night Full Time had Polgrey's "two-nil win
+    over Greymouth Athletic" at 18:51 and "Polgrey Rangers lost two-nil to Greymouth Athletic" at 18:54; the
+    Wreckers' win of eight days before was "a fortnight back" on three shows; the news had the Tides "on top of the
+    league" in fourth. Each note says what is so, for the writer's second ask."""
+    from . import rugby
+
+    said = _sentences(lines)
+    out: list[str] = []
+    for mod, nick, short in ((sys.modules[__name__], NICK, "Tides"), (rugby, rugby.NICK, "Wreckers")):
+        ours = [r for r in mod.played(now) if mod.CLUB in (r.fixture.home, r.fixture.away)]
+        if ours:                                    # how long ago their last game was
+            fx = ours[-1].fixture
+            other = fx.away if fx.home == mod.CLUB else fx.home
+            days = (now.date() - fx.kickoff.date()).days
+            for s in said:
+                at = re.search(rf"\b{re.escape(other)}\b", s)
+                if at and (short in s or mod.CLUB in s or "beat" in s.lower() or "win" in s.lower()):
+                    near = s[max(0, at.start() - 50):at.end() + 70]          # the result's own clause, not "Also today"
+                    hits = [(rng, word) for rx, rng, word in _AGO if rx.search(near)]
+                    if len(hits) == 1 and not hits[0][0][0] <= days <= hits[0][0][1]:
+                        out.append(f"\"{s.strip()[:110]}\": the {short}' game with {other} was {ago(fx.kickoff.date(), now)} "
+                                   f"({fx.kickoff:%A %d %B}), not {hits[0][1]}")
+        pos = next((i for i, row in enumerate(mod.table(now), 1) if row["club"] == mod.CLUB), None)
+        if pos and ours:                            # their place in the league
+            for s in said:
+                if short in s or mod.CLUB in s:
+                    if _TOP.search(s) and pos != 1:
+                        out.append(f"\"{s.strip()[:110]}\": the {short} are {_PLACES[pos - 1]} in the league, not top")
+                    for m in _PLACE.finditer(s):
+                        w = m.group(1).lower()
+                        n = _PLACES.index(w) + 1 if w in _PLACES else int(re.sub(r"\D", "", w))
+                        if n != pos and not re.search(r"\b(?:minute|half|place in the cup)\b", s[m.end():m.end() + 12]):
+                            out.append(f"\"{s.strip()[:110]}\": the {short} are {_PLACES[pos - 1]} in the league, "
+                                       f"not {w}")
+    clubs = [c for c, _ in CLUBS]                   # another match's score or winner (the football)
+    done = played(now)
+    for s in said:
+        if re.search(r"\b(?:Wreckers|rugby|RFC|Quarry Field|tries|try)\b", s, re.I):
+            continue                                # the rugby's Saltby and Lowmoor aren't the football's
+        if re.search(r"\b(?:next|travel|travels|head to|heads to|away to|away at|at home to|host|hosts|face|faces)\b",
+                     s, re.I):
+            continue                                # a fixture named beside a result: "beat Saltby, next away to Polgrey"
+        names = [c for c in clubs if re.search(rf"\b{_alias(c, clubs)}\b", s)]
+        if len(names) != 2 or not (_SCORE.search(s) or re.search(f"{_WON}|{_LOST}", s, re.I)):
+            continue
+        a, b = names
+        r = next((x for x in reversed(done) if {x.fixture.home, x.fixture.away} == {a, b}), None)
+        if r is None:
+            continue
+        goals = {r.fixture.home: r.home_goals, r.fixture.away: r.away_goals}
+        winner = None if goals[a] == goals[b] else a if goals[a] > goals[b] else b
+        pa, pb = _alias(a, clubs), _alias(b, clubs)
+        claimed = (a if re.search(rf"{pa}[^.]*?{_WON}[^.]*?{pb}|{pb}[^.]*?{_LOST}[^.]*?{pa}", s) else
+                   b if re.search(rf"{pb}[^.]*?{_WON}[^.]*?{pa}|{pa}[^.]*?{_LOST}[^.]*?{pb}", s) else None)
+        score = _SCORE.search(s)
+        nums = sorted((_n(score.group(1)), _n(score.group(2)))) if score else None
+        real = f"{r.fixture.home} {r.home_goals}-{r.away_goals} {r.fixture.away} ({r.fixture.kickoff:%A %d %B})"
+        if (claimed and claimed != winner) or (nums and None not in nums and nums != sorted(goals.values())):
+            out.append(f"\"{s.strip()[:110]}\": the result was {real}")
+    return list(dict.fromkeys(out))

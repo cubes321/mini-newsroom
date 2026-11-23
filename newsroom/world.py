@@ -316,6 +316,10 @@ class World:
         people = ", ".join(self.person(pid).name for pid in t.people if self.person(pid)) or "nobody named yet"
         # The desk and the editors plan the NEXT, so they see it bare; the writers see whether it is due yet.
         nxt = (f"; NEXT: {t.next_development}" if t.next_development else "") if full else said_next(t)
+        # A title that names the planned step ("Year 9 Chess Club Sets Up Boards in the Academy Hall at Lunch", due
+        # Friday): the replay of 2026-11-23 had the boards "already set up" on Sunday from it.
+        if not full and tells_next_as_done(t.title, t):
+            nxt += "; its title names that planned step, which has NOT happened yet"
         extra =f" (opened {t.opened}, covered {t.mentions}x)" if full else f" (opened {t.opened})"
         if full and self.waiting(t):
             nxt += (f"; WAITING in the running-stories pool until {said_date(t.waits_until)}, "
@@ -629,7 +633,7 @@ class World:
 
     @_locked
     def record_weather(self, map_state: str, temp_c: int, headline: str) -> None:
-        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline}
+        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline, "ts": schedule.now()}
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
@@ -1164,7 +1168,7 @@ _STILL_AHEAD = re.compile(r"\b(?:monday|tuesday|wednesday|thursday|friday|saturd
                           r"ahead|before|until|waits?|waiting|still|expected|plans?|planned|set to|going to|next)\b", re.I)
 
 
-def _status_words(s: str) -> set[str]:
+def status_words(s: str) -> set[str]:
     return {x for x in re.findall(r"[a-z]+", (s or "").lower()) if len(x) > 3 and x not in _STATUS_STOP}
 
 
@@ -1175,8 +1179,8 @@ def tells_next_as_done(status: str, t: Thread, now: float | None = None) -> bool
     it as done; before that night 11 of the board's 22 statuses shared most of their words with a later NEXT."""
     if not status or "NOT YET" not in said_next(t, now):
         return False
-    words = _status_words(status)
-    return bool(words) and len(words & _status_words(t.next_development)) / len(words) >= 0.5 \
+    words = status_words(status)
+    return bool(words) and len(words & status_words(t.next_development)) / len(words) >= 0.5 \
         and not _STILL_AHEAD.search(status)
 
 

@@ -239,7 +239,10 @@ def airs_at(seg: Segment) -> str:
     made, a documentary in its evening slot; `nominal_start_ts` is neither, only a far deadline (commission)."""
     now = schedule.now()
     when = now
-    if _is_doc(seg) and (slot := documentary._today_at(CONFIG.documentary.airs_at, now)) > now:
+    # Overnight, a documentary goes out at the next test card, not in tomorrow evening's slot: at 02:43 on
+    # 2026-11-23 one was told 21:00 Monday, aired at 02:46, and had the fish auction "half past six this evening".
+    if (_is_doc(seg) and schedule.show_at(now).id != "overnight"
+            and (slot := documentary._today_at(CONFIG.documentary.airs_at, now)) > now):
         when = slot
     return "WHEN IT AIRS: " + schedule.clock_line(when)
 

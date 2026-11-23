@@ -274,7 +274,8 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.interview, brief=("someone young doing something new in town",
                                   "someone who has just done something: a win, a first, a long-awaited finish",
                                   "a collector or an enthusiast with something to show")),
-            T.weather,
+            # No weather in the lap: with one here and one in the closing, Coastwide had five in the hour on
+            # 2026-11-22, the last two two minutes apart. The top of the programme's and the closing's are enough.
             I(T.feature, brief=("an animal story", "a mystery from the town's past", "a bit of town gossip, proved or busted")),
             I(T.interview, brief=("a shopkeeper or a publican", "someone who works while the town sleeps",
                                   "someone who makes or mends things")),

@@ -437,6 +437,13 @@ def repeat_due(world: World, now: float) -> bool:
             and schedule.show_at(now).id == "overnight")
 
 
+def repeat_label(aired_ts: float, now: float | None = None) -> str:
+    """The repeat's tag: "REPEAT FROM SUNDAY" once the day has turned, so a piece that says "earlier today, this
+    Sunday" reads as Sunday's (the week's review at 02:02 on Monday 2026-11-23 had only "REPEAT")."""
+    first, today = datetime.fromtimestamp(aired_ts).date(), datetime.fromtimestamp(now or schedule.now()).date()
+    return f"REPEAT FROM {first:%A}".upper() if aired_ts and first < today else "REPEAT"
+
+
 def load_repeat(world: World) -> Segment | None:
     """Last night's documentary from the cache, to air again: labelled a repeat, and not recorded
     as an airing (special.mark_aired). Marks it repeated even if it can't be loaded, so a missing
@@ -454,7 +461,7 @@ def load_repeat(world: World) -> Segment | None:
         log.warning("documentary repeat: %s is missing audio", h)
         return None
     seg.slot_id, seg.repeat, seg.content_hash = REPEAT_SLOT, True, h
-    seg.work["strand"] = f"{seg.work.get('strand') or strand()} · REPEAT"
+    seg.work["strand"] = f"{seg.work.get('strand') or strand()} · {repeat_label(world.last_documentary_aired_ts)}"
     log.info("documentary repeat: %r", seg.headline)
     return seg
 
