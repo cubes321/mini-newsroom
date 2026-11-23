@@ -404,8 +404,10 @@ bottom with the date.
     B); that exact file is now `assets/bumper_wits.wav`. No other baked ident has a respelled word in its line.
     Left: an ident should be baked again when its line's spoken form changes, not only its music. The scoreboard
     on the set now shows the score, going up answer by answer on Clive's verdict (6467328, that evening; the look
-    approved on a contact sheet), after the user saw it change only at a round's end. Open, from the editor's
-    remarks at the offline rehearsal: Who Said That? runs out of quotes.
+    approved on a contact sheet), after the user saw it change only at a round's end. Done 2026-11-23, from the
+    editor's remarks at the offline rehearsal ("Who Said That? runs out of quotes": "prune" and "smallest prime" from
+    the bank): the round reaches back a fortnight, then a month, before the bank (`quiz.QUOTE_REACH`). The real
+    town had 180 usable lines that week; the rehearsal's moved clock left four.
   - First Channel 8 scratch run (2026-11-13, 19:50-20:30 on the new set): the quiz booked at once, all seven rounds
     and the chats written by the model with no template, every score matching the booking (Who Said That 22-16,
     the doubles to the Lugger by one double, 25-22 at the end); the closedown's goodnight at 20:20, then the test

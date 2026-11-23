@@ -216,6 +216,90 @@ programme's first item (9).
    - The sport was right both times, so its check didn't fire.
    - Not replayed: The Panel (the self-address ask) and a returning guest with a step not due.
 
+### The last of the review, fixed on 2026-11-23 (`5323cc3`, not aired)
+
+Everything left from the list above: items 4 (the rest), 7, 8, 9 and 10, and the documentaries' cross-check. Each
+check was run over the night's 321 filed scripts first. The counts below are caught / wrongly flagged.
+
+1. **The tide's state (item 4).**
+   - **The example:** the prompt's example time is now today's own first time. The fixed "twenty-five to five this
+     afternoon" was Saturday's 16:35, printed in every prompt, and The Last Ferry gave it as Sunday's high.
+   - **Which way it's going:** a new line, "RIGHT NOW the tide is falling (the ebb…), towards low water…", or rising,
+     or on the turn within 30 minutes of a high or low (`tides.tide_now`).
+   - **`tides.state_slips`:** catches the tide called rising while it falls (or the reverse), or high within two
+     hours of low water (or the reverse). On the night: 6 flagged, 5 real ("the tide's still making" at 22:27, "very
+     high against the steps" at 22:55, "the water is right up the bottom three" at 23:03…). The sixth was doubtful:
+     "spring tides, so the water runs high".
+   - **`clock_slips`** also reads the sentence that carries a tide sentence on ("It came up to…"), which is how the
+     wrong time escaped: 1 more caught, none wrongly.
+   - **Fewer slips stands:** the tide re-ask keeps whichever version has fewer slips, not the second regardless.
+2. **The day and the hour (item 8).**
+   - **Weekdays:** every weekday now has a note ("It is Monday: the weekend is over…"), not just the weekend.
+   - **Sunday's shops** "don't open until about ten in the morning and shut by mid-afternoon". "Open late (about
+     ten)" had aired as open until ten that night.
+   - **Weekend briefs** are skipped from Sunday to Wednesday (`producer._WEEKEND`), so Morning Tide's "the weekend
+     ahead" isn't given on a Monday.
+   - **When it airs:** the "Today is" date and the greeting go by the airing time, not the writing time.
+   - **The late weather's sailing aside** is "after dark, about tomorrow's sailing".
+   - **Not wired in:** a check for "this afternoon" at night. It flagged 5 on the night: 2 real, 1 doubtful, and 2
+     wrong (a forecast for tomorrow, a remembered scene).
+   - **Not a day fault:** Coastwide's "school-run corner" is a place in thread t625. "Sold out on a Monday" was a
+     loose end asked on Saturday. A loose end that names a weekday which hasn't come since it was asked is now
+     marked "isn't known yet" (`writers._day_not_come`).
+3. **The loops (item 7).**
+   - **The Last Ferry's letter:** the letter no longer gets the theme (`rundown.UNTHEMED`). Since an earlier item
+     came round, each prompt shows what it said, not just its headline (`_came_round`, 220 characters).
+   - **Part one:** a guest's first part is told they're back after the break (`work["continues"]`, set by the
+     producer).
+   - **The Panel's loop:** the email, "back to a question that split them" and the vox pop go to a question not yet
+     gone back to (`panel._back_to`, recorded on the booking), and are told not to number it. "panel" stays out of
+     `LOOP_NET`: once the loop's question items are exempt, the net would only catch what `_back_to` now prevents.
+   - **Morning Tide** tells a story once in its last eight items (`SAME_STORY_SHOWS`). On the night: 3 flagged,
+     all real (the fire station, the lifeboat, the big tides). This also fixes a latent bug: with no thread on
+     either item, the check returned None, which meant "fine".
+   - **The over-used:**
+     - `World.rested_names` now rests officials too, from 12 items (Ivy Marchetti was in 26).
+     - The rested are no longer offered to the running order (it offered Marjorie Pell), The Panel, or a return
+       visit.
+     - A NEW guest whose first name is worn by three or more people today gets one more ask (`worn_names`).
+4. **Facts that drift (item 4).**
+   - **`role_drift`:** a known person given a job that shares no word with their record gets one more ask. If it
+     still drifts, a memory that talks about the other job isn't kept. On the night: 5 of 123 guests flagged. 3
+     were real: Tam Buchanan as "Foot ferry skipper", Dougal Crane (a roofer) as "harbour hand", Kit Anand (coffee
+     stall) as "Trading standards advisor". The other 2 were hobbies, and the ask says a hobby may be added to the
+     job.
+   - **Tam's memory:** "Has run the Saltby foot ferry for thirty-one years…" was taken out of `data/world.json`
+     (backup `data/world.backup-2026-11-23-before-tam-fix.json`; nothing else changed).
+   - **Not covered:** a claim inside a line (Dolores's "chip van", Brenda Fisk's shop moving).
+5. **Documentaries and specials see each other** (`special.earlier_programmes`, in the research, the outline and
+   every section). That means up to five aired ones sharing their people or words, whatever thread they were on.
+   The archive keeps only 400 characters of each, so a fact deeper in one isn't seen.
+6. **Small (items 9, 10):**
+   - **The town history** gives each fact once, known by its date and first six words, and the "Background:"
+     label goes.
+   - **"twelve-oh-three"** after a clock cue is said "three minutes past twelve". Phone numbers ("seven oh seven")
+     and "my eleven-forty" are left alone.
+   - **Who Said That?** reaches back a fortnight, then a month, before the bank tops it up. The editor's "prune and
+     smallest prime were filler" came from the rehearsal's moved clock; the real town had 180 usable lines this
+     week.
+7. **Replayed with Haiku** on the pre-night copy, with the night's late rundown and Panel booking, old code (`057094d`)
+   in a worktree against new. There were no templates or errors in either.
+   - **The Last Ferry 22:00–22:50 (34 items):**
+     - Part ones ending in thanks or goodbye: 7 of 7, now 0 of 7.
+     - The four letters were four subjects. On the old code two were the theme's "who holds the small hours".
+     - The new tide check caught two "tide coming up" lines.
+     - Three real job drifts were asked again, among them a saddler as "competitive rower".
+     - The harness doesn't set `first_part`, so its "cont" items booked new guests in both runs. The many "was just
+       on" re-asks are that, not this change.
+   - **The Panel (night's briefs mapped to the new ones):**
+     - The email took the plaque, the vox pop the pool, and "back to a question" the engine.
+     - "Second engine or harbour wall…" was a headline three times on the old code; now it is once.
+     - No loop item numbered a question.
+   - **Morning Tide 06:00–06:36:** the same story told again went from 6 to 2, with 6 re-asks. The replay passes
+     the night's briefs, so its 06:28 "weekend ahead" brief is still in; the producer's skip is unit-tested.
+   - **Five late weathers:** the tide falling, then on the turn at low water, in all five. One still said "a lovely
+     day for a sail" about tomorrow.
+
 ## Picking up after the Channel 7 night of 2026-11-21
 
 A real Channel 7 night on the real town, started 18:34 from `data/night_channel7.cmd` with the pictures on. The backup
