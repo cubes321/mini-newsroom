@@ -235,7 +235,11 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             # the middle, about twenty-five minutes with two breaks; the order wraps back to here, two or
             # three times an evening, and each brief has an angle for each lap (Show.item): with one, the
             # same redshank count, roof-survey scam and parking rise came round every lap (2026-11-03).
-            T.links,
+            # The middle links, one angle a lap each and Clive's fact once a lap, never straight after the top
+            # link's: with none, every one was Clive's odd fact, and seven of nine began "Clive, you've gone quiet again, which in your case means..." (2026-11-22).
+            I(T.links, brief=("something Pat noticed on her way in today, then what's next",
+                              "Clive's odd fact about the town, then what's next",
+                              "a viewer's message or photo, read out and enjoyed, then what's next")),
             I(T.interview, brief=("a public figure off duty",
                                   "someone in uniform off duty: a firefighter, a coastguard, a nurse, a harbour hand",
                                   "a councillor or a head teacher on something that isn't their job")),
@@ -247,7 +251,9 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                                  "your rights: a refund, a repair or a delivery that went wrong",
                                  "saving money at home: heating, a bill, the weekly shop")),
             T.ad_break,
-            T.links,
+            I(T.links, brief=("Clive's odd fact about the town, then what's next",
+                              "a birthday, an anniversary or a thank-you a viewer asked them to mark, then what's next",
+                              "what's on in town this week: a fair, a talk, a sale, a show, then what's next")),
             I(T.feature, brief=("a club, a team or a society",
                                 "a volunteer group or a charity at work",
                                 "the arts: a painter, a choir, a play in rehearsal")),
@@ -255,7 +261,10 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                                   "someone who moved here and stayed",
                                   "someone who knows a lot about one small thing in town")),
             T.vox_pop,
-            T.links,
+            I(T.links, brief=("Pat and Clive disagree about something small: a biscuit, a word, the right way to "
+                              "do a thing; then what's next",
+                              "something from the last item one of them can't let go of, then what's next",
+                              "Clive's odd fact about the town, then what's next")),
             I(T.feature, brief=("food: a cafe, a baker, a fishmonger or a recipe",
                                 "a craft or a trade done by hand",
                                 "a garden, an allotment or a farm")),

@@ -102,7 +102,7 @@ def test_a_link_trails_only_what_comes_next(monkeypatch):
 
     w = world_mod.seed()
     pos = next(i for i, e in enumerate(MAG.pattern) if schedule.as_item(e).type is T.links and not schedule.as_item(e).part
-               and not schedule.as_item(e).brief)                     # the first middle link, before the interview
+               and isinstance(schedule.as_item(e).brief, tuple))                     # the first middle link, before the interview
     after = [MAG.item(p) for p in range(pos + 1, pos + 3)]
     plan = {str(pos + 1): {"subject": "Bea Kowalczyk on her allotment", "guest": "Bea Kowalczyk"}}
     monkeypatch.setattr(rundown, "peek", lambda world, show, p: plan.get(str(p)))
@@ -132,7 +132,7 @@ def test_the_last_link_trails_nothing_the_hour_wont_reach():
 
     w = world_mod.seed()
     pos = next(i for i, e in enumerate(MAG.pattern) if schedule.as_item(e).type is T.links and not schedule.as_item(e).part
-               and not schedule.as_item(e).brief)
+               and isinstance(schedule.as_item(e).brief, tuple))
     early = writers._coming_up(w, MAG, pos, datetime(2026, 11, 21, 19, 0).timestamp())
     late = writers._coming_up(w, MAG, pos, datetime(2026, 11, 21, 19, 56).timestamp())
     assert "WHAT COMES NEXT, in this order" in early

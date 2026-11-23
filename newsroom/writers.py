@@ -203,7 +203,7 @@ _MAGAZINE: dict[SegmentType, str] = {
     SegmentType.links: _COMMON_RULES + """
 These are the PRESENTERS' LINKS on Coastwide. "mag_a" (Pat) and "mag_b" (Clive) chat in short
 alternating lines, as their PLACE IN THE SHOW says: a bit of banter about something small and local
-(Clive has usually found an odd fact), and what is coming up: a filmed report, a guest in the
+(what THIS ITEM asks for: Clive's odd fact only when it says so), and what is coming up: a filmed report, a guest in the
 studio, the vox pop or the consumer slot. No guests speak. Do not open a new story; thread_id is null unless you
 mention an open thread in passing.
 headline = what THIS link is about (its banter, Clive's fact) in under 12 words: not the evening's theme, and not
@@ -1015,9 +1015,57 @@ def _show_so_far(world: World, show: schedule.Show, seg_type: SegmentType, part:
     on_brief = [e for e in mine if brief and e.get("brief") == brief][-SHOW_SAME_BRIEF:]
     same = [e for e in mine if e in on_brief or e in mine[-SHOW_SAME_TYPE:]]
     kind = seg_type.value.replace("_", " ")
-    same_s = (f"\nTHE LAST {kind.upper()}S, how they began. This {kind} is about none of these subjects, not even "
-              "from a new angle:\n" + "\n".join(f"  - {e['headline']}: {e['text'][:160]}" for e in same)) if same else ""
+    if seg_type is SegmentType.links and show.id in LINKS_TRAIL:
+        # Shown how the last links began and told only to avoid their subjects, Coastwide's links copied the
+        # opening: seven began "Clive, you've gone quiet again, which in your case means..." and four carried the
+        # caption "The Harbour at First Light" (2026-11-22). So the words and captions are named as off limits.
+        same_s = ("\nTHE LAST LINKS, how they began and their captions. This link begins with other words and "
+                  "another idea (not the same line to Clive, not the same joke), and its caption (lower_third) is "
+                  "its own, none of these:\n"
+                  + "\n".join(f"  - \"{e['text'][:90]}...\" (caption: {e.get('caption') or '?'})" for e in same)
+                  ) if same else ""
+    else:
+        same_s = (f"\nTHE LAST {kind.upper()}S, how they began. This {kind} is about none of these subjects, not "
+                  "even from a new angle:\n" + "\n".join(f"  - {e['headline']}: {e['text'][:160]}" for e in same)
+                  ) if same else ""
     return _SHOW_SO_FAR.format(title=title, heads=heads, same=same_s)
+
+
+def _first_words(text: str, n: int = 8) -> list[str]:
+    return re.findall(r"[a-z']+", (text or "").lower())[:n]
+
+
+def _caption_words(caption: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z']+", re.sub(r"^\s*coastwide\s*[:|-]\s*", "", (caption or "").lower()))
+            if w not in ("the", "a", "and", "of", "at", "on", "in")}
+
+
+def link_echoes(script, world: World, show: schedule.Show, part: str = "") -> list[str]:
+    """What a Coastwide link repeats from the show's earlier links today: its opening words (the first four the
+    same, or most of the first eight) or its caption. On 2026-11-22 seven links began "Clive, you've gone quiet
+    again, which in your case means..." (two word for word, with the same reply) and four were captioned "The
+    Harbour at First Light". The opening and the goodbye are their own, and are left alone."""
+    if show.id not in LINKS_TRAIL or part in ("open", "close"):
+        return []
+    lines = getattr(script, "lines", []) or []
+    first = _first_words(lines[0].text if lines else "")
+    cap = _caption_words(getattr(script, "lower_third", "") or "")
+    with world.lock:
+        earlier = [e for e in world.archive if e["date"] == world.last_date and e.get("show") == show.id
+                   and e["type"] == SegmentType.links.value]
+    out = []
+    for e in earlier:
+        old = _first_words(e.get("text", ""))
+        if len(first) >= 4 and (first[:4] == old[:4]
+                                or len(set(first) & set(old)) / max(1, len(set(first) | set(old))) >= 0.6):
+            out.append(f"it begins as an earlier link did: \"{' '.join(old)}...\"")
+            break
+    for e in earlier:
+        old = _caption_words(e.get("caption", ""))
+        if cap and old and len(cap & old) / len(cap | old) >= 0.6:
+            out.append(f"its caption is an earlier link's: \"{e['caption']}\"")
+            break
+    return out
 
 
 FIELD_MEMORY = 3                # the last field reports on this show the next one is shown
@@ -2103,6 +2151,14 @@ def script_segment(seg: Segment, world: World) -> Segment:
                          seg.slot_id)
             else:
                 script = again
+        # A Coastwide link that opens, or is captioned, as an earlier one did: one more ask; the better one stands.
+        if seg.type is SegmentType.links and (echo := link_echoes(script, world, show, seg.part)):
+            log.info("%s slot %d: %s; asking once more", seg.type.value, seg.slot_id, "; ".join(echo))
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                "\n\nNOT LIKE THE LAST LINKS: " + "; ".join(echo) + ". Write it again: it begins with other words "
+                "and another idea, and its caption (lower_third) is one of its own."))
+            if len(link_echoes(again, world, show, seg.part)) < len(echo):
+                script = again
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
             user += ("\n\nKeep every word suitable for daytime television: no swearing, no slurs. Channel 7 "
@@ -2571,6 +2627,7 @@ def _apply_to_world(seg: Segment, script, world: World, *, template: bool = Fals
     world.record_aired(seg.type.value, script.headline, seg.thread_id, " ".join(l.text for l in seg.lines),
                        content_hash=seg.content_hash,
                        show=seg.show, brief=seg.brief, guest=(guest or "").strip(),
+                       caption=getattr(script, "lower_third", "") or "",
                        aired=False)            # history once the player says it went out (world.confirm_aired)
 
 

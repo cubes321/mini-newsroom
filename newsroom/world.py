@@ -634,7 +634,7 @@ class World:
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
                      show: str = "", brief: str = "", content_hash: str = "", aired: bool = True,
-                     guest: str = "", fiction: bool = False) -> None:
+                     guest: str = "", fiction: bool = False, caption: str = "") -> None:
         """Archive entry for a scripted segment, with its named guest if it had one (`guests_today`);
         also counts appearances of named people. The
         writers make it when the script is written (`aired=False`), as the next writers have to
@@ -661,6 +661,8 @@ class World:
             entry.update(aired=False, ts=schedule.now())
         if guest:
             entry["guest"] = guest
+        if caption and not fiction:   # Coastwide's links: the same caption four times on 2026-11-22 (writers)
+            entry["caption"] = caption[:60]
         if fiction:
             entry["fiction"] = True
         else:

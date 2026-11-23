@@ -104,6 +104,28 @@ mended before air are left out. Nothing below is fixed yet.
    First Light" is the caption four times; eight headlines are "Clive's X and What's Coming Up". One link still opens
    "Good evening, and welcome back to the middle of Coastwide" (19:42). Five weathers in the hour, two minutes apart at
    the end, with 12, 8, 8 and 11 degrees.
+   **Fixed 2026-11-23 (not aired), except the weathers.**
+   - **The cause:** the middle links had no brief, and the links' system prompt said "Clive has usually found an odd
+     fact". So all nine were Pat prodding Clive for a fact. Each prompt listed the last links "how they began",
+     told only to avoid their subjects, and the opening was copied.
+   - **Briefs for the middle links:** each now has an angle for each lap (`schedule.py`, as the other middle items
+     have). Clive's odd fact comes once a lap and never next to another. The rest: something Pat noticed on her way
+     in; a viewer's message or photo; a birthday or thank-you to mark; what's on in town this week; a small
+     disagreement; something from the last item. The system prompt says the fact comes only when the item asks.
+   - **The prompt:** the last links' list now gives their openings and captions as off limits: other first words,
+     not the same line to Clive, a caption of its own. The caption is now kept on the aired record.
+   - **A check:** a middle link whose first four words are an earlier link's, or most of its first eight, or
+     whose caption is most of an earlier link's, gets one more ask. Whichever of the two repeats less stands
+     (`writers.link_echoes`). Over the night's filed links it catches 8 of the 9 repeated openings, and "Good
+     evening, and welcome back to the middle of Coastwide" (it matches the opening).
+   - **Replayed with Haiku:** the night's twelve links at their own times, on the pre-night copy.
+     - Yesterday's code opened five of them "Clive, we have had lamp posts, clocks and beeswax tonight".
+     - With the check alone (no briefs), the openings still circled "Clive, you've been quiet since…", three
+       word for word, after seven re-asks.
+     - With the briefs, the ten middle links were ten different things: a sailmaker Pat passed, a lighthouse
+       cat, a biscuit-tin dispute, a viewer's roast photo, a ninetieth birthday, what's on this week. One re-ask
+       fired, on a fact link that came straight after another. That led to the spacing now in place, which is
+       tested and not replayed.
 4. **Facts drift between items and from the briefing.**
    - Full Time has Polgrey "two-nil win over Greymouth Athletic" (18:51) and "lost two-nil to Greymouth Athletic"
      (18:54); "a clean sheet" in the 3-1; the Wreckers' 14 November "a fortnight back" (also The Last Ferry and the
