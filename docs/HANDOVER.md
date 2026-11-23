@@ -1,5 +1,105 @@
 # Handover
 
+## Picking up after the Channel 7 night of 2026-11-22
+
+A real Channel 7 night on the real town, started 18:40 from `data/night_channel7_nopictures.cmd` (no ComfyUI: the card
+was in use), with OBS recording from 18:48. It ran the code at `4bfd338`: all the fixes of the 2026-11-21 review
+(`1c7b43a..dde4e2c`), not the Saltby weather map (`61d5483`, after). Backup `data/world.backup-2026-11-22-pre-night.json`,
+log `data/logs/station-2026-11-22-1840.log`.
+
+### The night's review (2026-11-23 morning)
+
+It ran 18:40 to 06:40 and exited cleanly: 660 segments, 46 adverts, no filler, worst p99 13.9 ms. The one ERROR is OBS
+not yet open at 18:40. Sound is in all nine recordings checked (Full Time to Morning Tide, mean -26.7 to -27.3 dB,
+Seventext -31.6; no silence of five seconds). Full Time's first nine minutes weren't recorded (OBS came up at 18:48).
+
+- **As intended:** the senior editor reviewed at 18:55, 20:54, 22:54, 00:54 and 06:28 (7 merges), held off at 18:45 and
+  02:54; 24 desk rounds; the editors' meeting at 18:45 (two Opus turns); 175 overnight repeats.
+- **The weekly review** (The Week to Sunday 22 November, aired as "Frost, a Thousand Names and a Saturday Roar") was
+  commissioned at 18:47, aired 21:01 for 13 min 30 s against a 15-minute target, and was repeated at 02:02.
+- **Model use:** Haiku 475 calls (7 failed validation once), 3.79M in (1.80M from the cache), 286k out; DeepSeek
+  thinking 96 calls, 881k in, 267k out; Sonnet 8; Opus 2.
+
+**What the 2026-11-21 fixes did on air** (log counts, and the scripts as filed in `data/cache`):
+
+| Fault | 2026-11-21 | 2026-11-22 |
+|---|---|---|
+| Tides/ferry wrong in items given the tables | 13 of 14 news weathers | 2 of 107 items (12 asked again, 2 stood) |
+| 24-hour clock read aloud | many | none ("twelve-oh-three" and "Eleven-forty" got through: see below) |
+| Presenter thanks themselves | 22 lines | 4 taken off before air, none aired |
+| A line in the wrong mouth (two guests) | 4 of 8 Last Ferry second halves | 4 given back before air (the three "Ivy, you'll know…" lines went to the other guest) |
+| Miles out of breath | 22 items | 10 |
+| Coastwide's links | ten under one caption, trails for things that never came | each its own headline; trails matched what came next; the close is a goodbye |
+| The Panel's goodbye | "Back on the third of December, live on The Chamber" | "Back tomorrow at half past eight" (right) |
+| Council business invented | committee decisions, minutes | none by a committee; the 5-0 vote of the 19th quoted is real |
+
+### The night's scripts, read closely (2026-11-23)
+
+All 321 scripts first aired that night and the ten documentaries were read, a reader to a group of shows, against the
+facts the writers were given (the briefing, and the tide and ferry tables at four times). The readers had the model's
+replies, not the filed scripts: every finding a repair could have mended was checked against `data/cache`, and the ones
+mended before air are left out. Nothing below is fixed yet.
+
+1. **Open stories' next steps are told as done before their day.** The news delivers a thread's NEXT on the night it is
+   given, whatever its date: the bottled ship too tall for the sill (t651, NEXT Friday) at 21:23; the oak chips half
+   short (t624, Tuesday) at 21:24; the beeswax labels matching (t623, Monday) at 23:14; the chess ladder chalked (t632,
+   Wednesday); the shirt back (t673, Saturday); the mooring rope fitted (t658, Monday) at 21:51 and "on Thursday" at
+   21:21. The briefing's line says "a follow-up must deliver the NEXT development or a step towards it" (`world.py:374`),
+   and the threads listed there carry NEXTs dated days ahead; only "waiting" threads are held back. The documentary
+   "The Eleventh Label" (01:43) and Morning Tide (06:02, the stamp copied) do the same.
+2. **The Inquiry fell back to templates three times.** Twice the writer booked THE GUEST, the mayor, for "a councillor or
+   board member who will vote on it" (20:08) and "how the town handled something like it before" (20:15), three asks
+   each; the code then gave up. The third was a closing line over 900 characters, twice. Five councillors were free.
+   It also trailed the mayor four times after both her parts had aired (20:10 to 20:20), and gave Pat Gordon's line
+   "Marjorie Pell is my aunt" (20:00).
+3. **Coastwide's links have a new loop.** Seven open "Clive, you've gone quiet again, which in your case means you're
+   sitting on something odd about the harbour at first light" (two word for word with the same reply); "The Harbour at
+   First Light" is the caption four times; eight headlines are "Clive's X and What's Coming Up". One link still opens
+   "Good evening, and welcome back to the middle of Coastwide" (19:42). Five weathers in the hour, two minutes apart at
+   the end, with 12, 8, 8 and 11 degrees.
+4. **Facts drift between items and from the briefing.**
+   - Full Time has Polgrey "two-nil win over Greymouth Athletic" (18:51) and "lost two-nil to Greymouth Athletic"
+     (18:54); "a clean sheet" in the 3-1; the Wreckers' 14 November "a fortnight back" (also The Last Ferry and the
+     news); the news says the Tides are "on top of the league" (they are 4th) and invents a points table.
+   - The Last Ferry gives high water "at twenty-five to five this afternoon" (17:25: 22:00, a slip the check missed) and
+     has the tide high or rising in six items while it ebbed to the 23:38 low.
+   - Dolores runs "a chip van" on The Panel; Tam Buchanan is the ferry skipper on Coastwide; Brenda Fisk's shop moves.
+   - Documentaries disagree on the wage book, the lifeboat suits (paid and fitted, or two unstitched) and the plaque.
+5. **The weekly review's repeat is told for Sunday at 02:02 on Monday**: "Earlier today, this Sunday", "due tomorrow".
+   The overnight documentaries likewise tell the small hours as evening ("half past six this evening" at 02:46).
+6. **The known three from the scratch evening, all still there:** "live on The Chamber at eight" read aloud (The Panel's
+   chair 20:55, guests Helen Strand 23:41 and Gerald Thorne 23:52, the news 21:54 and 23:54); a panellist addressing
+   himself ("Gerald has been waiting for the numbers", 20:33); a guest booked as "Gordon Pell, resident, Harbour Row"
+   (news 23:47), with Gordon Ashdown, Gordon Fairlie, Tamsin Kearley and Tamsin Rowe as guests too.
+7. **The loops and the same few, smaller than before but there.** The Last Ferry's letter is the same letter three times
+   (22:06, 22:19, 22:48) and seven guests come back for a second half after a full goodbye; The Panel's engine question
+   is asked four times, "fourth question" twice; Morning Tide airs the fire station item word for word twice and the
+   lifeboat item twice in three minutes. Ivy Marchetti in 26 news items, Dougal Crane 19, Bernard Moss 15; ON A LOT
+   LATELY was in 298 prompts and residents named in it were still booked (Marjorie Pell three times on The Last Ferry).
+   Seven Ruths on Coastwide, four on The Last Ferry.
+8. **The hour and the day, smaller.** Sunday as a weekday on Coastwide ("the school-run corner", "sold out on a
+   Monday"); Monday's Morning Tide says "the weekend is nearly here" and asks what's on "this weekend"; the news says
+   the shops are open "until about ten tonight" at 23:10 to 23:39; "a lovely afternoon for a sail" at 23:12.
+9. **Writing.** 84 of Dana's news items and all 20 news weathers open "Good evening" (none is a programme's opening);
+   "twelve-oh-three" and "Eleven-forty" read as figures (forms `clock_read_out` doesn't know); garbled lines on every
+   show ("Gwen Rowley, not Gwen Rowley the painter"; "a pair of oak chips on the shelf in Fowle and Sons").
+10. **Small:** the briefing's town history lists "1871: Background: Port Wexley is founded…" three times.
+
+**Came back clean:** the ferry's running state everywhere (nobody aboard after 22:45 or before 07:00, the last-ferry
+times right); today's tide table never given as tomorrow's; the scores, scorers and dates of the Tides, the Wreckers and
+the darts in the news and the review; the holders of each job in the news; the auction figures; council dates.
+
+**The weekly review's length:** stay at 15 minutes. It is about 2,000 words and already recycles (the 3 December meeting
+about seven times, the hake and Polgrey three each); the week's real material is six stories, and the stories it left
+out are a day or two old. Its nine sections are each a stand-up at a place plus a guest, grouped by place rather than
+by day, and four of its seven guests are the over-used residents. Thirty minutes would need invention.
+
+**Fixes, in the order they would pay:** a thread's NEXT held until its day, in the briefing as well as for waiting
+threads (1); The Inquiry naming a free councillor or resident when THE GUEST is booked twice, as `_send_miles` names a
+story (2); Coastwide's links told their last two openings, as `_came_round` does for briefs (3); the review and
+documentaries re-timed, or not repeated, after midnight (5); the three known faults (6); "Good evening" only on a
+programme's first item (9).
+
 ## Picking up after the Channel 7 night of 2026-11-21
 
 A real Channel 7 night on the real town, started 18:34 from `data/night_channel7.cmd` with the pictures on. The backup
