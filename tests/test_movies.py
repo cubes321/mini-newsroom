@@ -84,7 +84,7 @@ def test_each_scene_is_given_the_whole_script_so_far_and_the_last_is_told_it_end
     M.write(film, world_mod.seed(), say=lambda s: None)
     asked = [u for _, s, _, u in seen if s is M.Dialogue]
     assert "nothing yet: this is the opening scene" in asked[0]
-    assert "[Scene 1.1, the harbour, day]" in asked[1] and "[Scene 1.1," in asked[-1] and "[Scene 4.7," in asked[-1]
+    assert "[Scene 1.1, the harbour, day]" in asked[1] and "[Scene 1.1," in asked[-1] and f"[Scene {M.ACTS}.{M.SCENES_PER_ACT - 1}," in asked[-1]
     assert "LAST scene of the film" in asked[-1] and "last scene before the ad break" in asked[M.SCENES_PER_ACT - 1]
 
 

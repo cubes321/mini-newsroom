@@ -1,7 +1,7 @@
-"""The TV movie: Channel 8's 21:00 hour (docs/ENGINE.md, "The TV movie"; agreed with the user 2026-11-23).
+"""The TV movie: Channel 8's 21:00 to 22:30 (docs/ENGINE.md, "The TV movie"; agreed with the user 2026-11-23).
 
 A bank of finished films, grown a film at a time. Each is written in full ahead of air, here, never live: the soap
-is written on the night and only finds out its length on air, and an hour of story (about 32 scenes) is too much for
+is written on the night and only finds out its length on air, and an hour and a quarter of story (about 40 scenes) is too much for
 one plan call. A finished film has a known running time, can be read by the creative editor and approved by the user
 before it joins the bank, and costs nothing to repeat.
 
@@ -55,12 +55,14 @@ TITLE = "The Channel 8 Film"       # the slot's name, until it has one
 AIRS_AT = "21:00"                  # to 22:30 (the user, 2026-11-23)
 GENRES = ("mystery", "romance", "thriller", "comedy", "family drama", "ghost story")
 ACTS = 4
-SCENES_PER_ACT = 8
-# 2026-11-23: asked 150 words (75 s), Sonnet wrote about 240 in every one of The Last Lot's 32 scenes, 64 minutes in
-# all; the user gave the movie ninety minutes rather than cut it, so a scene is asked what Sonnet writes anyway.
-SCENE_S = 120.0                    # about 240 words
-WORDS_PER_S = 2.0                  # Marina Row's measured scenes: 110-160 words ran 60-77 s with the gaps
-TARGET_S = ACTS * SCENES_PER_ACT * SCENE_S      # 64 minutes; the ad breaks fill the ninety
+# 2026-11-23: asked 150 words (75 s), Sonnet wrote about 240 in every one of The Last Lot's 32 scenes, whatever it was
+# asked, so a film's length is set by its number of scenes. The Last Lot, voiced, ran 56 minutes (7,693 words in 3,362 s,
+# 2.29 a second), short of the ninety-minute slot; the user chose longer films (the same day), and a film that still
+# comes up short is padded (docs/ENGINE.md "The TV movie": borrowed news from Channel 7, perhaps).
+SCENES_PER_ACT = 10                # 40 scenes: about 73 minutes of story, 89 with the titles, credits and breaks
+SCENE_S = 110.0                    # about 250 words, what Sonnet writes anyway
+WORDS_PER_S = 2.3                  # The Last Lot's voices (Pocket, the guest pool), measured
+TARGET_S = ACTS * SCENES_PER_ACT * SCENE_S      # 73 minutes
 MAX_PARTS = 6
 PLAN_TOKENS = 32000                # as the soap's plan: Sonnet's thinking counts against it
 PLAN_TIMEOUT_S = 420.0
@@ -185,7 +187,7 @@ class Dialogue(BaseModel):
 _RULES = """You write TV movies for Channel 8, Port Wexley's second television channel: made-for-television films,
 made by WTV and shot on location around the town, in a Cornish harbour. They are fiction: every character is made
 up and played by an actor; never a resident of the town, a real person or the town's own news. An hour and a half on
-air with the ad breaks, about an hour of story; it airs at nine in the evening, so nothing graphic, no swearing worse
+air with the ad breaks, about an hour and a quarter of story; it airs at nine in the evening, so nothing graphic, no swearing worse
 than "bloody", and any violence off screen. It is drama on a small budget: every scene is two or three people
 talking in one place, and only what they say reaches the screen, so the story must live in dialogue."""
 
@@ -196,7 +198,7 @@ at most {parts} speaking parts. Make them distinct from one another and from the
 _OUTLINE = _RULES + """
 Outline THE FILM from its pitch: the title, the genre, the logline, the tone, at most {parts} parts (first name and
 surname each, made up, none from RESIDENTS; a gender and an age band each, for casting), {acts} acts, and the
-ending with the film's last line and who says it. Each act is about a quarter of an hour, eight scenes, and ends on a moment
+ending with the film's last line and who says it. Each act is about {act_min} minutes, {scenes} scenes, and ends on a moment
 that carries the audience over the ad break; the last act ends the film. A story that plays fair: set up what
 pays off, and nothing solved by luck. The places are THE SETS only, as the film names them. Return ONLY JSON."""
 
@@ -334,7 +336,7 @@ def outline(world: World, film: dict) -> Outline:
     user = (f"THE PITCH: \"{p['title']}\", a {p['genre']}. {p['logline']} {p.get('hook', '')}\n\n"
             f"THE SETS:\n{_sets_text()}\n\nRESIDENTS (never a part's name): {', '.join(residents)}"
             + creative.for_planner(world, SHOW, series=True))
-    system = _OUTLINE.format(parts=MAX_PARTS, acts=ACTS)
+    system = _OUTLINE.format(parts=MAX_PARTS, acts=ACTS, scenes=SCENES_PER_ACT, act_min=round(TARGET_S / ACTS / 60))
     check = lambda o: _check_outline(o, world)        # noqa: E731
     ask = lambda more="": _ask(TASK, Outline, system, user + more, check,  # noqa: E731
                                max_tokens=PLAN_TOKENS, timeout_s=PLAN_TIMEOUT_S)
@@ -550,7 +552,7 @@ def enrol():
     return creative.register(
         SHOW, TITLE, kind="fiction", vetted=True, airs_at=AIRS_AT,
         brief=("Channel 8's TV movie at nine: a bank of made-for-television films, each written in full ahead of air "
-               f"and read before it joins the bank; about an hour of story in {ACTS} acts, 21:00 to 22:30 with the breaks, two or three people "
+               f"and read before it joins the bank; about an hour and a quarter of story in {ACTS} acts, 21:00 to 22:30 with the breaks, two or three people "
                "talking in each scene, on location around the town. Fiction: none of it reaches the town."),
         decides="the film's premise, parts, acts and ending; each act's scenes; then the dialogue")
 

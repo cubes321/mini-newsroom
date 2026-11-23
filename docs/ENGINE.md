@@ -249,7 +249,7 @@ three each, the rules approved as below). With it and The Slipway the channel ha
 
 Channel 8's 21:00 hour, agreed with the user on 2026-11-23. The writer is built (`entertainment/movies.py`, the same
 day): `pitch` gives three pitches, `new` starts a film from one, and `write` makes the outline (vetted once by the
-creative editor), each act's eight scenes, then the dialogue scene by scene, each given the whole script so far,
+creative editor), each act's ten scenes, then the dialogue scene by scene, each given the whole script so far,
 saving after every call into `data/movies/<slug>/film.json`, so a failure costs one call. `script.md` is what the user
 reads and edits (a hand-edited one is never overwritten), with an estimated running time; `read` has the creative
 editor read the finished film, and `approve` puts it in the bank. Nothing of it is on air yet.
@@ -276,8 +276,16 @@ actors, the credits name the characters.
   before it airs, and a repeat costs nothing to write.
 - **An hour and a half, from the first film** (the user, 2026-11-23): *The Last Lot* came out at about 64 minutes of
   story against the 40 asked for (Sonnet wrote about 240 words a scene, asked 150, in all 32). Rather than cut it, the
-  movie takes 21:00 to 22:30, and comedy and the late drama move back half an hour each. The writer now aims at an
-  hour of story (eight scenes an act of about 120 s), which with the breaks fills the ninety minutes.
+  movie takes 21:00 to 22:30, and comedy and the late drama move back half an hour each.
+- **Longer films, and a filler for the short ones** (the user, 2026-11-23): voiced, *The Last Lot* ran 56 minutes
+  (2.29 words a second, not the 2.0 assumed), 57 with its titles and credits, a quarter of an hour short of a
+  ninety-minute slot with about 15 minutes of breaks. Sonnet writes about 240 words a scene whatever it is asked, so
+  the number of scenes sets the length: the writer now asks ten scenes an act, 40 in all, about 73 minutes of story,
+  89 with the titles, credits and three breaks. Some films will still come up short, so the slot fills what is left
+  after the film: the user's idea is to borrow news from Channel 7 (a short bulletin from Channel 7's newsroom
+  between the film and 22:30, as ITV's regions once ran a late local news), with programme trailers and the
+  adverts. To design at the slot's build: where the news goes (after the film, or as a break in the middle), who
+  reads it on Channel 8, and the shortest gap worth a bulletin.
 - **Revisit later:** once the drama (the anthology) and comedy productions work well on air, the format comes back
   up: films written live, walking figures, the offline "blockbusters".
 - **Proposed, to settle at the build:**

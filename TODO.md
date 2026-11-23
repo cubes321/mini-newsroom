@@ -248,7 +248,9 @@ bottom with the date.
     `tools/film.py`, with opening titles and end credits (`entertainment/movie_cards.py`). Open: the user's verdict
     on the recording; the looks and FILM_MARKS on a contact sheet; the titles' music, by ear; who acts (the credits
     name characters until there is a company); the name check beyond full names; ad breaks; then the 21:00 slot
-    on the station and the closedown to 22:30 until comedy is built.
+    on the station and the closedown to 22:30 until comedy is built. Films are now asked 40 scenes (about 73
+    minutes; The Last Lot ran 56); a film that still comes up short is padded, perhaps with news borrowed from
+    Channel 7 (the user, 2026-11-23).
   - **The Slipway**, 18:30, built 2026-11-19 in Cartoon Time's place (`entertainment/slipway.py`): Tegan Trevenna and
     Elis Pengilly (looks A and A on data/contact-sheets/2026-11-19-slipway-presenters.png); the feature, a how-to,
     Academy Corner, messages, the big question, what's on, the challenge, Quick Five. Not yet aired. Open: their
