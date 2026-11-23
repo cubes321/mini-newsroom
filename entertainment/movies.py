@@ -378,11 +378,44 @@ def _so_far(film: dict, upto: str) -> str:
     return "\n\n".join(out)
 
 
+# What leaked into the spoken words of the six films written on 2026-11-23 (66 lines of about 3,800, found by the
+# creative editor's read): the JSON's own mood field on the end of a line (`','mood':'happy`, `","mood":"worried`,
+# `Mood: worried`), `</br>`, a stray brace or pilcrow, zero-width spaces, a `.com`, and two sentences run together
+# ("else.Whoever's"). All of it would be voiced.
+_Q = "\"'" + "".join(map(chr, (0x2018, 0x2019, 0x201C, 0x201D)))       # straight and curly quotes, either may leak
+_ZW = "".join(map(chr, (0x200B, 0x200C, 0x200D, 0xFEFF)))                       # zero-width spaces
+_MARKS = chr(0xB6) + chr(0xA7) + chr(0xFFFD)                                    # a pilcrow, a section sign
+_LEAKED_MOOD = re.compile(rf"\s*[{_Q}]*\s*,?\s*[{_Q}]?\bmood[{_Q}]?\s*:\s*[{_Q}]?([A-Za-z]*)[^.!?]*[.!?]?$", re.I)
+_MARKUP = re.compile(rf"</?\s*br\s*/?>|<[a-z/][^>]{{0,12}}>|[{{}}{_ZW}{_MARKS}]")
+_RUN_ON = re.compile(r"([a-z])([.!?])([A-Z][a-z])")
+_STILL_BAD = re.compile(rf"[<>{{}}\[\]]|\bmood\s*[{_Q}:]|[a-z][.!?][a-z]{{2}}", re.I)
+
+
+def scrub(text: str, mood: str = "") -> tuple[str, str]:
+    """A line's words with what leaked into them taken out, and its mood (a leaked one, when it had none)."""
+    if m := _LEAKED_MOOD.search(text):
+        text = text[:m.start()]
+        found = m.group(1).lower()
+        mood = mood or (found if found in MOOD_NAMES else "")
+    text = _MARKUP.sub("", text).replace(chr(0x2009), " ").replace(chr(0xA0), " ")
+    text = re.sub(r"\.com$", ".", text.rstrip())
+    text = _RUN_ON.sub(r"\1\2 \3", text)
+    text = re.sub(r"[\s,]+$", "", text)
+    left, right = chr(0x201C), chr(0x201D)                # a quote left dangling at the end, never a closed one
+    if (text.endswith('"') and text.count('"') % 2 or text.endswith(left)
+            or text.endswith(right) and text.count(right) > text.count(left)):
+        text = text[:-1].rstrip()
+    return re.sub(r"\s{2,}", " ", text).strip(), mood
+
+
 def check_scene(d: Dialogue, sc: dict, cast: list[str], keep: str = "") -> None:
-    """soap.tidy mends what a scene writer gets wrong in the lines (a name in front, a direction, a speaker naming
-    themselves); then every line is one of the scene's people and at least two of them speak."""
+    """scrub() and soap.tidy mend what a scene writer gets wrong in the lines (leaked markup, a name in front, a
+    direction, a speaker naming themselves); then nothing markup-like is left, every line is one of the scene's people
+    and at least two of them speak."""
+    for l in d.lines:
+        l.text, l.mood = scrub(l.text, l.mood)
     script = SimpleNamespace(lines=[SimpleNamespace(guest_name=l.character, text=l.text, mood=l.mood)
-                                    for l in d.lines])
+                                    for l in d.lines if l.text])
     soap.tidy(script, list(sc["characters"]), cast, keep)
     d.lines = [FilmLine(character=l.guest_name, text=l.text, mood=l.mood) for l in script.lines]
     who = [l.character for l in d.lines]
@@ -390,6 +423,9 @@ def check_scene(d: Dialogue, sc: dict, cast: list[str], keep: str = "") -> None:
         raise llm.AskAgain(f"lines are spoken by {sorted(stray)}, who are not in this scene")
     if len(set(who)) < 2:
         raise llm.AskAgain("only one character speaks")
+    if bad := [l.text for l in d.lines if _STILL_BAD.search(l.text)]:
+        raise llm.AskAgain(f"a line has markup or run-together words in it, which would be read aloud: {bad[0]!r}. "
+                           "Each line's text is only the words said; the mood goes in its own field")
     if len(d.lines) < 6:
         raise llm.AskAgain("the scene is too short")
 

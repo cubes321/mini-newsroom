@@ -245,3 +245,37 @@ def test_a_part_is_credited_in_a_few_words():
     assert role("The young auctioneer, who took the rostrum when her father died.") == "the young auctioneer"
     assert role("A retired net-mender who runs the tea room over the quay.") == "a retired net-mender"
     assert role("Jago's deckhand and Bryony's nephew. Loyal.") == "Jago's deckhand and Bryony's nephew"
+
+
+def test_what_leaks_into_a_line_is_scrubbed_and_the_leaked_mood_kept():
+    rq, lq = chr(0x201D), chr(0x201C)
+    cases = {
+        "It plays havoc with the icing.','mood':'smug": ("It plays havoc with the icing.", "smug"),
+        f"Nobody could object to that.{rq},{lq}mood{rq}:{lq}worried": ("Nobody could object to that.", "worried"),
+        "He never budged.Mood: nothing, flat.": ("He never budged.", ""),
+        "As tight as a drum.</br>": ("As tight as a drum.", ""),
+        "I've lost my place.com": ("I've lost my place.", ""),
+        f"Nothing else.Whoever's name is on the front.{chr(0x200B)}": ("Nothing else. Whoever's name is on the front.", ""),
+        f"Don't mind him. {chr(0xB6)}": ("Don't mind him.", ""),
+        f"A draughtier rock, Mr Skerritt.{rq},": ("A draughtier rock, Mr Skerritt.", ""),
+        f"She said {lq}go{rq}": (f"She said {lq}go{rq}", ""),                  # a closed quote stays
+        '"I must go."': ('"I must go."', ""),
+        "I'm in no mood. It cost £2,000 at 8.20.": ("I'm in no mood. It cost £2,000 at 8.20.", ""),
+    }
+    for raw, want in cases.items():
+        assert M.scrub(raw) == want, raw
+    assert M.scrub("Go on.mood: worried", "cross") == ("Go on.", "cross")    # its own mood wins
+
+
+def test_a_scene_with_markup_left_in_a_line_is_asked_again():
+    sc = {"characters": NAMES[:2]}
+    d = M.Dialogue.model_validate({"lines": [
+        {"character": NAMES[i % 2], "text": "Nobody reaches him by boat.of course.mrk" if i == 3 else "Fine words."}
+        for i in range(8)]})
+    with pytest.raises(llm.AskAgain, match="read aloud"):
+        M.check_scene(d, sc, NAMES)
+    ok = M.Dialogue.model_validate({"lines": [
+        {"character": NAMES[i % 2], "text": "Fine words.','mood':'happy" if i == 3 else "Fine words."}
+        for i in range(8)]})
+    M.check_scene(ok, sc, NAMES)
+    assert (ok.lines[3].text, ok.lines[3].mood) == ("Fine words.", "happy")
