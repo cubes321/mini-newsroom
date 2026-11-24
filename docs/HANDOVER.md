@@ -1,5 +1,60 @@
 # Handover
 
+## Picking up after the Channel 8 evening of 2026-11-24
+
+Channel 8's whole evening on the real town, its first real night since 2026-11-16 and the first on air for High
+Water, The Slipway, the 2026-11-19 lengths and the TV movie. Started 18:09 from `data/night_channel8.cmd`, which now
+runs `--clock 17:50 --minutes 300` (it had been 18:50 and 132, which stopped at the old 21:00 closedown). Backup
+`data/world.backup-2026-11-24-1808-pre-channel8.json` (a first start that failed on a typo in the launcher made it;
+the station never opened the world). Log `data/logs/station-2026-11-24-1809.log`. The times below are the log's;
+the broadcast clock ran 19 min 11 s behind them.
+
+### The night's review (2026-11-24, from the log only; the recordings not yet watched)
+
+- **The running:** 192 segments, 84 adverts, no filler and no `gap:` lines but the one at start-up; worst p99 6.6 ms.
+  Audio into CABLE Input all night (no `audio: no output called`). OBS saved every programme to its own file.
+- **On time:** High Water 18:19:30 (18:00 on the broadcast clock), The Slipway 18:46:46 (18:27), The Kettle's On
+  19:18:17 (18:59), Wits 20:18:41 (19:59), Marina Row 20:37:38 (20:18; episode 2, "Tamsin Penrose, Allegedly"),
+  The Coast Road 20:57:04 (20:38), Dead Reckoning 21:18:13 (20:59), the closedown 22:48:03 (22:29). Exit 23:09.
+- **The TV movie, first time on air:** the draw picked Dead Reckoning (Best in Show is next, for the 25th). All 40
+  scenes aired; breaks after scenes 10, 20 and 30 ran 187, 182 and 182 s (the scratch rehearsal's were 81 to 96 s:
+  the real town has more adverts to choose from); credits 44 s at 22:43:52; five breaks of about 41 s filled to the
+  closedown. No warnings from the titles to the close. The Late News did not run: a long film leaves under
+  `producer.THEN_MIN_S`, so it still waits for a short film (The Last Lot) to come up in the draw. Scene 30 is 34 s
+  and 6 lines; probably written short, worth a look in the recording.
+- **High Water, first time on air:** Lenny Gossard and Doris Penhallow; Doris climbed to eleven and took the star
+  prize, Lenny went home. Every item by the model but round 2.
+- **Model calls:** Haiku 127 (6 failed), DeepSeek Flash 15 (2 failed), Sonnet 9, other Anthropic 10. 104 items by
+  the model, 3 by template.
+
+### What went wrong
+
+1. **A script a few lines over its show's cap is thrown away whole.** Two of the three templates:
+   - High Water's round 2 (slot 9): Haiku wrote 44 lines twice, against 42 (`LINE_CAPS` 40 at
+     `entertainment/__init__.py:267`, plus slack). The template aired at 18:28, 82 s, 20 lines. Rounds 1 and 3
+     came in at 32 and 35.
+   - The Slipway's links (slot 36): 22 lines, then 20, against 18 (links 16). The template aired at 19:12, 8.6 s.
+   - Both attempts write about the same length, so the second ask rarely helps. To decide: trim to the cap (where
+     the lines allow it), raise these caps, or tell the second ask the count it came back with.
+2. **The Coast Road: a failed check goes straight to the template.** Slot 132, "Down the Quay Steps": "{x5} should be
+   Lorna Quayle alone, not []" (a `CHECK_HOOKS` check, after validation), with no second ask. A 9.9 s template at
+   21:15. Slots 133 and 135 failed validation once each and were fine on the second ask.
+3. **Lorna Quayle's saved route was turned down** at 18:55 as against the map (leg 1 takes the ferry from the quay rail,
+   not the Quay Steps; leg 3 starts on the wrong side of the Grey). Probably the 18 places added to the map on
+   2026-11-21; not confirmed. A new route, "The Slow Way Round", was planned and leg 1 of 6 aired, so her old series
+   is dropped, not continued. To decide: whether a saved route that the map now rejects should be mended, not
+   replaced.
+4. **The Kettle's On booking:** DeepSeek Flash hit max_tokens (16,000 out, 15,601 of them reasoning), then wrote a
+   question over 120 characters; Sonnet booked it (one call, 22k in, 9.6k out). Dolores Finch's fish pie, Carys
+   Lunt on the sofa, Sam Lander on the phones.
+5. **Marina Row, slot 112** ("Davey Tests Kerra on Road Signs", aired 20:49:55, 78.2 s, 15 lines): Pocket reached its
+   maximum generation length without an end on one line. Listen to it in `2026-11-24 20-37 Marina Row.mp4`.
+
+### Still to do
+
+The recordings watched (High Water, The Slipway and the film first); the fixes above; the Late News on a real night;
+the film's titles music and the Late News ident by ear.
+
 ## The late news after a short film, built on the morning of 2026-11-24 (rehearsed on a scratch town, never aired)
 
 The user chose: **after the credits, Dana at Channel 7's desk** (not mid-film, not before it). A film too short to fill
