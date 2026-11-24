@@ -12,8 +12,9 @@ the soap, Marina Row (soap.py, marina_row.py), at 20:20 after Wits; Cartoon Time
 bank had films, but good cartoons are hard to render, and The Slipway, the teen magazine (slipway.py), has the half
 hour since 2026-11-19 (the user), and High Water, the gameshow (highwater.py, highwater_show.py), the half hour
 before it. Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
-planned with the user 2026-11-14), at 20:40, before the closedown at 21:00, in turn with The Coast Road, the travelogue
-(travelogue.py), through schedule.ROTATIONS.
+planned with the user 2026-11-14), at 20:40, in turn with The Coast Road, the travelogue (travelogue.py), through
+schedule.ROTATIONS. The TV movie, from 21:00 to 22:30 (movie_night.py; the user, 2026-11-23): a film from the bank,
+written and voiced ahead; then the closedown, or the closedown at 21:00 on a night with no film fit to air.
 """
 from __future__ import annotations
 
@@ -25,8 +26,8 @@ from newsroom.schedule import Show
 
 CHANNEL_8 = Channel(number="8", name="Channel 8", said="channel eight", wordmark="CHANNEL 8 · PORT WEXLEY")
 
-# The closedown, one show from 21:00 to half past six the next evening (one id, so the test card's "programmes
-# resume at" is 18:30, not midnight): the goodnight once, then the card on a loop.
+# The closedown, one show from 22:30 to six the next evening (one id, so the test card's "programmes resume at" is
+# 18:00, not midnight): the goodnight once, then the card on a loop.
 CLOSEDOWN = Show(
     "closedown", "GOODNIGHT", "CHANNEL 8", (52, 56, 118),
     pattern=(T.bumper, T.testcard), loop_from=1,
@@ -45,7 +46,8 @@ SCHEDULE: tuple[tuple[int | str, str], ...] = (
     (20, "wits"),
     ("20:20", "marina"),        # Wits: twenty minutes (the user, 2026-11-07): seven rounds came to 14, chat filled the rest
     ("20:40", "tideline"),      # Marina Row, the soap (soap.py): twenty minutes after Wits (the user, 2026-11-13)
-    ("21:00", "closedown"),     # Tideline, the wildlife series (wildlife.py): twenty minutes (the user, 2026-11-14)
+    ("21:00", "movie"),         # Tideline, the wildlife series (wildlife.py): twenty minutes (the user, 2026-11-14)
+    ("22:30", "closedown"),     # the TV movie (movie_night.py): an hour and a half (2026-11-23); comedy is next, then drama
 )
 
 # The continuity announcer's lines over Channel 8's ident (continuity.IDENT_LINES): Cartoon Time and the
@@ -65,7 +67,7 @@ def use():
     """Put out the entertainment channel instead of Channel 7, from now. Returns an undo (for the tests)."""
     from newsroom import assets, channel, continuity, locations, player, scenes, schedule, workers, writers
 
-    from . import creative, highwater_show, kettle, oche, quiz, slipway, soap, travelogue, wildlife, wits
+    from . import creative, highwater_show, kettle, movie_night, oche, quiz, slipway, soap, travelogue, wildlife, wits
     from .marina_row import MARINA_ROW
     from .cartoons import CARTOON_TIME
 
@@ -103,6 +105,7 @@ def use():
     undo_soap = soap.register(MARINA_ROW)
     undo_wildlife = wildlife.register()
     undo_travelogue = travelogue.register()
+    undo_movie = movie_night.register()
     writers.SHOW_SYSTEMS[quiz.SHOW] = wits.SYSTEMS
     writers._PLACE.update(wits.PLACE)
     writers.BRIEF_HOOKS[quiz.SHOW] = quiz.brief_for
@@ -134,6 +137,7 @@ def use():
         undo_creative()
         for un in undo_enrolled:
             un()
+        undo_movie()
         undo_travelogue()
         undo_wildlife()
         undo_soap()

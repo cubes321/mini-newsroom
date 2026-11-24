@@ -14,7 +14,6 @@ script.md as it stands, so hand edits are voiced; a changed line, or a recast pa
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -29,13 +28,9 @@ from one_off import redirect, say  # noqa: E402  (stdlib only at import: newsroo
 
 
 def _script_hash(folder: Path) -> str:
-    """What the voicing depends on: the script, and each part's voice and speed (a look or a credit can change
-    in cast.toml without the film being voiced again)."""
-    import tomllib
+    from entertainment.movies import voice_hash          # the station's own check (movie_night.py)
 
-    cast = tomllib.loads((folder / "cast.toml").read_text(encoding="utf-8"))
-    voices = json.dumps({n: [c["voice"], c.get("speed", 1.0)] for n, c in sorted(cast.items())})
-    return hashlib.sha1((folder / "script.md").read_bytes() + voices.encode("utf-8")).hexdigest()
+    return voice_hash(folder)
 
 
 def _setup(folder: Path):
@@ -128,7 +123,6 @@ def segments(folder: Path, M, which: set[int], title: str, cast: dict, cards: bo
     """The scenes in `which`, with the opening titles before the first scene and the end credits after the last
     (when those are in `which`, and `cards`); `only_cards`: the titles and credits and no scenes."""
     from entertainment import movie_cards
-    from newsroom.config import CONFIG
     from newsroom.models import Line
 
     data = json.loads((folder / "segments.json").read_text(encoding="utf-8"))
@@ -138,11 +132,11 @@ def segments(folder: Path, M, which: set[int], title: str, cast: dict, cards: bo
     chosen = [] if only_cards else [s for s in every if s["number"] in which]
     out = []
     if only_cards or (cards and chosen and chosen[0] is every[0]):
-        out.append(movie_cards.titles_segment(0, M.SHOW, title, every[0], CONFIG.paths.cache))
+        out.append(movie_cards.titles_segment(0, M.SHOW, title, every[0]))
     out += [M.scene_segment(len(out) + i, s, [Line.model_validate(d) for d in s["lines"]]) for i, s in enumerate(chosen)]
     if only_cards or (cards and chosen and chosen[-1] is every[-1]):
         sets = list(dict.fromkeys(s["set"] for s in every))
-        out.append(movie_cards.credits_segment(len(out), M.SHOW, title, cast, sets, CONFIG.paths.cache))
+        out.append(movie_cards.credits_segment(len(out), M.SHOW, title, cast, sets))
     return out
 
 

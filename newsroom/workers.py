@@ -116,6 +116,9 @@ _recent_repeats: deque[str] = deque(maxlen=12)
 # Bookings from outside this package (entertainment/): (due(world), book(world)), one per idle tick,
 # after Channel 7's own.
 IDLE_JOBS: list[tuple] = []
+# A show whose items are made ahead (entertainment/movie_night.py: a film voiced before it airs): hook(seg, world)
+# fills the planned segment and returns it, ready, or returns None for the station to make that one as usual.
+READY_HOOKS: dict = {}
 # The editors' meeting goes ahead of those bookings while the next programme is further off than this: its five
 # calls take a few minutes, and the bookings then hear what it agreed (_idle_work).
 MEETING_LEAD_S = 30 * 60
@@ -218,6 +221,13 @@ def generate(seg: Segment, world: World, buffer: Buffer | None = None) -> Segmen
     t0 = time.perf_counter()
     world.roll_day_if_needed()                # an always-on station crosses midnight
     world.fade_threads()                      # stories that stopped moving leave the board
+
+    if seg.show in READY_HOOKS:                   # made ahead: nothing to write, voice or cache
+        ready = READY_HOOKS[seg.show](seg, world)
+        if ready is not None:
+            if buffer:
+                buffer.mark(ready, SegmentState.ready)
+            return ready
 
     # Specials and breaking news key their own cache, before the slot-keyed hash below is
     # stamped: their slot numbers restart every run, so a slot key would hand a new special

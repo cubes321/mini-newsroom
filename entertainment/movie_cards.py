@@ -28,13 +28,21 @@ def _pass_s() -> float:
     return len(jingle.BED_CHORDS) * 4 * 60.0 / bpm
 
 
-def ensure_theme(cache: Path) -> tuple[Path, Path]:
+def theme_dir() -> Path:
+    """Beside the films (data/movies/_theme), out of the cache the station prunes: rendered once, about half a minute."""
+    from .movies import bank_dir
+
+    return bank_dir() / "_theme"
+
+
+def ensure_theme(cache: Path | None = None) -> tuple[Path, Path]:
     """The titles' music (the bed's second pass, the station tune and its answer) and the credits' (its third and
-    fourth), faded, in `cache`; rendered once."""
+    fourth), faded, in `cache` (theme_dir() by default); rendered once."""
     import soundfile as sf
 
     from newsroom import jingle
 
+    cache = cache or theme_dir()
     titles, credits = cache / "_movie_titles.wav", cache / "_movie_credits.wav"
     if titles.exists() and credits.exists():
         return titles, credits
@@ -69,7 +77,7 @@ def _segment(slot: int, show: str, wav: Path, card: dict):
                    headline=card["card"].title(), lines=[line], part=card["card"], work={"card": card})
 
 
-def titles_segment(slot: int, show: str, title: str, first: dict, cache: Path):
+def titles_segment(slot: int, show: str, title: str, first: dict, cache: Path | None = None):
     """`first`: the first scene (its set and its when), shown empty behind the title."""
     from .movies import TOD
 
@@ -90,7 +98,7 @@ def role(who: str) -> str:
     return first
 
 
-def credits_segment(slot: int, show: str, title: str, cast: dict, sets: list[str], cache: Path,
+def credits_segment(slot: int, show: str, title: str, cast: dict, sets: list[str], cache: Path | None = None,
                     year: int | None = None):
     """`cast`: cast.toml's parts, in billing order; `sets`: the set ids, in the order the film first goes there."""
     from .movies import SETS

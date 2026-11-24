@@ -252,7 +252,19 @@ day): `pitch` gives three pitches, `new` starts a film from one, and `write` mak
 creative editor), each act's ten scenes, then the dialogue scene by scene, each given the whole script so far,
 saving after every call into `data/movies/<slug>/film.json`, so a failure costs one call. `script.md` is what the user
 reads and edits (a hand-edited one is never overwritten), with an estimated running time; `read` has the creative
-editor read the finished film, and `approve` puts it in the bank. Nothing of it is on air yet.
+editor read the finished film, and `approve` puts it in the bank.
+
+**On air from 2026-11-23** (`entertainment/movie_night.py`): the 21:00 slot is a `schedule.ROTATIONS` entry. Of the
+films fit to air (approved, finished, voiced for the script and the voices in cast.toml as they stand, every clip on
+disk, and long enough to fill the slot with full breaks), the one aired longest ago goes on, and the night's pick is
+kept in the world's `bank_aired`, so a restart gets the same film. Each film is a show of its own (`movie-<slug>`):
+the announcer's ident ("Now on Channel 8, tonight's film: ..."), the titles, every scene with an ad break at each act's
+end (the breaks share what the slot leaves, one to four minutes each), the credits; then adverts until 22:30 and a
+short break to close on. The order is whole, so a film that starts late or runs over is never cut. Scenes, titles and
+credits come ready-made through `workers.READY_HOOKS`; the ident and breaks are the station's own. A film too short for
+the slot (*The Last Lot*, 57 minutes with its cards) is held out until there is a filler; with no film fit to air the
+closedown is at 21:00 as before. Scenes can be cut after a film is written (film.json `cut`), which is how *Last
+Orders at the Wren* and *Best in Show* came down from 95 and 93 minutes to 83 and 82.
 
 `tools/film.py` casts a film (`cast.toml`: pool voices pinned by name, looks drawn from the name), voices it ahead
 into the film's own cache, and plays it out (`preview`, or `air --obs` to record it); *The Last Lot* was recorded

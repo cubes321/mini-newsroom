@@ -56,15 +56,19 @@ coming.
 | Time | Show | Notes |
 |---|---|---|
 | 00:00 | Closedown | the test card and bumpers |
+| 18:00 | *High Water* | the gameshow, half an hour |
+| 18:30 | *The Slipway* | the teen magazine, half an hour |
 | 19:00 | *The Kettle's On* | the teatime magazine, an hour |
 | 20:00 | *Wexley Wits* | the quiz, 20 minutes |
 | 20:20 | *Marina Row* | the soap, 20 minutes |
 | 20:40 | *Tideline* or *The Coast Road* | 20 minutes: coastal wildlife, or Lorna Quayle's travelogue |
-| 21:00 | Closedown | "back tomorrow at seven" |
+| 21:00 | The TV movie | an hour and a half: a film from the bank, with three ad breaks |
+| 22:30 | Closedown | "back tomorrow at six, with High Water" |
 
 The 20:40 slot rotates (`schedule.ROTATIONS`, `travelogue.rotation`): whichever of the two aired less recently
-goes on, and once a leg of *The Coast Road* is booked for the night it keeps the slot. Channel 8 has no special
-days. Its shows are described in `docs/ENGINE.md` ("Channel 8's evening") and their own docs.
+goes on, and once a leg of *The Coast Road* is booked for the night it keeps the slot. So does the 21:00
+(`movie_night.rotation`): the film fit to air that aired longest ago; with none, the closedown is at 21:00. Channel 8
+has no special days. Its shows are described in `docs/ENGINE.md` ("Channel 8's evening") and their own docs.
 
 ## The shows
 

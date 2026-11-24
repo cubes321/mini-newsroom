@@ -1,5 +1,34 @@
 # Handover
 
+## Channel 8's TV movie, built on the evening of 2026-11-23 (rehearsed on a scratch town, never aired)
+
+Channel 8 now runs **21:00 TV movie, 22:30 closedown** (it was the closedown from 21:00). The slot is
+`entertainment/movie_night.py`; the films are written, approved, cast and voiced ahead by `tools/film.py` into
+`data/movies/<slug>/` (docs/ENGINE.md "The TV movie").
+
+- **Which film:** `schedule.ROTATIONS["movie"]` gives the night's film show (`movie-<slug>`). It is drawn from the films
+  fit to air: approved, finished, voiced for the script and cast as they stand, every clip on disk, and long enough. The
+  draw takes the one aired longest ago, with a week's rest. The pick is kept in `world.bank_aired`, so a restart airs the
+  same film. With no film fit to air, the slot is the closedown, as before.
+- **The order:** the continuity announcer over Channel 8's tune ("Now on Channel 8, tonight's film: ..."), the titles,
+  every scene, a break at each act's end, the credits, then adverts until 22:30 and a short closing break. The order is
+  whole, so a late start runs over and is never cut. The scenes, titles and credits are made ahead
+  (`workers.READY_HOOKS`, new); the station makes the ident and the breaks.
+- **Fit to air:** six films. With their cards they run Dead Reckoning 77.0 min, Low Water 83.0, Best in Show 83.3,
+  Second Reading 83.7, Last Orders at the Wren 84.5 and Quorum 88.1. **The Last Lot (57.1) is held out as too short**
+  until the slot has a filler; the user's thought was news borrowed from Channel 7. Not built: where the filler goes and
+  who reads it are still open. The "too short" line is logged once a day.
+- **The scratch rehearsal** (`data/movies/_rehearsal/rehearse.cmd`: `--scratch`, models off, clock Wed 25 Nov 20:58,
+  log and 553 snaps beside it). The Coast Road closed into Best in Show at 20:59 on the broadcast clock. The ident ran
+  6.1 s and the titles 21.8 s. Breaks came after scenes 10, 19 and 26, the act ends after its cuts (2.8; 3.1, 3.6, 3.8;
+  4.2), and ran 96, 88 and 81 s. The credits came at 22:26, then the fill and the close, and the closedown at 22:29.
+  There were no `gap:` lines during the film. The cast never entered the town: the archive has 35 lines "Best in Show,
+  scene N", with no text and no people, marked fiction.
+- **Small things seen:** asking about the next night's 21:00 (the producer looks ahead) picks that night's film early.
+  That's harmless: it's the same pick it would make at 21:00, and it's kept.
+- **Not yet:** a real night on air, the titles and credits music chosen by ear (provisionally the strings bed), and the
+  filler for short films.
+
 ## Picking up after the Channel 7 night of 2026-11-22
 
 A real Channel 7 night on the real town, started 18:40 from `data/night_channel7_nopictures.cmd` (no ComfyUI: the card

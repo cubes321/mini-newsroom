@@ -24,6 +24,7 @@ os.environ["NEWSROOM_TIPLINE"] = os.path.join(_TMP, "tipline.txt")
 os.environ["NEWSROOM_ADS"] = os.path.join(_TMP, "ads")
 os.environ["NEWSROOM_CONTINUITY"] = os.path.join(_TMP, "continuity")
 os.environ["NEWSROOM_LLM_CALLS"] = os.path.join(_TMP, "llm_calls")
+os.environ["NEWSROOM_MOVIES"] = os.path.join(_TMP, "movies")       # the TV movie's bank: never the real films
 os.environ["NEWSROOM_ANNALS"] = os.path.join(_TMP, "annals")       # the town's long memory: never the real one
 os.environ["NEWSROOM_CONTROL"] = os.path.join(_TMP, "control.txt")   # the kill switch: never the real one
 os.environ["NEWSROOM_LLM"] = "off"

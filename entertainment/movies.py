@@ -247,7 +247,10 @@ def _act_text(plan: ActPlan | dict) -> str:
 # ------------------------------------------------------------------ the film's folder
 
 def bank_dir() -> Path:
-    return CONFIG.paths.data / "movies"
+    """data/movies, or NEWSROOM_MOVIES (the tests' own: they must never air, list or change the real bank)."""
+    import os
+
+    return Path(os.environ.get("NEWSROOM_MOVIES") or CONFIG.paths.data / "movies")
 
 
 def slug(title: str) -> str:
@@ -672,35 +675,28 @@ def look_of(name: str, c: dict):
 
 
 def _view(seg, v, idx) -> None:
-    """A scene at its time of day; the titles and the credits as cards of their own (movie_cards.py)."""
+    """A scene at its time of day; the titles and the credits as cards of their own (movie_cards.py). Anything else in
+    the film's slot (the ident, the adverts in a break) is left as the engine draws it."""
     card = seg.work.get("card")
     if card:
         v.mode, v.scene, v.speaker = f"movie_{card['card']}", card, None
         v.tod = card.get("tod", v.tod)
-    else:
+    elif seg.work.get("set") in SETS:
         v.tod = seg.work.get("tod") or "day"
 
 
-def register_film(cast: dict, title: str):
-    """Put a film's show on the engine for this run: its characters' voices and looks pinned by name, the scenes bare
-    (no lower third, ticker or clock) on the town's backdrops with FILM_MARKS, each graded for its time of day.
-    Returns an undo."""
-    from newsroom import channel, locations, player, scenes, schedule, world as world_mod
-    from newsroom.schedule import Show
+def install():
+    """The film's show on the engine, whatever film: the scenes bare (no lower third, ticker or clock) on the town's
+    backdrops with FILM_MARKS, each graded for its time of day, and the titles and credits as cards of their own.
+    Returns an undo. (Nobody else is seated on the town's backdrops on Channel 8: Tideline and The Coast Road film
+    on location, so FILM_MARKS can stand for the whole run.)"""
+    from newsroom import locations, player, scenes
 
-    from . import CHANNEL_8, movie_cards as cards
+    from . import movie_cards as cards
 
     saved = dict(locations.MARKS)
-    before = channel.use(CHANNEL_8)               # Channel 8's bug in the corner, not Channel 7's
-    from newsroom.models import SegmentType as T
-    schedule.SHOWS[SHOW] = Show(SHOW, title.upper(), "CHANNEL 8", (70, 50, 96), pattern=(T.interview,),
-                                target_s={T.interview: SCENE_S}, cast=("guest",), lead="guest",
-                                station=f"{title}, a TV movie on Channel 8", light=False, repeats_overnight=False)
     for sid in SETS:
         locations.MARKS[sid] = dict(FILM_MARKS)
-    for name, c in cast.items():
-        world_mod.PINNED_VOICES[name] = (c["voice"], float(c.get("speed", 1.0)), "b")
-        scenes.PINNED_LOOKS[name] = look_of(name, c)
     player.SEATS[SHOW] = 3
     player.BARE_SHOWS.add(SHOW)
     player.VIEW_HOOKS[SHOW] = _view
@@ -712,14 +708,79 @@ def register_film(cast: dict, title: str):
             scenes.SCENES.pop(mode, None)
             scenes.NO_CLOCK.discard(mode)
         locations.MARKS.clear(), locations.MARKS.update(saved)
+        for reg in (player.SEATS, player.VIEW_HOOKS):
+            reg.pop(SHOW, None)
+        player.BARE_SHOWS.discard(SHOW)
+    return undo
+
+
+def pin(cast: dict):
+    """A film's characters' voices and looks, pinned by name (never residents). Returns an undo."""
+    from newsroom import scenes, world as world_mod
+
+    for name, c in cast.items():
+        world_mod.PINNED_VOICES[name] = (c["voice"], float(c.get("speed", 1.0)), "b")
+        scenes.PINNED_LOOKS[name] = look_of(name, c)
+
+    def undo() -> None:
         for name in cast:
             world_mod.PINNED_VOICES.pop(name, None)
             scenes.PINNED_LOOKS.pop(name, None)
-        for reg in (player.SEATS, player.VIEW_HOOKS, schedule.SHOWS):
-            reg.pop(SHOW, None)
-        player.BARE_SHOWS.discard(SHOW)
+    return undo
+
+
+def register_film(cast: dict, title: str):
+    """One film on its own (tools/film.py): Channel 8, the film's show (install), its cast pinned, and a plain show
+    for its scenes. Returns an undo."""
+    from newsroom import channel, schedule
+    from newsroom.models import SegmentType as T
+    from newsroom.schedule import Show
+
+    from . import CHANNEL_8
+
+    before = channel.use(CHANNEL_8)               # Channel 8's bug in the corner, not Channel 7's
+    schedule.SHOWS[SHOW] = Show(SHOW, title.upper(), "CHANNEL 8", (70, 50, 96), pattern=(T.interview,),
+                                target_s={T.interview: SCENE_S}, cast=("guest",), lead="guest",
+                                station=f"{title}, a TV movie on Channel 8", light=False, repeats_overnight=False)
+    undo_show, undo_pins = install(), pin(cast)
+
+    def undo() -> None:
+        undo_pins()
+        undo_show()
+        schedule.SHOWS.pop(SHOW, None)
         channel.use(before)
     return undo
+
+
+# ------------------------------------------------------------------ voiced, and fit to air
+
+def voice_hash(folder: Path) -> str:
+    """What a film's voicing depends on: script.md, and each part's voice and speed in cast.toml (a look or a credit
+    can change without the film being voiced again)."""
+    import tomllib
+
+    cast = tomllib.loads((folder / "cast.toml").read_text(encoding="utf-8"))
+    voices = json.dumps({n: [c["voice"], c.get("speed", 1.0)] for n, c in sorted(cast.items())})
+    return hashlib.sha1((folder / "script.md").read_bytes() + voices.encode("utf-8")).hexdigest()
+
+
+def voiced(folder: Path) -> list[dict] | None:
+    """The film's voiced scenes (segments.json), or None if it isn't fit to air: not approved, not finished, voiced
+    for another script or cast, or a clip gone from disk."""
+    try:
+        film = load(folder)
+        if not film.get("approved") or not finished(film):
+            return None
+        data = json.loads((folder / "segments.json").read_text(encoding="utf-8"))
+        if data["script"] != voice_hash(folder):
+            return None
+    except (OSError, ValueError, KeyError):
+        return None
+    scenes = data["scenes"]
+    if len(scenes) != len(_live_rows(film)) or not all(
+            l.get("wav_path") and Path(l["wav_path"]).exists() for s in scenes for l in s["lines"]):
+        return None
+    return scenes
 
 
 def line_key(c: dict, name: str, text: str) -> str:
