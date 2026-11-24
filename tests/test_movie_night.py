@@ -238,3 +238,21 @@ def test_the_late_news_is_gone_once_channel_8_is_off():
     undo()
     assert late_news.SHOW not in schedule.SHOWS and late_news.SHOW not in assets.IDENTS
     assert late_news.SHOW not in writers.NEWS_SHOWS and late_news.SHOW not in writers.SAME_STORY_SHOWS
+
+
+def test_the_late_news_is_told_it_opens_after_the_film_and_closes_the_evening_with_nothing_after(channel8):
+    from entertainment import late_news
+    from newsroom import schedule, writers
+
+    make_film("Last Lot", 85.0)
+    schedule.show_at(_ts(21, 5))                      # the film's show is the slot's until 22:30
+
+    def prompt(part, at):
+        return writers.build_prompt(T.bulletin, channel8, target_s=75.0, show=late_news.SHOW_DEF, part=part, at_ts=at)
+
+    system, user = prompt("open", _ts(22, 7))
+    assert system.startswith("You write scripts for The Late News on Channel 8") and "OPENS The Late News" in user
+    _, user = prompt("", _ts(22, 15))
+    assert "MIDDLE of The Late News" in user and "15 minutes of The Late News are still to come" in user
+    _, user = prompt("close", _ts(22, 29))
+    assert "CLOSES The Late News" in user and "END of The Late News" in user and "no programme follows" in user

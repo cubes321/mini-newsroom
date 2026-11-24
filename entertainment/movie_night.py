@@ -45,7 +45,8 @@ FILL_S = 60.0                       # adverts after the credits, while there's t
 CLOSING_S = 60.0                    # the break the slot closes on
 SLACK_S = 120.0                     # a film may leave this much for the fill, past full breaks
 NEWS_BREAK_S = 180.0                # a short film's breaks, the late news taking the rest
-NEWS_MIN_S, NEWS_MAX_S = 6 * 60.0, 30 * 60.0    # the late news after a short film: the film's breaks leave this much
+NEWS_MAX_S = 30 * 60.0              # the most late news a short film may leave; any film that doesn't fill leaves more
+                                    # than producer.THEN_MIN_S, so there is no least
 REST_DAYS = 7                       # as the content bank's: a film doesn't come back within a week if another can air
 COLOUR = (70, 50, 96)
 IDENT_TEXT = "Now on Channel 8, tonight's film: {title}."

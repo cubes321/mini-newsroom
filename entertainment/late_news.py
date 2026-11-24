@@ -30,8 +30,8 @@ SHOW_DEF = Show(
               T.sport: 60.0},
     cast=("anchor", "weather", "reporter"), lead="anchor",
     cast_by_type={T.interview: ("anchor", "guest"), T.bulletin: ("anchor", "reporter"), T.sport: ("sport",)},
-    station=("The Late News on Channel 8, WTV's second channel: Dana Ferris reads the Port Wexley news from Channel "
-             "7's newsroom, after tonight's film"),
+    station=("The Late News on Channel 8, WTV's second channel (Dana Ferris reads the Port Wexley news from Channel "
+             "7's newsroom, after tonight's film)"),
     tone="warm, dry, local",
     repeats_overnight=False,
 )
