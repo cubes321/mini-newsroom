@@ -19,6 +19,10 @@ time left before the hour is about the closing's length, then signs off: the
 next show starts straight after, a little early rather than after a goodbye.
 An ad break between a guest's two parts belongs to the guest: the closing
 never lands on it, and it counts towards the guest's run.
+
+A show can hand over within its own time (Show.then): once its order up to the loop is planned, the rest of its time
+is the other show's, which opens on its bumper and closes as its own. Channel 8's film does it for the late news
+when the film is short (entertainment/movie_night.py). With less than THEN_MIN_S left, the first show carries on.
 """
 from __future__ import annotations
 
@@ -36,6 +40,7 @@ log = logging.getLogger(__name__)
 
 # A brief about the coming weekend (not "(at the weekend: ...)", which says what to do on one)
 _WEEKEND = re.compile(r"(?<!at )\bthe weekend\b", re.I)
+THEN_MIN_S = 300.0              # a handover (Show.then) with less of the show's time left than this doesn't happen
 
 
 class Producer:
@@ -66,6 +71,9 @@ class Producer:
             return schedule.show_at(self.cursor_ts)
         if self._closing:
             return cur
+        if (cur.then and not self._closed and self._pos >= cur.loop_from and cur.then in schedule.SHOWS
+                and self._ends - self.cursor_ts >= THEN_MIN_S):
+            return schedule.SHOWS[cur.then]       # the rest of its time is the other show's
         over = self.cursor_ts >= self._ends
         if over and cur.closing and not self._closed and self._pos >= 2:
             return cur                    # the hour turned during a long item: the goodbye runs a little over
@@ -127,7 +135,8 @@ class Producer:
         if show.id != self._show:
             if self._show is not None:
                 log.info("schedule: %s -> %s from slot %d", self._show, show.id, self.next_slot)
-            self._ends = schedule.show_end(max(self.cursor_ts, self._ends))
+            if not (self._on and show.id == self._on.then):     # a handover keeps the first show's end: the
+                self._ends = schedule.show_end(max(self.cursor_ts, self._ends))    # schedule never names the second
             self._show, self._on, self._pos, self._closing, self._closed = show.id, show, 0, [], False
             self._briefs_given = {}
         item = self._next_item(show)

@@ -62,7 +62,7 @@ coming.
 | 20:00 | *Wexley Wits* | the quiz, 20 minutes |
 | 20:20 | *Marina Row* | the soap, 20 minutes |
 | 20:40 | *Tideline* or *The Coast Road* | 20 minutes: coastal wildlife, or Lorna Quayle's travelogue |
-| 21:00 | The TV movie | an hour and a half: a film from the bank, with three ad breaks |
+| 21:00 | The TV movie | an hour and a half: a film from the bank, with three ad breaks; after a short film, *The Late News* (Dana, borrowed from Channel 7) until 22:30 |
 | 22:30 | Closedown | "back tomorrow at six, with High Water" |
 
 The 20:40 slot rotates (`schedule.ROTATIONS`, `travelogue.rotation`): whichever of the two aired less recently

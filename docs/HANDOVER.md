@@ -1,5 +1,33 @@
 # Handover
 
+## The late news after a short film, built on the morning of 2026-11-24 (rehearsed on a scratch town, never aired)
+
+The user chose: **after the credits, Dana at Channel 7's desk** (not mid-film, not before it). A film too short to fill
+21:00 to 22:30 with full breaks now has three-minute breaks, and after its credits the slot hands over to *The Late
+News* (`entertainment/late_news.py`) until 22:30. So **The Last Lot is fit to air again**: seven films in the draw.
+
+- **The engine:** `Show.then` (new, off by default): once a show's order up to its loop is planned, the producer gives
+  the rest of its time to the named show, keeping the first show's end (the schedule doesn't know the second). Not
+  with less than `producer.THEN_MIN_S` (five minutes) left: a short film that starts late gets the adverts and the
+  close, as a long one. A film that would need more than 30 minutes of news (`movie_night.NEWS_MAX_S`) is still held
+  out; the log line says so.
+- **The Late News:** the announcer over Channel 7's news tune ("On Channel 8, the late news from WTV, with Dana
+  Ferris": `assets/bumper_latenews_8.wav`, baked by the rehearsal; delete it to bake it again), an opening bulletin
+  that greets the viewers staying on after the film, the rolling news's loop (bulletin, interview, report, sport,
+  weather; about ten minutes a lap), and a closing bulletin with Dana's goodnight. It files as the town's news (not
+  fiction, not unfiled), and shares the news's same-story and auction rules (`writers.SAME_STORY_SHOWS`,
+  `writers.NEWS_SHOWS`). The ticker is the station's, as on Channel 7: the evening's headlines, Channel 8's included.
+- **The scratch rehearsal** (`data/movies/_rehearsal_news/rehearse.cmd`: models off, clock Wed 25 Nov 20:58, a bank
+  holding only The Last Lot in `data/movies_lastlot`, log and snaps beside it). The Last Lot's 32 scenes all aired,
+  with breaks after scenes 8, 16 and 24 (about 138 s each: whole adverts, short of the 180 asked). The credits ended at
+  22:03, The Late News opened at once (snaps 3920 and 3930: the ident, then Dana at the desk with the news ticker and
+  Channel 8's bug), closed at 22:28 and the closedown followed. No `gap:` lines but the two at start-up, before the
+  film (the workers warming up; the titles were 8 s late and an advert covered it).
+- **Not yet:** the news written by the models (templates only in the rehearsal: their items are short, so it ran 86
+  items where a real night has about 16, and the template close has no goodnight), the ident by ear, and a real night.
+- **Seen in passing:** `tests/test_highwater_show.py` has two failures on the unchanged HEAD as well
+  (`test_nobody_climbs_again_soon_or_after_another_channel_8_show`, `..._a_short_list_is_made_up`); not looked into.
+
 ## Channel 8's TV movie, built on the evening of 2026-11-23 (rehearsed on a scratch town, never aired)
 
 Channel 8 now runs **21:00 TV movie, 22:30 closedown** (it was the closedown from 21:00). The slot is
@@ -27,7 +55,7 @@ Channel 8 now runs **21:00 TV movie, 22:30 closedown** (it was the closedown fro
 - **Small things seen:** asking about the next night's 21:00 (the producer looks ahead) picks that night's film early.
   That's harmless: it's the same pick it would make at 21:00, and it's kept.
 - **Not yet:** a real night on air, the titles and credits music chosen by ear (provisionally the strings bed), and the
-  filler for short films.
+  filler for short films (built 2026-11-24, the section above).
 
 ## Picking up after the Channel 7 night of 2026-11-22
 

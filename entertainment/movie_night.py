@@ -14,8 +14,11 @@
   BREAK_MAX_S each). The order is whole (Show.whole_order): a film that starts late, or runs over, is never cut.
 - **The items are made ahead** (workers.READY_HOOKS): a scene is its voiced lines from segments.json, the titles and
   credits are movie_cards'; the ident and the breaks are the station's own.
-- **Too short:** a film that would leave more than the breaks can fill (The Last Lot, 57 minutes with its cards) is
-  held out until the slot has a filler (borrowed news from Channel 7 was the user's thought, 2026-11-23).
+- **Short films and the late news:** a film that would leave more than the breaks can fill (The Last Lot, 57 minutes
+  with its cards) has breaks of NEWS_BREAK_S, and after its credits the slot hands over to The Late News
+  (late_news.py; Show.then) until 22:30: Channel 7's news, borrowed, after the credits (the user, 2026-11-24). A
+  film that starts too late for it (less than producer.THEN_MIN_S left) has the adverts and the close, as a long one.
+  A film that would need more than NEWS_MAX_S of news is held out, too short even with it.
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ from newsroom import schedule
 from newsroom.models import SegmentType as T
 from newsroom.schedule import Item as I, Show
 
-from . import movie_cards, movies
+from . import late_news, movie_cards, movies
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +44,8 @@ IDENT_S = 12.0                      # the announcer over Channel 8's ident, abou
 FILL_S = 60.0                       # adverts after the credits, while there's time before 22:30
 CLOSING_S = 60.0                    # the break the slot closes on
 SLACK_S = 120.0                     # a film may leave this much for the fill, past full breaks
+NEWS_BREAK_S = 180.0                # a short film's breaks, the late news taking the rest
+NEWS_MIN_S, NEWS_MAX_S = 6 * 60.0, 30 * 60.0    # the late news after a short film: the film's breaks leave this much
 REST_DAYS = 7                       # as the content bank's: a film doesn't come back within a week if another can air
 COLOUR = (70, 50, 96)
 IDENT_TEXT = "Now on Channel 8, tonight's film: {title}."
@@ -71,15 +76,21 @@ def fills(scenes: list[dict]) -> bool:
     return running_s(scenes) + BREAKS * BREAK_MAX_S + CLOSING_S >= SLOT_S - SLACK_S
 
 
+def news_s(scenes: list[dict]) -> float:
+    """How long the late news after a short film is planned to run: what the film and its breaks leave of the slot."""
+    return SLOT_S - running_s(scenes) - BREAKS * NEWS_BREAK_S
+
+
 def fit_to_air(bank: Path | None = None) -> dict[str, tuple[Path, dict, list[dict]]]:
-    """slug -> (folder, film, voiced scenes), for every film the slot can air tonight."""
+    """slug -> (folder, film, voiced scenes), for every film the slot can air tonight: one that fills it, or one
+    that leaves the late news no more than NEWS_MAX_S."""
     out = {}
     for folder, film in movies.films(bank):
         scenes = movies.voiced(folder)
         if scenes is None:
             continue
-        if not fills(scenes):
-            log.info("movie: %s is %.0f minutes with its cards, too short for the slot without a filler",
+        if not fills(scenes) and news_s(scenes) > NEWS_MAX_S:
+            log.info("movie: %s is %.0f minutes with its cards, too short for the slot even with the late news",
                      folder.name, running_s(scenes) / 60)
             continue
         out[folder.name] = (folder, film, scenes)
@@ -144,8 +155,9 @@ def show_for(slug: str, film: dict, scenes: list[dict]) -> Show:
     acts = [k.split(".")[0] for k, _ in rows]
     titles_s, credits_s = _cards_s()
     lengths = [sum(l.get("duration_s") or 0.0 for l in s["lines"]) for s in scenes]
+    short = not fills(scenes)                            # the late news after its credits
     spare = SLOT_S - running_s(scenes) - CLOSING_S
-    gap = min(BREAK_MAX_S, max(BREAK_MIN_S, spare / BREAKS))
+    gap = NEWS_BREAK_S if short else min(BREAK_MAX_S, max(BREAK_MIN_S, spare / BREAKS))
     order: list = [I(T.bumper, brief="ident", target_s=IDENT_S), I(T.bumper, brief="titles", target_s=titles_s)]
     for i, (s, n) in enumerate(zip(scenes, lengths)):
         order.append(I(T.interview, brief=f"scene {s['number']}", target_s=n))
@@ -157,6 +169,7 @@ def show_for(slug: str, film: dict, scenes: list[dict]) -> Show:
         pattern=tuple(order),
         loop_from=len(order) - 1,                         # adverts after the credits, until it's time to close
         whole_order=True,                                 # every scene airs, however late it started
+        then=late_news.SHOW if short else "",             # a short film: the late news after the credits
         closing=(I(T.ad_break, brief="close", target_s=CLOSING_S),),
         target_s={T.bumper: IDENT_S, T.interview: movies.SCENE_S, T.ad_break: 60.0},
         cast=("guest",), lead="guest", cast_by_type={T.interview: ("guest",)},
@@ -233,6 +246,7 @@ def register():
     from newsroom import workers
 
     undo_install = movies.install()
+    undo_news = late_news.register()
     schedule.ROTATIONS[SLOT] = rotation
     job = (_due, _pick_now)
     workers.IDLE_JOBS.append(job)
@@ -251,5 +265,6 @@ def register():
         schedule.SHOWS.pop(SLOT, None)
         if job in workers.IDLE_JOBS:
             workers.IDLE_JOBS.remove(job)
+        undo_news()
         undo_install()
     return undo

@@ -86,7 +86,7 @@ def channel8(monkeypatch, tmp_path):
 def test_a_film_too_short_for_the_slot_is_held_out_and_with_none_the_slot_is_the_closedown(channel8):
     from newsroom import schedule
 
-    make_film("Short Night", 85.0)                    # 40 scenes, 57 minutes, as The Last Lot
+    make_film("Short Night", 60.0)                    # 40 scenes, 41 minutes: forty minutes of news would be needed
     assert N.fit_to_air() == {}
     assert schedule.show_at(_ts(21, 5)).id == "closedown"
     assert schedule.next_start("closedown", _ts(21, 5)) == "18:00"
@@ -173,3 +173,68 @@ def test_the_films_light_is_only_the_scenes_and_cards_not_an_advert_in_its_break
     assert v.tod == "night"
     M._view(Segment(slot_id=2, type=T.interview, show="movie-x", work={"set": "pub", "tod": "dusk"}), v, 0)
     assert v.tod == "dusk"
+
+
+def test_a_short_film_hands_over_to_the_late_news_after_its_credits_until_the_closedown(channel8):
+    from entertainment import late_news
+    from newsroom import schedule
+
+    folder = make_film("Last Lot", 85.0)              # 57 minutes with its cards, as The Last Lot
+    assert folder.name in N.fit_to_air()
+    plan = _plan(_ts(21, 0))
+    shows = [s.show for s in plan]
+    film_id = N.show_id(folder.name)
+    first_news = shows.index(late_news.SHOW)
+    film, news = plan[:first_news], plan[first_news:-1]
+    assert all(s.show == film_id for s in film) and film[-1].brief == "credits"
+    assert len([s for s in film if s.brief.startswith("scene ")]) == M.ACTS * M.SCENES_PER_ACT
+    assert [s.target_s for s in film if s.brief == "break"] == [N.NEWS_BREAK_S] * N.BREAKS
+    assert all(s.show == late_news.SHOW for s in news)             # nothing after the credits is the film's
+    assert news[0].type is T.bumper and (news[1].type, news[1].part) == (T.bulletin, "open")
+    assert (news[-1].type, news[-1].part) == (T.bulletin, "close") and [s.part for s in news].count("close") == 1
+    assert {T.weather, T.field_report, T.interview} <= {s.type for s in news}
+    assert plan[-1].show == "closedown"
+    assert abs(plan[-1].nominal_start_ts - _ts(22, 30)) < 2 * 60    # the news closes on time
+    assert schedule.SHOWS[film_id].then == late_news.SHOW
+
+
+def test_a_short_film_that_starts_too_late_for_the_news_closes_as_a_long_one_does(channel8):
+    from entertainment import late_news
+
+    make_film("Last Lot", 85.0)
+    plan = _plan(_ts(21, 45))                         # the credits at about 22:52: no time for the news
+    assert late_news.SHOW not in {s.show for s in plan}
+    film = [s for s in plan if s.show.startswith("movie-")]
+    assert len([s for s in film if s.brief.startswith("scene ")]) == M.ACTS * M.SCENES_PER_ACT
+    assert film[-1].brief == "close" and plan[-1].show == "closedown"
+
+
+def test_a_film_that_fills_the_slot_has_no_late_news(channel8):
+    from newsroom import schedule
+
+    folder = make_film("Low Water", 120.0)
+    assert {s.show for s in _plan(_ts(21, 0))} == {N.show_id(folder.name), "closedown"}
+    assert schedule.SHOWS[N.show_id(folder.name)].then == ""
+
+
+def test_the_late_news_is_the_towns_news_with_channel_7s_habits_and_its_own_ident(channel8):
+    from entertainment import late_news
+    from newsroom import assets, continuity, writers
+
+    assert late_news.SHOW not in writers.UNFILED_SHOWS | writers.FICTION_SHOWS
+    assert late_news.SHOW in writers.NEWS_SHOWS and writers.SAME_STORY_SHOWS[late_news.SHOW]
+    path, text = assets.IDENTS[late_news.SHOW]
+    assert "Channel 8" in text and "seven" not in text.lower()
+    assert assets.IDENT_VOICES[late_news.SHOW] == continuity.VOICE and assets.IDENT_MUSIC[late_news.SHOW] == "news"
+    assert writers._place(late_news.SHOW_DEF, T.field_report, "").startswith("PLACE IN THE SHOW: the MIDDLE of The Late News")
+
+
+def test_the_late_news_is_gone_once_channel_8_is_off():
+    import entertainment
+    from entertainment import late_news
+    from newsroom import assets, schedule, writers
+
+    undo = entertainment.use()
+    undo()
+    assert late_news.SHOW not in schedule.SHOWS and late_news.SHOW not in assets.IDENTS
+    assert late_news.SHOW not in writers.NEWS_SHOWS and late_news.SHOW not in writers.SAME_STORY_SHOWS

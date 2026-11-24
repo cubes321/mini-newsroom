@@ -14,7 +14,8 @@ hour since 2026-11-19 (the user), and High Water, the gameshow (highwater.py, hi
 before it. Tideline, the wildlife series (wildlife.py; docs/FACTUAL.md,
 planned with the user 2026-11-14), at 20:40, in turn with The Coast Road, the travelogue (travelogue.py), through
 schedule.ROTATIONS. The TV movie, from 21:00 to 22:30 (movie_night.py; the user, 2026-11-23): a film from the bank,
-written and voiced ahead; then the closedown, or the closedown at 21:00 on a night with no film fit to air.
+written and voiced ahead, with The Late News after a short one (late_news.py, 2026-11-24); then the closedown, or the
+closedown at 21:00 on a night with no film fit to air.
 """
 from __future__ import annotations
 

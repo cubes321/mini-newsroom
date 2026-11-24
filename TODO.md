@@ -249,9 +249,10 @@ bottom with the date.
     on the recording; the looks and FILM_MARKS on a contact sheet; the titles' music, by ear; who acts (the credits
     name characters until there is a company); the name check beyond full names; ad breaks. **On air from 2026-11-23**
     (`entertainment/movie_night.py`, the closedown at 22:30): six more films written, approved, voiced and dressed
-    the same day, seven in the bank; *The Last Lot* is held out as too short. Films are now asked 40 scenes (about 73
-    minutes; The Last Lot ran 56); a film that still comes up short is padded, perhaps with news borrowed from
-    Channel 7 (the user, 2026-11-23).
+    the same day, seven in the bank. Films are now asked 40 scenes (about 73 minutes; The Last Lot ran 56); a film
+    that still comes up short is followed by *The Late News* after its credits (`entertainment/late_news.py`, built
+    2026-11-24: Dana at Channel 7's desk until 22:30), so *The Last Lot* is fit to air again. Open: the news's ident
+    and the late news on a real night.
   - **The Slipway**, 18:30, built 2026-11-19 in Cartoon Time's place (`entertainment/slipway.py`): Tegan Trevenna and
     Elis Pengilly (looks A and A on data/contact-sheets/2026-11-19-slipway-presenters.png); the feature, a how-to,
     Academy Corner, messages, the big question, what's on, the challenge, Quick Five. Not yet aired. Open: their

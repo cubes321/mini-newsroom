@@ -256,14 +256,28 @@ editor read the finished film, and `approve` puts it in the bank.
 
 **On air from 2026-11-23** (`entertainment/movie_night.py`): the 21:00 slot is a `schedule.ROTATIONS` entry. Of the
 films fit to air (approved, finished, voiced for the script and the voices in cast.toml as they stand, every clip on
-disk, and long enough to fill the slot with full breaks), the one aired longest ago goes on, and the night's pick is
+disk, and long enough to fill the slot with full breaks or with the late news after it), the one aired longest ago
+goes on, and the night's pick is
 kept in the world's `bank_aired`, so a restart gets the same film. Each film is a show of its own (`movie-<slug>`):
 the announcer's ident ("Now on Channel 8, tonight's film: ..."), the titles, every scene with an ad break at each act's
 end (the breaks share what the slot leaves, one to four minutes each), the credits; then adverts until 22:30 and a
 short break to close on. The order is whole, so a film that starts late or runs over is never cut. Scenes, titles and
-credits come ready-made through `workers.READY_HOOKS`; the ident and breaks are the station's own. A film too short for
-the slot (*The Last Lot*, 57 minutes with its cards) is held out until there is a filler; with no film fit to air the
-closedown is at 21:00 as before. Scenes can be cut after a film is written (film.json `cut`), which is how *Last
+credits come ready-made through `workers.READY_HOOKS`; the ident and breaks are the station's own. With no film fit
+to air the closedown is at 21:00 as before.
+
+**The late news after a short film** (2026-11-24, the user: after the credits, Dana at Channel 7's desk). A film too
+short to fill the slot with full breaks (*The Last Lot*, 57 minutes with its cards) has three-minute breaks
+(`NEWS_BREAK_S`), and after its credits its show hands over to *The Late News* (`entertainment/late_news.py`) for
+the rest of the slot: the engine's `Show.then`, by which a show, once its order up to the loop is planned, gives the
+rest of its time to another (`producer.THEN_MIN_S`: not with less than five minutes left). The handover keeps the
+film's end, 22:30, which the schedule doesn't know the news by. *The Late News* is Channel 7's news borrowed: the
+announcer over the news tune ("On Channel 8, the late news from WTV, with Dana Ferris"), an opening bulletin that
+greets the viewers staying on after the film, the rolling news's loop (bulletins, reports, an interview, the sport and
+Gordon's weather, about ten minutes a lap), and a closing bulletin with Dana's goodnight before the closedown. It is
+the town's news, filed as Channel 7's is (never fiction, unlike the film), and keeps the news's habits by joining
+`writers.SAME_STORY_SHOWS` and `writers.NEWS_SHOWS`. *The Last Lot* gets about 23 minutes of it, from 22:07. A
+short film that starts too late for the news has the adverts and the close, as a long one does; a film that would need
+more than 30 minutes of news (`NEWS_MAX_S`) is still held out. Scenes can be cut after a film is written (film.json `cut`), which is how *Last
 Orders at the Wren* and *Best in Show* came down from 95 and 93 minutes to 83 and 82.
 
 `tools/film.py` casts a film (`cast.toml`: pool voices pinned by name, looks drawn from the name), voices it ahead
@@ -296,8 +310,7 @@ actors, the credits name the characters.
   89 with the titles, credits and three breaks. Some films will still come up short, so the slot fills what is left
   after the film: the user's idea is to borrow news from Channel 7 (a short bulletin from Channel 7's newsroom
   between the film and 22:30, as ITV's regions once ran a late local news), with programme trailers and the
-  adverts. To design at the slot's build: where the news goes (after the film, or as a break in the middle), who
-  reads it on Channel 8, and the shortest gap worth a bulletin.
+  adverts. Built 2026-11-24: after the film, Dana at Channel 7's desk (*The Late News*, above).
 - **Revisit later:** once the drama (the anthology) and comedy productions work well on air, the format comes back
   up: films written live, walking figures, the offline "blockbusters".
 - **Proposed, to settle at the build:**

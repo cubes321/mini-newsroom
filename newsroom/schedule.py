@@ -66,6 +66,8 @@ class Show:
     closing: tuple[T | Item, ...] = ()   # planned once as the show's time runs out
     whole_order: bool = False        # its closing waits until the order up to loop_from is all planned: a soap's
                                      # scenes are its story, and one cut for time leaves a hole (2026-11-19)
+    then: str = ""                   # a show id: once the order up to loop_from is planned, the rest of the time is
+                                     # that show's (producer.THEN_MIN_S): the news after a short film (2026-11-24)
     briefs: dict[T, tuple[str, ...]] = field(default_factory=dict, hash=False)   # angles, in turn, per type
     location: str = ""               # a backdrop id: the whole show is out there, no studio (a special night)
     fireworks: tuple[str, str] = ()  # ("19:30", "19:50"): fireworks overhead then, on location
