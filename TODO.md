@@ -240,6 +240,12 @@ bottom with the date.
   - **Comedy**, 22:30 to 23:00 (from 22:00 until the movie's hour became an hour and a half, 2026-11-23): a stand-up night, then a comedy panel game; a sketch show with recurring sketches
     next; the sitcom after the soap and the TV movie.
   - **Late-night drama**, 23:00 to 23:30: an anthology of self-contained tales first; series later.
+  - **Off-screen voices** for the drama, the TV movie and the comedy (the user, 2026-11-24; look at it when the drama
+    and comedy are built): a character who speaks without being on the set, such as a voice from the next room,
+    someone at the door, or a tannoy. Phone calls can borrow the phone-in's parts: the telephone band (`tts.telephone`)
+    and the caller box (`studio_phonein`), perhaps with the caller's picture in it. Today a film's scene is the two
+    or three people on screen (`entertainment/movies.py`), so the writer, the voicing and the scene need a way to
+    mark an off-screen line.
   - **The TV movie**, 21:00 to 22:30 (the user, 2026-11-23: an hour and a half, as the first film ran an hour of story; docs/ENGINE.md "The TV movie"): head-and-shoulders
     first, a bank of films each written in full ahead of air, grown gradually, repeats accepted for now. Revisit the
     format (live-written, walking figures, offline blockbusters) once the drama and comedy productions work well.
