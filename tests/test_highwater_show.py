@@ -87,6 +87,10 @@ def test_two_grown_up_residents_climb_each_with_their_own_nature():
 
 def test_nobody_climbs_again_soon_or_after_another_channel_8_show(monkeypatch):
     w = _town()
+    # _town has five grown-ups who can climb; with four of them resting the draw would be from one, on the dates
+    # (today's, in a test) whose first draw takes neither Sue nor Ray.
+    for name, role in (("Tom Kitto", "harbour pilot"), ("Rose Jago", "florist, Fore Street")):
+        w.ensure_person(name, role, "resident")
     _stub(monkeypatch, _booking())
     first = {c["name"] for c in hs.commission(w)["climbers"]}
     w.highwaters[-1]["date"] = hs._since(w, 7)                                # last week's
@@ -223,7 +227,11 @@ def test_the_booking_asks_for_what_the_played_game_needs_and_a_short_list_is_mad
     assert f"{need[hw.PADDLE] + hs.SPARE} EASY questions" in seen[0][2] and f"{need[hw.SWIM] + hs.SPARE} HARD" in seen[0][2]
     turns = [t for r in k["game"]["rounds"] for t in r["turns"] if t["choice"] in (hw.PADDLE, hw.SWIM)]
     assert all("question" in t for t in turns) and not k["stand_in"]
-    assert turns and any(t["question"]["q"] == "paddle question number 0 please?" for t in turns if t["choice"] == hw.PADDLE)
+    # Two bold climbers never paddle (hw.choose), so on some nights' draws there are no easy turns: whichever kinds
+    # were played, each one's first turn gets the model's own question, and the stand-in's only fill in after it.
+    assert turns
+    for kind in {t["choice"] for t in turns}:
+        assert next(t for t in turns if t["choice"] == kind)["question"]["q"] == f"{kind} question number 0 please?"
 
 
 def test_a_question_in_des_own_words_counts_as_asked():
