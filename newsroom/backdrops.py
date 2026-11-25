@@ -1423,6 +1423,14 @@ def _art_file(loc: Location, tod: str) -> tuple[Path, bool] | None:
     return None
 
 
+def day_art_at_night(backdrop_id: str | None) -> bool:
+    """An outdoor place whose picture was painted by day and has no night one: after dark it's only that picture,
+    darkened, sky, clouds, shadows and all, and reads as a dull day (the TV movie's fish quay, 2026-11-24)."""
+    loc = locations.get(backdrop_id)
+    art = _art_file(loc, "night") if loc.exterior else None
+    return bool(art) and not art[1]
+
+
 def _grade_art(img: pygame.Surface, loc: Location, tod: str, wx: str | None, own_tod: bool, top: int = 0) -> None:
     dusk = tod == "dusk" and not own_tod
     if dusk:                                                     # sunset first, so the weather sits on top of it

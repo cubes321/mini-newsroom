@@ -219,8 +219,18 @@ on. Keep to everything THE SCRIPT SO FAR says, and never repeat it. About {words
 Return ONLY JSON."""
 
 
+def by_day_only() -> set[str]:
+    """The sets that can't be shot at night: no night picture yet (backdrops.day_art_at_night). Worked out from the art
+    each time, so a set comes back for night scenes when its night picture is in."""
+    from newsroom import backdrops
+
+    return {sid for sid in SETS if backdrops.day_art_at_night(sid)}
+
+
 def _sets_text() -> str:
-    return "\n".join(f"  - {sid}: {name}: {blurb}" for sid, (name, blurb) in SETS.items())
+    day = by_day_only()
+    return "\n".join(f"  - {sid}: {name}: {blurb}" + (" (day or evening only: no night)" if sid in day else "")
+                     for sid, (name, blurb) in SETS.items())
 
 
 def _parts_text(o: Outline) -> str:
@@ -307,6 +317,10 @@ def _check_act(plan: ActPlan, o: Outline) -> None:
     for i, sc in enumerate(plan.scenes):
         if sc.set not in SETS:
             raise llm.AskAgain(f"scene {i + 1} is on {sc.set!r}, which is not one of THE SETS")
+        # Dead Reckoning's fish quay, coast road and slipway at night aired as a blue-tinted day (2026-11-24).
+        if sc.when == "night" and sc.set in by_day_only():
+            raise llm.AskAgain(f"scene {i + 1} is at night on {sc.set!r}, which is day or evening only: put it on a "
+                               "set that can be shot at night, or make it evening")
         if not set(sc.characters) <= names or len(set(sc.characters)) != len(sc.characters):
             raise llm.AskAgain(f"scene {i + 1} names {sc.characters}: only THE PARTS, each once")
 

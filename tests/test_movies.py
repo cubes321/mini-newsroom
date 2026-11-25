@@ -119,6 +119,28 @@ def test_an_act_on_a_set_that_isnt_one_is_asked_again(monkeypatch, film):
     assert "'marina_kitchen', which is not one of THE SETS" in asked[1]
 
 
+def _night_on(set_id):
+    plan = _act().model_dump()
+    plan["scenes"][2].update(set=set_id, when="night")
+    return M.ActPlan.model_validate(plan)
+
+
+def test_a_night_scene_on_a_set_with_no_night_picture_is_asked_again(monkeypatch, film):
+    """2026-11-24: Dead Reckoning's fish quay, coast road and slipway at night aired as a blue-tinted day."""
+    assert {"fish_quay", "slipway", "coast_road"} <= M.by_day_only() and "harbour" not in M.by_day_only()
+    assert "fish_quay: the fish quay: fish boxes on ice, the auction floor, the boats tied up (day or evening only"         in M._sets_text()
+    drafts = iter([_night_on("fish_quay")] + [_act()] * M.ACTS)
+    seen = _stub(monkeypatch, act=lambda user: next(drafts))
+    M.write(film, world_mod.seed(), say=lambda s: None)
+    asked = [u for _, s, _, u in seen if s is M.ActPlan]
+    assert "scene 3 is at night on 'fish_quay', which is day or evening only" in asked[1]
+
+
+def test_night_on_a_set_with_its_own_night_picture_or_indoors_is_fine():
+    for set_id in ("harbour", "pub"):
+        M._check_act(_night_on(set_id), _outline())
+
+
 def test_a_scene_is_tidied_and_checked():
     sc = {"characters": NAMES[:2]}
     d = M.Dialogue.model_validate({"lines": [
