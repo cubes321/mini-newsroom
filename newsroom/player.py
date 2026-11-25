@@ -620,6 +620,12 @@ class Player:
                         guests.append(l.guest_name)
                 elif l.speaker not in (*FIELD_REPORTERS, "weather") and (l.speaker, None) not in hosts:
                     hosts.append((l.speaker, None))
+            # The show's own presenters keep their seats, in the order of its cast, whoever speaks first: seated by
+            # first speaker, Nigel took Maggie's seat in six of The Kettle's On's items and Elis Tegan's once
+            # (2026-11-24). A presenter sitting in as a guest, and anyone outside the cast, follows in speaking order.
+            cast = schedule.get(seg.show).cast
+            as_guest = {c for c, _ in hosts if c not in {l.speaker for l in seg.lines}}
+            hosts.sort(key=lambda h: cast.index(h[0]) if h[0] in cast and h[0] not in as_guest else len(cast))
             stayed = seg.work.get("couch")
             if seg.work.get("seats"):         # booked to sit on the set all show (a quiz's teams), in order
                 guests = list(seg.work["seats"]) + [g for g in guests if g not in seg.work["seats"]]
