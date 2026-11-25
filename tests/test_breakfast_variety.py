@@ -117,8 +117,26 @@ def test_the_sofa_may_take_more_short_lines_than_a_bulletin():
     assert len(sofa.model_validate(script).lines) == 14
     with pytest.raises(ValidationError):
         script_schema(SegmentType.links, ("host_a", "host_b")).model_validate(script)      # a bulletin's ten still holds
-    # The model is told sixteen (2026-11-13: a line or two over passes, models.LINE_SLACK), and nineteen is too many.
+    # The model is told sixteen, and a quarter over passes (models.line_slack, 2026-11-25): twenty, not twenty-one.
     assert sofa.model_json_schema()["properties"]["lines"]["maxItems"] == 16
-    assert len(sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:4]}).lines) == 18
+    assert len(sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:6]}).lines) == 20
     with pytest.raises(ValidationError):
-        sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:5]})
+        sofa.model_validate({**script, "lines": script["lines"] + script["lines"][:7]})
+
+
+def test_a_script_a_quarter_over_a_long_cap_passes_and_the_model_is_still_told_the_cap():
+    """2026-11-24: High Water's round 2 came back at 44 lines of 40 twice, The Slipway's links at 22 then 20 of 16,
+    and both aired as templates."""
+    import pytest
+    from pydantic import ValidationError
+
+    from newsroom.models import SegmentType, line_slack, script_schema
+
+    assert [line_slack(c) for c in (8, 10, 16, 28, 40)] == [2, 2, 4, 7, 10]
+    links = script_schema(SegmentType.links, ("slip_a", "slip_b"), max_lines=16)
+    script = {"headline": "Would you rather", "lower_third": "The Slipway",
+              "lines": [{"speaker": ("slip_a", "slip_b")[i % 2], "text": "A line."} for i in range(20)]}
+    assert links.model_json_schema()["properties"]["lines"]["maxItems"] == 16
+    assert len(links.model_validate(script).lines) == 20
+    with pytest.raises(ValidationError):
+        links.model_validate({**script, "lines": script["lines"] * 2})              # 40 of 16: still too many

@@ -871,7 +871,16 @@ _NARROWED: dict[tuple[SegmentType, tuple[str, ...]], type[BaseModel]] = {}
 # second answer was over too and the slot aired a template (The Inquiry's feature at 15 of 14, its interview
 # at 17 of 16; the 11-06 and 11-07 nights had 14 more, the sofa's mostly). An item's length is its target in
 # seconds, not its count of lines, so the cap the model sees stays as it was and a line or two over it passes.
+# A quarter over, on a longer cap (2026-11-25, the user): two lines over was too few for a cap of 40 or 16, and asked
+# again the model writes the same length. On 2026-11-24 High Water's round 2 came back at 44 of 40 twice and The
+# Slipway's links at 22 then 20 of 16, and both aired as templates; in nineteen nights no over-cap script was further
+# out than that but the breakfast sofa's, which the second ask brings in.
 LINE_SLACK = 2
+
+
+def line_slack(cap: int) -> int:
+    """How many lines over its cap a script may come back and still pass: a quarter, and never fewer than two."""
+    return max(LINE_SLACK, cap // 4)
 
 
 def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = False,
@@ -897,7 +906,7 @@ def script_schema(seg_type: SegmentType, cast: tuple[str, ...], couch: bool = Fa
             bounds["max_length"] = max_lines
         if "max_length" in bounds:                     # the model is told the cap; a line or two over passes
             bounds["json_schema_extra"] = {"maxItems": bounds["max_length"]}
-            bounds["max_length"] += LINE_SLACK
+            bounds["max_length"] += line_slack(bounds["max_length"])
         # The class name becomes the json_schema name, which servers cap at 64 characters.
         _NARROWED[key] = create_model(f"{base.__name__}_{'_'.join(cast)}"[:64], __base__=base,
                                       lines=(list[line], Field(**bounds)))
