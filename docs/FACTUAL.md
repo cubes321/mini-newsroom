@@ -209,6 +209,13 @@ building).
   - Since 2026-11-19 a meeting is 210 s (eighteen to twenty-two lines) and a road item 100 s: at 150 and 80 s the
     planned items came to about twelve minutes of twenty, and eight waiting moments filled the rest ("waits on the
     Saltby slip" three times, and the editor's "weak"). Now about three; their kinds still differ, but two of three were titled alike in rehearsal.
+  - 2026-11-24, the first leg on the real town: the meetings kept to their lines but not their words (about 375 of
+    525, 140 s), and seven waits filled the leg. Since 2026-11-25 the brief asks for the resident's answers to run two
+    to four sentences, hers one or two (the user chose that over more lines, which risk the line cap).
+  - A leg that ends on the crossing (`travelogue.ends_crossing`: it goes by water, and the next leg starts on the
+    other side of the Grey from its last stop) says its goodbye on the crossing, on the travel backdrop, and its waits
+    know the crossing is still to come. Told "still at" the Quay Steps, leg 1 on 2026-11-24 never crossed, though its
+    plan ended on the Saltby slip, where leg 2 begins (the user, 2026-11-25). Any other leg says goodbye at its last stop.
   - Each brief says where the leg has got to, what's done and what's still to come (for knowing, not saying); the
     writers see the earlier items in full, and what has come up in three items is named to be left alone. In code: a
     sentence giving someone a relative their record doesn't have goes, as does one said word for word earlier, and

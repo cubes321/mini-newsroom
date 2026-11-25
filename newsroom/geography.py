@@ -480,6 +480,19 @@ _BY_WATER = re.compile(r"ferry|boat|crossing|row(ing|ed)? (over|across)|across t
 _ROUND = re.compile(r"\bbus\b|coach|bridge|polgrey|round by|by road|taxi|\bcar\b|\blift\b", re.I)
 
 
+def by_water(text: str) -> bool:
+    """Does this say she goes over the water: the ferry, a boat, across the Grey or the sands."""
+    return bool(_BY_WATER.search(text or ""))
+
+
+def across(a: str | None, b: str | None) -> bool:
+    """Are these two places on opposite sides of the Grey (False when either can't be placed, or is at its head)."""
+    if not (a in BY_ID and b in BY_ID):
+        return False
+    sides = {BY_ID[a].side, BY_ID[b].side}
+    return HEAD not in sides and len(sides) == 2
+
+
 @dataclass
 class Placed:
     """A stop, placed: its gazetteer id (None when the writer's words don't say where)."""

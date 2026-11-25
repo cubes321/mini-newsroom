@@ -593,3 +593,46 @@ def test_the_opening_and_the_road_items_carry_the_route_for_the_map(channel, mon
     assert v.scene["route"] == r
     tv.view(road, v, 1)
     assert v.scene["route"] is None                                   # the first line only
+
+
+def test_a_leg_that_ends_on_the_ferry_says_goodbye_on_the_crossing(channel, monkeypatch, nowhere):
+    """2026-11-24: leg 1's plan ended with the ferry bumping the Saltby slip, but the close was told "still at" the
+    Quay Steps, so on air she never crossed, and leg 2 starts on the Saltby side (the user, 2026-11-25)."""
+    r = _route().model_dump()
+    r["legs"][0]["ends"] = "Eight minutes later the ferry bumps the Saltby slip and Lorna steps off on the Saltby side."
+    r["legs"][0]["stops"][-1].update(place="The Quay Steps", backdrop="harbour")
+    r["legs"][1]["stops"][0].update(place="The top of the Saltby slip", backdrop="slipway")
+    w = _world()
+    _stub(monkeypatch, lambda schema: tv.Route.model_validate(r))
+    tv.commission(w)
+    entry, s = tv.booked(w)
+    close = tv._item(entry, s, "close")
+    assert close["crossing"] and close["backdrop"] == "slipway"            # the ferry's travel backdrop
+    said = tv.brief_for(w, "{close}")
+    assert "this is the crossing, happening now" in said and "still at" not in said
+    assert "bumps the Saltby slip" in said
+    wait = tv.brief_for(w, "{x1}")
+    assert "the crossing is still to come" in wait and "no boarding, no crossing" in wait
+    assert "the crossing, and the goodbye" in tv.day_so_far(s["legs"][0], "x1", crossing=True)
+    assert tv.ends_crossing(s, 1) and not tv.ends_crossing(s, 2) and not tv.ends_crossing(s, tv.LEGS)
+
+
+def test_a_leg_that_ends_at_its_last_stop_says_goodbye_there(channel, monkeypatch, nowhere):
+    """Leg 6 of the series planned on 2026-11-24 names the ferry ("where the ferry took her across the Grey at the
+    start") but goes home by bus to the town side: no crossing at its end."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    entry, s = tv.booked(w)
+    close = tv._item(entry, s, "close")
+    assert not close["crossing"] and close["backdrop"] == s["legs"][0]["stops"][-1]["backdrop"]
+    assert f"still at {s['legs'][0]['stops'][-1]['place']}" in tv.brief_for(w, "{close}")
+    assert "the travelling done" in tv.day_so_far(s["legs"][0], "x1")
+
+
+def test_a_meeting_asks_for_answers_of_a_few_sentences(channel, monkeypatch, nowhere):
+    """2026-11-24: twenty lines of a sentence each, 375 words of 525, and seven waits filled the leg."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    assert "answers run two to four sentences" in tv.brief_for(w, "{m1}")

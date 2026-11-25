@@ -92,6 +92,20 @@ def _road(travel: str) -> str:
     return next(b for pat, b in TRAVEL if pat.search(travel or ""))
 
 
+def _pid(stop: dict) -> str | None:
+    return geography.place_for(stop["place"], stop["backdrop"], stop.get("where", ""))
+
+
+def ends_crossing(s: dict, n: int) -> bool:
+    """Leg n ends on the crossing: it goes by water, and the next leg starts on the other side of the Grey from its
+    last stop (leg 1 of 2026-11-24: the Quay Steps, then the Saltby slip). Not the words of its ending: leg 6's says
+    "the Quay Steps, where the ferry took her across the Grey at the start", and it ends on the town side."""
+    legs = s["legs"]
+    if n >= len(legs) or not geography.by_water(legs[n - 1]["travel"]):
+        return False
+    return geography.across(_pid(legs[n - 1]["stops"][-1]), _pid(legs[n]["stops"][0]))
+
+
 # ------------------------------------------------------------------ the record
 
 def state(world: World) -> dict:
@@ -404,7 +418,11 @@ def _item(entry: dict, s: dict, token: str) -> dict:
     if token == "open":
         return {"kind": "open", "backdrop": stops[0]["backdrop"], "tod": "day", "leg": leg}
     if token == "close":
-        return {"kind": "close", "backdrop": stops[-1]["backdrop"], "tod": "dusk", "leg": leg}
+        # A leg whose ending is the crossing says goodbye on it: told at the last stop, leg 1 on 2026-11-24 ended
+        # "still at the Quay Steps" and promised the Saltby slip, where leg 2 begins (the user, 2026-11-25).
+        crossing = ends_crossing(s, entry["n"])
+        return {"kind": "close", "backdrop": _road(leg["travel"]) if crossing else stops[-1]["backdrop"],
+                "tod": "dusk", "leg": leg, "crossing": crossing}
     if kind in "am":
         stop = stops[min(k, STOPS) - 1]
         return {"kind": "arrive" if kind == "a" else "meet", "k": k, "stop": stop, "backdrop": stop["backdrop"],
@@ -470,11 +488,13 @@ def how(leg: dict) -> str:
     return re.split(r"\s*[,;:–—]\s*|\s+-\s+", leg["travel"].strip(), maxsplit=1)[0].rstrip(".")
 
 
-def _step(leg: dict, tok: str) -> str:
+def _step(leg: dict, tok: str, crossing: bool = False) -> str:
     stops = leg["stops"]
     if tok == "open":
         return f"setting off, at {stops[0]['place']}"
     if tok == "close":
+        if crossing:
+            return "the crossing, and the goodbye as she gets over"
         return f"the goodbye at {stops[-1]['place']}"
     k = int(tok[1:])
     st = stops[k - 1]
@@ -483,20 +503,22 @@ def _step(leg: dict, tok: str) -> str:
             "r": f"the way from {st['place']} to {nxt}, arriving there"}[tok[0]]
 
 
-def day_so_far(leg: dict, tok: str) -> str:
+def day_so_far(leg: dict, tok: str, crossing: bool = False) -> str:
     """Where the leg has got to at this item, worked out from the plan: what's done and what's still to come, in order.
     Without it a road item said "third leg done" before the third meeting (rehearsal, 2026-11-16). The spare
     waiting moments come after the last meeting, before the goodbye."""
     waiting = tok.startswith("x")
     at = len(ORDER_STEPS) - 1 if waiting else ORDER_STEPS.index(tok)   # a wait: everything but the goodbye is done
-    done = [_step(leg, t) for t in ORDER_STEPS[:at]]
-    to_come = [_step(leg, t) for t in ORDER_STEPS[at if waiting else at + 1:]]
+    done = [_step(leg, t, crossing) for t in ORDER_STEPS[:at]]
+    to_come = [_step(leg, t, crossing) for t in ORDER_STEPS[at if waiting else at + 1:]]
     # For her to know, not to say: with the stops still to come in every brief, the links read the route aloud ("the
     # next stop is... and after that...", leg 5 of the rehearsal, 2026-11-16).
     return ("THE DAY SO FAR (for knowing where she is, never for saying: no reading out what's ahead): done: "
             + ("; ".join(done) if done else "nothing yet") + ". Now: "
-            + (f"a moment while she waits at {leg['stops'][-1]['place']}, the travelling done" if waiting
-               else _step(leg, tok)) + ". Still to come: "
+            + (f"a moment while she waits at {leg['stops'][-1]['place']}, "
+               + ("before the crossing" if crossing else "the travelling done")
+               if waiting
+               else _step(leg, tok, crossing)) + ". Still to come: "
             + ("; ".join(to_come) if to_come else "nothing: this is the end of the leg") + ". Nothing still to come "
             "has happened yet: nobody still to come has been met, no place still to come reached, and the leg isn't "
             "over until the goodbye")
@@ -549,7 +571,7 @@ def brief_for(world: World, brief: str) -> str:
     if tok is None:
         return out
     entry, s = booked(world)
-    return f"{out}. {day_so_far(s['legs'][entry['n'] - 1], tok)}"
+    return f"{out}. {day_so_far(s['legs'][entry['n'] - 1], tok, ends_crossing(s, entry['n']))}"
 
 
 def _brief(world: World, brief: str) -> str:
@@ -576,6 +598,12 @@ def _brief(world: World, brief: str) -> str:
     if it["kind"] == "close":
         nxt = f" Next time: {s['legs'][n]['title']}." if n < LEGS else " That's the whole journey: the last leg."
         last = leg["stops"][-1]
+        if it.get("crossing"):
+            return (f"THE CLOSE of leg {n}, Lorna to camera in the last of the light, on the last of the way: she has "
+                    f"left {last['place']} after meeting {last['meet']}, and this is the crossing, happening now, "
+                    f"to where the leg ends: {leg['ends']} A line or two on the way over, a line back over the day, "
+                    f"and the goodbye as she gets there.{nxt} Nothing about the places that's been said; no hello: "
+                    "a goodbye, without saying when. Only Lorna speaks, five to seven lines")
         return (f"THE CLOSE of leg {n}, Lorna to camera in the last of the light, still at {last['place']} after "
                 f"meeting {last['meet']}: no arriving again and nothing about the place that's been said; a line "
                 f"back over the day, then: {leg['ends']}{nxt} No hello: a goodbye, without saying when. Only Lorna "
@@ -585,7 +613,10 @@ def _brief(world: World, brief: str) -> str:
         return (f"LORNA MEETS {st['meet']} ({st['role']}) at {st['place']}: {st['talk']} She has just got here and "
                 "told us about the place in the item before: straight into the talk, with no arriving again and "
                 f"no describing the place again. Eighteen to twenty-two lines, every one either Lorna (guest_name "
-                f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does. "
+                f"\"{HOST}\") or {st['meet']} (guest_name \"{st['meet']}\"), and they talk more than she does: "
+                # Twenty lines of a sentence each came to 375 words of 525, a meeting of 140 s, and seven waiting
+                # moments filled the leg (2026-11-24). The lines were never short of number, only of length.
+                f"{st['meet']}'s answers run two to four sentences, a story or a detail in each, and hers one or two. "
                 f"{st['meet']} wasn't at the earlier stops and knows nothing of who she met there")
     if it["kind"] == "road":
         frm, to = leg["stops"][it["k"] - 1], it["to"]
@@ -600,8 +631,10 @@ def _brief(world: World, brief: str) -> str:
                    "arrives and nothing more: no summing up, no thanks, no farewell, and nothing finished yet"
                    if it["k"] == STOPS - 1 else ""))
     last = leg["stops"][-1]
-    return (f"WHILE SHE WAITS at {last['place']}, after meeting {last['meet']}: the day's travelling is done and she is "
-            "still there, before the goodbye: no boarding, no crossing, no setting off, nowhere else; "
+    return (f"WHILE SHE WAITS at {last['place']}, after meeting {last['meet']}: "
+            + ("the crossing is still to come (it's the goodbye's), and she is still there"
+               if ends_crossing(s, n) else "the day's travelling is done and she is still there")
+            + ", before the goodbye: no boarding, no crossing, no setting off, nowhere else; "
             + WAITING[(it["k"] - 1) % len(WAITING)]
             + ". Only Lorna speaks, five to seven lines; nothing said earlier today again")
 
