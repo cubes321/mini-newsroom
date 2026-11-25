@@ -791,8 +791,8 @@ class AdLine(BaseModel):
 class AdvertScript(BaseModel):
     """A 15-30 second local TV advert: a voiceover, and perhaps the owner speaking for themselves.
     The end-card text is clipped rather than failed when it runs long (Kimi overruns limits)."""
-    business: Annotated[str, _clip(40)] = Field(max_length=40, description="the business's name as on its sign")
-    tagline: Annotated[str, _clip(48)] = Field(max_length=48, description="the slogan on the end card")
+    business: Annotated[str, _clip_words(40)] = Field(max_length=40, description="the business's name as on its sign")
+    tagline: Annotated[str, _clip_words(48)] = Field(max_length=48, description="the slogan on the end card")
     where: Annotated[str, _clip(48)] = Field(max_length=48,
                                              description="where to find it, for the end card ('Harrow Street, from seven')")
     backdrop: Backdrop

@@ -215,18 +215,20 @@ def wrap(s: str, size: int, maxw: int, max_lines: int = 3) -> list[str]:
         lines.append(cur)
     if len(lines) > max_lines:
         lines = lines[:max_lines]
-        lines[-1] = lines[-1].rstrip(".,;") + "…"
+        lines[-1] = lines[-1].rstrip(".,;") + ("..." if f.bold else "…")     # the bold "…" is a bar (see clip)
     return lines
 
 
 def clip(s: str, f: pygame.font.Font, maxw: int) -> str:
-    """Cut s to fit maxw with an ellipsis, at a word break when one leaves most of the line."""
-    while len(s) > 1 and f.size(s + "…")[0] > maxw:
+    """Cut s to fit maxw with an ellipsis, at a word break when one leaves most of the line. In bold, three full
+    stops: the face's own ellipsis comes out as a bar, and every cut advert name ended "_" (2026-11-24)."""
+    dots = "..." if getattr(f, "bold", False) else "…"
+    while len(s) > 1 and f.size(s + dots)[0] > maxw:
         s = s[:-1]
     cut = s.rfind(" ")
     if cut > len(s) * 0.6:
         s = s[:cut]
-    return s.rstrip(" .,;:-") + "…"
+    return s.rstrip(" .,;:-&") + dots
 
 
 def text(canvas, s: str, x: int, y: int, size: int = 8, color=(240, 240, 240), center=False, maxw: int | None = None):
@@ -794,7 +796,10 @@ def draw_advert(canvas: pygame.Surface, v: View, t: float) -> None:
     pygame.draw.rect(canvas, (14, 16, 26), card)
     pygame.draw.rect(canvas, accent, (card.x, card.y, 5, card.h))
     pygame.draw.rect(canvas, accent, (card.x, card.bottom - 13, card.w, 13))
-    text(canvas, a.get("business", ""), card.x + 11, card.y + 4, 14, maxw=card.w - 16)
+    # A long name drops a size before it's cut: at 14, nineteen of the 32 adverts' names were (2026-11-24).
+    name, maxw = a.get("business", ""), card.w - 16
+    size = next((s for s in (14, 12) if font(s).size(name)[0] <= maxw), 10)
+    text(canvas, name, card.x + 11, card.y + {14: 4, 12: 5, 10: 6}[size], size, maxw=maxw)
     text(canvas, a.get("tagline", ""), card.x + 11, card.y + 21, 8, (215, 215, 225), maxw=card.w - 16)
     text(canvas, a.get("where", ""), card.x + 11, card.bottom - 12, 8, (16, 16, 22), maxw=card.w - 16)
     pygame.draw.rect(canvas, (235, 235, 235), (8, 8, 70, 10))
