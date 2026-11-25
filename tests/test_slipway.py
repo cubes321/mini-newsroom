@@ -2,6 +2,7 @@
 half hour. The model is stubbed: no network."""
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -212,3 +213,45 @@ def test_the_half_hour_ends_on_the_challenge_in_time_for_the_kettle(channel):
         assert sorted(guests) == ["A", "F", "F", "H", "P", "W"], (factor, guests)
         # At last night's lengths, four bits where nine items looped (2026-11-20); seven if everything runs short.
         assert len(bits) <= (4 if factor == 1.0 else 7), (factor, len(bits))
+
+
+def _feature_on(w, monkeypatch):
+    """The feature scripted and in the cache in full, past the archive's 400 characters."""
+    from newsroom.config import CONFIG
+
+    lines = [{"speaker": ("slip_a", "guest", "slip_b", "guest")[i % 4], "text": f"Line {i} about the club and the boats."}
+             for i in range(16)] + [{"speaker": "guest", "text": "A gull landed on the dinghy and we kept it in."}]
+    _stub(monkeypatch, lambda schema: schema.model_validate({**_spot("Morwenna Kitto"), "lines": lines}))
+    seg = Segment(slot_id=4, type=T.interview, show="slipway", brief=slipway._FEATURE, target_s=220)
+    writers.script_segment(seg, w)
+    a = next(a for a in w.archive if (a.get("brief") or "").startswith("THE FEATURE"))
+    a["hash"] = "f00dfeature0001"                     # set when it's voiced, as last night's was
+    CONFIG.paths.cache.mkdir(parents=True, exist_ok=True)
+    (CONFIG.paths.cache / f"{a['hash']}.json").write_text(json.dumps({"lines": lines}), encoding="utf-8")
+
+
+def test_have_a_go_is_a_lesson_with_the_first_part_in_full_not_the_features_pitch(channel, monkeypatch):
+    """2026-11-24: told "HAVE A GO: Nell Harrower...: Nell brings the band's first winter EP... is back" with 200
+    characters of the first part, the writer did the feature again and Tegan never had a go."""
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    slipway.commission(w)
+    _feature_on(w, monkeypatch)
+    said = slipway.brief_for(w, slipway._HAVE_A_GO)
+    assert said.startswith("HAVE A GO, the second part with Morwenna Kitto, founder of a junior sailing club:")
+    assert "a lesson, not an interview" in said
+    assert "had never been in a boat" not in said                       # the feature's pitch is the feature's
+    assert "A gull landed on the dinghy" in said                         # its last line, past 400 characters
+
+
+def test_a_have_a_go_that_does_the_feature_again_is_asked_for_once_more(channel, monkeypatch):
+    w = world_mod.seed()
+    _stub(monkeypatch, _booking())
+    slipway.commission(w)
+    again = {**_spot("Morwenna Kitto"), "lines": [{"speaker": "slip_a", "text": "Right, the feature. Welcome to The Slipway!"},
+                                                    *_spot("Morwenna Kitto")["lines"][1:]]}
+    replies = iter([again, _spot("Morwenna Kitto")])
+    seen = _stub(monkeypatch, lambda schema: schema.model_validate(next(replies)))
+    seg = Segment(slot_id=12, type=T.interview, show="slipway", brief=slipway._HAVE_A_GO, target_s=150)
+    writers.script_segment(seg, w)
+    assert len(seen) == 2 and "Not the feature again" in seen[1][3] and seg.lines[0].text == "Hiya!"

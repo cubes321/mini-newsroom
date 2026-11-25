@@ -48,7 +48,8 @@ BOOK_FROM = "17:00"
 TASK = "slipway" if "slipway" in CONFIG.llm.routes else "chamber"
 REST_DAYS = 28                          # a feature guest, a how-to or a pupil isn't booked again within this
 SO_FAR_CHARS = 200
-TOKEN = re.compile(r"\{(feature|howto|steps|pupil|watch|ask|askq|letters|more|question|whatson|challenge|last)\}")
+TOKEN = re.compile(r"\{(feature|featured|first|howto|steps|pupil|watch|ask|askq|letters|more|question|whatson|challenge|"
+                   r"last)\}")
 HOST_A, HOST_B = "Tegan Trevenna", "Elis Pengilly"
 
 # Its own set (assets/backdrops/studio_slipway.png, approved 2026-11-20), with marks for the pair and one guest as
@@ -62,9 +63,16 @@ MARKS = {"host": (122, 146, 2, 1), "panel_1": (186, 146, 2, -1), "panel_2": (272
 _FEATURE = ("THE FEATURE: {feature}. Tegan and Elis talk to them about it: how they started, what it's like, the best "
             "and worst moment, and one thing a viewer could do to start. Tegan wants to try it at once; Elis wants to "
             "know the rules")
-_HAVE_A_GO = ("HAVE A GO: {feature} is back, and Tegan has a go at it with them, coached step by step, while Elis "
-              "reads the safety notes and keeps score. Nothing from the first part told again; nothing anyone could "
-              "get hurt copying at home")
+# 2026-11-24: given the feature's whole pitch ("HAVE A GO: Nell Harrower...: Nell brings the band's first winter EP...
+# is back") and 200 characters of the first part, Haiku wrote the feature again: "Right, the feature... welcome to The
+# Slipway", the shed, the heater and the gull told twice, and Tegan never had a go. Now only who, a lesson not an
+# interview, and the first part in full.
+_HAVE_A_GO = ("HAVE A GO, the second part with {featured}: they're back, and this is a lesson, not an interview. Tegan "
+              "has a go herself at what they do, coached by them step by step; Elis reads the safety notes and keeps "
+              "score; the guest corrects, encourages and laughs; it ends on how Tegan did. Straight in: no welcome, "
+              "nobody introduced again, not called \"the feature\", no questions about how they started or what "
+              "they've made. THE FIRST PART, as it went out (nothing from it again: no story, joke or detail): {first}. "
+              "Nothing anyone could get hurt copying at home")
 _HOWTO = ("HOW TO: {howto} shows Tegan and Elis how to do it, in these steps, in order: {steps}. Elis follows the "
           "steps exactly, Tegan skips ahead; the guest keeps them both right")
 _ACADEMY = ("ACADEMY CORNER: {pupil}. Tegan and Elis ask them about it, kindly: what it is, who's in it, and how "
@@ -431,6 +439,11 @@ def check(seg, script, world: World) -> None:
     if want and got.lower() != want.lower():
         raise llm.AskAgain(f"THIS ITEM is {want}'s, so the guest is {want} (guest_name \"{want}\"), not "
                            f"{got or 'nobody'}: write THIS ITEM as it says, with them")
+    if (seg.brief or "").startswith("HAVE A GO"):
+        said = " ".join(l.text for l in script.lines[:3]).lower()
+        if any(w in said for w in ("the feature", "welcome to the slipway", "welcome back to the slipway")):
+            raise llm.AskAgain("THIS ITEM is the second part, a lesson: Tegan has a go, coached step by step. Not the "
+                               "feature again: no welcome, nobody introduced, not called \"the feature\"")
 
 
 def caption(world: World, name: str) -> str | None:
@@ -449,6 +462,27 @@ def caption(world: World, name: str) -> str | None:
     return None
 
 
+def first_part(world: World) -> str:
+    """The feature as it went out tonight, in full: what the Have a Go must not tell again. From its cache entry, as
+    The Coast Road's are (travelogue._said_today): the archive keeps only the first 400 characters."""
+    import json
+
+    with world.lock:
+        a = next((a for a in reversed(world.archive) if a["date"] == world.last_date and a.get("show") == SHOW
+                  and (a.get("brief") or "").startswith("THE FEATURE")), None)
+    if not a:
+        return ""
+    if a.get("hash"):
+        try:
+            seg = json.loads((CONFIG.paths.cache / f"{a['hash']}.json").read_text(encoding="utf-8"))
+            words = " ".join(l.get("text", "") for l in seg.get("lines", []) if l.get("text"))
+            if words:
+                return words
+        except (OSError, ValueError):
+            pass
+    return a.get("text") or ""
+
+
 def brief_for(world: World, brief: str) -> str:
     """A brief's tokens from tonight's booking."""
     k = booked(world)
@@ -458,6 +492,10 @@ def brief_for(world: World, brief: str) -> str:
         if tok == "feature":
             f = k["feature"]
             return f"{f['name']}, {f['role']}: {f['about']}"
+        if tok == "featured":
+            return f"{k['feature']['name']}, {k['feature']['role']}"
+        if tok == "first":
+            return first_part(world) or f"(not on yet) {k['feature']['about']}"
         if tok == "howto":
             h = k["howto"]
             return f"{h['name']}, {h['role']}, on how to {h['what']}"
