@@ -126,8 +126,14 @@ def _night_on(set_id):
 
 
 def test_a_night_scene_on_a_set_with_no_night_picture_is_asked_again(monkeypatch, film):
-    """2026-11-24: Dead Reckoning's fish quay, coast road and slipway at night aired as a blue-tinted day."""
-    assert {"fish_quay", "slipway", "coast_road"} <= M.by_day_only() and "harbour" not in M.by_day_only()
+    """2026-11-24: Dead Reckoning's fish quay, coast road and slipway at night aired as a blue-tinted day. They have
+    night pictures since 2026-11-25, so the fish quay stands in here for a set that has none."""
+    from newsroom import backdrops
+
+    assert "fish_quay" not in M.by_day_only()                    # its night picture is in: night scenes allowed
+    day_art = backdrops.day_art_at_night
+    monkeypatch.setattr(backdrops, "day_art_at_night", lambda sid: sid == "fish_quay" or day_art(sid))
+    assert "fish_quay" in M.by_day_only() and "harbour" not in M.by_day_only()
     assert "fish_quay: the fish quay: fish boxes on ice, the auction floor, the boats tied up (day or evening only"         in M._sets_text()
     drafts = iter([_night_on("fish_quay")] + [_act()] * M.ACTS)
     seen = _stub(monkeypatch, act=lambda user: next(drafts))
