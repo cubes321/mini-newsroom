@@ -1,5 +1,41 @@
 # Handover
 
+## Picking up after the review of 2026-11-25: the recordings of the 24th, and six fixes
+
+The 2026-11-24 Channel 8 evening's nine OBS files in `E:\recordings` were sampled: the sound of all of them
+(`ffmpeg silencedetect` at -50 dB / 2.5 s found nothing; mean about -27 dB), and one frame per segment, 5 s in, as
+contact sheets in `data/contact-sheets/2026-11-24-channel8/` (untracked). Nothing was listened to. Scripts were read
+from `data/llm_calls/2026-11-24.jsonl` and the cache. Six fixes, all on `master`, **none pushed**:
+
+| Commit | What | Seen on air? |
+| --- | --- | --- |
+| `4da4c0d` | Presenters keep their own seats whoever speaks first (`player._people` sorts by the show's cast). Nigel sat in Maggie's seat in six Kettle items, Elis in Tegan's once; the rule dated from 2026-10-25, so likely every night | No |
+| `bfdd185` | The Coast Road: meetings ask for the resident's answers in two to four sentences (they kept to 18-22 lines but came to ~375 words of 525, so seven waits filled leg 1); a leg that ends on the crossing (`travelogue.ends_crossing`, by the map) says goodbye on it, on the travel backdrop. Leg 1 never crossed on air, and leg 2 starts at the Saltby slip | No; only the meetings change shows in the current series (its leg 1, the only ferry ending, has aired) |
+| `6bb5341` | Advert names drop 14, 12, 10 before they're cut (19 of 32 were cut at 14); a bold cut ends "..." (Bahnschrift's "…" in pygame's bold is a bar, so every cut name ended "_"); name and tagline cut at a word when made. Approved on `data/contact-sheets/2026-11-25-advert-names.png` | No |
+| `a990926` | The Slipway's Have a Go: briefed as a lesson with only the guest's name (`{featured}`), the feature's first part in full from the cache (`{first}`), and one that opens on "the feature" or a welcome asked again. Slot 30 had been the feature again | No |
+| `9a01fbc` | The TV movie keeps night scenes off sets with no night picture (`movies.by_day_only`, from `backdrops.day_art_at_night`): fish_quay, slipway, coast_road, farm, woods, estuary. Dead Reckoning's scenes 20, 21, 29, 33 and 36 aired as a blue-tinted day | Planner only |
+| `2229c0d` | A script may come back a quarter over its line cap (`models.line_slack`; 16 allows 20, 40 allows 50), not two lines: problem 1 below. The user chose this over trimming, which could cut a game's scores | No |
+
+**In its own session:** night pictures for those six sets ("Night pictures for six outdoor sets"), ComfyUI as the
+fourteen before, on a contact sheet for the user before anything is committed. Once they're in, `by_day_only()` is
+empty by itself and Dead Reckoning would air right.
+
+**Seen, not fixed:**
+- Wexley Wits slot 90 was titled "The Anchor and Bell Edge Round Five"; The Lugger won it 4-3 (the board, 16-18, was
+  right). The creative editor rated Wits "weak": last week's notes mostly ignored.
+- High Water round 4 opened with Doris "on step twelve"; she was on eleven.
+- The Kettle's On's callers in one hour: Jo Haskett and Joan Haskett, and three Pascoes.
+- Marina Row slot 112: the over-long line is most likely Kerra's last (line 13, "...Can we finish now?"), cut off by
+  the length limit at about **13:23** in `2026-11-24 20-37 Marina Row.mp4`; for the user's ears. Davey's lines there
+  open on about a second of silence with a two-second gap.
+- Dead Reckoning scene 30 was written short (6 lines, from the first draft) and skips Jamal hearing the creak;
+  scene 31 names the cannery sign after the break, so the story holds.
+- Problems 2 to 4 below are still open (The Coast Road's failed check straight to the template, the saved route the
+  map turned down, the Kettle booking's Flash overrun).
+
+**Still to do:** push; a night on air to see the six fixes; the night pictures approved; the Late News on a real
+night; the film's titles music and the Late News ident by ear.
+
 ## Picking up after the Channel 8 evening of 2026-11-24
 
 Channel 8's whole evening on the real town, its first real night since 2026-11-16 and the first on air for High
