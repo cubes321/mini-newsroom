@@ -790,30 +790,47 @@ def check(seg, script, world: World) -> None:
     """Lorna alone to camera, or Lorna and the stop's resident; the memory is the resident's, never one an item.
     Nobody gains family off the record (`_keep_to_the_record`). A piece Lorna gives alone that has someone else
     speaking loses their lines (the rehearsal's arrival at the quay rail had Ellis Porrett in it, and went to the
-    template), so long as enough of hers are left."""
+    template), so long as enough of hers are left. A script that still won't do, or that the mending left nothing
+    of, is asked for once more (`llm.AskAgain`, told why) before the template stands in."""
     entry = tonight(world)
     tok = _token(seg.brief)
     if not entry or tok is None:
         return
     s = next(x for x in state(world)[0] if x["made"] == entry["made"])
     it = _item(entry, s, tok)
-    _keep_to_the_record(world, script)
-    _not_again(world, script)
+    took: list[str] = []                        # why whole lines went: the second ask is told, if none are left
+
+    def mend(fix, why: str) -> None:
+        n = len(script.lines)
+        fix()
+        if len(script.lines) < n:
+            took.append(why)
+
+    mend(lambda: _keep_to_the_record(world, script), "giving someone family their record doesn't have")
+    mend(lambda: _not_again(world, script), "saying again, word for word, what an earlier item today said: every "
+                                            "sentence must be new")
     if not (entry["n"] == 1 and it["kind"] == "open"):
-        _no_biscuit(script)
+        mend(lambda: _no_biscuit(script), "Lorna's biscuit story, which is the first leg's opening's alone")
     if it["kind"] not in ("close", "meet"):                 # a meeting may thank its resident
-        _no_goodbye(script)
+        mend(lambda: _no_goodbye(script), "a goodbye, which is the close's alone")
+    # 2026-11-24, slot 132: a wait at the Quay Steps came back as sentences of two earlier waits, word for word;
+    # _not_again took every line, and "should be Lorna Quayle alone, not []" sent it to the template unasked.
+    if not script.lines:
+        raise llm.AskAgain("nothing was left of the lines: they were taken out for " + "; ".join(took or ["nothing"])
+                           + ". Write THIS ITEM again with new lines")
     if it["kind"] != "meet" and sum((l.guest_name or "").strip() == HOST for l in script.lines) >= 3:
         script.lines = [l for l in script.lines if (l.guest_name or "").strip() == HOST]
     names = {(l.guest_name or "").strip() for l in script.lines}
+    said = ", ".join(sorted(n or "a line with no name" for n in names))
     if it["kind"] == "meet":
         other = it["stop"]["meet"]
         if names != {HOST, other}:
-            raise llm.LLMError(f"{seg.brief} should be {HOST} and {other}, not {sorted(names)}")
+            raise llm.AskAgain(f"THIS ITEM is {HOST} and {other} talking: every line is one of theirs (guest_name "
+                               f"\"{HOST}\" or \"{other}\") and both of them speak; not {said}")
         script.guest_name, script.guest_role = other, it["stop"]["role"][:60]     # the memory is theirs
     else:
         if names != {HOST}:
-            raise llm.LLMError(f"{seg.brief} should be {HOST} alone, not {sorted(names)}")
+            raise llm.AskAgain(f"only {HOST} speaks in THIS ITEM (guest_name \"{HOST}\" on every line), not {said}")
         script.guest_memory = None                                                 # not one a piece to camera
 
 

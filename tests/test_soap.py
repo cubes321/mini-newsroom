@@ -191,6 +191,27 @@ def test_a_scene_with_someone_who_isnt_in_it_is_not_aired(channel, monkeypatch):
     assert "Harriet Lockwood" not in {l.guest_name for l in seg.lines}          # the stand-in scene instead
 
 
+def test_a_scene_with_someone_who_isnt_in_it_is_asked_for_once_more_first(channel, monkeypatch):
+    """A near miss gets a second ask, told who is in the scene, as the TV movie's scenes do."""
+    w = world_mod.seed()
+    _stub(monkeypatch)
+    soap.commission(w, M)
+    good = [{"speaker": "guest", "guest_name": n, "text": t} for n, t in (
+        ("Sal Annear", "Evening."), ("Davey Kernick", "Evening, Sal."), ("Sal Annear", "Usual?"),
+        ("Davey Kernick", "Go on then."))]
+    bad = good[:3] + [{"speaker": "guest", "guest_name": "Harriet Lockwood", "text": "I'm not in this scene."}]
+    asked = []
+
+    def complete_json(task, schema, system, user, **kw):
+        asked.append(user)
+        return _scene_reply(bad if len(asked) == 1 else good)(schema)
+    monkeypatch.setattr(llm, "complete_json", complete_json)
+    seg = Segment(slot_id=3, type=T.interview, show="marina", brief="{s1}", target_s=170)
+    writers.script_segment(seg, w)
+    assert [l.text for l in seg.lines] == [l["text"] for l in good]
+    assert len(asked) == 2 and "not Harriet Lockwood" in asked[1] and "Davey Kernick" in asked[1]
+
+
 def test_characters_speak_in_their_actors_voices(channel):
     w = world_mod.seed()
     assert w.voice_for("guest", "Davey Kernick") == "bm_carthew" and w.lang_for("guest", "Davey Kernick") == "b"

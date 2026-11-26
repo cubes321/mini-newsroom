@@ -500,10 +500,13 @@ def check(seg, script, world: World, series: Series) -> None:
     allowed = set(found[0]["characters"])
     tidy(script, list(found[0]["characters"]), list(series.characters), ep["last_line"] if found[2] else "")
     names = [(l.guest_name or "").strip() for l in script.lines]
-    if any(name not in allowed for name in names):
-        raise llm.LLMError(f"a line in {seg.brief} is spoken by someone not in it: {set(names) - allowed}")
+    cast = ", ".join(sorted(allowed))
+    if stray := set(names) - allowed:                  # one more ask, as the TV movie's scenes get (movies.check_scene)
+        raise llm.AskAgain(f"THIS ITEM's characters are {cast}: every line is one of theirs (guest_name their exact "
+                           f"name), not {', '.join(sorted(n or 'a line with no name' for n in stray))}")
     if len(set(names)) < 2:
-        raise llm.LLMError(f"{seg.brief} has only one character speaking")
+        raise llm.AskAgain(f"only {names[0] if names else 'nobody'} speaks: the scene is at least two of {cast} "
+                           "talking to each other")
 
 
 _STAND_IN_LINES = ("I didn't think you'd come.", "I nearly didn't.", "Well, you're here now.",

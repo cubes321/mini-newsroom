@@ -503,6 +503,49 @@ def test_a_wait_is_at_the_last_stop_not_on_the_way(channel, monkeypatch, nowhere
         assert "no boarding, no crossing" in said
 
 
+def _in_turn(monkeypatch, *replies):
+    """The model answers with each reply in turn; returns the prompts it was given."""
+    asked = []
+
+    def complete_json(task, schema, system, user, **kw):
+        asked.append(user)
+        return replies[len(asked) - 1](schema)
+    monkeypatch.setattr(llm, "complete_json", complete_json)
+    return asked
+
+
+def test_a_wait_said_word_for_word_before_is_asked_for_again_and_told_why(channel, monkeypatch, nowhere):
+    """2026-11-24, slot 132: a wait at the Quay Steps came back as two earlier waits' sentences, word for word; every
+    line went, and the template aired (9.9 s) without a second ask."""
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    before = "Standing still on these steps is the only thing I've been asked to do all day."
+    w.archive.append({"date": w.last_date, "show": "coastroad", "type": "interview", "headline": "waits",
+                      "text": before, "aired": False, "ts": 0})
+    fresh = ["The cat has the top step now.", "Nobody argues with it.", "The tide's turned, I think.",
+             "A gull has landed on my bag."]
+    asked = _in_turn(monkeypatch, _said([(tv.HOST, before)] * 4), _said([(tv.HOST, t) for t in fresh]))
+    seg = Segment(slot_id=132, type=T.interview, show="coastroad", brief="{x5}", target_s=80)
+    writers.script_segment(seg, w)
+    assert [l.text for l in seg.lines] == fresh                              # the model's second script, not the template
+    assert len(asked) == 2 and "word for word, what an earlier item today said" in asked[1]
+
+
+def test_a_meeting_with_a_stranger_is_asked_for_again_before_the_template(channel, monkeypatch, nowhere):
+    w = _world()
+    _stub(monkeypatch)
+    tv.commission(w)
+    other = tv.series(w)["legs"][0]["stops"][0]["meet"]
+    lines = lambda who: _said([(tv.HOST, "Hello!"), (who, "Hello, Lorna."), (tv.HOST, "How long have you waited?"),
+                               (who, "Since Tuesday.")])
+    asked = _in_turn(monkeypatch, lines("Ada Quarrie"), lines(other))
+    seg = Segment(slot_id=4, type=T.interview, show="coastroad", brief="{m1}", target_s=150)
+    writers.script_segment(seg, w)
+    assert {l.guest_name for l in seg.lines} == {tv.HOST, other}
+    assert len(asked) == 2 and f"THIS ITEM is {tv.HOST} and {other} talking" in asked[1] and "Ada Quarrie" in asked[1]
+
+
 # ------------------------------------------------------------------ the map (newsroom/geography.py)
 
 def _off_the_map():
