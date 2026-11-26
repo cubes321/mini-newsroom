@@ -209,6 +209,31 @@ def test_a_known_person_given_another_job():
     assert writers.role_drift(NS(guest_name="Nobody New", guest_role="skipper"), w) is None
 
 
+def test_given_another_job_twice_the_caption_is_the_towns(monkeypatch):
+    """2026-11-25 slot 187: Lorna Pascoe, a sea-swimming club member on record, kept "retired schoolteacher and
+    amateur timekeeper" after the second ask, and the lower third showed it at 22:31 and in the 00:16 repeat."""
+    from newsroom import llm
+    from newsroom.models import GuestLine, InterviewScript
+
+    w = world_mod.seed()
+    w.ensure_person("Lorna Pascoe", "sea-swimming club member", gender="f")
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return InterviewScript(
+            lines=[GuestLine(speaker="late_host", text="Lorna, you timed the quay wall."),
+                   GuestLine(speaker="guest", text="End to end, in the dark, with a stopwatch."),
+                   GuestLine(speaker="late_host", text="Lorna Pascoe, thank you.")],
+            headline="Lorna Pascoe times the quay wall", lower_third="Stopwatch", guest_name="Lorna Pascoe",
+            guest_role="retired schoolteacher and amateur timekeeper", guest_gender="f")
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=187, type=T.interview, show="late", target_s=60)
+    writers.script_segment(seg, w)
+    assert any("NOT A RETIRED SCHOOLTEACHER" in u for u in asked)
+    assert [l.guest_role for l in seg.lines if l.speaker == "guest"] == ["sea-swimming club member"]
+
+
 def test_a_loose_end_on_a_day_that_hasnt_come():
     """Dev Ramachandran was asked on Saturday whether the rye "sold out on a Monday", and answered on Sunday."""
     ask = "Whether the orange-peel rye finally sold out on a Monday"

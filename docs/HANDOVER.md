@@ -41,7 +41,8 @@ checked.
 - **Lorna Pascoe was on eight times** (three interviews, a link, a report, three repeats). Slot 187 kept the job
   "retired schoolteacher and amateur timekeeper" after both asks (her record: sea-swimming club member). Only her
   memory was dropped, so the lower third (`player.py:768`, `line.guest_role`) most likely showed the wrong job at
-  22:31 and in the 00:16 repeat. **Open.**
+  22:31 and in the 00:16 repeat. **Since 2026-11-26** a guest still given another job after the second ask is
+  captioned with the job on their record (`writers.script_segment`, `role`). What they say about it is unchanged.
 - **One tide time stood after two asks**, at 22:14: "high water just after twenty to eight this evening". The table
   said 19:57. 7 asked again, 1 stood (11-22: 2 stood).
 - **Two lines hit Pocket's length cap and end still sounding**, for the user's ears: `2026-11-25 19-59 The Inquiry.mp4`

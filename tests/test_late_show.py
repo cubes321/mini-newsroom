@@ -75,7 +75,7 @@ def test_the_main_guest_stays_on_the_couch_for_the_second(monkeypatch):
         seen["user"], seen["schema"] = user, schema
         return schema.model_validate({
             "headline": "Two guests and a gull", "lower_third": "The Last Ferry",
-            "guest_name": "Tam Buchanan", "guest_role": "boatbuilder", "guest_gender": "m",
+            "guest_name": "Tam Buchanan", "guest_role": "lifeboat coxswain", "guest_gender": "m",
             "lines": [{"speaker": "late_host", "text": "Please welcome Tam Buchanan."},
                       {"speaker": "guest", "guest_name": "Tam Buchanan", "text": "Evening, Vincent."},
                       {"speaker": "guest", "guest_name": "marjorie pell", "text": "Tam built my dinghy."},
@@ -89,8 +89,8 @@ def test_the_main_guest_stays_on_the_couch_for_the_second(monkeypatch):
     assert "ON THE COUCH: Marjorie Pell (retired lighthouse keeper)" in seen["user"]
     assert "guest_name" in seen["schema"].model_fields["lines"].annotation.__args__[0].model_fields
     names = [(l.guest_name, l.guest_role) for l in seg.lines if l.speaker == "guest"]
-    assert names == [("Tam Buchanan", "boatbuilder"), ("Marjorie Pell", "retired lighthouse keeper"),
-                     ("Tam Buchanan", "boatbuilder")]
+    assert names == [("Tam Buchanan", "lifeboat coxswain"), ("Marjorie Pell", "retired lighthouse keeper"),
+                     ("Tam Buchanan", "lifeboat coxswain")]
     assert seg.work["couch"] == "Marjorie Pell"
     assert writers._last_interview["late"]["name"] == "Tam Buchanan"     # now the last interview
 

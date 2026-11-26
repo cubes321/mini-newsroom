@@ -2498,10 +2498,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
     stayed = couch["name"] if couch and source == "llm" else None
 
     call = isinstance(script, CallScript)
+    # Given another job after the second ask too, the guest is still captioned as the town knows them: on 2026-11-25
+    # Lorna Pascoe, a sea-swimming club member, went out at 22:31 as "retired schoolteacher and amateur timekeeper".
+    drifted = role_drift(script, world)
 
     def role(name: str | None) -> str | None:
         if stayed and name == stayed:
             return couch["role"]
+        if drifted and name and (p := world.person_by_name(name)) and p.name == drifted[0]:
+            return drifted[2]
         if call and name == script.caller_name:
             return f"On the line from {script.caller_from}"
         if seg.show in CAPTION_HOOKS and (said := CAPTION_HOOKS[seg.show](world, name)):
