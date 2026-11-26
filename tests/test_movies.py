@@ -88,6 +88,22 @@ def test_each_scene_is_given_the_whole_script_so_far_and_the_last_is_told_it_end
     assert "LAST scene of the film" in asked[-1] and "last scene before the ad break" in asked[M.SCENES_PER_ACT - 1]
 
 
+def test_each_scene_call_reads_the_last_ones_cached_head_and_adds_one_block(monkeypatch, film):
+    from newsroom.config import ProviderCfg
+    sonnet = ProviderCfg(name="s", kind="anthropic", model="claude-sonnet-5-5", cache_ttl="1h")
+    seen = _stub(monkeypatch)
+    M.write(film, world_mod.seed(), say=lambda s: None)
+    sent = [llm._user_content(sonnet, u) for _, s, _, u in seen if s is M.Dialogue]
+    heads = [[b["text"] for b in blocks[:-1]] for blocks in sent]          # the last block is THIS SCENE, uncached
+    for before, after in zip(heads, heads[1:]):
+        assert after[:len(before)] == before and len(after) == len(before) + 1
+    for blocks in sent:
+        assert "cache_control" in blocks[-2] and "cache_control" not in blocks[-1]
+        assert "THIS SCENE" in blocks[-1]["text"] and not any("THIS SCENE" in b["text"] for b in blocks[:-1])
+    plain = llm._user_content(ProviderCfg(name="k", kind="openai"), seen[-1][3])
+    assert llm.CACHE_BREAK not in plain and llm.CACHE_BLOCK not in plain and "SO FAR:\n\n[Scene 1.1," in plain
+
+
 def test_a_failure_keeps_everything_so_far_and_write_goes_on_from_there(monkeypatch, film):
     _stub(monkeypatch, fail_at=5)
     with pytest.raises(llm.LLMError):

@@ -59,6 +59,10 @@ T = TypeVar("T", bound=BaseModel)
 # Where the stable head of a user prompt ends. A control character, so it can't turn up in a prompt
 # by accident; removed before anything is sent or logged except as the split it stands for.
 CACHE_BREAK = "\x1e"
+# Splits the stable head into blocks of its own, for a head that grows from call to call (a film's script so far):
+# the API finds an earlier call's cache only where a block ends, so call N+1 reads call N's head when it is call N's
+# blocks plus one more. Ignored without a CACHE_BREAK after it; removed wherever CACHE_BREAK is.
+CACHE_BLOCK = "\x1f"
 
 _THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
@@ -431,14 +435,18 @@ def _anthropic_raw(prov: ProviderCfg, system: str, messages: list[dict],
 def _user_content(prov: ProviderCfg, user: str) -> str | list[dict]:
     """The first user turn. On a caching anthropic provider the text before CACHE_BREAK is a block
     of its own with the cache marker, so the system prompt, schema and that block are one cached
-    prefix; otherwise the marker is dropped and the prompt goes as plain text."""
+    prefix; otherwise the marker is dropped and the prompt goes as plain text. CACHE_BLOCK cuts that head into
+    several blocks, the marker on the last."""
     stable, sep, rest = user.partition(CACHE_BREAK)
     if not sep or prov.kind != "anthropic" or not prov.cache_ttl:
-        return user.replace(CACHE_BREAK, "")
+        return user.replace(CACHE_BREAK, "").replace(CACHE_BLOCK, "")
     mark = {"type": "ephemeral", "ttl": prov.cache_ttl}
-    rest = rest.replace(CACHE_BREAK, "")
-    return [{"type": "text", "text": stable, "cache_control": mark}] + (
-        [{"type": "text", "text": rest}] if rest.strip() else [])
+    rest = rest.replace(CACHE_BREAK, "").replace(CACHE_BLOCK, "")
+    head = [{"type": "text", "text": t} for t in stable.split(CACHE_BLOCK) if t]
+    if not head:
+        return rest
+    head[-1]["cache_control"] = mark
+    return head + ([{"type": "text", "text": rest}] if rest.strip() else [])
 
 
 def _picture_blocks(prov: ProviderCfg, images: list[tuple[str, Path]]) -> list[dict]:
@@ -612,7 +620,7 @@ def _cli(argv: list[str]) -> int:
                                 work=work, tips=tips)
     name = provider_for(a.type)
     if a.dry_run:
-        print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user.replace(CACHE_BREAK, "[cache break]\n"))
+        print("=== SYSTEM ===\n" + system + "\n\n=== USER ===\n" + user.replace(CACHE_BREAK, "[cache break]\n").replace(CACHE_BLOCK, ""))
         print("\n=== SCHEMA ===\n" + json.dumps(schema.model_json_schema(), indent=1))
         print(f"\nprovider for {a.type!r}: {name}")
         return 0

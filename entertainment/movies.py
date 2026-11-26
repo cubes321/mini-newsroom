@@ -396,14 +396,16 @@ def _lines_text(lines: list[dict]) -> str:
     return "\n".join(f"{l['character']}: {l['text']}" for l in lines)
 
 
-def _so_far(film: dict, upto: str) -> str:
+def _so_far(film: dict, upto: str) -> list[str]:
+    """The scenes written before `upto`, one string each: each a block of the scene prompt's cached head, the same
+    bytes in every later call."""
     out = []
     for k, sc in _live_rows(film):
         if k == upto:
             break
         if k in film["scenes"]:
-            out.append(f"[Scene {k}, {SETS[sc['set']][0]}, {sc['when']}]\n{_lines_text(film['scenes'][k])}")
-    return "\n\n".join(out)
+            out.append(f"\n\n[Scene {k}, {SETS[sc['set']][0]}, {sc['when']}]\n{_lines_text(film['scenes'][k])}")
+    return out
 
 
 # What leaked into the spoken words of the six films written on 2026-11-23 (66 lines of about 3,800, found by the
@@ -465,12 +467,17 @@ def write_scene(film: dict, key: str) -> Dialogue:
     sc = rows[idx][1]
     last = idx == len(rows) - 1
     act = int(key.split(".")[0])
-    plan = "\n".join(f"  {'>' if k == key else ' '} {k}. {_scene_row(s)}" for k, s in rows)
+    # Cached on Sonnet (llm.CACHE_BREAK): the film, the plan and each scene so far are blocks that are the same bytes
+    # from scene to scene, so each call re-reads the last one's at a twentieth of the price and pays in full only
+    # for the newest scene and THIS SCENE. Nothing that changes per scene may go before the break.
+    plan = "\n".join(f"  {k}. {_scene_row(s)}" for k, s in rows)
     so_far = _so_far(film, key)
     words = int(SCENE_S * WORDS_PER_S)
-    user = (f"THE FILM:\n{_outline_text(o)}\n\nEVERY SCENE (> marks this one):\n{plan}\n\n"
-            f"THE SCRIPT SO FAR:\n{so_far or '(nothing yet: this is the opening scene)'}\n\n"
-            f"THIS SCENE, {key} (act {act} of {ACTS}): at {SETS[sc['set']][0]} ({SETS[sc['set']][1]}), {sc['when']}. "
+    user = (f"THE FILM:\n{_outline_text(o)}\n\nEVERY SCENE:\n{plan}\n\nTHE SCRIPT SO FAR:"
+            + "".join(llm.CACHE_BLOCK + s for s in so_far) + llm.CACHE_BREAK
+            + ("" if so_far else "\n(nothing yet: this is the opening scene)")
+            + f"\n\nTHIS SCENE, {key} in EVERY SCENE (act {act} of {ACTS}): at {SETS[sc['set']][0]} "
+            f"({SETS[sc['set']][1]}), {sc['when']}. "
             f"In it: {', '.join(sc['characters'])}. As it starts: {sc['knows']} What happens: {sc['beats']} "
             f"It ends on: {sc['ends_on']}"
             + (" This is the LAST scene of the film: it ends on the ending, with the film's last line." if last else

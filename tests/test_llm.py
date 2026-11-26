@@ -21,6 +21,15 @@ def test_a_caching_provider_gets_the_head_as_a_marked_block():
     assert tail == {"type": "text", "text": "Last weather: rain\n\nWrite it."}
 
 
+def test_a_head_cut_into_blocks_has_the_marker_on_its_last_block_only():
+    user = f"FILM{llm.CACHE_BLOCK}scene one{llm.CACHE_BLOCK}scene two{llm.CACHE_BREAK}this scene"
+    mark = {"type": "ephemeral", "ttl": "1h"}
+    assert llm._user_content(HAIKU, user) == [
+        {"type": "text", "text": "FILM"}, {"type": "text", "text": "scene one"},
+        {"type": "text", "text": "scene two", "cache_control": mark}, {"type": "text", "text": "this scene"}]
+    assert llm._user_content(ProviderCfg(name="k", kind="openai"), user) == "FILMscene onescene twothis scene"
+
+
 def test_other_providers_get_plain_text_without_the_marker():
     plain = "TOWN BRIEFING\nthe town\nLast weather: rain\n\nWrite it."
     assert llm._user_content(ProviderCfg(name="k", kind="openai"), USER) == plain
