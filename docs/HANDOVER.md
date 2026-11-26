@@ -1,6 +1,43 @@
 # Handover
 
-## Tonight (2026-11-25): a real Channel 7 night, no pictures
+## Tonight (2026-11-26): a real Channel 7 night, no pictures
+
+Started 21:04 from `data/night_channel7_nopictures.cmd` (no ComfyUI: another project's `night-imagedoctor` job has
+the card tonight), `--minutes 720 --obs`, so it ends about 09:04. Log `data/logs/station-2026-11-26-2104.log`,
+backup `data/world.backup-2026-11-26-pre-night.json`. Both keys answered `/v1/models` first; OBS was started for it
+(not streaming, `keep_alive = false`); audio into CABLE Input. The first night for the 2026-11-26 fixes (the pool
+lines, the specials' 14 days and 7-day rest, the specials reading the memo, the guest caption from the record).
+
+**After the run (the user, 2026-11-26): check the weather forecasts are consistent.** Nothing holds a forecast:
+each weather script is written fresh, and all it is told of the last is `world.last_weather` (map state,
+temperature, headline: `world.py` "Last weather"). So, over the whole night:
+- Every weather script in airing order (time, slot, show, map state, °C, headline, the forecast lines), from
+  `data/llm_calls/2026-11-26.jsonl` and `2026-11-27.jsonl` with the cache.
+- Do the forecasts for the same hours agree (tonight's low, frost or fog, rain or wind, tomorrow), or does each
+  report invent a new night? Jumps in temperature or state between reports minutes apart.
+- Do the words match the map state cued for the same segment, and the teletext page (`teletext.py`)?
+- The weather told elsewhere (news items, the sofa, phone-ins, Morning Tide's weather and ticker) against the
+  forecast of the time; the breakfast ticker carried the evening's weather once before.
+- Tide times are already checked against `tides.py`; note any that stood.
+
+**Seen at 22:00 (the user saw -1 then -4): the temperature walks down a degree a report.** 21:04 to 21:48: 4, 3, 1,
+0, 0, 0, 0, -1, -2, -3, -4. The 25th the same: 13 at 19:23 to -6 at 23:47, one degree a weather, stopped only by
+the small hours' gap; Morning Tide then opened at 6 with "the frost lifting". `forecast_drift` (`writers.py`) holds
+each weather within 2 degrees of the *last* one, and `_last_forecast` tells it "(a degree or two lower after dark)",
+which Haiku takes every time: every step passes, and nothing stops the sum before the model's -40 floor. Also seen:
+21:48's map said -4, Gordon said "minus three".
+
+**Fixed and restarted at 22:04 (the user):** `World.record_weather` keeps `anchor_c`/`anchor_ts`, the first forecast of
+the last three hours (`world.WEATHER_HOLD_S`), and `forecast_drift` and `_last_forecast` hold to it, within 2 degrees;
+"a degree or two lower after dark" is gone, and the prompt asks for the spoken figure to be temp_c. A world saved
+before has no anchor: the last forecast stands in. 1296 tests pass; not committed. The first run closed its window
+cleanly at 22:04:18 (`station-2026-11-26-2104.log`, The Last Ferry saved as `2026-11-26 22-00 The Last Ferry.mp4`),
+the second started 22:04 (`station-2026-11-26-2204.log`, The Last Ferry again from 22:04, ends about 10:04). Its
+launcher overwrote `world.backup-2026-11-26-pre-night.json` with the 22:04 town; the town before the night is
+`world.backup-2026-11-26-2104-pre-night.json`. The anchor starts from the last weather of the first run (-4 at
+21:48), so tonight should hold near it; the morning check sees whether it did.
+
+## The night of 2026-11-25: a real Channel 7 night, no pictures
 
 Started 19:20 from `data/night_channel7_nopictures.cmd` (no ComfyUI, the user), `--minutes 720 --obs`, log
 `data/logs/station-2026-11-25-1920.log`. The first try at 19:16 (`station-2026-11-25-1916.log`) ran on templates:

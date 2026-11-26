@@ -114,6 +114,33 @@ def test_coastwide_has_two_weathers_and_each_keeps_to_the_last(monkeypatch):
     assert writers.forecast_drift(wx(4), w, t0 + 4 * 3600) is None          # hours on, it may well have dropped
 
 
+def test_the_weather_keeps_to_the_first_forecast_not_the_last(monkeypatch):
+    """2026-11-26 21:04-21:48: 4, 3, 1, 0, 0, 0, 0, -1, -2, -3, -4, each within two of the one before."""
+    w = world_mod.seed()
+    t0 = datetime(2026, 11, 26, 21, 4).timestamp()
+    clock = {"t": t0}
+    monkeypatch.setattr(world_mod.schedule, "now", lambda: clock["t"])
+    wx = lambda t: type("S", (), {"temp_c": t})()                           # noqa: E731
+    for i, temp in enumerate((4, 3, 2)):
+        clock["t"] = t0 + i * 300
+        w.record_weather("sunny", temp, "Clear And Cold")
+    at = t0 + 15 * 60
+    assert w.last_weather["anchor_c"] == 4 and w.last_weather["temp_c"] == 2
+    assert writers.forecast_drift(wx(2), w, at) is None and writers.forecast_drift(wx(6), w, at) is None
+    assert writers.forecast_drift(wx(1), w, at) == 4                        # within two of the last (2), not of 4
+    note = writers._last_forecast(w, at)
+    assert "5 minutes before this one: sunny, 2°C" in note and "was 4°C, 15 minutes ago" in note
+    assert "within 2 degrees of 4" in note and "lower after dark" not in note
+    clock["t"] = t0 + 3 * 3600 + 60                                         # the window over: a new anchor
+    w.record_weather("sunny", -1, "Hard Frost")
+    assert w.last_weather["anchor_c"] == -1
+    assert writers.forecast_drift(wx(-3), w, clock["t"] + 300) is None
+    w.last_weather = {"map_state": "sunny", "temp_c": 5, "headline": "Old", "ts": clock["t"]}   # saved before the anchor
+    assert writers.forecast_drift(wx(2), w, clock["t"] + 300) == 5
+    w.record_weather("sunny", 4, "Old Kept")
+    assert w.last_weather["anchor_c"] == 5
+
+
 def test_a_title_or_a_loose_end_that_names_a_step_not_due(monkeypatch):
     monkeypatch.setattr(world_mod.schedule, "now", lambda: SUN.timestamp())
     w = world_mod.seed()

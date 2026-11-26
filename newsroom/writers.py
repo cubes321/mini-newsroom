@@ -46,7 +46,7 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import (RETURN_EXPIRE_S, Person, World, status_words, said_next, said_status,
+from .world import (RETURN_EXPIRE_S, WEATHER_HOLD_S, Person, World, status_words, said_next, said_status,
                     same_story_words, tells_next_as_done)
 
 log = logging.getLogger(__name__)
@@ -1952,31 +1952,42 @@ def no_hello_midway(lines: list[Line], show: schedule.Show, seg_type: SegmentTyp
     return n
 
 
-FORECAST_HOLDS_S = 3 * 3600      # a forecast within this of the last keeps to its temperature and sky
-FORECAST_DRIFT = 2               # degrees it may move in that time
+FORECAST_HOLDS_S = WEATHER_HOLD_S  # a forecast keeps to the first of this long: its temperature and sky
+FORECAST_DRIFT = 2               # degrees it may move from that one
+
+
+def _anchor(wx: dict, at: float) -> tuple[int, float] | None:
+    """The temperature this weather keeps to and when it was given, or None if there is none within
+    FORECAST_HOLDS_S. A world saved before 2026-11-26 has no anchor: the last forecast stands in."""
+    temp, ts = wx.get("anchor_c", wx.get("temp_c")), wx.get("anchor_ts", wx.get("ts"))
+    if temp is None or not ts or not wx.get("ts") or not 0 <= at - wx["ts"] < FORECAST_HOLDS_S:
+        return None
+    return (temp, ts) if 0 <= at - ts < FORECAST_HOLDS_S else (wx["temp_c"], wx["ts"])
 
 
 def _last_forecast(world: World, at: float) -> str:
     """The last forecast, for the next weather to keep to: on the 2026-11-22 evening Coastwide's weathers gave 12, 8,
     8 and 11 degrees inside the hour, the last two two minutes apart, from a briefing that said only "Last weather".
-    Within FORECAST_HOLDS_S of it, the temperature stays within FORECAST_DRIFT and the sky the same."""
+    The temperature keeps within FORECAST_DRIFT of the first forecast of the last FORECAST_HOLDS_S, not the last
+    one: held to the last, it walked down a degree a report (World.record_weather), and "a degree or two lower after
+    dark", said every time, was taken every time."""
     wx = world.last_weather or {}
-    if not wx.get("ts") or wx.get("temp_c") is None or not 0 <= at - wx["ts"] < FORECAST_HOLDS_S:
+    if not (held := _anchor(wx, at)):
         return ""
+    temp, ts = held
     mins = round((at - wx["ts"]) / 60)
+    since = (f" The forecast it keeps to was {temp}°C, {round((at - ts) / 60)} minutes ago." if ts != wx["ts"]
+             else "")
     return (f"\n\nTHE LAST FORECAST, {mins} minutes before this one: {wx.get('map_state')}, {wx['temp_c']}°C "
-            f"({wx.get('headline', '')}). Keep to it: temp_c within {FORECAST_DRIFT} degrees of {wx['temp_c']} "
-            "(a degree or two lower after dark), and the same sky unless that forecast said it would change.")
+            f"({wx.get('headline', '')}).{since} Keep to it: temp_c within {FORECAST_DRIFT} degrees of {temp}, "
+            "and the same sky unless that forecast said it would change. Say the same temperature as temp_c.")
 
 
 def forecast_drift(script, world: World, at: float) -> int | None:
-    """The last forecast's temperature if this weather's is more than FORECAST_DRIFT from it within
-    FORECAST_HOLDS_S, else None."""
-    wx = world.last_weather or {}
+    """The temperature this weather keeps to (_anchor) if its own is more than FORECAST_DRIFT from it, else None."""
     temp = getattr(script, "temp_c", None)
-    if temp is None or not wx.get("ts") or wx.get("temp_c") is None or not 0 <= at - wx["ts"] < FORECAST_HOLDS_S:
-        return None
-    return wx["temp_c"] if abs(temp - wx["temp_c"]) > FORECAST_DRIFT else None
+    held = _anchor(world.last_weather or {}, at) if temp is not None else None
+    return held[0] if held and abs(temp - held[0]) > FORECAST_DRIFT else None
 
 
 def no_chamber_trail_from_guests(lines: list[Line]) -> int:
@@ -2309,11 +2320,11 @@ def script_segment(seg: Segment, world: World) -> Segment:
         # A weather that jumps from the last forecast: one more ask; whichever is nearer stands.
         if seg.type is SegmentType.weather and (was := forecast_drift(script, world, seg.nominal_start_ts
                                                                        or schedule.now())) is not None:
-            log.info("weather slot %d: %d°C against the last forecast's %d°C; asking again", seg.slot_id,
+            log.info("weather slot %d: %d°C against the forecast it keeps to, %d°C; asking again", seg.slot_id,
                      script.temp_c, was)
             again = llm.complete_json(seg.type.value, schema, system, user + (
-                f"\n\nTEMPERATURE: {script.temp_c}°C is too far from the last forecast's {was}°C. Write it again with "
-                f"temp_c within {FORECAST_DRIFT} degrees of {was}, and say that figure."))
+                f"\n\nTEMPERATURE: {script.temp_c}°C is too far from the forecast it keeps to, {was}°C. Write it "
+                f"again with temp_c within {FORECAST_DRIFT} degrees of {was}, and say that figure."))
             if abs(again.temp_c - was) < abs(script.temp_c - was):
                 script = again
         # The Inquiry's other items are anyone but THE GUEST: on 2026-10-30 "the other side" booked them again,

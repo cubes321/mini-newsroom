@@ -63,7 +63,8 @@ TICS = {"always slightly out of breath": ("out of breath", r"out of breath|breat
 # not "been running": "Dolores Finch has been running this" (an appeal) in the replay of 2026-11-22
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
-STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
+WEATHER_HOLD_S = 3 * 3600       # a forecast keeps to the first of this long (record_weather, writers.forecast_drift)
+STALE_WARNING_S = 6 * 3600     # the desk is told a thread is going quiet this long before it fades
 LOOKING_BACK = {"documentary", "special"}   # pieces about a story that don't move it on (World._story_piece)
 # The specials and documentaries the editors are told of, by day, not the last ten: at five or six a night the last
 # ten were two days, and on 2026-11-25 four subjects came round again, each made three or four days before and just
@@ -695,7 +696,15 @@ class World:
 
     @_locked
     def record_weather(self, map_state: str, temp_c: int, headline: str) -> None:
-        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline, "ts": schedule.now()}
+        """The last forecast, with the one it keeps to (anchor_c at anchor_ts): the first of the last
+        WEATHER_HOLD_S. Held to the last one alone, the weather walked down a degree a report, 13 to -6 on the
+        2026-11-25 evening and 4 to -4 in the 26th's first 45 minutes, every step within the drift allowed."""
+        now, was = schedule.now(), self.last_weather or {}
+        anchor_ts = was.get("anchor_ts", was.get("ts"))
+        held = anchor_ts is not None and was.get("temp_c") is not None and 0 <= now - anchor_ts < WEATHER_HOLD_S
+        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline, "ts": now,
+                             "anchor_c": was.get("anchor_c", was.get("temp_c")) if held else temp_c,
+                             "anchor_ts": anchor_ts if held else now}
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,
