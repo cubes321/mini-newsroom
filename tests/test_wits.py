@@ -441,6 +441,26 @@ def test_a_darts_round_with_a_call_missing_is_the_codes_own_round(channel, monke
     assert f"{q['teams'][0]['name']} {r['scores_after'][0]}, {q['teams'][1]['name']} {r['scores_after'][1]}" in said
 
 
+def test_a_darts_round_with_a_call_missing_is_asked_for_once_more_and_told_which(channel, monkeypatch):
+    w = world_mod.seed()
+    q = quiz._record(w, quiz.teams(w), _booking())
+    r = q["rounds"][2]
+    from newsroom.models import PanelScript
+    fifth = r["throws"][4]
+    missed = lambda d: "What a throw!" if d is fifth else d["call"]
+
+    def reply(schema):
+        lines = _darts_lines(r, missed) if len(seen) == 1 else _darts_lines(r)
+        return PanelScript(lines=lines, headline="The darts round", lower_third="Wexley Wits",
+                           guest_name=r["throws"][0]["who"])
+    seen = _stub(monkeypatch, reply)
+    seg = Segment(slot_id=8, type=T.interview, show="wits", brief="{r3}", target_s=200)
+    writers.script_segment(seg, w)
+    assert not seg.fallback and len(seen) == 2 and len(seg.work["darts"]) == 12      # the model's round, asked twice
+    n = sum(t["who"] == fifth["who"] for t in r["throws"][:4]) + 1
+    assert f"{fifth['who']}'s dart {n} (\"{fifth['call']}\") wasn't" in seen[1][2]
+
+
 def test_twenty_is_not_twenty_five():
     from newsroom.models import PanelLine
     throws = [{"who": "Gav Polglase", "call": "Twenty."}, {"who": "Gav Polglase", "call": "Twenty-five."}]

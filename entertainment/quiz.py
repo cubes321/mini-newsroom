@@ -376,10 +376,17 @@ def darts_round(world: World, brief: str) -> dict | None:
 
 
 def check(seg, script, world: World) -> None:
-    """A darts round's script must call every dart, in order, each in a line of Clive's (oche.calls_in)."""
+    """A darts round's script must call every dart, in order, each in a line of Clive's (oche.calls_in). One that
+    misses a call is asked for once more, told the first one missing, before the code's own round stands in."""
     r = darts_round(world, seg.brief)
-    if r and oche.calls_in(script.lines, r["throws"]) is None:
-        raise llm.LLMError("the darts round's calls weren't all there, in order")
+    if not r:
+        return
+    found = oche.calls_found(script.lines, r["throws"])
+    if (k := next((k for k, f in enumerate(found) if f is None), None)) is not None:
+        d = r["throws"][k]
+        n = sum(t["who"] == d["who"] for t in r["throws"][:k]) + 1
+        raise llm.AskAgain(f"every dart is called, in order, by a line of Clive's that starts with its call word for "
+                           f"word, after he names who is throwing; {d['who']}'s dart {n} (\"{d['call']}\") wasn't")
 
 
 def after(seg, world: World) -> None:

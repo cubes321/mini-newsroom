@@ -133,6 +133,12 @@ def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | No
     "Twenty-five."), for the thrower he last named, or the thrower's own line calling it, their darts in order. The throwers may come in
     any order: on the scratch run (2026-11-07) Haiku took them team by team, not as booked. None if any
     dart's call is missing."""
+    found = calls_found(lines, throws, caller)
+    return found if all(f is not None for f in found) else None
+
+
+def calls_found(lines, throws: list[dict], caller: str = "mag_b") -> list[int | None]:
+    """As `calls_in`, with None for each dart whose call wasn't found (for telling the writer which)."""
     mine: dict[str, list[int]] = {}
     for k, t in enumerate(throws):
         mine.setdefault(t["who"], []).append(k)
@@ -159,7 +165,7 @@ def calls_in(lines, throws: list[dict], caller: str = "mag_b") -> list[int] | No
               for who, (full, first) in names.items()}
         if max(at.values()) >= 0:
             current = max(at, key=at.get)          # the last thrower the line names is up
-    return found if all(f is not None for f in found) else None
+    return found
 
 
 def overlay(seg, line_idx: int) -> dict | None:
