@@ -416,9 +416,9 @@ _Q = "\"'" + "".join(map(chr, (0x2018, 0x2019, 0x201C, 0x201D)))       # straigh
 _ZW = "".join(map(chr, (0x200B, 0x200C, 0x200D, 0xFEFF)))                       # zero-width spaces
 _MARKS = chr(0xB6) + chr(0xA7) + chr(0xFFFD)                                    # a pilcrow, a section sign
 _LEAKED_MOOD = re.compile(rf"\s*[{_Q}]*\s*,?\s*[{_Q}]?\bmood[{_Q}]?\s*:\s*[{_Q}]?([A-Za-z]*)[^.!?]*[.!?]?$", re.I)
-_MARKUP = re.compile(rf"</?\s*br\s*/?>|<[a-z/][^>]{{0,12}}>|[{{}}{_ZW}{_MARKS}]")
+_MARKUP = re.compile(rf"</?\s*br\s*/?>|<[a-z/][^>]{{0,12}}>|[{{}}`{_ZW}{_MARKS}]")   # ` : a code fence (11-26)
 _RUN_ON = re.compile(r"([a-z])([.!?])([A-Z][a-z])")
-_STILL_BAD = re.compile(rf"[<>{{}}\[\]]|\bmood\s*[{_Q}:]|[a-z][.!?][a-z]{{2}}", re.I)
+_STILL_BAD = re.compile(rf"[<>{{}}\[\]`]|\bmood\s*[{_Q}:]|[a-z][.!?][a-z]{{2}}", re.I)
 
 
 def scrub(text: str, mood: str = "") -> tuple[str, str]:

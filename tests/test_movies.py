@@ -305,6 +305,7 @@ def test_what_leaks_into_a_line_is_scrubbed_and_the_leaked_mood_kept():
         f"She said {lq}go{rq}": (f"She said {lq}go{rq}", ""),                  # a closed quote stays
         '"I must go."': ('"I must go."', ""),
         "I'm in no mood. It cost £2,000 at 8.20.": ("I'm in no mood. It cost £2,000 at 8.20.", ""),
+        "They're only glittery. ```": ("They're only glittery.", ""),       # Fifty Pounds on the Tide, 11-26
     }
     for raw, want in cases.items():
         assert M.scrub(raw) == want, raw
