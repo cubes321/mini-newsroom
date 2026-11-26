@@ -88,7 +88,7 @@ empty by itself and Dead Reckoning would air right.
   open on about a second of silence with a two-second gap.
 - Dead Reckoning scene 30 was written short (6 lines, from the first draft) and skips Jamal hearing the creak;
   scene 31 names the cannery sign after the break, so the story holds.
-- Problems 2 to 4 below are still open (The Coast Road's failed check straight to the template, the saved route the
+- Problems 3 and 4 below are still open (problem 2, The Coast Road's failed check, is fixed in `61b428b`; the saved route the
   map turned down, the Kettle booking's Flash overrun).
 
 **Still to do:** push; a night on air to see the six fixes; the night pictures approved; the Late News on a real
@@ -133,6 +133,10 @@ the broadcast clock ran 19 min 11 s behind them.
 2. **The Coast Road: a failed check goes straight to the template.** Slot 132, "Down the Quay Steps": "{x5} should be
    Lorna Quayle alone, not []" (a `CHECK_HOOKS` check, after validation), with no second ask. A 9.9 s template at
    21:15. Slots 133 and 135 failed validation once each and were fine on the second ask.
+   **Fixed 2026-11-26 (`61b428b`, not aired):** the call log shows the reply was all Lorna, but every sentence was
+   word for word from the waits x2 and x3, so `_not_again` took every line. The check (and Marina Row's scene
+   check) now raises `llm.AskAgain`, told why whole lines went. Six waits at one place may be more than the model
+   has to say: worth watching.
 3. **Lorna Quayle's saved route was turned down** at 18:55 as against the map (leg 1 takes the ferry from the quay rail,
    not the Quay Steps; leg 3 starts on the wrong side of the Grey). Probably the 18 places added to the map on
    2026-11-21; not confirmed. A new route, "The Slow Way Round", was planned and leg 1 of 6 aired, so her old series
