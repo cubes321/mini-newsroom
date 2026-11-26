@@ -27,10 +27,12 @@ Thursday, the town council live. The news runs in between, a fifteen-minute
 documentary airs every night (on Sundays, the week in review), and the test
 card, repeats and teletext fill the small hours.
 
-**Channel 8** is the evening entertainment channel on the same town: a
+**Channel 8** is the evening entertainment channel on the same town, 18:00 to
+22:30: a gameshow on the harbour steps against the tide, a teen magazine, a
 teatime magazine from a studio kitchen, a pub quiz with a darts round, a soap
-set on a television street, and a wildlife series that takes turns with a
-travelogue round the coast. The station puts out one channel at a time.
+set on a television street, a wildlife series that takes turns with a
+travelogue round the coast, and a TV movie, written and voiced ahead from a
+bank of films. The station puts out one channel at a time.
 
 Stories develop over days. A story desk plans what happens next, a senior
 editor reviews its whole board, Channel 8's creative editor reviews every
@@ -161,8 +163,9 @@ The public launch on YouTube and Twitch is planned for Christmas Eve 2026
 (`docs/LAUNCH.md`).
 
 Built and on air: both channels' schedules below; studio interviews, filmed
-features, vox pops, phone-in calls, debates, a quiz, a soap, wildlife and a
-travelogue; specials and the nightly documentary, with archive clips; breaking
+features, vox pops, phone-in calls, debates, a quiz, a gameshow, a teen
+magazine, a soap, wildlife, a travelogue and a TV movie (first aired 24
+November); specials and the nightly documentary, with archive clips; breaking
 news from a viewer tip-line; the story bible, the desk, both editors and their
 meeting; the annals and the Sunday review; provider switching, caching,
 failure recovery and a stand-in for every show; backdrop art for every
@@ -171,9 +174,10 @@ music; continuity and local adverts. Christmas Eve, Christmas Day and Boxing
 Day have programmes of their own (`christmas.py`), not yet aired.
 
 In progress: pictures for the stories, made by ComfyUI in shadow mode (made,
-shown nowhere, while they are judged), cartoons for Channel 8
-(`docs/CARTOON_NOTES.md`), and Channel 8's later hours (a TV movie, comedy,
-late drama: `docs/ENGINE.md`).
+shown nowhere, while they are judged); *The Late News* on Channel 8 after a
+short film (built and rehearsed, not yet on a real night); cartoons for the
+content bank, on the back burner (`docs/CARTOON_NOTES.md`); and Channel 8's
+later hours, comedy and a late drama, planned in `docs/ENGINE.md`.
 
 ## Channel 7's day
 
@@ -233,14 +237,22 @@ residents, and the town hears about what airs.
 
 | from | show | what's on |
 |---|---|---|
+| 18:00 | *High Water* | Des Kneebone's gameshow: two residents climb the twelve harbour steps against the tide, a question at a time, for prizes from the town's advertisers and a weekend away; every step, answer and wave played out in code, drawn on a tide gauge |
+| 18:30 | *The Slipway* | the teen magazine with Tegan Trevenna, who throws herself into everything, and Elis Pengilly, who checks the rules: a young person from town with something to show (then Tegan has a go), a how-to, one to watch, a pupil from Greymouth Academy and grown-ups answering viewers' questions |
 | 19:00 | *The Kettle's On* | the teatime magazine from a studio kitchen, with Maggie Truscott, who measures nothing, and Nigel Spargo, who weighs everything: a local cook's dish, an expert on the phones, a guest on the sofa and the community noticeboard |
 | 20:00 | *Wexley Wits* | Clive Ashdown's pub quiz between two pubs: four rounds and a darts round, every answer and every dart scored in code |
 | 20:20 | *Marina Row* | the soap: the last crabbing family on a row of old net lofts, now flats and a restaurant by a new marina; an episode a night, ending on a cliffhanger. Fiction, kept out of the town's news (`docs/MARINA_ROW.md`) |
 | 20:40 | *Tideline* or *The Coast Road* | in turn: Rowan Polglase's coastal wildlife (one creature of the season, its count drawn in code), or Lorna Quayle's travelogue round the Greymouth coast, one leg a night (`docs/FACTUAL.md`) |
-| 21:00 | closedown | the announcer's goodnight, then the test card until seven the next evening |
+| 21:00 | the TV movie | an hour and a half: a film from a bank of seven approved (more written and waiting), each written scene by scene ahead of air, read by the creative editor and approved before it joins the bank, then voiced and played out whole with opening titles, three ad breaks and end credits. After a short film, *The Late News*: Dana Ferris at Channel 7's desk until 22:30, the town's own news read for Channel 8's viewers |
+| 22:30 | closedown | the announcer's goodnight ("back tomorrow at six, with High Water"), then the test card |
 
-Channel 7's town talk picks up what the town would be saying about Channel 8
-(the quiz result, the soap's cliffhanger) without ever treating it as news.
+The 20:40 and 21:00 slots rotate by what aired, not the weekday: whichever of
+*Tideline* and *The Coast Road* aired less recently, and the film fit to air
+that aired longest ago. The films are fiction, as *Marina Row* is: their parts
+are made up, none of them joins the town, and nothing in them reaches the
+news. Channel 7's town talk picks up what the town would be saying about
+Channel 8 (the quiz result, the soap's cliffhanger) without ever treating it
+as news.
 
 | | |
 |---|---|
@@ -350,8 +362,10 @@ at the start of the last three runs.
   (*The Last Ferry*); Fran Kellaway and Tamsin Jago (sport); Howard Lanyon
   (*Quayside*); Meg Trethewey (*Out and About*); Poppy Tregenza and Gully
   (*Rock Pool*); Hugh Tremayne (the history documentaries). On Channel 8,
-  Maggie Truscott and Nigel Spargo (*The Kettle's On*) and Rowan Polglase
-  (*Tideline*). Each show's prompt and JSON schema allow only its own cast.
+  Des Kneebone (*High Water*), Tegan Trevenna and Elis Pengilly (*The
+  Slipway*), Maggie Truscott and Nigel Spargo (*The Kettle's On*) and Rowan
+  Polglase (*Tideline*); Clive hosts *Wexley Wits* and Dana *The Late News*,
+  borrowed from Channel 7. Each show's prompt and JSON schema allow only its own cast.
 - **People**: seeded public figures (the mayor, police and fire chiefs, the MP,
   the harbourmaster, a head teacher, the lifeboat coxswain, six town
   councillors with their wards and leanings) plus residents promoted from
@@ -466,11 +480,15 @@ never imports it.
 | `bank.py` / `film.py` | the content bank of finished films, and playing one out |
 | `safety.py` / `control.py` | the last word check before a line is voiced; the kill switch |
 | `obs.py` / `prune.py` | recording each programme in OBS; clearing old entries from the cache |
+| `entertainment/highwater.py` / `highwater_show.py` / `tidegauge.py` | *High Water*: the game played in code, the programme, and its tide gauge |
+| `entertainment/slipway.py` | *The Slipway* |
 | `entertainment/kettle.py` | *The Kettle's On* |
 | `entertainment/wits.py` / `quiz.py` / `oche.py` | *Wexley Wits*: the show, the quiz and its scores, every dart of the darts round |
 | `entertainment/soap.py` / `marina_row.py` | the soap engine, and *Marina Row* |
 | `entertainment/wildlife.py` / `seasons.py` / `creatures.py` | *Tideline*: the creatures of the season, chosen and counted in code |
 | `entertainment/travelogue.py` | *The Coast Road* |
+| `entertainment/movies.py` / `movie_night.py` / `movie_cards.py` | the TV movie: the bank of films written ahead, the 21:00 slot, the titles and credits |
+| `entertainment/late_news.py` | *The Late News* after a short film |
 | `entertainment/creative.py` | the creative editor |
 | `entertainment/cartoons.py` | cartoons for the content bank (in progress) |
 
@@ -481,6 +499,8 @@ uv run pytest                                          # all tests, on a temp to
 uv run python -m newsroom.schedule                     # the day's schedule
 uv run python -m newsroom --clock 06:00 --debug        # watch breakfast at any hour
 uv run python -m newsroom --clock "2026-12-24 18:00" --scratch   # Christmas Eve, on a copy
+uv run python -m newsroom --channel entertainment --clock 17:50 --scratch   # Channel 8's evening, on a copy
+uv run python -m entertainment.movies list             # the film bank (pitch, new, write, read, approve: see movies.py)
 uv run python -m newsroom.llm weather --dry-run        # show prompt + schema, no call
 uv run python -m newsroom.llm interview --show late --part cont --dry-run   # a guest's second part
 uv run python -m newsroom.llm weather                  # live call to the routed provider

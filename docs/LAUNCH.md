@@ -165,18 +165,26 @@ either way. **Go or no-go on Sunday 6 December**, so there's a week of polish be
 left on from 18 December.
 
 - [ ] What it needs before it can be public ([../TODO.md](../TODO.md) under Content, [ENGINE.md](ENGINE.md)):
-  - [ ] *Wexley Wits*' own quiz set (art, your approval) and its own ident (listen-then-commit).
-  - [ ] **The rest of its evening.** Outside 20:00-20:20 it is the overnight test card, wearing Channel 7's
-        ident and repeating Channel 7's cache. It needs its own programmes or the content bank's shelf,
-        and its own name and logo everywhere.
-  - [ ] **No cartoons** (above): Cartoon Time's hour needs something else, or the channel's evening is
-        shorter.
-  - [ ] A scratch run of a whole evening (`--channel entertainment --scratch`), reviewed like a Channel 7
-        night, with the content filter and the kill switch working on it too.
+  - [x] *Wexley Wits*' own quiz set and its own ident (13 November, `e76b832`), with Channel 8's own logo,
+        closedown and test card (`newsroom/channel.py`).
+  - [x] **The rest of its evening** (13 to 24 November): 18:00 to 22:30, all its own programmes (*High Water*,
+        *The Slipway*, *The Kettle's On*, *Wexley Wits*, *Marina Row*, *Tideline* or *The Coast Road*, and the
+        TV movie, with *The Late News* after a short film), each with its own ident. The schedule is in
+        [SHOWS.md](SHOWS.md#channel-8-wtv-evenings-only).
+  - [x] **No cartoons**: *The Slipway*, a teen magazine, took Cartoon Time's half hour (19 November).
+  - [x] A whole evening run and reviewed: on a scratch town (19 November) and on the real town, its first
+        real night of the whole evening, the TV movie included (24 November, recordings reviewed on the 25th). The
+        content filter covers it as it does Channel 7 (every line passes `safety` before it's voiced, the films'
+        too).
+  - [ ] **The kill switch tried on Channel 8** (`testcard`, then `air`), as on the soak night.
+  - [ ] *The Late News* on a real night (only after a short film: *The Last Lot* in the draw), and its ident by
+        ear.
 - [ ] How it would go out:
   - [ ] **A second station process** (`--channel entertainment`) and a **second OBS** (a second instance,
         `obs64.exe --multi`, with its own profile, scene and stream keys); check the PC holds both
-        stations' voicing (Pocket TTS on the CPU) and frame rate.
+        stations' voicing (Pocket TTS on the CPU) and frame rate. **Not on the same town at once yet:** each
+        station saves its whole world from memory, so two on one `data/world.json` overwrite each other
+        ([../TODO.md](../TODO.md), "Two stations on one world"). Until that is fixed, the channels take turns.
   - [ ] **Where:** its own YouTube channel or the Port Wexley one, and Twitch (one Twitch channel streams
         one feed). Simplest first step: **scheduled evening blocks**, live only while its programmes are
         on, not 24 hours.

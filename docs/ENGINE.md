@@ -160,15 +160,15 @@ hour aired the test card), put The Kettle's On at 19:00. The second filled the r
 
 | Time | Show | Built on |
 |---|---|---|
-| 18:00 | **High Water**, the gameshow, half an hour (planned 2026-11-19: "High Water" below) | Wits' pattern: rules and scores in code |
+| 18:00 | **High Water**, the gameshow, half an hour (built 2026-11-19, `entertainment/highwater.py`: "High Water" below) | Wits' pattern: rules and scores in code |
 | 18:30 | **The Slipway**, the teen magazine, half an hour (built 2026-11-19, `entertainment/slipway.py`), in Cartoon Time's place: good cartoons are hard to render | The Kettle's On's booking and items |
 | 19:00 | **The Kettle's On**, the teatime magazine, an hour (built 2026-11-13, `entertainment/kettle.py`) | Channel 7's items |
 | 20:00 | Wexley Wits | |
 | 20:20 | **The soap**, 20 minutes: titles, nine planned scenes asked at 100 s, which Haiku writes at 60-77 (six of 170 s until 2026-11-19, which aired at about 65 s; twelve rehearsed shorter still), all of them aired before the close (`Show.whole_order`), side scenes and a break for the spare minutes, the cliffhanger last | the scene engine |
 | 20:40 | **Factual**: *Tideline*, coastal wildlife with Rowan Polglase (built 2026-11-14, `entertainment/wildlife.py`), alternating with a town celebrity's travelogue (docs/FACTUAL.md) | The Kettle's On's booking, the soap's episode shape |
-| 21:00 | **The TV movie**, an hour and a half (an hour until 2026-11-23: "The TV movie" below) | the scene engine |
-| 22:30 | **Comedy**, a different kind each night | the monologue, the panel, the scene engine |
-| 23:00 | **Late-night drama**: an anthology first | the scene engine |
+| 21:00 | **The TV movie**, an hour and a half (an hour until 2026-11-23; built 2026-11-23, first aired 2026-11-24: "The TV movie" below), with *The Late News* after a short film | the scene engine |
+| 22:30 | **Comedy**, a different kind each night (not built: the closedown is at 22:30 until it is) | the monologue, the panel, the scene engine |
+| 23:00 | **Late-night drama**: an anthology first (not built) | the scene engine |
 | 23:30 | the closedown (midnight once there is something good for the last half hour) | |
 
 - **The Kettle's On first**: the cheap one. It reuses Channel 7's interview and phone-in items through the

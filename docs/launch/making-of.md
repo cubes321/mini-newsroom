@@ -145,9 +145,15 @@ watching the nights.
 
 ### Where it's going
 
-A second channel sharing the same town, for light entertainment, is being built on the same engine. Its first
-show, *Wexley Wits*, is a pub quiz between two of the town's pubs with a darts round, where every dart is
-thrown in code. TODO: anything else you want to promise.
+Channel 8, its entertainment sister, shares the same town and the same engine, and already has a whole
+evening, 18:00 to 22:30: *High Water*, a gameshow where two residents climb the harbour steps against the
+tide; *The Slipway*, a teen magazine; a teatime cookery magazine; *Wexley Wits*, a pub quiz between two of the
+town's pubs with a darts round where every dart is thrown in code; *Marina Row*, a soap; a wildlife series
+taking turns with a travelogue round the coast; and a TV movie at nine. The films are the one thing not
+written live: each is written scene by scene ahead of time, read by an editor model and then by me, and voiced
+before it joins a bank of seven. Its guests are the town's residents, and Channel 7's viewers talk about last
+night's quiz and the soap's cliffhanger. TODO: whether it's on air at launch (decided 6 December), and anything
+else you want to promise.
 
 If you'd like to keep the lights on, it costs about $1-2 a day: [ko-fi.com/portwexley](https://ko-fi.com/portwexley). The code, the docs and the
 credits: TODO (GitHub).
