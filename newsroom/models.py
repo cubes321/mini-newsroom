@@ -245,7 +245,14 @@ Status = Annotated[str | None, _clip(160)]
 Memo = Annotated[str | None, _clip_words(140)]
 # The headline and the captions on screen, cut at a word rather than failing the script: on the 2026-10-31
 # night seven reports and vox pops failed on a location past 60 characters, three more on a headline or caption.
-Headline = Annotated[str, _clip_words(90)]
+# What a headline is, in the schema itself: Anthropic's structured output can't hold a string to a minimum length
+# (transform_schema leaves "{minLength: 4}" as a hint), so an empty one decodes, and with no word on what the field
+# is for, a general item with no story left it out. The 2026-11-26 scratch breakfast: three of twelve field reports
+# ("THIS ITEM: the morning commute") came back with "headline": "" after a good script, each a failed call and a retry.
+# No example headline in it: it goes to every script, and the models copy an example's words.
+_HEADLINE_HELP = ("this item's own headline on the running order, a few words in Title Case; never empty: an item "
+                  "with no story of its own has one too, saying what it shows")
+Headline = Annotated[str, _clip_words(90), Field(description=_HEADLINE_HELP)]
 Caption = Annotated[str, _clip_words(60)]
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
 SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
