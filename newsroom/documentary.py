@@ -42,7 +42,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import llm, schedule
+from . import llm, meeting, schedule
 from .config import CONFIG
 from .models import DocumentaryCommission, DocumentaryResearch, Line, Segment, SegmentType
 from .world import SPECIALS_REST_DAYS, World
@@ -201,7 +201,7 @@ def decide(world: World) -> DocumentaryCommission | None:
     threads = sorted((t for t in world.open_threads() + world.recently_faded() if not world.recent_special(t.id)),
                      key=lambda t: -t.mentions)
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n"
+        f"BRIEFING\n{world.summary_for_editor()}\n\n" + meeting.for_specials(world) +
         "Threads by coverage: " + (", ".join(f"[{t.id}] {t.mentions}x" for t in threads) or "none yet") + "\n"
         f"Documentaries already made: {', '.join(d['title'] for d in world.documentaries[-10:]) or 'none yet'}\n"
         "Choose tonight's subject."

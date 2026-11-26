@@ -34,8 +34,10 @@ checked.
 - **The specials editor never sees the senior editor's memo.** The memo held the front-row woman and the second
   engine until 3 December. The Woman in the Front Row aired at 03:20 anyway (one new detail: Marjorie Pell "has a
   candidate"). The Second Engine was ready at 06:54 and never aired. It is marked dropped (`data/cache/75fd33c53e7b41af.aired`),
-  so `resume_ready` won't put it out; its specials entry stays, which rests t433 until 3 December. **Still open:** give
-  the specials and documentary editors the memo's holds.
+  so `resume_ready` won't put it out; its specials entry stays, which rests t433 until 3 December. Every memo of the
+  night carried the hold, so the latest is enough: **since 2026-11-26** the specials editor, the documentary editor
+  and the outline writer (specials and documentaries) read it, with the meeting's actions and canon
+  (`meeting.for_specials`).
 - **Lorna Pascoe was on eight times** (three interviews, a link, a report, three repeats). Slot 187 kept the job
   "retired schoolteacher and amateur timekeeper" after both asks (her record: sea-swimming club member). Only her
   memory was dropped, so the lower third (`player.py:768`, `line.guest_role`) most likely showed the wrong job at

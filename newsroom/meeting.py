@@ -409,6 +409,16 @@ def for_desk(world: World, *, offer: bool = True) -> str:
     return "\n\n".join(out) + "\n\n" if out else ""
 
 
+def for_specials(world: World) -> str:
+    """The senior editor's latest memo and the meeting's standing word, for whoever commissions or plans a special or
+    documentary. They had neither: on 2026-11-25 every memo held the front-row woman and the second engine until 3
+    December, and the specials editor made one on each overnight."""
+    memo = (f"SENIOR EDITOR'S MEMO ({world.senior_memo_at}), to the story desk; its holds bind specials and "
+            "documentaries too: commission nothing on a story it holds back, and add nothing it rules out:\n"
+            f"{world.senior_memo}\n\n") if world.senior_memo else ""
+    return memo + for_desk(world, offer=False)
+
+
 _WORD = re.compile(r"[a-z']{4,}")
 
 

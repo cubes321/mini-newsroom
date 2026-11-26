@@ -162,6 +162,36 @@ def test_no_documentary_when_the_editor_names_the_rested_story_twice(world, monk
     assert documentary.decide(world) is None
 
 
+def test_the_specials_and_documentary_editors_read_the_senior_memo(world, monkeypatch):
+    """2026-11-25: every memo held the front-row woman until 3 December; the specials editor never saw one."""
+    from newsroom import special
+    from newsroom.models import EditorDecision
+
+    world.senior_memo, world.senior_memo_at = "Say nothing new on the front-row woman before 3 December.", "25 Nov 19:27"
+    for t in world.open_threads():
+        t.mentions = 5
+    prompts = []
+    monkeypatch.setattr(special.llm, "complete_json",
+                        lambda r, m, s, u: prompts.append(u) or EditorDecision(commission=False))
+    special.decide(world)
+    monkeypatch.setattr(documentary.llm, "complete_json", lambda r, m, s, u: prompts.append(u) or _decision(world))
+    documentary.decide(world)
+    assert len(prompts) == 2
+    assert all("front-row woman before 3 December" in p and "SENIOR EDITOR'S MEMO" in p for p in prompts)
+
+
+def test_a_specials_outline_reads_the_senior_memo(world, monkeypatch):
+    from newsroom import special
+    from newsroom.models import EditorDecision
+
+    world.senior_memo = "Say nothing new on the engine before 3 December."
+    seg = special.commission(world, EditorDecision(commission=True, thread_id=None, working_title="Engines", angle="?"))
+    prompts = []
+    monkeypatch.setattr(special.llm, "complete_json", lambda r, m, s, u: prompts.append(u))
+    special.write_outline(seg, world)
+    assert "nothing new on the engine before 3 December" in prompts[0]
+
+
 def test_old_specials_are_let_go_by_day(world):
     _made(world, "t1", "Long ago", world_mod.SPECIALS_KEPT_DAYS + 1)
     for i in range(40):                                 # more than the old cap of thirty, all recent

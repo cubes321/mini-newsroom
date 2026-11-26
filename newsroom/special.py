@@ -36,7 +36,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import documentary, llm, safety, schedule
+from . import documentary, llm, meeting, safety, schedule
 from .config import CONFIG
 from . import locations
 from .locations import locations_for_prompt
@@ -123,7 +123,7 @@ def decide(world: World, *, force: bool = False) -> EditorDecision:
     if not eligible and not force:
         return EditorDecision(commission=False, reason="no thread has enough coverage yet")
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n"
+        f"BRIEFING\n{world.summary_for_editor()}\n\n" + meeting.for_specials(world) +
         f"Threads with at least {CONFIG.special.min_mentions} pieces of coverage are eligible. "
         "Should we commission a special report now? If yes, name the thread id, a working title "
         "and the angle (the question the piece answers)."
@@ -298,6 +298,7 @@ def write_outline(seg: Segment, world: World) -> SpecialOutline:
         f"plus a short anchor intro and outro.\n\n"
         + (documentary.notes_for_prompt(seg) + "\n\n" if doc else "")
         + (earlier + "\n\n" if (earlier := earlier_programmes(seg, world)) else "")
+        + meeting.for_specials(world)
         + (documentary.clips_for_prompt(seg) + "\n\n" if doc and seg.work.get("clips") else "")
         + f"LOCATIONS (backdrop ids):\n{locations_for_prompt()}"
     )
