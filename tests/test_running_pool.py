@@ -76,7 +76,7 @@ def test_a_long_story_waits_for_its_day_off_the_board(monkeypatch):
     briefing = w.summary_for_prompt()
     assert "Running stories waiting for their day" in briefing
     assert f"[{tray.id}] Boxing Day tray order goes in early: next on Thursday 12 November" in briefing
-    assert "WAITING in the running-stories pool until Sunday 8 November" in w.summary_for_editor()
+    assert "WAITING in the running-stories pool until Sunday 8 November" in w.summary_for_editor(pool_full=True)
     assert tray.id not in {t.id for t in desk.batch(w)}                                 # not planned till then
     assert tray in w.open_threads() and tray.id in {t.id for t in inquiry.candidates(w)}   # the deep-dive shows
 
@@ -145,6 +145,33 @@ def test_a_waiting_story_the_memo_names_is_within_the_desks_reach_once_and_moves
     assert desk.reach(w) == []                                           # once a memo
     w.last_senior_ts = time.time() + 1                                   # the next memo still names it
     assert desk.reach(w) == [tray]
+
+
+def test_the_back_office_sees_the_pool_one_line_a_day_and_in_full_only_what_it_may_touch(monkeypatch):
+    """The 2026-11-25 night: the pool had 48 stories, each told to the desk, the editor and the specials in full
+    (about 600 characters), 29,000 characters of plans none of them could touch till their day."""
+    w, tray, wreath, fresh = _pooled(monkeypatch)
+    brief = w.summary_for_editor()
+    board, pool = brief.split("Open threads:\n")[1].split("Waiting in the running-stories pool (2;")
+    pool = pool.split("Recently faded")[0]
+    assert f"[{fresh.id}] Boiler fails at the Academy" in board and "NEXT: The engineer comes" in board
+    assert tray.id not in board and wreath.id not in board
+    assert pool.index("Sunday 8 November") < pool.index("Thursday 12 November")            # the soonest due first
+    assert f"Sunday 8 November: [{wreath.id}] Lifeboat crew ready the wreath (28x)" in pool
+    assert f"Thursday 12 November: [{tray.id}] Boxing Day tray order goes in early (33x)" in pool
+    assert "NEXT" not in pool and "Dolores walks it down" not in brief
+
+    reach = w.summary_for_editor(pool_full={tray.id})                                        # the desk's reach
+    assert f"NEXT: On Thursday 12 November Dolores walks it down; WAITING in the running-stories pool" in reach
+    assert "Thursday 12 November: [" not in reach and f"Sunday 8 November: [{wreath.id}]" in reach
+
+    senior_view = w.summary_for_editor(pool_full=True)                                       # the senior editor
+    assert "Waiting in the running-stories pool (" not in senior_view
+    assert "Dolores walks it down" in senior_view and "the crew lay it" in senior_view
+
+    seen = _memo_round(monkeypatch, w, f"Move {tray.id} to Monday 16 November.",
+                       [(fresh.id, "developing", "The engineer fits the valve")])
+    assert "Dolores walks it down" in seen[0] and "the crew lay it" not in seen[0]           # in reach, in full
 
 
 def test_a_round_that_leaves_the_pooled_stories_alone_is_not_an_empty_plan(monkeypatch):

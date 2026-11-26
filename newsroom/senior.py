@@ -95,7 +95,7 @@ def review(world: World, *, dry: bool = False) -> SeniorMemo | None:
     world.last_senior_ts = time.time()
     open_n, left = len(world.board_threads()), world.seeds_left()
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n"
+        f"BRIEFING\n{world.summary_for_editor(pool_full=True)}\n\n"
         f"There are {open_n} open threads on the board"
         + (f", and {w} waiting in the running-stories pool. " if (w := len(world.waiting_threads())) else ". ") + (
             f"{left} new {'story' if left == 1 else 'stories'} may be opened now, for you and the desk (the day's "

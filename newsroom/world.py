@@ -25,6 +25,7 @@ under it, so the player waits milliseconds at most.
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 import json
 import logging
 import random
@@ -462,10 +463,36 @@ class World:
                       key=lambda t: (t.updated, -sum(b.get("date") == self.last_date for b in t.beats)))
         return live[:MAX_THREADS_IN_PROMPT]
 
+    def _pool_lines(self, full: Collection[str]) -> str:
+        """The pool for the back office: one short line a day, each story with its id, title and coverage, and in
+        full only the ids in `full` (those within the desk's reach this round). Until 2026-11-26 every waiting
+        story was told in full: the pool filled from 12 to 48 after the memos could move stories into it
+        (2026-11-15), and the desk's briefing came to 39,000 characters of threads, 29,000 of them plans it could
+        not touch till their day. The deep-dive shows build their own rows from `open_threads`, in full."""
+        waiting = self.waiting_threads()
+        if not waiting:
+            return ""
+        days: dict[str, list[str]] = {}
+        for t in waiting:
+            if t.id not in full:
+                days.setdefault(t.waits_until, []).append(f"[{t.id}] {t.title} ({t.mentions}x)")
+        rows = [f"  {said_date(d)}: " + "; ".join(ts) for d, ts in days.items()]
+        rows += [self._thread_line(t, full=True) for t in waiting if t.id in full]
+        return (f"Waiting in the running-stories pool ({len(waiting)}; off the bulletins until their day, which is set; "
+                "each keeps its history, is not stalled and comes back in full on its day):\n"
+                + "\n".join(rows) + "\n")
+
     @_locked
-    def summary_for_editor(self) -> str:
-        """Fuller view for the editor and story desk."""
-        threads = "\n".join(self._thread_line(t, full=True) for t in self.open_threads()) or "  (none)"
+    def summary_for_editor(self, pool_full: bool | Collection[str] = ()) -> str:
+        """Fuller view for the editor and story desk. `pool_full`: the stories waiting in the pool told in full,
+        True for all of them (the senior editor, who judges the pool) or the ids within the desk's reach this
+        round; the rest are one line each, by day (`_pool_lines`)."""
+        if pool_full is True:
+            threads = "\n".join(self._thread_line(t, full=True) for t in self.open_threads()) or "  (none)"
+            pool = ""
+        else:
+            threads = "\n".join(self._thread_line(t, full=True) for t in self.board_threads()) or "  (none)"
+            pool = self._pool_lines(frozenset(pool_full or ()))
         faded = "\n".join(self._thread_line(t, full=True) for t in self.recently_faded()) or "  (none)"
         done = "\n".join(f"  - {s['date']}: {s['title']} (thread {s['thread_id']})" for s in self.specials[-10:]) or "  (none)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
@@ -479,7 +506,7 @@ class World:
             f"game is played its result is here): {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
             f"Public figures:\n{self._people_lines(('official', 'worthy'), 20)}\n{self._council_line()}{CACHE_BREAK}"
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
-            f"Open threads:\n{threads}\n"
+            f"Open threads:\n{threads}\n{pool}"
             f"Recently faded off the air (revive one only if something new would really happen):\n{faded}\n"
             f"Specials already made (do not repeat these subjects):\n{done}\n"
             f"{self._history(full=True)}"

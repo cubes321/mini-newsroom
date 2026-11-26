@@ -191,7 +191,7 @@ def plan(world: World, *, dry: bool = False, breaking: str = "no") -> StoryPlan 
     ids = ", ".join(t.id for t in todo) or "(none)"
     pool_ids = ", ".join(t.id for t in also)
     user = (
-        f"BRIEFING\n{world.summary_for_editor()}\n\n" + _memo(world) + meeting.for_desk(world, offer=not dry) +
+        f"BRIEFING\n{world.summary_for_editor(pool_full={t.id for t in also})}\n\n" + _memo(world) + meeting.for_desk(world, offer=not dry) +
         f"{schedule.clock_line(schedule.now())} A NEXT development dated today must come after now; a "
         "thread whose event is over moves on to how it went, or closes.\n\n"
         f"There are {open_n} open threads. THIS ROUND, plan only these threads: {ids}. The rest get "

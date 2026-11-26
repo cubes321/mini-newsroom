@@ -211,7 +211,7 @@ def _bookings(world: World) -> list[tuple[str, str, list[str]]]:
 
 
 def _news_brief(world: World) -> str:
-    out = f"BRIEFING\n{world.summary_for_editor()}"
+    out = f"BRIEFING\n{world.summary_for_editor(pool_full=True)}"     # the senior editor's: it judges the pool
     if world.senior_memo:
         out += f"\n\nYOUR LATEST MEMO TO THE STORY DESK ({world.senior_memo_at}):\n{world.senior_memo}"
     if booked := _bookings(world):

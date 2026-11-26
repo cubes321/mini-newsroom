@@ -1,5 +1,25 @@
 # Handover
 
+## Tonight (2026-11-25): a real Channel 7 night, no pictures
+
+Started 19:20 from `data/night_channel7_nopictures.cmd` (no ComfyUI, the user), `--minutes 720 --obs`, log
+`data/logs/station-2026-11-25-1920.log`. The first try at 19:16 (`station-2026-11-25-1916.log`) ran on templates:
+the user's Anthropic key had expired (the API's 401 "invalid x-api-key"; the log says "authentication failed").
+Stopped after two segments; a one-minute `2026-11-25 19-16 Coastwide.mp4` in `E:\recordings` is that try. The
+world as it stood before either start is `data/world.backup-2026-11-25-1915-before-key-failure.json` (the
+launcher's `pre-night` backup was taken again at 19:20, after the first try's save). The first Channel 7 night for
+the six fixes below that touch it (the line slack, the advert names).
+
+**The night ran clean** (07:20 exit; 673 segments, 59 adverts, no filler, no templates, 15 OBS files), but its
+prompts were the biggest yet: Haiku 4.12 M in (seven-night mean 3.31 M), DeepSeek 920 k (642 k). The back office's
+was the running-stories pool: `summary_for_editor` told every waiting story in full, and the pool filled from 12 (14
+Nov) to 48 after memos could move stories into it, level since the 22nd; the desk's threads came to 39,000
+characters. **Since 2026-11-26** the pool is one line a day for the desk, the editor, the specials and the shows
+(`world._pool_lines`: id, title, coverage), in full only for the desk's reach; the senior editor (its review and its
+seat at the editors' meeting) still sees it all (`pool_full=True`). On the 25th's town: 52.6k characters to 25.8k.
+To watch on the next night: the story desk and editor inputs (about 9k tokens a call, not 16k), and new threads that
+repeat a pool story's title. Haiku's growth is new sections (town talk, the town calendar), each with its own limit.
+
 ## Picking up after the review of 2026-11-25: the recordings of the 24th, and six fixes
 
 The 2026-11-24 Channel 8 evening's nine OBS files in `E:\recordings` were sampled: the sound of all of them
