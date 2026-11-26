@@ -45,7 +45,7 @@ from pathlib import Path
 from . import llm, schedule
 from .config import CONFIG
 from .models import DocumentaryCommission, DocumentaryResearch, Line, Segment, SegmentType
-from .world import World
+from .world import SPECIALS_REST_DAYS, World
 
 MAX_CLIPS = 8                        # offered to the outline
 PLACED_CLIPS = 3                     # placed at most, one per section
@@ -197,19 +197,32 @@ def decide(world: World) -> DocumentaryCommission | None:
     """Ask the documentary editor for today's subject. None if the model is unavailable."""
     world.last_documentary_date = world.last_date      # one attempt a day, even if it fails
     # Faded threads too: a big story that went quiet is a "whatever happened to" subject.
-    threads = sorted(world.open_threads() + world.recently_faded(), key=lambda t: -t.mentions)
+    # A story with a special or documentary this week isn't offered (2026-11-25: the Green Ring of the 22nd again).
+    threads = sorted((t for t in world.open_threads() + world.recently_faded() if not world.recent_special(t.id)),
+                     key=lambda t: -t.mentions)
     user = (
         f"BRIEFING\n{world.summary_for_editor()}\n\n"
         "Threads by coverage: " + (", ".join(f"[{t.id}] {t.mentions}x" for t in threads) or "none yet") + "\n"
         f"Documentaries already made: {', '.join(d['title'] for d in world.documentaries[-10:]) or 'none yet'}\n"
         "Choose tonight's subject."
     )
-    try:
-        d = llm.complete_json("documentary_commission", DocumentaryCommission,
-                              _COMMISSION_SYSTEM.format(strand=strand()), user)
-    except llm.LLMError as e:
-        log.warning("documentary editor unavailable: %s", e)
-        return None
+    for ask in range(2):
+        try:
+            d = llm.complete_json("documentary_commission", DocumentaryCommission,
+                                  _COMMISSION_SYSTEM.format(strand=strand()), user)
+        except llm.LLMError as e:
+            log.warning("documentary editor unavailable: %s", e)
+            return None
+        made = world.recent_special(d.thread_id) if d.subject == "thread" else None
+        if not made:
+            break
+        log.info("documentary: %s had %r on %s; %s", d.thread_id, made["title"], made["date"],
+                 "asking again" if ask == 0 else "no documentary tonight")
+        if ask == 1:
+            return None
+        user += (f"\n\n{d.thread_id} had {made['title']!r} on {made['date']}: no story has another within "
+                 f"{SPECIALS_REST_DAYS} days. Choose another subject, a thread not in the specials list or the "
+                 "town's history.")
     if d.subject == "thread" and world.thread(d.thread_id) is None:
         log.warning("documentary editor named unknown thread %r; a history piece instead", d.thread_id)
         d.subject, d.thread_id = "history", None

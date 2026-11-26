@@ -6,6 +6,7 @@ No model or TTS calls: the model and Kokoro are stubbed, and the cache lives in 
 from __future__ import annotations
 
 import dataclasses
+from datetime import date, timedelta
 import time
 
 import pytest
@@ -104,6 +105,70 @@ def test_the_editor_still_commissions_specials_while_a_documentary_waits(world, 
     monkeypatch.setattr(pool, "_buffer_healthy", lambda: True)
     pool._idle_work()
     assert asked == [1]
+
+
+def _made(w, thread_id, title, days_ago):
+    """A special recorded `days_ago` days before the world's today."""
+    w.specials.append({"title": title, "thread_id": thread_id,
+                       "date": (date.fromisoformat(w.last_date) - timedelta(days=days_ago)).isoformat()})
+
+
+def test_the_editors_see_a_fortnight_of_specials_not_the_last_ten(world):
+    """2026-11-25: five or six a night, so the last ten were two days; four came round again from the 22nd and 23rd."""
+    tid = world.open_threads()[0].id
+    _made(world, tid, "Suits or the Boat", 5)
+    for i in range(12):                                 # a busy two days on other stories
+        _made(world, f"t9{i:02d}", f"Other story {i}", 1)
+    _made(world, tid, "Suits Now or the Boat Later", 3)
+    _made(world, "t800", "Too old to show", 20)
+    text = world.summary_for_editor()
+    assert "Suits Now or the Boat Later (thread %s; also made" % tid in text   # one line a story, the earlier day too
+    assert "Other story 0" in text and "Too old to show" not in text
+
+
+def test_the_specials_editor_passes_on_a_story_it_made_this_week(world, monkeypatch):
+    from newsroom import special
+    from newsroom.models import EditorDecision
+
+    tid = world.open_threads()[0].id
+    for t in world.open_threads():
+        t.mentions = 5
+    _made(world, tid, "Suits or the Boat", 4)
+    asked = EditorDecision(commission=True, thread_id=tid, working_title="Dry Suits or the Boat", angle="which?")
+    monkeypatch.setattr(special.llm, "complete_json", lambda *a, **k: asked.model_copy())
+    assert not special.decide(world).commission
+    world.specials.clear()
+    _made(world, tid, "Suits or the Boat", 8)           # a week on, it may have another
+    assert special.decide(world).commission
+
+
+def test_the_documentary_editor_is_asked_again_for_a_story_with_a_special_this_week(world, monkeypatch):
+    tid = world.open_threads()[0].id
+    _made(world, tid, "The Green Ring", 3)
+    answers = [_decision(world), DocumentaryCommission(subject="history", working_title="The Cannery Fire",
+                                                       angle="What burned?", search_terms=["fire"])]
+    prompts = []
+    monkeypatch.setattr(documentary.llm, "complete_json", lambda r, m, s, u: prompts.append(u) or answers.pop(0))
+    out = documentary.decide(world)
+    assert out.subject == "history" and len(prompts) == 2
+    coverage = next(l for l in prompts[0].splitlines() if l.startswith("Threads by coverage"))
+    assert f"[{tid}]" not in coverage                   # not offered by coverage
+    assert "The Green Ring" in prompts[1] and "Choose another subject" in prompts[1]
+
+
+def test_no_documentary_when_the_editor_names_the_rested_story_twice(world, monkeypatch):
+    _made(world, world.open_threads()[0].id, "The Green Ring", 3)
+    monkeypatch.setattr(documentary.llm, "complete_json", lambda *a, **k: _decision(world))
+    assert documentary.decide(world) is None
+
+
+def test_old_specials_are_let_go_by_day(world):
+    _made(world, "t1", "Long ago", world_mod.SPECIALS_KEPT_DAYS + 1)
+    for i in range(40):                                 # more than the old cap of thirty, all recent
+        _made(world, f"t{100 + i}", f"Recent {i}", 2)
+    world.record_special("Tonight's", "t2")
+    titles = [s["title"] for s in world.specials]
+    assert "Long ago" not in titles and len(titles) == 41
 
 
 def test_an_unknown_thread_becomes_a_history_piece(world, monkeypatch):

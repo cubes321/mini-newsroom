@@ -20,6 +20,41 @@ seat at the editors' meeting) still sees it all (`pool_full=True`). On the 25th'
 To watch on the next night: the story desk and editor inputs (about 9k tokens a call, not 16k), and new threads that
 repeat a pool story's title. Haiku's growth is new sections (town talk, the town calendar), each with its own limit.
 
+### The night's log, read in full (2026-11-26)
+
+No ERROR, worst p99 14.4 ms, buffer never low after 19:24. Five validation retries, all mended on the second ask (two
+empty headlines, fixed by `03201f0`; two guests with no name; two specials outlines with a guest_role over 50
+characters). None was over a line cap, so `2229c0d`'s slack wasn't tried. Advert names and seats need frames: not
+checked.
+
+- **Specials came round again (fixed, see below).** The editors were shown `specials[-10:]`, about two days at five or
+  six a night. Every repeat on record had its earlier one 11 to 15 entries back: last night the Green Ring (as the
+  documentary), the lamp logs, the front-row woman and the lifeboat fund (its third in six days); on the 23rd the
+  pool, the school ferry and the sealed drawer.
+- **The specials editor never sees the senior editor's memo.** The memo held the front-row woman and the second
+  engine until 3 December. The Woman in the Front Row aired at 03:20 anyway (one new detail: Marjorie Pell "has a
+  candidate"). The Second Engine was ready at 06:54 and never aired. It is marked dropped (`data/cache/75fd33c53e7b41af.aired`),
+  so `resume_ready` won't put it out; its specials entry stays, which rests t433 until 3 December. **Still open:** give
+  the specials and documentary editors the memo's holds.
+- **Lorna Pascoe was on eight times** (three interviews, a link, a report, three repeats). Slot 187 kept the job
+  "retired schoolteacher and amateur timekeeper" after both asks (her record: sea-swimming club member). Only her
+  memory was dropped, so the lower third (`player.py:768`, `line.guest_role`) most likely showed the wrong job at
+  22:31 and in the 00:16 repeat. **Open.**
+- **One tide time stood after two asks**, at 22:14: "high water just after twenty to eight this evening". The table
+  said 19:57. 7 asked again, 1 stood (11-22: 2 stood).
+- **Two lines hit Pocket's length cap and end still sounding**, for the user's ears: `2026-11-25 19-59 The Inquiry.mp4`
+  about 28:37-28:52 (slot 64, line 5, "the word 'yet'"), and `2026-11-25 22-00 The Last Ferry.mp4` about 39:18-39:36
+  (slot 193, line 2: 21 words in 17.4 s, probably babble after "slippery").
+- **Annals 2026-11-24 have no stories:** a Channel 8 day moves no story, so Tuesday will be thin in Sunday's review.
+- **The 19:16 false start** left three template residents in the town (Len Hargreaves, Abi Okoro, Maureen Tate).
+
+**Fixed (2026-11-26, not aired):**
+- The editors see every special and documentary of the last 14 days, one line a story with the days of any before
+  (`world._specials_lines`), kept 60 days, not the last 30.
+- A story with one in the last 7 days gets no other (`world.recent_special`). The specials editor's commission turns
+  into a pass. The documentary editor isn't offered the story, is asked once more if it names it, and makes none
+  tonight if it names it again.
+
 ## Picking up after the review of 2026-11-25: the recordings of the 24th, and six fixes
 
 The 2026-11-24 Channel 8 evening's nine OBS files in `E:\recordings` were sampled: the sound of all of them

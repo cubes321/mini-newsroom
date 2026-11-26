@@ -65,6 +65,12 @@ TICS = {"always slightly out of breath": ("out of breath", r"out of breath|breat
 _BREAKING_KEEP_S = 2 * 3600
 STALE_WARNING_S = 6 * 3600      # the desk is told a thread is going quiet this long before it fades
 LOOKING_BACK = {"documentary", "special"}   # pieces about a story that don't move it on (World._story_piece)
+# The specials and documentaries the editors are told of, by day, not the last ten: at five or six a night the last
+# ten were two days, and on 2026-11-25 four subjects came round again, each made three or four days before and just
+# out of view (the lifeboat fund for the third time in six days).
+SPECIALS_SHOWN_DAYS = 14
+SPECIALS_REST_DAYS = 7          # a story with a special or documentary this recently is given no other (special, documentary)
+SPECIALS_KEPT_DAYS = 60
 HISTORY_DOCS = 5                # the documentaries the desk and editors are shown in full,
 HISTORY_PER_DOC = 4             # with this many background facts each;
 HISTORY_FACTS = 6               # the writers, this many of the newest background facts
@@ -494,7 +500,7 @@ class World:
             threads = "\n".join(self._thread_line(t, full=True) for t in self.board_threads()) or "  (none)"
             pool = self._pool_lines(frozenset(pool_full or ()))
         faded = "\n".join(self._thread_line(t, full=True) for t in self.recently_faded()) or "  (none)"
-        done = "\n".join(f"  - {s['date']}: {s['title']} (thread {s['thread_id']})" for s in self.specials[-10:]) or "  (none)"
+        done = self._specials_lines()
         heads = "\n".join(f"  - {h}" for h in self.headlines[-20:]) or "  (none)"
         return (
             f"Town: {self.town}, {self.region}. TODAY IS {self.last_date}, broadcast day {self.broadcast_day}.\n"
@@ -508,7 +514,8 @@ class World:
             f"Residents met so far:\n{self._people_lines(('resident',), 12)}\n"
             f"Open threads:\n{threads}\n{pool}"
             f"Recently faded off the air (revive one only if something new would really happen):\n{faded}\n"
-            f"Specials already made (do not repeat these subjects):\n{done}\n"
+            f"Specials and documentaries made in the last {SPECIALS_SHOWN_DAYS} days (do not repeat these subjects; "
+            f"a story has no other within {SPECIALS_REST_DAYS} days of its last):\n{done}\n"
             f"{self._history(full=True)}"
             f"Recent headlines:\n{heads}"
         )
@@ -1046,9 +1053,39 @@ class World:
         """A finished special or documentary: neither repeats the other's subject. Only a special
         starts the editor's cooldown; the documentary has its own slot."""
         self.specials.append({"title": title, "thread_id": thread_id, "date": self.last_date})
-        self.specials = self.specials[-30:]
+        kept = self._days_back(SPECIALS_KEPT_DAYS)
+        self.specials = [s for s in self.specials if (s.get("date") or "") > kept]
         if cooldown:
             self.last_special_ts = time.time()
+
+    def _days_back(self, days: int) -> str:
+        """The ISO day `days` before today: entries dated after it are within `days` days."""
+        return (date.fromisoformat(self.last_date) - timedelta(days=days)).isoformat()
+
+    def recent_specials(self, days: int = SPECIALS_SHOWN_DAYS) -> list[dict]:
+        """The specials and documentaries made in the last `days` days, oldest first."""
+        since = self._days_back(days)
+        return [s for s in self.specials if (s.get("date") or "") > since]
+
+    def recent_special(self, thread_id: str | None, days: int = SPECIALS_REST_DAYS) -> dict | None:
+        """The latest special or documentary on this story in the last `days` days, or None."""
+        if not thread_id:
+            return None
+        return next((s for s in reversed(self.recent_specials(days)) if s.get("thread_id") == thread_id), None)
+
+    def _specials_lines(self) -> str:
+        """The recent specials for the editors' briefing, one line a story (the latest, and the days of any before)."""
+        by_story: dict[str, list[dict]] = {}
+        for s in self.recent_specials():
+            tid = s.get("thread_id")
+            by_story.setdefault(tid if tid and tid != "None" else f"title:{s.get('title')}", []).append(s)
+        lines = []
+        for made in sorted(by_story.values(), key=lambda m: m[-1].get("date") or ""):
+            last, tid = made[-1], made[-1].get("thread_id")
+            also = f"; also made {', '.join(s['date'] for s in reversed(made[:-1]))}" if len(made) > 1 else ""
+            story = f"thread {tid}" if tid and tid != "None" else "no thread"
+            lines.append(f"  - {last['date']}: {last['title']} ({story}{also})")
+        return "\n".join(lines) or "  (none)"
 
     @_locked
     def record_documentary(self, entry: dict) -> None:

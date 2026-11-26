@@ -51,7 +51,7 @@ from .models import (
     SpecialSection,
     VisualCue,
 )
-from .world import World
+from .world import SPECIALS_REST_DAYS, World
 
 log = logging.getLogger(__name__)
 
@@ -138,6 +138,10 @@ def decide(world: World, *, force: bool = False) -> EditorDecision:
     if d.commission and d.thread_id and world.thread(d.thread_id) is None:
         log.warning("editor named unknown thread %r; treating as a fresh subject", d.thread_id)
         d.thread_id = None
+    if d.commission and (made := world.recent_special(d.thread_id)):
+        # Told in the briefing, and still: the four repeats of 2026-11-25 came from the briefing's last ten alone.
+        d = EditorDecision(commission=False, reason=f"{d.thread_id} had {made['title']!r} on {made['date']}; "
+                                                    f"no other within {SPECIALS_REST_DAYS} days ({d.working_title!r})")
     log.info("editor: %s — %s", "COMMISSION " + d.working_title if d.commission else "pass", d.reason)
     return d
 
