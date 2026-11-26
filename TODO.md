@@ -535,6 +535,22 @@ bottom with the date.
   per evening, no new history for someone we know); it still invents small events for new people. Watch the first
   night: "rundown: ... planned", whether items keep to their subject, and whether the theme is overdone.
 - [x] Not doing (the user, 2026-11-07): Port Wexley keeps its own weather. Was: an optional real-weather hook.
+- [ ] **A Channel 8 day leaves the annals empty** (2026-11-25): a day with only Channel 8 on air moves no story, so
+  2026-11-24's page has none and that Tuesday will be thin in Sunday's *The Week in Port Wexley*. To decide before
+  alternating nights feed a Sunday review: a light story-desk tick on such a day, or the review saying the week had
+  quiet days rather than stretching what it has.
+- [ ] **The Coast Road's waits at one stop** (2026-11-26): leg 1 had six waits at the Quay Steps (x1 to x6), and x5
+  came back as sentences of x2 and x3 word for word; `_not_again` took every line (slot 132, 2026-11-24). Since
+  `61b428b` that is asked again, told why. Watch the next Coast Road for "asking once more" on the waits; if the
+  repeats go on, fewer waits a stop, or a wait's brief names what the earlier waits were about.
+- [ ] **Game facts the code already knows** (2026-11-25 review of the 24th): Wexley Wits slot 90 was titled "The
+  Anchor and Bell Edge Round Five" when The Lugger won it 4-3 (the board, 16-18, was right), and High Water's round
+  4 opened with Doris "on step twelve" when she was on eleven. The code holds both (`quiz` rounds, `highwater`
+  steps), so a check could ask again, as the tide times are checked against the table.
+- [ ] **Two open decisions from the 2026-11-24 night** (HANDOVER, "What went wrong" 3 and 4): whether a saved
+  Coast Road route that the map now turns down (Lorna's, probably since the 18 places added on 2026-11-21) is mended
+  rather than replaced; and the Kettle's On booking, where DeepSeek Flash spent 15,601 of its 16,000 tokens on
+  reasoning and Sonnet had to book it.
 
 ## Engineering
 
@@ -875,7 +891,8 @@ bottom with the date.
   `docs/ENGINE.md`. Until then, keep town details out of the mechanics when touching a module.
   The first split is made (2026-11-07; docs/ENGINE.md, "The first split"): Channel 8's shows live in
   `entertainment/` and reach the engine through registries by show id. Left: the engine's own repo, once the
-  boundary settles.
+  boundary settles. Worth doing with it (a review, 2026-11-26): a show's 20-odd registrations
+  (`PROMPT_HOOKS`, `CHECK_HOOKS`, `SEAT_HOOKS`, `LINE_CAPS`...) in one declarative object, so `undo()` can't miss one.
 - [x] Claude on the `anthropic` route: Haiku live and Sonnet as senior editor since 2026-10-26. Benched 2026-10-26 on the Kimi bench
   prompts (the route now takes `thinking` and `effort` from `extra_body`, plus
   timeout and retries): Sonnet 5.5 passed 20/20 and writes at least as well as
@@ -921,6 +938,21 @@ bottom with the date.
   runs short, since lines are voiced one at a time (Pocket is single-threaded, so two could run on
   two cores if its model state is safe to share). Weights are gated (accept the terms on
   huggingface.co/kyutai/pocket-tts, then `hf auth login`) and CC-BY-4.0.
+- [ ] **Two stations on one world** (a review, 2026-11-26): `world.save()` writes a station's whole town
+  from memory, and its locks are only within one process, so a second station (`--channel entertainment`, LAUNCH.md
+  "How it would go out") on the same `data/world.json` would overwrite the first's threads, people and bookings,
+  and the other way round, without a word. Nothing stops it yet. Before Channel 8 goes out beside Channel 7: a lock
+  file beside the world, taken at start, so a second station on it refuses to start (a scratch or copied world is
+  another file, so unaffected). Running both at once needs more: one process for both, or the world split.
+- [ ] **Pocket lines that run on** (2026-11-24 and 25): a line that reaches Pocket's maximum generation length
+  ends still sounding or babbles. Seen three times: Marina Row slot 112 (24th), The Inquiry slot 64 and The Last
+  Ferry slot 193 (25th; 21 words in 17.4 s). `tts.synthesize` could compare the length with the words (normal
+  speech is about 2.5 a second; 1.2 is a runaway) and do the line again with Kokoro, or split, before it airs.
+- [ ] **The cost against LAUNCH.md's "$1-2 a day"**: check a real night's bill on the consoles before the Ko-fi
+  goal is set. 2026-11-25's Channel 7 night (12 h): Haiku 495 calls, 4.12 M in (1.85 M from the cache) and 290 k
+  out; DeepSeek Flash thinking 97 calls, 920 k in and 297 k out; Sonnet 8; two other Anthropic calls. Prompts grew
+  that week (Haiku's seven-night mean was 3.31 M in); the pool change of 2026-11-26 should bring the back office
+  down.
 
 ## Done
 
