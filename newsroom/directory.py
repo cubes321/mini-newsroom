@@ -99,16 +99,16 @@ CORE: tuple[Business, ...] = (
     _b("The Saltby Players", "amateur theatre", "The village hall on the green, Saltby", "village_hall", None, None,
        None, "the amateur theatre company over the water; Out and About gave it four stars"),
     # ---------------------------------------------- the darts league's ten pubs (darts.PUBS, geography.py)
-    _b("the Anchor and Bell", "pub", "Quay Lane, under the church bell", "pub"),
-    _b("the Lugger", "pub", "The fish quay", "pub", note="the fishermen's pub"),
-    _b("the Harbour Lights", "pub", "The top of Harbour Row", "pub"),
-    _b("the Ferryman", "pub", "By the Quay Steps", "pub", note="where the Saltby ferry goes from"),
-    _b("the Pilchard", "pub", "Tallow Lane, behind the old cannery", "pub"),
-    _b("the Crown at Saltby", "pub", "On the green, Saltby", "pub", "Ray Tollan", "landlord, the Crown at Saltby", "m"),
-    _b("the Lantern", "pub", "Lantern Row, above the seafront", "pub", "Frank Dyer", "landlord, the Lantern", "m"),
-    _b("the Cannery Tap", "pub", "Cannery Lane", "pub", "Gideon Ashby", "landlord, the Cannery Tap", "m"),
-    _b("the Wexley Legion", "social club", "Main Street, by the town hall", "pub"),
-    _b("the Railway", "pub", "By the station, Mill Lane", "pub"),
+    _b("The Anchor and Bell", "pub", "Quay Lane, under the church bell", "pub"),
+    _b("The Lugger", "pub", "The fish quay", "pub", note="the fishermen's pub"),
+    _b("The Harbour Lights", "pub", "The top of Harbour Row", "pub"),
+    _b("The Ferryman", "pub", "By the Quay Steps", "pub", note="where the Saltby ferry goes from"),
+    _b("The Pilchard", "pub", "Tallow Lane, behind the old cannery", "pub"),
+    _b("The Crown at Saltby", "pub", "On the green, Saltby", "pub", "Ray Tollan", "landlord, the Crown at Saltby", "m"),
+    _b("The Lantern", "pub", "Lantern Row, above the seafront", "pub", "Frank Dyer", "landlord, the Lantern", "m"),
+    _b("The Cannery Tap", "pub", "Cannery Lane", "pub", "Gideon Ashby", "landlord, the Cannery Tap", "m"),
+    _b("The Wexley Legion", "social club", "Main Street, by the town hall", "pub"),
+    _b("The Railway", "pub", "By the station, Mill Lane", "pub"),
     # ---------------------------------------------- kept from the old advert pool, renamed
     _b("Tallack's Ropes", "ropemaker", "Harbour Row, six days a week", "harbour", "Ruth Tallack",
        "ropemaker, Harbour Row", "f", tagline="Tied up tight since 1871"),
@@ -241,6 +241,45 @@ def owners(world: World) -> set[str]:
     return {b.owner.lower() for b in businesses(world, seeds=True) if b.owner}
 
 
+_VOICE_SEX = re.compile(r"^[ab]([fm])_")
+
+
+def new_names(world: World, rng: random.Random | None = None, each: int = 2) -> tuple[list[str], list[str]]:
+    """Names for a new owner that nobody in the town has: a first name and a surname both worn here, in a pairing
+    no one has (so they sound like the town). Left to name one, Haiku chose a resident three times in five
+    (2026-11-27: Nell Ferrier, Agnes Hollis, Lorna Pascoe), and an advert for a resident's new trade is refused."""
+    rng = rng or random.Random()
+    with world.lock:
+        people = [(p.name.split(), p.voice) for p in world.people]
+    firsts: dict[str, set[str]] = {"f": set(), "m": set()}
+    surnames = set()
+    for parts, voice in people:
+        if len(parts) >= 2 and parts[0].isalpha() and parts[-1].replace("-", "").isalpha():
+            surnames.add(parts[-1])
+            if m := _VOICE_SEX.match(voice or ""):
+                firsts[m.group(1)].add(parts[0])
+    taken = owners(world)
+    out: dict[str, list[str]] = {"f": [], "m": []}
+    sur = sorted(surnames)
+    for sex in ("f", "m"):
+        first = sorted(firsts[sex])
+        for _ in range(50 * each):
+            if len(out[sex]) >= each or not first or not sur:
+                break
+            name = f"{rng.choice(first)} {rng.choice(sur)}"
+            if (name.lower() not in taken and name not in out[sex] and not world.person_by_name(name)
+                    and not world.presenter_named(name)):
+                out[sex].append(name)
+    return out["f"], out["m"]
+
+
+def names_line(world: World, rng: random.Random | None = None) -> str:
+    women, men = new_names(world, rng)
+    if not women and not men:
+        return "a NEW local with a name not in the briefing"
+    return f"a NEW local: call them one of these, which nobody in the town has: {', '.join(women + men)}"
+
+
 # ------------------------------------------------------------------ choosing the next advert
 
 
@@ -283,6 +322,7 @@ def advertised(world: World, script, choice: Choice) -> None:
     with world.lock:
         rec = _record(world, script.business)
         rec["adverts"] = int(rec.get("adverts") or 0) + 1
+        rec["tried"] = time.time()                  # an invented one, too: it doesn't jump the queue once off air
         rec["last_made"] = world.last_date
         rec["last_lines"] = [l.text for l in script.lines][:LAST_LINES_KEPT]
         if choice.known is None:

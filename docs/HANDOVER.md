@@ -26,6 +26,18 @@
   - Tallack's Ropes came out under its kept tagline.
   - One invention was refused: "Wexley Curd & Rind Cheese Shop". The habit is strong.
   - The next invention, Kessick Bingo Hall, joined the directory.
+- **Fixed after that first test:**
+  - **Invented owners:** left to name an owner, Haiku picked a resident three times in five (Nell Ferrier, Agnes
+    Hollis, Lorna Pascoe), and each advert was refused. Now the brief offers four names nobody in the town has
+    (`directory.new_names`: first names and surnames worn here, in new pairings). After that, six inventions in
+    six went through.
+  - **The pool dropped by id within a day:** `AdPool.add` dropped the oldest by `(made, id)`, so a day's adverts
+    went in hashed-id order, and a gym invented a minute before was the next one dropped. `Advert.made_ts` now
+    orders them. Old adverts have none, so they go first.
+  - **Invented businesses jumped the queue:** an invented business is stamped as tried when made.
+  - **Pub signs:** the pubs' names are capitalised in the directory ("The Anchor and Bell").
+  - **Retested:** Joan Tilly's Walking Tours, invented and then dropped, came back under its own tagline. An advert
+    frame was rendered on each set new to adverts (pub, tea_room, village_hall, church), and all draw cleanly.
 - **Not yet on air:** today's 32 old adverts age out over about a night and a half, as the user chose.
   `python -m newsroom.directory` lists the directory and each business's advert count.
 

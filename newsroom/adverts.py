@@ -130,6 +130,7 @@ class Advert(BaseModel):
     script: AdvertScript
     seed: bool = False
     made: str = ""                       # the date it was written
+    made_ts: float = 0.0                 # and when: the pool drops the oldest first, not the lowest id of the day
     voice: str = ""                      # the voiceover's Kokoro voice
     segment: Segment
 
@@ -195,7 +196,9 @@ class AdPool:
         tmp.replace(meta)
         with self._lock:
             self._ads[ad.id] = ad
-            spare = sorted((a for a in self._ads.values() if not a.seed), key=lambda a: (a.made, a.id))
+            # By the time it was written: by (day, id) alone, a day's adverts went in the order of their hashed ids,
+            # and one just written could be the next dropped (2026-11-27, a gym invented and gone in a minute).
+            spare = sorted((a for a in self._ads.values() if not a.seed), key=lambda a: (a.made, a.made_ts, a.id))
             drop = spare[:max(0, len(self._ads) - CONFIG.adverts.pool_size)]
             for old in drop:
                 del self._ads[old.id]
@@ -305,7 +308,8 @@ def build(ad_id: str, script: AdvertScript, world: World, *, seed: bool = False)
                   cues=[VisualCue(at_s=0, kind="backdrop", payload={"backdrop": script.backdrop})],
                   work={"advert": card})
     seg.target_s = seg.duration_s
-    return Advert(id=ad_id, script=script, seed=seed, made=date.today().isoformat(), voice=vo, segment=seg)
+    return Advert(id=ad_id, script=script, seed=seed, made=date.today().isoformat(), made_ts=time.time(), voice=vo,
+                  segment=seg)
 
 
 # Seeds with a line the content check refused: not tried again this run, or the idle work would retry
@@ -359,8 +363,8 @@ def _brief(choice: directory.Choice, on_air: list[str], world: World) -> str:
     b = choice.known
     if b is not None:
         owner = (f"Owner: {b.owner}, {b.owner_role or 'the owner'}; if anyone speaks for it, they do.\n" if b.owner else
-                 "No owner we know of: voiceover only, or the owner (or landlord) as a NEW local, never anyone in "
-                 "the briefing.\n")
+                 f"No owner we know of: voiceover only, or the owner (or landlord) as {directory.names_line(world)}; "
+                 f"never anyone in the briefing.\n")
         last = ("Its last advert said: " + " / ".join(choice.last_lines) +
                 "\nSay something different this time: another detail, the season, an offer, a little of the "
                 "town's news if it fits.\n") if choice.last_lines else ""
@@ -370,11 +374,13 @@ def _brief(choice: directory.Choice, on_air: list[str], world: World) -> str:
                 + (f"Tagline (end on it, word for word): {b.tagline}\n" if b.tagline else "")
                 + last)
     known = ", ".join(x.name for x in directory.businesses(world, seeds=True))
-    return (f"INVENT A NEW LOCAL BUSINESS: a {choice.trade}. Give it a name of its own, as a real one on a "
+    return (f"INVENT A NEW LOCAL BUSINESS. What it is: {choice.trade}. Give it a name of its own, as a real one on a "
             f"high street would have (the owner's name, a local word, a pun); never \"Wexley something & "
-            f"something\". Its owner, if they speak, is a NEW local with a name not in the briefing.\n"
+            f"something\". Its owner, if they speak, is {directory.names_line(world)}.\n"
             f"The town already has these (invent none of them, and nothing close): {known}\n"
-            f"On air now: {', '.join(on_air) or 'none'}\n")
+            # The old pool's "Wexley X & Y" names left out: shown them, Haiku wrote another (2026-11-27). The
+            # check in make() still keeps a name already on air off it.
+            f"On air now: {', '.join(n for n in on_air if not directory.formulaic(n)) or 'none'}\n")
 
 
 def write_script(world: World, choice: directory.Choice | None = None) -> AdvertScript:
@@ -406,7 +412,8 @@ def _settle(script: AdvertScript, choice: directory.Choice, world: World) -> str
         if near := directory.clash(world, script.business):
             return f"too like {near}, which the town has"
     named = (script.owner_name or "").strip()
-    if named and not (b and b.owner) and (world.person_by_name(named) or named.lower() in directory.owners(world)):
+    if named and not (b and b.owner) and (world.person_by_name(named) or world.presenter_named(named)
+                                          or named.lower() in directory.owners(world)):
         return f"its owner {named} is someone the town knows already"      # residents keep the trades they have
     return None
 
@@ -422,7 +429,7 @@ def make(world: World, mode: str | None = None) -> Advert | None:
         directory.tried(world, choice.known.name)         # a business whose advert keeps failing doesn't jam the rest
         log.info("advert: a new one for %s", choice.known.name)
     else:
-        log.info("advert: a new business, a %s", choice.trade)
+        log.info("advert: a new business (%s)", choice.trade)
     try:
         script = write_script(world, choice)
     except llm.LLMError as e:

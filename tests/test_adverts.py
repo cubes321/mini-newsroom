@@ -97,6 +97,19 @@ def test_the_pool_drops_the_oldest_model_ads_and_keeps_the_seeds(pool, world, sm
     assert len(adverts.AdPool(pool.dir)) == len(adverts.SEEDS) + 2    # a restart doesn't bring a dropped one back
 
 
+def test_on_one_day_the_pool_drops_the_one_written_first_not_the_lowest_id(pool, world, small_pool_size):
+    """2026-11-27: by (day, id) a gym invented a minute before was the next one dropped."""
+    while adverts.seed_one(world):
+        pass
+    for i, ad_id in enumerate(["ad_ffff", "ad_8888", "ad_0000"]):    # written in this order, ids the other way
+        s = AdvertScript(business=f"Shop {i}", tagline="t", where="w", backdrop="harbour",
+                         lines=[{"speaker": "voiceover", "text": "Buy it."}, {"speaker": "voiceover", "text": "Now."}])
+        ad = adverts.build(ad_id, s, world)
+        ad.made, ad.made_ts = "2026-11-27", 1000.0 + i
+        pool.add(ad)
+    assert "ad_ffff" not in pool and "ad_8888" in pool and "ad_0000" in pool
+
+
 def test_an_old_advert_dropped_now_keeps_its_audio_for_an_hour(pool, world, small_pool_size):
     """Its WAVs were voiced days ago; the hour a waiting break may need counts from the drop."""
     import os

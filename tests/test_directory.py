@@ -4,6 +4,7 @@ are invented now and then and join it, and nobody is handed a trade that isn't t
 Kokoro and the model are stubbed: no audio is synthesised, no network.
 """
 import random
+import time
 
 import pytest
 
@@ -104,7 +105,7 @@ def test_the_rotation_goes_round_the_ones_off_air_longest_ago(pool, world, monke
     pool.load()
     for b in directory.businesses(world):                     # everything else was tried more recently
         if b.name != first:
-            directory.tried(world, b.name)
+            directory.tried(world, b.name, time.time() + 60)
     prompts = _writer(monkeypatch, _script())
     again = adverts.make(world, "known")
     assert again.script.business == first
@@ -125,7 +126,7 @@ def test_going_off_the_list_invents_a_trade_the_town_lacks_and_keeps_it(pool, wo
     prompts = _writer(monkeypatch, _script("Scissor Sisters of Quay Lane", owner="Tamsin Ogle", role="hairdresser"))
     ad = adverts.make(world, "new")
     assert ad is not None and "INVENT A NEW LOCAL BUSINESS" in prompts[0]
-    trade = prompts[0].split("INVENT A NEW LOCAL BUSINESS: a ")[1].split(".")[0]
+    trade = prompts[0].split("What it is: ")[1].split(". Give it")[0]
     assert trade in directory.TRADES
     b = directory.find(world, "Scissor Sisters of Quay Lane")
     assert b and b.kind == trade and b.owner == "Tamsin Ogle"
@@ -162,9 +163,9 @@ def test_a_pub_keeps_the_landlord_its_first_advert_gave_it(pool, world, monkeypa
         f.unlink()
     pool.load()
     _writer(monkeypatch, _script(owner="Someone Else", role="landlord", tagline="Other words"))
-    for b in directory.businesses(world):
+    for b in directory.businesses(world):                     # well after the pub's (the clock is coarse on Windows)
         if b.name != pub.name:
-            directory.tried(world, b.name)
+            directory.tried(world, b.name, time.time() + 60)
     ad = adverts.make(world, "known")
     assert ad.script.owner_name == "Maggie Treloar" and ad.script.tagline == "Some tagline"
 
@@ -197,3 +198,15 @@ def test_the_directory_survives_a_save(world, tmp_path):
     world_mod.save(world, tmp_path / "w.json")
     again = world_mod.load(tmp_path / "w.json")
     assert directory.find(again, "Jago's Butchers").tagline == "Bangers you can trust"
+
+
+def test_a_new_owner_is_offered_names_nobody_in_the_town_has(world):
+    world.ensure_person("Nell Ferrier", "resident", gender="f")
+    world.ensure_person("Agnes Hollis", "volunteer, Tuesday lunch club", gender="f")
+    world.ensure_person("Lorna Pascoe", "sea-swimming club member", gender="f")
+    world.ensure_person("Tom Hollis", "fisherman", gender="m")
+    for seed in range(30):
+        women, men = directory.new_names(world, random.Random(seed))
+        for name in women + men:
+            assert not world.person_by_name(name) and name.lower() not in directory.owners(world), name
+    assert "call them one of these" in directory.names_line(world, random.Random(1))
