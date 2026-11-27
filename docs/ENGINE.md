@@ -453,6 +453,17 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   - **Never on:** Out and About or Channel 8.
   - **On screen:** top right under the clock on location, and in the big screen's corner on the wall, clear of the
     lower third, the ticker and the reporter.
+- **The forecast** (`newsroom/forecast.py`, 2026-11-27) is the station's: a low, a high and a sky for each day in
+  `World.forecasts`, made in code, never by a model. A day follows the one before (the sky kept 60% of the time, the
+  departure from the month's normal easing back a third a day, a clear winter's day colder and its range wider),
+  drawn from a generator seeded by the date; the first comes from the last weather on record. The figure for a
+  minute is on a curve, the low at 07:00, the high at 14:30. Gordon's prompt (`for_prompt`) has the figure now
+  (temp_c and map_state to put), today's high, tonight by its day's name ("Saturday night"), tomorrow, the day after
+  and yesterday; a weather more than a degree off the figure, or on another sky, is asked once more
+  (`writers.script_segment`). Every other writer's briefing has the same figures in a line (`brief`, after the
+  cache break), and the tides' ferry check reads the day's sky. After dark the map's "sunny" is said as clear.
+  Before it, each weather was told only the last one's figure: the 2026-11-25 evening walked from 13 to -6, and held
+  to the first of three hours the 26th's night stuck at -4 through a sunny morning.
 - **The weather map** (`newsroom/weathermap.py`, 2026-11-21) is Gordon's wall screen: 24 miles of the same coast,
   Greymouth to Pellow Harbour, with the Grey up to Polgrey. The user approved it on
   `data/contact-sheets/2026-11-21-weather-map.png`.

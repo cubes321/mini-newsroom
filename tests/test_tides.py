@@ -1,7 +1,7 @@
 """Tides and the foot ferry are arithmetic: consistent through a day and from one day to the next."""
 from datetime import date, timedelta
 
-from newsroom import schedule, tides, world as world_mod, writers
+from newsroom import forecast, schedule, tides, world as world_mod, writers
 from newsroom.models import SegmentType as T
 
 DAYS = [date(2026, 10, 26) + timedelta(days=i) for i in range(30)]
@@ -173,17 +173,18 @@ def test_the_writer_is_asked_again_for_a_time_that_is_none_of_those_given(monkey
 
     w = world_mod.seed()
     asked = []
+    airs = datetime(2026, 11, 21, 21, 35).timestamp()
+    temp, sky = forecast.now(w, airs)               # on the station's forecast, so only the tide is asked about
 
     def write(task, schema, system, user):
         asked.append(user)
         again = "WRONG TIMES" in user
         return schema.model_validate({
-            "headline": "Clear and cold, with big tides", "map_state": "sunny", "temp_c": 4,
+            "headline": "Clear and cold, with big tides", "map_state": sky, "temp_c": temp,
             "lines": [{"speaker": "weather", "text": "High water was " + ("twenty-five to five" if again else
                                                                            "twenty-five past four") + " this afternoon."}]})
     monkeypatch.setattr(llm, "complete_json", write)
     monkeypatch.setattr(llm, "provider_for", lambda task: "claude_haiku")
-    airs = datetime(2026, 11, 21, 21, 35).timestamp()
     seg = writers.script_segment(Segment(slot_id=5, type=T.weather, show="news", target_s=60.0, nominal_start_ts=airs), w)
     assert len(asked) == 2 and 'WRONG TIMES: the script said "twenty-five past four"' in asked[1]
     assert "twenty-five to five" in seg.lines[0].text and not seg.fallback
@@ -230,16 +231,17 @@ def test_the_writer_is_asked_again_for_a_tide_told_the_wrong_way_round(monkeypat
 
     w = world_mod.seed()
     asked = []
+    airs = datetime(2026, 11, 22, 6, 0).timestamp()
+    temp, sky = forecast.now(w, airs)               # on the station's forecast, so only the tide is asked about
 
     def write(task, schema, system, user):
         asked.append(user)
         again = "WRONG WAY ROUND" in user
         return schema.model_validate({
-            "headline": "A sunny Sunday with big tides", "map_state": "sunny", "temp_c": 4,
+            "headline": "A sunny Sunday with big tides", "map_state": sky, "temp_c": temp,
             "lines": [{"speaker": "weather", "text": "High water " + ("was" if again else "is") + " at five this morning."}]})
     monkeypatch.setattr(llm, "complete_json", write)
     monkeypatch.setattr(llm, "provider_for", lambda task: "claude_haiku")
-    airs = datetime(2026, 11, 22, 6, 0).timestamp()
     seg = writers.script_segment(Segment(slot_id=5, type=T.weather, show="news", target_s=60.0, nominal_start_ts=airs), w)
     assert len(asked) == 2 and "WRONG WAY ROUND (it is 06:00" in asked[1] and '"at five" is already gone' in asked[1]
     assert seg.lines[0].text == "High water was at five this morning."

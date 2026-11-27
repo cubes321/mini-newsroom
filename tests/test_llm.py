@@ -139,7 +139,7 @@ def test_the_sport_the_auction_and_the_council_calendar_are_in_the_cached_head()
     w = world_mod.seed()
     head, _, tail = w.summary_for_prompt().partition(llm.CACHE_BREAK)
     assert "Sport: Tidewater Town FC" in head and "Council: full council meets" in head
-    assert "Sport:" not in tail and "Open story threads" in tail and "Last weather" in tail
+    assert "Sport:" not in tail and "Open story threads" in tail and "Weather (the station's forecast" in tail
     # What changes from script to script stays after the break: the head is the same bytes.
     w.update_thread(None, "Harbour wall report due Friday", "The report goes to council on Friday.")
     w.record_headline("Harbour wall report due Friday")

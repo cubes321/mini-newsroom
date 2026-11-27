@@ -1,24 +1,69 @@
 # Handover
 
-## Tonight (2026-11-26): a real Channel 7 night, no pictures
+## The night of 2026-11-26: a real Channel 7 night, no pictures
 
-Started 21:04 from `data/night_channel7_nopictures.cmd` (no ComfyUI: another project's `night-imagedoctor` job has
-the card tonight), `--minutes 720 --obs`, so it ends about 09:04. Log `data/logs/station-2026-11-26-2104.log`,
-backup `data/world.backup-2026-11-26-pre-night.json`. Both keys answered `/v1/models` first; OBS was started for it
-(not streaming, `keep_alive = false`); audio into CABLE Input. The first night for the 2026-11-26 fixes (the pool
-lines, the specials' 14 days and 7-day rest, the specials reading the memo, the guest caption from the record).
+Started 21:04 from `data/night_channel7_nopictures.cmd` (no ComfyUI: another project's `night-imagedoctor` job had
+the card), `--minutes 720 --obs`. Restarted at 22:04 on the weather fix below, so it ended 10:04 on the 27th:
+744 segments, 73 adverts, no ERROR, no templates, no filler, worst p99 19.1 ms, 15 OBS files to `10-00 Have Your
+Say`. Both keys answered `/v1/models` first; OBS was started for it (not streaming); audio into CABLE Input. The
+first night for the 2026-11-26 fixes (the pool lines, the specials' 14 days and 7-day rest, the specials reading the
+memo, the guest caption from the record): not yet reviewed.
 
-**After the run (the user, 2026-11-26): check the weather forecasts are consistent.** Nothing holds a forecast:
-each weather script is written fresh, and all it is told of the last is `world.last_weather` (map state,
-temperature, headline: `world.py` "Last weather"). So, over the whole night:
-- Every weather script in airing order (time, slot, show, map state, °C, headline, the forecast lines), from
-  `data/llm_calls/2026-11-26.jsonl` and `2026-11-27.jsonl` with the cache.
-- Do the forecasts for the same hours agree (tonight's low, frost or fog, rain or wind, tomorrow), or does each
-  report invent a new night? Jumps in temperature or state between reports minutes apart.
-- Do the words match the map state cued for the same segment, and the teletext page (`teletext.py`)?
-- The weather told elsewhere (news items, the sofa, phone-ins, Morning Tide's weather and ticker) against the
-  forecast of the time; the breakfast ticker carried the evening's weather once before.
-- Tide times are already checked against `tides.py`; note any that stood.
+### The weather's consistency, checked (2026-11-27, the user asked on the 26th)
+
+All 56 weathers after the restart (22:49 to 09:47), read from `data/llm_calls/2026-11-2{6,7}.jsonl`, and every other
+segment's weather words. **The staircase is gone, but the temperature is now frozen:** -4 in 50 of 56, -3 in six,
+from 22:49 through the night and a sunny Morning Tide to 09:47 ("Sunshine and Minus Four Hold for Friday"). No
+redraft was asked (no "forecast it keeps to" in the log): every forecast stayed within 2 of its anchor at the first
+try. The anchor did reset after the small hours' gap, but the briefing's "Last weather: -4°C" carried it anyway.
+Nothing in the station knows a night is colder than an afternoon: there is no forecast to keep to, only the last
+figure, so held loosely it walks and held tightly it sticks.
+
+- **The day's shape disagrees between reports.** For Friday afternoon: "warms to about two degrees" (05:50), "minus
+  four, and that's where it stays for much of the day" (05:56), "nudges up a touch" (06:46), "a few degrees warmer"
+  (06:46), "rising slowly through the day" (07:57), "sits at minus four degrees for the day" (08:09). Meanwhile the
+  news had the auction standpipe "the thaw is due mid-morning" (06:51) and "running again as the morning warms up"
+  (07:10), while Gordon said "the frost is holding firm" at 09:42.
+- **The weekend disagrees:** "a band of cloud is heading our way for the weekend" (09:20) between "no real change on
+  the way for the weekend" (09:15) and "sunshine from start to finish" for Saturday (09:42). Cloud "from the west by
+  late afternoon" Friday (23:47, 06:40, 08:43) against "not a cloud" and "sunny all day" in most others.
+- **"The same as" is a new tic:** 19 of 56 say the figure is the same as the last forecast, before, earlier, last
+  time, "exactly where we left it". The prompt's "THE LAST FORECAST ... Keep to it" is said aloud. Four say "the same
+  as yesterday", and one "the same as this afternoon": both false (Thursday morning was 7, and there was no
+  afternoon weather).
+- **Words against the figure:** 09:26 temp_c -4, spoken "Yesterday's four below has eased a touch, so expect minus
+  five" (eased, and colder, and not -4).
+- **"Sunny" at night:** the map's states have no clear night (`models.py` `map_state`: sunny, cloudy, rain, storm,
+  snow, fog, wind), so a clear night is `sunny` and Gordon says it: "a clear, bright one tonight: sunny" (23:41), "the
+  map shows sunny skies" after dark (on the 26th at 21:06).
+- **Elsewhere:** one field report at 23:29, "Twelve degrees of nothing much for the rest of the night, and a sharp
+  frost by morning". The herring "coming in with the thaw" (22:04 monologue, 22:08 links) is the auction story's
+  word, not the weather. The sofa (06:29, 06:32) said minus four, right.
+- **Tides held** against `tides.py` (Friday 03:00 / 09:13 / 15:25 / 21:38, the ferry gap 14:35-16:15). Small slips:
+  low water "just after quarter past three" (06:46, 09:36), Saturday's high "ten past ten" once (06:15; 10:03), "turned
+  on the flood" after high water (08:37).
+
+**Fixed (2026-11-27, the user; not yet aired): the station's forecast, `newsroom/forecast.py`** (see ENGINE.md).
+A low, a high and a sky for each day in `World.forecasts`, made in code from the day before, seeded by the date;
+the first from the last weather on record, so the real town's first day is Friday 27th, -4 to 4, sunny, and
+Saturday 0 to 6, sunny, Sunday cloudy, 5 to 9. Gordon is given the figure now, today's high, tonight by its day's
+name, tomorrow, the day after and yesterday; more than a degree off or on another sky is asked once more. Every
+other writer's briefing has the same figures ("Weather (the station's forecast...)", in place of "Last weather").
+The anchor of `15a9f4c` is gone. After dark "sunny" is said as clear (the map still has no clear-night picture).
+- **Replayed with Haiku** on a scratch copy of the town (ten weathers from Friday 21:05 to Saturday 09:45, and a
+  sofa): all ten on the forecast's figure and sky at the first ask; every one agreed on tonight's zero, Saturday's
+  six, Sunday's cloud and nine; no "same as". The first replay showed two things the prompt then fixed: Gordon told
+  the viewers the map shows a clear night as sunny "only out of habit" (given a reason, he said it), and before
+  dawn "tonight" was taken as the night it was still in (each night is now named by its day).
+- **Also:** the briefing's weather line is the airing's (`summary_for_prompt(at=)`), not the writing's ten minutes
+  earlier; a station off for days carries on from its last weather (up to 14 days), so the seed holds whenever the
+  next night is; the backdrop's grade, the travel board and the teletext weather and ferry pages read the
+  forecast's sky, not the last script's (the sky changes at midnight, hours before the first morning weather).
+  A third replay after these: all ten again on the figure first time, every "tonight" the right night.
+- **Open:** `forecast.dark()` uses the backdrops' fixed hours (dark from 17:00 to 07:00 all year), so a June
+  evening at 17:30 would be told "it is dark". No clear-night picture on the map.
+- **To see on a real night:** the weathers' figures across the evening and the morning, the sofa and the news
+  saying the same, and the first day's seed from the -4.
 
 **Seen at 22:00 (the user saw -1 then -4): the temperature walks down a degree a report.** 21:04 to 21:48: 4, 3, 1,
 0, 0, 0, 0, -1, -2, -3, -4. The 25th the same: 13 at 19:23 to -6 at 23:47, one degree a weather, stopped only by
@@ -30,12 +75,12 @@ which Haiku takes every time: every step passes, and nothing stops the sum befor
 **Fixed and restarted at 22:04 (the user):** `World.record_weather` keeps `anchor_c`/`anchor_ts`, the first forecast of
 the last three hours (`world.WEATHER_HOLD_S`), and `forecast_drift` and `_last_forecast` hold to it, within 2 degrees;
 "a degree or two lower after dark" is gone, and the prompt asks for the spoken figure to be temp_c. A world saved
-before has no anchor: the last forecast stands in. 1296 tests pass; not committed. The first run closed its window
+before has no anchor: the last forecast stands in. 1296 tests pass; `15a9f4c`, not pushed. The first run closed its window
 cleanly at 22:04:18 (`station-2026-11-26-2104.log`, The Last Ferry saved as `2026-11-26 22-00 The Last Ferry.mp4`),
 the second started 22:04 (`station-2026-11-26-2204.log`, The Last Ferry again from 22:04, ends about 10:04). Its
 launcher overwrote `world.backup-2026-11-26-pre-night.json` with the 22:04 town; the town before the night is
-`world.backup-2026-11-26-2104-pre-night.json`. The anchor starts from the last weather of the first run (-4 at
-21:48), so tonight should hold near it; the morning check sees whether it did.
+`world.backup-2026-11-26-2104-pre-night.json`. The anchor started from the last weather of the first run (-4 at
+21:48), and held there all night: see the check above.
 
 ## The night of 2026-11-25: a real Channel 7 night, no pictures
 

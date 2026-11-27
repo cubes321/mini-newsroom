@@ -37,7 +37,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import calendar, council, quay, schedule, sport, talk
+from . import calendar, council, forecast, quay, schedule, sport, talk
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -63,7 +63,6 @@ TICS = {"always slightly out of breath": ("out of breath", r"out of breath|breat
 # not "been running": "Dolores Finch has been running this" (an appeal) in the replay of 2026-11-22
 # A story that broke is kept on the board this long whatever the cap (writers.BREAKING_LEAD_S).
 _BREAKING_KEEP_S = 2 * 3600
-WEATHER_HOLD_S = 3 * 3600       # a forecast keeps to the first of this long (record_weather, writers.forecast_drift)
 STALE_WARNING_S = 6 * 3600     # the desk is told a thread is going quiet this long before it fades
 LOOKING_BACK = {"documentary", "special"}   # pieces about a story that don't move it on (World._story_piece)
 # The specials and documentaries the editors are told of, by day, not the last ten: at five or six a night the last
@@ -210,6 +209,7 @@ class World:
     threads: list[Thread] = field(default_factory=list)
     headlines: list[str] = field(default_factory=list)
     last_weather: dict = field(default_factory=dict)
+    forecasts: dict = field(default_factory=dict)     # ISO date: {low, high, sky}, made by forecast.day
     broadcast_day: int = 1
     last_date: str = field(default_factory=lambda: date.today().isoformat())
     landmarks: list[str] = field(default_factory=list)
@@ -360,7 +360,8 @@ class World:
 
     @_locked
     def summary_for_prompt(self, cast: tuple[str, ...] | None = None, auction: bool = True,
-                           sitting: bool = False, booked: frozenset[str] | None = frozenset()) -> str:
+                           sitting: bool = False, booked: frozenset[str] | None = frozenset(),
+                           at: float | None = None) -> str:
         """The town briefing. `cast` limits the presenters to one show's (see schedule.py); `auction`
         False leaves the quay's latest auction out (the news, once it has reported it: writers.py);
         `sitting` is The Chamber's own items, for which tonight's meeting is never over. `booked`: the people
@@ -371,11 +372,6 @@ class World:
         )
         threads = "\n".join(self._thread_line(t) for t in self.briefing_threads(auction)) or "  (none yet)"
         heads = "\n".join(f"  - {h}" for h in self.headlines[-MAX_HEADLINES_IN_PROMPT:]) or "  (none yet)"
-        wx = self.last_weather
-        wx_line = (
-            f"{wx.get('map_state', 'unknown')}, {wx.get('temp_c', '?')}°C ({wx.get('headline', '')})"
-            if wx else "no report yet"
-        )
         return (
             f"Town: {self.town}, {self.region}. Population about {self.population:,}. "
             f"Founded {self.founded}. Landmarks: {', '.join(self.landmarks)}.\n"
@@ -395,7 +391,8 @@ class World:
             f"{self._council_calendar(sitting)}\n{CACHE_BREAK}"
             f"Residents we have met before:\n{self._people_lines(('resident',), 6)}\n"
             f"{self.rested_line(booked) if booked is not None else ''}"
-            f"Last weather: {wx_line}\n"
+            # As it is when the piece airs (`at`): a writer works ten minutes ahead, and Gordon's figures are the airing's.
+            f"Weather (the station's forecast; give no other temperatures): {forecast.brief(self, at)}\n"
             f"{talk.line(self, date.fromisoformat(self.last_date))}"
             f"Open story threads (follow up by id; a follow-up delivers the NEXT development once it is due, or a "
             f"step towards it; a NEXT marked NOT YET has not happened and is never reported as done):\n{threads}\n"
@@ -696,15 +693,7 @@ class World:
 
     @_locked
     def record_weather(self, map_state: str, temp_c: int, headline: str) -> None:
-        """The last forecast, with the one it keeps to (anchor_c at anchor_ts): the first of the last
-        WEATHER_HOLD_S. Held to the last one alone, the weather walked down a degree a report, 13 to -6 on the
-        2026-11-25 evening and 4 to -4 in the 26th's first 45 minutes, every step within the drift allowed."""
-        now, was = schedule.now(), self.last_weather or {}
-        anchor_ts = was.get("anchor_ts", was.get("ts"))
-        held = anchor_ts is not None and was.get("temp_c") is not None and 0 <= now - anchor_ts < WEATHER_HOLD_S
-        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline, "ts": now,
-                             "anchor_c": was.get("anchor_c", was.get("temp_c")) if held else temp_c,
-                             "anchor_ts": anchor_ts if held else now}
+        self.last_weather = {"map_state": map_state, "temp_c": temp_c, "headline": headline, "ts": schedule.now()}
 
     @_locked
     def record_aired(self, seg_type: str, headline: str | None, thread_id: str | None, text: str,

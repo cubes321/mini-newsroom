@@ -29,8 +29,10 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import datetime
 
-from . import adverts, channel, continuity, control, council, documentary, locator, schedule, teletext, travelboard
+from . import (adverts, channel, continuity, control, council, documentary, forecast, locator, schedule, teletext,
+               travelboard)
 from .buffer import Buffer
 from .config import CONFIG
 from .locations import time_of_day
@@ -646,7 +648,8 @@ class Player:
         local = time.localtime(now)
         v = View(clock=time.strftime("%H:%M", local), ticker=[h for _, h in self.ticker],
                  buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
-                 tod=time_of_day(local.tm_hour), weather=self.world.last_weather.get("map_state"))
+                 tod=time_of_day(local.tm_hour),     # the day's sky (forecast.py), as every script tells it
+                 weather=forecast.sky_at(self.world, datetime.fromtimestamp(now)))
         on_air = schedule.show_at(now)
         v.show = on_air.id
         v.bare = v.show in BARE_SHOWS

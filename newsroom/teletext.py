@@ -22,7 +22,7 @@ import logging
 import textwrap
 from datetime import date, datetime, timedelta
 
-from . import calendar, council, promises, quay, safety, schedule, sport, tides
+from . import calendar, council, forecast, promises, quay, safety, schedule, sport, tides
 
 log = logging.getLogger(__name__)
 
@@ -156,10 +156,11 @@ _SKY_WORDS = {"sunny": "Sunny spells", "cloudy": "Cloudy", "rain": "Showers", "s
 
 
 def _weather(world, now: datetime) -> dict:
-    state, temp = world.last_weather.get("map_state"), world.last_weather.get("temp_c")
+    temp, state = forecast.temp_at(world, now), forecast.sky_at(world, now)     # the station's, as Gordon gives it
+    words = "Clear" if state == "sunny" and forecast.dark(now) else _SKY_WORDS.get(state, "Settled")
     rows = _banner("WEATHER", "white", "green") + [
         {"art": "map", "h": len(COAST), "state": state}, row(),
-        row(f"{_SKY_WORDS.get(state, 'Settled')}" + (f", {temp}C" if temp is not None else ""), "yellow", dh=True),
+        row(f"{words}, {temp}C", "yellow", dh=True),
         row("The latest forecast from Gordon Pell.", "white")]
     return _page(120, "WEATHER", rows)
 
@@ -295,7 +296,7 @@ def pages(world, now: datetime | None = None) -> list[dict]:
     """Every page, in the order the service turns them."""
     now = now or datetime.fromtimestamp(schedule.now())
     stories = _stories(world)
-    state = world.last_weather.get("map_state")
+    state = forecast.sky_at(world, now)
     out = [_index(now), _headlines(stories)] + [_story(t, 102 + i) for i, t in enumerate(stories)]
     return out + [_weather(world, now), _tides(now.date(), state), _sport(now), _quay(now),
                   _schedule(now.date()), _notices(now.date()), _council_watch(world, now.date()),

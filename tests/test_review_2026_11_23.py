@@ -99,46 +99,11 @@ def test_good_evening_only_where_a_programme_begins():
     assert writers.no_hello_midway(lines, mag, T.interview, "", at) == 0      # a hello to the guest by name stays
 
 
-def test_coastwide_has_two_weathers_and_each_keeps_to_the_last(monkeypatch):
+def test_coastwide_has_two_weathers(monkeypatch):
+    """Each keeps to the station's forecast since 2026-11-27 (tests/test_forecast.py), not to the one before."""
     mag = schedule.get("magazine")
     items = [schedule.as_item(e).type for e in (*mag.pattern, *mag.closing)]
     assert items.count(T.weather) == 2
-    w = world_mod.seed()
-    t0 = datetime(2026, 11, 22, 19, 6).timestamp()
-    monkeypatch.setattr(world_mod.schedule, "now", lambda: t0)
-    w.record_weather("sunny", 12, "Calm Sunday Night")
-    note = writers._last_forecast(w, t0 + 31 * 60)
-    assert "31 minutes before this one: sunny, 12°C" in note and "within 2 degrees of 12" in note
-    wx = lambda t: type("S", (), {"temp_c": t})()                           # noqa: E731
-    assert writers.forecast_drift(wx(8), w, t0 + 31 * 60) == 12 and writers.forecast_drift(wx(11), w, t0 + 31 * 60) is None
-    assert writers.forecast_drift(wx(4), w, t0 + 4 * 3600) is None          # hours on, it may well have dropped
-
-
-def test_the_weather_keeps_to_the_first_forecast_not_the_last(monkeypatch):
-    """2026-11-26 21:04-21:48: 4, 3, 1, 0, 0, 0, 0, -1, -2, -3, -4, each within two of the one before."""
-    w = world_mod.seed()
-    t0 = datetime(2026, 11, 26, 21, 4).timestamp()
-    clock = {"t": t0}
-    monkeypatch.setattr(world_mod.schedule, "now", lambda: clock["t"])
-    wx = lambda t: type("S", (), {"temp_c": t})()                           # noqa: E731
-    for i, temp in enumerate((4, 3, 2)):
-        clock["t"] = t0 + i * 300
-        w.record_weather("sunny", temp, "Clear And Cold")
-    at = t0 + 15 * 60
-    assert w.last_weather["anchor_c"] == 4 and w.last_weather["temp_c"] == 2
-    assert writers.forecast_drift(wx(2), w, at) is None and writers.forecast_drift(wx(6), w, at) is None
-    assert writers.forecast_drift(wx(1), w, at) == 4                        # within two of the last (2), not of 4
-    note = writers._last_forecast(w, at)
-    assert "5 minutes before this one: sunny, 2°C" in note and "was 4°C, 15 minutes ago" in note
-    assert "within 2 degrees of 4" in note and "lower after dark" not in note
-    clock["t"] = t0 + 3 * 3600 + 60                                         # the window over: a new anchor
-    w.record_weather("sunny", -1, "Hard Frost")
-    assert w.last_weather["anchor_c"] == -1
-    assert writers.forecast_drift(wx(-3), w, clock["t"] + 300) is None
-    w.last_weather = {"map_state": "sunny", "temp_c": 5, "headline": "Old", "ts": clock["t"]}   # saved before the anchor
-    assert writers.forecast_drift(wx(2), w, clock["t"] + 300) == 5
-    w.record_weather("sunny", 4, "Old Kept")
-    assert w.last_weather["anchor_c"] == 5
 
 
 def test_a_title_or_a_loose_end_that_names_a_step_not_due(monkeypatch):
