@@ -944,10 +944,13 @@ bottom with the date.
   and the other way round, without a word. Nothing stops it yet. Before Channel 8 goes out beside Channel 7: a lock
   file beside the world, taken at start, so a second station on it refuses to start (a scratch or copied world is
   another file, so unaffected). Running both at once needs more: one process for both, or the world split.
-- [ ] **Pocket lines that run on** (2026-11-24 and 25): a line that reaches Pocket's maximum generation length
+- [x] **Pocket lines that run on** (2026-11-24 and 25): a line that reaches Pocket's maximum generation length
   ends still sounding or babbles. Seen three times: Marina Row slot 112 (24th), The Inquiry slot 64 and The Last
-  Ferry slot 193 (25th; 21 words in 17.4 s). `tts.synthesize` could compare the length with the words (normal
-  speech is about 2.5 a second; 1.2 is a runaway) and do the line again with Kokoro, or split, before it airs.
+  Ferry slot 193 (25th; 21 words in 17.4 s). Done 2026-11-27: Pocket logs "Maximum generation length reached
+  without EOS" exactly then (8 times in 18 nights, once for each of the three); `tts._pocket_speak` listens for it
+  while a line is voiced and raises `RanOn`, `synthesize` does the line once more with Pocket (its sampling varies:
+  the two 25th lines, six takes each, never ran on again) and gives it to Kokoro if that runs on too. A forced
+  overrun on the real model was caught, retried and handed over. Not a words-a-second guess: the warning is exact.
 - [ ] **The cost against LAUNCH.md's "$1-2 a day"**: check a real night's bill on the consoles before the Ko-fi
   goal is set. 2026-11-25's Channel 7 night (12 h): Haiku 495 calls, 4.12 M in (1.85 M from the cache) and 290 k
   out; DeepSeek Flash thinking 97 calls, 920 k in and 297 k out; Sonnet 8; two other Anthropic calls. Prompts grew

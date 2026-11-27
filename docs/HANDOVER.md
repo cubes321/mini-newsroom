@@ -65,6 +65,11 @@ The anchor of `15a9f4c` is gone. After dark "sunny" is said as clear (the map st
   forecast's coldest hour all follow it (ENGINE.md "The sun"). Christmas Eve: night until about 07:35, dawn to
   08:40, dusk from 15:50 to 17:10, then night with the lamps lit (it had glowed with sunset until 20:00). Not yet
   aired. Open: no clear-night picture on the map.
+
+**Pocket lines that run on (2026-11-27, TODO):** Pocket's own "Maximum generation length reached without EOS"
+warning (once a night or so) is now caught while a line is voiced; the line is done again with Pocket, then
+Kokoro's if it runs on twice (`tts.RanOn`, `POCKET_TRIES`). On a real night look for "pocket ran on" in the log:
+each one is a take that would have aired cut off or babbling.
 - **To see on a real night:** the weathers' figures across the evening and the morning, the sofa and the news
   saying the same, and the first day's seed from the -4.
 

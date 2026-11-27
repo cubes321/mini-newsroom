@@ -261,18 +261,48 @@ def _breathe(sentence: str, count) -> str:
     return " ".join(out)
 
 
+# Pocket gives each chunk of a line at most its tokens / 3 + 2 seconds. A chunk that reaches that without ending is
+# returned as it is, cut off mid-sound or babbling, and Pocket only logs this warning (from its generation thread).
+# Eight times in 18 nights to 2026-11-25, each one a line heard running on: Marina Row slot 112 (11-24), The Inquiry
+# slot 64 and The Last Ferry slot 193 ("21 words in 17.4 s", 11-25).
+RAN_ON = "Maximum generation length reached without EOS"
+POCKET_TRIES = 2                     # Pocket samples, so a second take usually ends; then Kokoro takes the line
+
+
+class RanOn(RuntimeError):
+    """Pocket ran a chunk of the line to its length limit without ending."""
+
+
+class _Watch(logging.Handler):
+    """Counts Pocket's run-on warnings while a line is voiced (one line at a time, under _SYNTH_LOCK)."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.ran_on = 0
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if RAN_ON in record.getMessage():
+            self.ran_on += 1
+
+
 def _pocket_speak(text: str, clip: Path) -> np.ndarray:
-    """One line in the voice cloned from `clip`, at the station's rate. Caller holds _SYNTH_LOCK."""
+    """One line in the voice cloned from `clip`, at the station's rate. Caller holds _SYNTH_LOCK. Raises RanOn
+    if a chunk of it ran to Pocket's length limit."""
     import torch
 
     model, state = _pocket_voice(clip)
     tokenizer = model.flow_lm.conditioner.tokenizer
     text = pocket_text(text, lambda s: len(tokenizer(s)[0]))
+    watch, pocket_log = _Watch(), logging.getLogger("pocket_tts")
+    pocket_log.addHandler(watch)
     torch.set_num_threads(1)
     try:
         audio = model.generate_audio(state, text).numpy().astype(np.float32)
     finally:
         torch.set_num_threads(_KOKORO_THREADS[0])
+        pocket_log.removeHandler(watch)
+    if watch.ran_on:
+        raise RanOn(f"{watch.ran_on} chunk(s) ran to the length limit")
     if model.sample_rate != CONFIG.tts.sample_rate:
         sr = CONFIG.tts.sample_rate
         n = int(len(audio) * sr / model.sample_rate)
@@ -373,11 +403,18 @@ def synthesize(text: str, voice: str, out_path: Path, speed: float = 1.0, lang: 
 
     audio, engine = None, "pocket"
     with _SYNTH_LOCK:
-        if clip:
+        for attempt in range(1, POCKET_TRIES + 1 if clip else 1):
             try:
                 audio = _pocket_speak(spoken(text), clip)
+                break
+            except RanOn as e:                    # a take that runs on is done again, never aired
+                log.warning("pocket ran on (%s, take %d of %d: %s): %r", clip.name, attempt, POCKET_TRIES, e,
+                            text[:80])
             except Exception:  # noqa: BLE001
                 log.exception("pocket failed on %s; Kokoro takes the line", clip.name)
+                break
+        if audio is None and clip:
+            log.info("kokoro takes the line from pocket (%s)", clip.name)
         if audio is None:
             audio, engine = _kokoro(text, kokoro_voice(voice), speed, lang), "kokoro"
     if pitch != 1.0:

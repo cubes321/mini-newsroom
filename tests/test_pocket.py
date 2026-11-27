@@ -183,3 +183,56 @@ def test_a_two_way_word_is_said_the_way_its_context_means(monkeypatch, tmp_path)
                  "Let's wind up the meeting.", "The dearest fish was the bass, at twenty-three pounds a kilo."]:
         assert tts.spoken(line) == line, line
     assert tts.spoken("Live from the fish quay.").startswith(say["live"].capitalize())
+
+
+def test_a_take_that_runs_on_is_done_again_and_then_kokoros(monkeypatch, tmp_path):
+    """Pocket's chunk limit reached without an ending: the line ran on or babbled on air three times on the 24th
+    and 25th. It is done again with Pocket, and if that runs on too, Kokoro has it."""
+    used = _engines(monkeypatch, tmp_path)
+    takes = iter([tts.RanOn("stub"), np.full(2400, 0.5, np.float32)])
+
+    def pocket(text, clip):
+        used.append(("pocket", clip.name))
+        take = next(takes)
+        if isinstance(take, Exception):
+            raise take
+        return take
+    monkeypatch.setattr(tts, "_pocket_speak", pocket)
+    tts.synthesize("We haven't said yet.", "bm_lewis", tmp_path / "a.wav", lang="b")
+    assert used == [("pocket", "bm_lewis.b.wav")] * 2                     # the second take stands
+    used.clear()
+    monkeypatch.setattr(tts, "_pocket_speak", lambda text, clip: (used.append(("pocket", clip.name)),
+                                                                  (_ for _ in ()).throw(tts.RanOn("stub")))[1])
+    res = tts.synthesize("We haven't said yet.", "bm_lewis", tmp_path / "b.wav", lang="b")
+    assert used == [("pocket", "bm_lewis.b.wav")] * 2 + [("kokoro", "bm_lewis")] and res.duration_s > 0
+
+
+def test_pockets_own_warning_from_its_generation_thread_is_caught(monkeypatch, tmp_path):
+    """Pocket logs the overrun from the thread that generates, and returns the audio as it is."""
+    import logging
+    import threading
+    import types
+
+    def generate(state, text, warn):
+        if warn:
+            t = threading.Thread(target=lambda: logging.getLogger("pocket_tts.models.tts_model").warning(
+                "Maximum generation length reached without EOS, this very often indicates an error."))
+            t.start()
+            t.join()
+        import torch
+        return torch.zeros(2400)
+
+    def model(warn):
+        tok = types.SimpleNamespace(tokenizer=lambda s: [s.split()])
+        return types.SimpleNamespace(flow_lm=types.SimpleNamespace(conditioner=tok), sample_rate=24000,
+                                     generate_audio=lambda state, text: generate(state, text, warn))
+    monkeypatch.setattr(tts, "_KOKORO_THREADS", [1])
+    monkeypatch.setattr(tts, "_pocket_voice", lambda clip: (model(True), None))
+    try:
+        tts._pocket_speak("We haven't said yet.", Path("x.wav"))
+        raise AssertionError("a run-on take was let through")
+    except tts.RanOn:
+        pass
+    monkeypatch.setattr(tts, "_pocket_voice", lambda clip: (model(False), None))
+    assert len(tts._pocket_speak("We haven't said yet.", Path("x.wav"))) == 2400
+    assert not any(isinstance(h, tts._Watch) for h in logging.getLogger("pocket_tts").handlers)   # taken off again
