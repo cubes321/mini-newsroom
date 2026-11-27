@@ -457,13 +457,20 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   `World.forecasts`, made in code, never by a model. A day follows the one before (the sky kept 60% of the time, the
   departure from the month's normal easing back a third a day, a clear winter's day colder and its range wider),
   drawn from a generator seeded by the date; the first comes from the last weather on record. The figure for a
-  minute is on a curve, the low at 07:00, the high at 14:30. Gordon's prompt (`for_prompt`) has the figure now
+  minute is on a curve, the low at sunrise, the high 2¼ hours after the sun is highest. Gordon's prompt (`for_prompt`) has the figure now
   (temp_c and map_state to put), today's high, tonight by its day's name ("Saturday night"), tomorrow, the day after
   and yesterday; a weather more than a degree off the figure, or on another sky, is asked once more
   (`writers.script_segment`). Every other writer's briefing has the same figures in a line (`brief`, after the
-  cache break), and the tides' ferry check reads the day's sky. After dark the map's "sunny" is said as clear.
-  Before it, each weather was told only the last one's figure: the 2026-11-25 evening walked from 13 to -6, and held
-  to the first of three hours the 26th's night stuck at -4 through a sunny morning.
+  cache break), and the tides' ferry check reads the day's sky. Once the sun is down the map's "sunny" is said as
+  clear. Before it, each weather was told only the last one's figure: the 2026-11-25 evening walked from 13 to -6,
+  and held to the first of three hours the 26th's night stuck at -4 through a sunny morning.
+- **The sun** (`newsroom/sun.py`, 2026-11-27): sunrise, solar noon and sunset for each date, Port Wexley on the south
+  Cornish coast (Falmouth's 50.15 N, 5.07 W), NOAA's approximation turned to the machine's local time (so summer
+  time comes from the clock): 08:16 and 16:19 at midwinter, 05:09 and 21:33 at midsummer. The art's grade
+  (`locations.time_of_day`) is dusk from 40 minutes before sunrise to 20 after and from 30 before sunset to 50 after,
+  day between, night outside; the forecast's low is at sunrise and "clear" for "sunny" starts at sunset. Until then
+  the grade was by the hour all year (day 07-17, dusk 17-20 and at six): a December sunset glow until 20:00, night
+  at 20:00 in June. Approved by the user on `data/contact-sheets/2026-11-27-light-by-the-sun.png`.
 - **The weather map** (`newsroom/weathermap.py`, 2026-11-21) is Gordon's wall screen: 24 miles of the same coast,
   Greymouth to Pellow Harbour, with the Grey up to Polgrey. The user approved it on
   `data/contact-sheets/2026-11-21-weather-map.png`.

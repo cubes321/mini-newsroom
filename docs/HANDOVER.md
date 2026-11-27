@@ -60,8 +60,11 @@ The anchor of `15a9f4c` is gone. After dark "sunny" is said as clear (the map st
   next night is; the backdrop's grade, the travel board and the teletext weather and ferry pages read the
   forecast's sky, not the last script's (the sky changes at midnight, hours before the first morning weather).
   A third replay after these: all ten again on the figure first time, every "tonight" the right night.
-- **Open:** `forecast.dark()` uses the backdrops' fixed hours (dark from 17:00 to 07:00 all year), so a June
-  evening at 17:30 would be told "it is dark". No clear-night picture on the map.
+- **The light by the sun (2026-11-27, approved on `data/contact-sheets/2026-11-27-light-by-the-sun.png`):**
+  `newsroom/sun.py` gives sunrise and sunset by date, and the art's day/dusk/night, "clear" for "sunny" and the
+  forecast's coldest hour all follow it (ENGINE.md "The sun"). Christmas Eve: night until about 07:35, dawn to
+  08:40, dusk from 15:50 to 17:10, then night with the lamps lit (it had glowed with sunset until 20:00). Not yet
+  aired. Open: no clear-night picture on the map.
 - **To see on a real night:** the weathers' figures across the evening and the morning, the sofa and the news
   saying the same, and the first day's seed from the -4.
 

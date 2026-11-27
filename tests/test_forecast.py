@@ -74,10 +74,13 @@ def test_the_figure_follows_the_day_low_at_dawn_high_mid_afternoon(monkeypatch):
     fri, sat = forecast.day(w, FRI), forecast.day(w, FRI + timedelta(days=1))
     def at(h, m=0, d=FRI):
         return forecast.temp_at(w, datetime.combine(d, datetime.min.time()) + timedelta(hours=h, minutes=m))
-    assert at(7) == fri["low"] and at(14, 30) == fri["high"]
-    assert at(7, 0, FRI + timedelta(days=1)) == sat["low"]
-    day_ = [at(h) for h in range(7, 15)]
+    low, high = forecast.low_at(FRI), forecast.high_at(FRI)
+    assert 7.8 < low < 7.9 and 14.3 < high < 14.4                            # sunrise 07:51; warmest 14:23
+    assert at(low) == fri["low"] and at(high) == fri["high"]
+    assert at(forecast.low_at(FRI + timedelta(days=1)), 0, FRI + timedelta(days=1)) == sat["low"]
+    day_ = [at(h) for h in range(8, 15)]
     assert day_ == sorted(day_)                                               # up through the morning
+    assert at(7) < at(5) or at(7) == fri["low"]                              # still falling before a late sunrise
     evening = [at(h) for h in range(15, 24)]
     assert evening == sorted(evening, reverse=True) or sat["low"] >= fri["high"]
     assert fri["low"] <= at(3) <= fri["high"]                               # before dawn, no made-up yesterday
@@ -177,3 +180,20 @@ def test_a_clear_winters_day_is_colder_than_a_cloudy_one_and_snow_only_freezes()
     assert all(d["low"] <= 0 for d in days if d["sky"] == "snow")
     july = [d for i, d in enumerate(days) if (date(2027, 1, 1) + timedelta(days=i)).month == 7]
     assert 10 <= min(d["low"] for d in july) and max(d["high"] for d in july) <= 30
+
+
+def test_the_light_follows_the_sun_not_the_clock():
+    """Until 2026-11-27 the art was day from 07:00 to 17:00 and dusk to 20:00 all year: a December sunset glow three
+    and a half hours after the sun went (16:19), and night at 20:00 in June with the sun up until 21:33."""
+    from newsroom import sun
+    from newsroom.locations import time_of_day
+    rise, noon, sett = sun.times(date(2026, 12, 21))
+    assert (rise.strftime("%H:%M"), sett.strftime("%H:%M")) == ("08:16", "16:19")
+    tod = lambda y, mo, d, h, mi=0: time_of_day(datetime(y, mo, d, h, mi))   # noqa: E731
+    assert [tod(2026, 12, 21, h, m) for h, m in ((7, 0), (7, 50), (9, 0), (16, 0), (16, 45), (17, 30), (19, 30))] == \
+        ["night", "dusk", "day", "dusk", "dusk", "night", "night"]
+    assert [tod(2027, 6, 21, h, m) for h, m in ((4, 40), (6, 0), (17, 30), (20, 30), (21, 30), (22, 30))] == \
+        ["dusk", "day", "day", "day", "dusk", "night"]
+    assert time_of_day(datetime(2027, 6, 21, 21, 30).timestamp()) == "dusk"     # a timestamp, as the player gives
+    assert sun.times(date(2027, 3, 29))[0].hour == 7 and sun.times(date(2027, 3, 27))[0].hour == 6   # summer time
+    assert forecast.dark(datetime(2026, 12, 21, 16, 30)) and not forecast.dark(datetime(2027, 6, 21, 20, 30))

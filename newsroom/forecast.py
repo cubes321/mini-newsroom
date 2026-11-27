@@ -9,9 +9,9 @@ So the station keeps one: `World.forecasts`, a day to {low, high, sky}, made in 
 follows the one before (the sky mostly stays, the temperatures lean back towards the month's normal), drawn from a
 generator seeded by the date, so the same town gives the same forecast. The first day comes from the last weather
 on record, so the new forecast picks up where the town was left. The figure for any minute is on a curve: the low
-at LOW_AT, the high at HIGH_AT, down again overnight to the next day's low. Gordon is given the hour's figure, today's
-low and high, tonight's low and tomorrow; the drift check holds his temp_c to the hour's figure and his map to the
-day's sky. Everyone else's briefing has the same figures in a line (World.summary_for_prompt).
+at sunrise, the high mid-afternoon (sun.py), down again overnight to the next day's low. Gordon is given the hour's
+figure, today's low and high, tonight's low and tomorrow; the drift check holds his temp_c to the hour's figure and
+his map to the day's sky; once the sun is down a clear sky is "clear". Everyone else's briefing has the same figures in a line (World.summary_for_prompt).
 
 Nothing here imports the world: it takes one (`forecasts`, `last_weather`), so world.py can import it.
 """
@@ -22,10 +22,9 @@ import random
 from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 
-from . import schedule
-from .locations import time_of_day
+from . import schedule, sun
 
-LOW_AT, HIGH_AT = 7.0, 14.5      # hours: the coldest just before dawn, the warmest mid-afternoon
+HIGH_AFTER_NOON = 2.25           # hours after the sun is highest that the day is warmest; the coldest is sunrise
 KEEP_DAYS = 14                    # days kept before today: "colder than yesterday" needs yesterday
 DRIFT = 1                         # degrees a weather's temp_c may be from the hour's figure
 PULL = 0.35                       # how far a day's departure from the month's normal eases back by the next
@@ -140,22 +139,35 @@ def _ease(a: float, b: float, x: float) -> float:
     return a + (b - a) * (1 - math.cos(math.pi * max(0.0, min(1.0, x)))) / 2
 
 
+def low_at(d: date) -> float:
+    """The hour the day is coldest: sunrise (sun.py), 08:16 at midwinter, 05:09 at midsummer."""
+    return sun.hours(d)[0]
+
+
+def high_at(d: date) -> float:
+    """The hour the day is warmest: mid-afternoon, 14:33 at midwinter, 15:36 (summer time) at midsummer."""
+    return sun.hours(d)[1] + HIGH_AFTER_NOON
+
+
 def temp_at(world, t: datetime) -> int:
-    """Port Wexley's temperature at `t`: up from the day's low at LOW_AT to its high at HIGH_AT, then down to the
-    next day's low."""
+    """Port Wexley's temperature at `t`: up from the day's low at sunrise to its high mid-afternoon, then down to
+    the next day's low at the next sunrise."""
     d, h = t.date(), t.hour + t.minute / 60
     today = day(world, d)
-    night = 24 - HIGH_AT + LOW_AT
-    if h < LOW_AT:      # from yesterday's high, if the station had a yesterday (it doesn't make one: see `day`)
+    low, high = low_at(d), high_at(d)
+    if h < low:         # from yesterday's high, if the station had a yesterday (it doesn't make one: see `day`)
         before = world.forecasts.get((d - timedelta(days=1)).isoformat()) or today
-        return round(_ease(before["high"], today["low"], (h + 24 - HIGH_AT) / night))
-    if h < HIGH_AT:
-        return round(_ease(today["low"], today["high"], (h - LOW_AT) / (HIGH_AT - LOW_AT)))
-    return round(_ease(today["high"], day(world, d + timedelta(days=1))["low"], (h - HIGH_AT) / night))
+        was = high_at(d - timedelta(days=1)) - 24
+        return round(_ease(before["high"], today["low"], (h - was) / (low - was)))
+    if h < high:
+        return round(_ease(today["low"], today["high"], (h - low) / (high - low)))
+    nxt = d + timedelta(days=1)
+    return round(_ease(today["high"], day(world, nxt)["low"], (h - high) / (low_at(nxt) + 24 - high)))
 
 
 def dark(t: datetime) -> bool:
-    return time_of_day(t.hour) != "day"
+    """Is the sun down at `t`? Then a clear sky is "clear", not sunny."""
+    return not sun.up(t)
 
 
 def sky_at(world, t: datetime) -> str:
@@ -179,8 +191,8 @@ def brief(world, at: float | None = None) -> str:
     today, tomorrow = day(world, t.date()), day(world, t.date() + timedelta(days=1))
     temp, sky = temp_at(world, t), sky_at(world, t)
     h = t.hour + t.minute / 60
-    dawn = f"{today['low']}°C by dawn; " if h < LOW_AT else ""
-    later = f"today's high {today['high']}°C this afternoon; " if h < HIGH_AT else ""
+    dawn = f"{today['low']}°C by dawn; " if h < low_at(t.date()) else ""
+    later = f"today's high {today['high']}°C this afternoon; " if h < high_at(t.date()) else ""
     return (f"{temp}°C and {said(sky, dark(t))} now; {dawn}{later}tonight {tomorrow['low']}°C by dawn; "
             f"tomorrow {said(tomorrow['sky'], False)}, high {tomorrow['high']}°C")
 
@@ -202,11 +214,11 @@ def for_prompt(world, at: float | None = None) -> str:
     skies = " skies" if at_night and sky == "sunny" else ""
     lines = [f"  - Now, at {t:%H:%M}: {temp}°C, {said(sky, at_night)}{skies}. "
              f"Put temp_c = {temp} and map_state = \"{sky}\", and say {temp} degrees."]
-    if h < LOW_AT and today["low"] < temp:          # only while it has further to fall ("it dropped to zero around
-        lines.append(f"  - Before dawn this morning: down to {today['low']}°C around seven.")   # seven" at 05:55)
-    if h < HIGH_AT:
+    if h < low_at(d) and today["low"] < temp:       # only while it has further to fall ("it dropped to zero around
+        lines.append(f"  - Before dawn this morning: down to {today['low']}°C around sunrise.")  # seven" at 05:55)
+    if h < high_at(d):
         lines.append(f"  - Today, {d:%A}: {said(today['sky'], False)}, a high of {today['high']}°C "
-                     f"{'this afternoon' if h >= LOW_AT else 'in the afternoon'}.")
+                     f"{'this afternoon' if h >= low_at(d) else 'in the afternoon'}.")
     change = f", {said(tomorrow['sky'], True)} coming in" if tomorrow["sky"] != today["sky"] else ""
     lines.append(f"  - Tonight, {d:%A} night: {tomorrow['low']}°C by {nxt:%A}'s dawn{change}.")
     lines.append(f"  - Tomorrow, {nxt:%A}: {said(tomorrow['sky'], False)}, a high of {tomorrow['high']}°C.")

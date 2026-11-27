@@ -648,7 +648,7 @@ class Player:
         local = time.localtime(now)
         v = View(clock=time.strftime("%H:%M", local), ticker=[h for _, h in self.ticker],
                  buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
-                 tod=time_of_day(local.tm_hour),     # the day's sky (forecast.py), as every script tells it
+                 tod=time_of_day(now),               # by the sun (sun.py); the sky, the forecast's (forecast.py)
                  weather=forecast.sky_at(self.world, datetime.fromtimestamp(now)))
         on_air = schedule.show_at(now)
         v.show = on_air.id

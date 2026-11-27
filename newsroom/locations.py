@@ -13,7 +13,10 @@ kind:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Literal
+
+from . import sun
 
 Kind = Literal["town", "country", "studio"]
 TimeOfDay = Literal["day", "dusk", "night"]
@@ -176,9 +179,18 @@ def locations_for_prompt() -> str:
     return "\n".join(f"  - {loc.id}: {loc.blurb}" for loc in LOCATIONS if loc.kind != "studio")
 
 
-def time_of_day(hour: int) -> TimeOfDay:
-    if 7 <= hour < 17:
+DAWN_BEFORE, DAWN_AFTER = timedelta(minutes=40), timedelta(minutes=20)    # the dawn grade around sunrise
+DUSK_BEFORE, DUSK_AFTER = timedelta(minutes=30), timedelta(minutes=50)    # the dusk grade around sunset
+
+
+def time_of_day(when: datetime | float) -> TimeOfDay:
+    """The art's grade at `when` (a local datetime or a timestamp), by Port Wexley's sun (sun.py): dusk from 40
+    minutes before sunrise to 20 after, and from 30 before sunset to 50 after; day between, night outside. Until
+    2026-11-27 it went by the hour alone, all year (day 07-17, dusk 17-20 and at six)."""
+    t = when if isinstance(when, datetime) else datetime.fromtimestamp(when)
+    rise, _, sett = sun.times(t.date())
+    if rise + DAWN_AFTER <= t < sett - DUSK_BEFORE:
         return "day"
-    if 17 <= hour < 20 or hour == 6:
+    if rise - DAWN_BEFORE <= t < rise + DAWN_AFTER or sett - DUSK_BEFORE <= t < sett + DUSK_AFTER:
         return "dusk"
     return "night"
