@@ -471,6 +471,18 @@ quay, stopped at the fish quay in town, and only then crossed. The user approved
   day between, night outside; the forecast's low is at sunrise and "clear" for "sunny" starts at sunset. Until then
   the grade was by the hour all year (day 07-17, dusk 17-20 and at six): a December sunset glow until 20:00, night
   at 20:00 in June. Approved by the user on `data/contact-sheets/2026-11-27-light-by-the-sun.png`.
+- **One station to a town** (`newsroom/townlock.py`, 2026-11-27). `world.save()` writes the whole town from one
+  process's memory, so two stations on one world.json would overwrite each other's threads, people and bookings.
+  `__main__.main` claims `<world>.lock` first, before the backup, the load, OBS and the window; a second claim on
+  that file waits `WAIT_S` (90 s: a closing station's exit save) and refuses with exit code 3, naming the holder from
+  the note in the lock file. The lock is the OS's (`msvcrt.locking` on a byte far past the note, since Windows locks
+  are mandatory; `flock` elsewhere), so it goes with the process however that ends: no pid file to go stale, and no
+  `os.kill(pid, 0)`, which on Windows kills. A scratch or copied world is another file with its own lock. Every
+  `world.save()` claims its path too (no wait; a dict lookup in a station that holds it), so a module's CLI that
+  saves (desk, senior, meeting, special, adverts, workers) fails with TownTaken at its save beside a station on the
+  same world instead of writing over it; the creative editor's `review` claims before it spends a model call.
+  Not covered: the cache, tip-line and kill switch are shared by path just
+  the same; two stations at once on one town still needs one process for both, or the world split.
 - **The weather map** (`newsroom/weathermap.py`, 2026-11-21) is Gordon's wall screen: 24 miles of the same coast,
   Greymouth to Pellow Harbour, with the Grey up to Polgrey. The user approved it on
   `data/contact-sheets/2026-11-21-weather-map.png`.

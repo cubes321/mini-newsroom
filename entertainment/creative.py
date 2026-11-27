@@ -757,6 +757,14 @@ def _cli(argv: list[str]) -> int:
     for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "openai", "urllib3", "anthropic"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     print(f"world: {CONFIG.paths.world}")
+    if a.cmd == "review" and not a.dry:               # it saves the town: not while a station is on air with it
+        from newsroom import townlock
+
+        try:
+            townlock.claim(CONFIG.paths.world, "the creative editor's review", wait_s=0)
+        except townlock.TownTaken as e:
+            print(f"not reviewing: {e}")
+            return 3
     entertainment.use()                               # the programmes enrol themselves
     w = world_mod.load()
     if a.cmd == "notes":

@@ -13,6 +13,8 @@ docs/STREAMING.md OBS and audio.
   tests/conftest.py; a new test module must not set paths itself after importing newsroom. Start the tests only
   as `uv run pytest`: a script that imports newsroom and then calls `pytest.main()` runs them on the real town
   (it overwrote `data/world.json` on 2026-11-15; conftest now refuses).
+- One station to a world: a second station on the same world file waits 90 s and exits with code 3
+  ("not starting: ... is already on air", `newsroom/townlock.py`). Give it `--scratch` or `--world` on a copy.
 - Shells started by the Claude desktop app don't have the user-level API keys; copy them in from the User
   environment without printing them, or the station quietly runs on templates. Long runs go in their own
   window (`explorer.exe <a .cmd>`), not the app's terminal, which dies with an app restart.

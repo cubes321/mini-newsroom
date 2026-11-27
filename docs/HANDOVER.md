@@ -75,6 +75,21 @@ each one is a take that would have aired cut off or babbling.
 right in code ("wits: title ... gave it to the wrong pub" in the log; 3 of 14 titles on the 16th and 24th). A High
 Water round that puts a climber on the wrong step is asked once more, then stands ("steps still wrong after asking
 again"; 2 on the 24th). Neither replayed with the model: watch the next Channel 8 evening.
+
+**One station to a town (2026-11-27, TODO):** a station claims `<world>.lock` (`data/world.json.lock`) before it
+touches anything, and holds it until the process ends (`newsroom/townlock.py`, an OS lock, so a crash or a kill
+leaves none behind). A second station on the same world logs who holds it ("Channel 7, pid N, since ..."), waits up
+to 90 s, then exits with code 3 ("not starting: ... is already on air"); the launcher's window shows "station exited
+with code 3". **The restart route still works:** a closed station waits at most 30 s for its workers and then saves,
+so a new one started at once waits for that and goes on. Rehearsed headless on a copy: the second waited 16 s and
+claimed the town 2 s after the first's `exit:` line (the windowed `--obs` close not rehearsed, but it ends the same
+way). A refused launch from the night launcher has still copied `world.json` over that day's pre-night backup (as on
+the 26th): harmless, since the town it copied is the one on air, but that backup is then not the night's start.
+Channel 8 beside Channel 7 therefore needs `--world` on a copy (or `--scratch`) until one process carries both.
+Every `world.save()` claims too, so the modules' CLIs that save (desk, senior, meeting, special, adverts,
+workers) fail at their save beside a station on that world; `python -m entertainment.creative review` claims before
+its Opus call (`notes` and `--dry` don't save, so they still run). Tried with two `--no-window` stations on one
+copy: the second waited 90 s and refused, the first ran on, the real town untouched.
 - **To see on a real night:** the weathers' figures across the evening and the morning, the sofa and the news
   saying the same, and the first day's seed from the -4.
 

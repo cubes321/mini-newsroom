@@ -448,6 +448,13 @@ def main(argv: list[str] | None = None) -> int:
     from .config import CONFIG
 
     log.info("world %s | cache %s", CONFIG.paths.world, CONFIG.paths.cache)
+    from . import townlock
+
+    try:            # before anything touches the town: the backup, the load, OBS, the window (townlock.py)
+        townlock.claim(CONFIG.paths.world, "Channel 8" if args.channel == "entertainment" else "Channel 7")
+    except townlock.TownTaken as e:
+        log.critical("not starting: %s", e)
+        return 3
     safety.report()
     from . import llm, prune
 

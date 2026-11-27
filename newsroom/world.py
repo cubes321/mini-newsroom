@@ -30,6 +30,7 @@ import json
 import logging
 import random
 import re
+import sys
 import functools
 import threading
 import time
@@ -37,7 +38,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import calendar, council, forecast, quay, schedule, sport, talk
+from . import calendar, council, forecast, quay, schedule, sport, talk, townlock
 from .config import CONFIG
 from .llm import CACHE_BREAK
 
@@ -1628,6 +1629,9 @@ def save(w: World | None = None, path: Path | None = None) -> None:
     if w is None:
         return
     path = path or CONFIG.paths.world
+    # One process to a town (townlock.py): a station claimed it at start, so this is a dict lookup; a module's
+    # CLI run beside a station on the same world raises TownTaken here instead of writing over its town.
+    townlock.claim(path, f"a save from {Path(sys.argv[0]).stem or 'python'}", wait_s=0)
     # The snapshot is taken inside the save lock: taken outside it, two savers could snapshot in one
     # order and write in the other, leaving the older town on disk (PROJECT_REVIEW.md, 2026-11-02).
     with _SAVE_LOCK:                          # two workers saving at once would share the .tmp file too

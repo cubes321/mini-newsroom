@@ -184,7 +184,9 @@ left on from 18 December.
         `obs64.exe --multi`, with its own profile, scene and stream keys); check the PC holds both
         stations' voicing (Pocket TTS on the CPU) and frame rate. **Not on the same town at once yet:** each
         station saves its whole world from memory, so two on one `data/world.json` overwrite each other
-        ([../TODO.md](../TODO.md), "Two stations on one world"). Until that is fixed, the channels take turns.
+        ([../TODO.md](../TODO.md), "Two stations on one world"). Since 2026-11-27 the second station refuses to
+        start (`newsroom/townlock.py`), so it can't happen by accident; running both at once still needs one
+        process for both, or the world split. Until then, the channels take turns.
   - [ ] **Where:** its own YouTube channel or the Port Wexley one, and Twitch (one Twitch channel streams
         one feed). Simplest first step: **scheduled evening blocks**, live only while its programmes are
         on, not 24 hours.

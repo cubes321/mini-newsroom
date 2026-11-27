@@ -944,12 +944,15 @@ bottom with the date.
   runs short, since lines are voiced one at a time (Pocket is single-threaded, so two could run on
   two cores if its model state is safe to share). Weights are gated (accept the terms on
   huggingface.co/kyutai/pocket-tts, then `hf auth login`) and CC-BY-4.0.
-- [ ] **Two stations on one world** (a review, 2026-11-26): `world.save()` writes a station's whole town
+- [x] **Two stations on one world** (a review, 2026-11-26): `world.save()` writes a station's whole town
   from memory, and its locks are only within one process, so a second station (`--channel entertainment`, LAUNCH.md
   "How it would go out") on the same `data/world.json` would overwrite the first's threads, people and bookings,
-  and the other way round, without a word. Nothing stops it yet. Before Channel 8 goes out beside Channel 7: a lock
-  file beside the world, taken at start, so a second station on it refuses to start (a scratch or copied world is
-  another file, so unaffected). Running both at once needs more: one process for both, or the world split.
+  and the other way round, without a word. Done 2026-11-27: `newsroom/townlock.py`, an OS lock on
+  `<world>.lock` claimed before anything touches the town; a second station waits 90 s (a closing one's exit
+  save) and exits with code 3, naming the holder; every `world.save()` and the creative editor's `review` claim it
+  too, so a module's CLI can't save over a town on air. A scratch or
+  copied world is another file, so unaffected. Tried with two stations on one copy. Still open: running both at
+  once needs one process for both, or the world split (and the cache, tip-line and kill switch are shared too).
 - [x] **Pocket lines that run on** (2026-11-24 and 25): a line that reaches Pocket's maximum generation length
   ends still sounding or babbles. Seen three times: Marina Row slot 112 (24th), The Inquiry slot 64 and The Last
   Ferry slot 193 (25th; 21 words in 17.4 s). Done 2026-11-27: Pocket logs "Maximum generation length reached
