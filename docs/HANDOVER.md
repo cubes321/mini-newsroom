@@ -76,6 +76,14 @@ right in code ("wits: title ... gave it to the wrong pub" in the log; 3 of 14 ti
 Water round that puts a climber on the wrong step is asked once more, then stands ("steps still wrong after asking
 again"; 2 on the 24th). Neither replayed with the model: watch the next Channel 8 evening.
 
+**The ticker's weather and the idents' words (2026-11-27, TODO):** a weather headline now gives way to the next
+weather's on the ticker and leaves it 3 hours after it aired (`player.TICKER_WEATHER_S`), so breakfast no longer
+opens under the evening's "Clear Spells Overnight". An ident is baked again when its line's spoken form changes
+(a names.toml respelling, a two-way word, its voice or pronunciation), not only its music: the line as voiced is
+kept beside it as `assets/bumper_<show>.wav.said` (23 written for the committed idents as they are, nothing
+baked). A rebake happens at the station's start, so **a changed `assets/bumper_*.wav` in `git status` after a run
+is a new take: listen before committing it**, as for the music.
+
 **One station to a town (2026-11-27, TODO):** a station claims `<world>.lock` (`data/world.json.lock`) before it
 touches anything, and holds it until the process ends (`newsroom/townlock.py`, an OS lock, so a crash or a kill
 leaves none behind). A second station on the same world logs who holds it ("Channel 7, pid N, since ..."), waits up

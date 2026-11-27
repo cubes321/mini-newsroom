@@ -11,7 +11,8 @@ same names into assets/ to replace them.
 
 Station music (the Channel 7 tune, tools/station_audio.py) lives in assets/music/ as stems:
 ident_<show>.wav, breaking.wav and bed.wav. When a stem exists it is used instead of the
-placeholder tones, and a baked file older than its stem is rebuilt.
+placeholder tones, and a baked file older than its stem is rebuilt. So is an ident whose line is now said
+another way (the `.said` file beside it, since 2026-11-27).
 """
 from __future__ import annotations
 
@@ -144,6 +145,35 @@ def _voice_lang(voice: str) -> str | None:
     return next((c.lang or None for c in seed_characters() if c.voice == voice), None)
 
 
+def said_path(path: Path) -> Path:
+    """Beside a baked ident, the line as it was voiced (`_said`): bumper_wits.wav -> bumper_wits.wav.said."""
+    return path.with_name(path.name + ".said")
+
+
+def _said(text: str, voice: str, lang: str | None) -> str:
+    """An ident's line as the voice gets it: its voice, its pronunciation and the words after the respellings
+    (tts.spoken). Kept beside the file, so a line whose spoken form changes is baked again: until 2026-11-27 only
+    new music did that, and bumper_wits.wav kept a word Pocket said wrong after the two-way words were fixed (ff0d046)."""
+    from . import tts
+
+    return f"{voice} {lang or '-'}: {tts.spoken(text)}\n"
+
+
+def _said_changed(path: Path, said: str) -> bool:
+    """Whether the ident at `path` was voiced from another line than `said`. One baked before the record began is
+    taken as said this way (every one was checked by ear on 2026-11-15), and the record starts with it."""
+    kept = said_path(path)
+    try:
+        was = kept.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        kept.write_text(said, encoding="utf-8")
+        return False
+    if was == said:
+        return False
+    log.info("baking %s again: its line is now said %r (was %r)", path.name, said.strip(), was.strip())
+    return True
+
+
 def ensure_bumper(show: str = "news") -> Path:
     from . import schedule
 
@@ -152,8 +182,10 @@ def ensure_bumper(show: str = "news") -> Path:
     music = IDENT_MUSIC.get(key, key)          # a programme with no music of its own borrows a show's
     lead = schedule.get(show).lead
     voice_id = IDENT_VOICES.get(key) or CONFIG.tts.voices.get(lead, "af_heart")
+    lang = _voice_lang(voice_id) if key in IDENT_VOICES else _lang(lead)
+    said = _said(text, voice_id, lang)
     stem = _stem(f"ident_{music}")
-    if not _stale(path, stem):
+    if not _stale(path, stem) and not _said_changed(path, said):
         return path
     from . import tts
 
@@ -161,11 +193,11 @@ def ensure_bumper(show: str = "news") -> Path:
         from . import jingle
 
         log.info("baking bumper from %s -> %s", stem.name, path.name)
-        ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{key}.wav",
-                               lang=_voice_lang(voice_id) if key in IDENT_VOICES else _lang(lead))
+        ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{key}.wav", lang=lang)
         voice, _ = sf.read(str(ident.wav_path), dtype="float32")
         voicing = music if music in jingle.VOICINGS else "news"
         _write(path, _ident_mix(_load(stem), voice, jingle.onsets(voicing=voicing)[-1] + VOICE_AFTER_S))
+        said_path(path).write_text(said, encoding="utf-8")
         return path
 
     log.info("baking placeholder bumper -> %s", path.name)
@@ -177,11 +209,11 @@ def ensure_bumper(show: str = "news") -> Path:
     elif show == "late":
         notes = [220.0, 261.63, 329.63, 311.13]    # A C E E-flat: low, with a bluesy turn
     sting = np.concatenate([_tone(f, 0.22) for f in notes] + [_tone(notes[-1], 0.9, 0.25)])
-    ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{show}.wav",
-                           lang=_voice_lang(voice_id) if key in IDENT_VOICES else _lang(lead))
+    ident = tts.synthesize(text, voice_id, CONFIG.paths.cache / f"_ident_{show}.wav", lang=lang)
     voice, _ = sf.read(str(ident.wav_path), dtype="float32")
     gap = np.zeros(int(SR * 0.25), dtype=np.float32)
     _write(path, np.concatenate([sting, gap, voice, gap]))
+    said_path(path).write_text(said, encoding="utf-8")
     return path
 
 

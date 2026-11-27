@@ -160,3 +160,20 @@ def test_an_ident_said_by_someone_else_is_in_their_own_pronunciation(music, monk
         _stem(music / f"ident_{show}.wav", 2.0)
         assets.ensure_bumper(show)
     assert said == {"bf_trevenna": "b", "bf_isabella": None}
+
+
+def test_an_ident_is_baked_again_when_its_line_is_said_another_way(music, monkeypatch):
+    """Until 2026-11-27 only new music baked an ident again: bumper_wits.wav kept a word Pocket said wrong after the
+    two-way words were fixed. Now the line as voiced is kept beside it (.said), and a change to it bakes it again."""
+    _stem(music / "ident_late.wav", 2.0)
+    path = assets.ensure_bumper("late")
+    said = assets.said_path(path)
+    assert said.read_text(encoding="utf-8").endswith(": Channel seven, late. This is The Last Ferry.\n")
+    first = path.stat().st_mtime_ns
+    assert assets.ensure_bumper("late").stat().st_mtime_ns == first           # the same words: left alone
+    said.unlink()                                                              # baked before the record began
+    assert assets.ensure_bumper("late").stat().st_mtime_ns == first and said.exists()   # taken as it is
+    os.utime(path, ns=(first - 10**9, first - 10**9))
+    monkeypatch.setattr(tts, "spoken", lambda text: text.replace("Ferry", "Fairy"))    # a respelling added
+    assets.ensure_bumper("late")
+    assert path.stat().st_mtime_ns != first - 10**9 and "The Last Fairy" in said.read_text(encoding="utf-8")

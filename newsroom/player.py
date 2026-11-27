@@ -45,6 +45,9 @@ log = logging.getLogger(__name__)
 
 REPLAY_AFTER_S = 25.0      # filler this long -> replay last weather
 LET_FINISH_S = 12.0        # breaking news waits for a segment with less than this left
+# A weather headline leaves the ticker when the next weather airs, or this long after its own: the 06:04 breakfast
+# ticker still read the evening's "Calm Evening, Clear Spells Overnight" (the 2026-11-15 night), nothing having replaced it.
+TICKER_WEATHER_S = 3 * 3600.0
 
 # How many guests a show from outside this package seats on its set (entertainment/ fills it).
 SEATS: dict[str, int] = {}
@@ -156,6 +159,7 @@ class Player:
         self.last_weather: Segment | None = None
         self.last_type: SegmentType | None = None
         self.ticker: deque[tuple[str, str]] = deque(maxlen=6)    # (show, headline)
+        self.weather_head: tuple[tuple[str, str], float] | None = None   # its ticker entry, and when it aired
         self.played = 0
         self.specials_played = 0
         self.breaking_played = 0
@@ -238,7 +242,12 @@ class Player:
         if not replay and seg.type not in GAP:
             self.buffer.mark(seg, SegmentState.playing)
             if seg.headline and seg.show not in BARE_SHOWS and seg.show not in TICKER_AFTER:
-                self.ticker.append((seg.show, seg.headline))
+                entry = (seg.show, seg.headline)
+                if seg.type is SegmentType.weather:          # the last weather's headline gives way to this one
+                    if self.weather_head and self.weather_head[0] in self.ticker:
+                        self.ticker.remove(self.weather_head[0])
+                    self.weather_head = (entry, now)
+                self.ticker.append(entry)
             if seg.type is SegmentType.weather:
                 self.last_weather = seg
         if self.filler_since is not None:
@@ -646,7 +655,8 @@ class Player:
     def view(self, now: float | None = None) -> View:
         now = now or schedule.now()
         local = time.localtime(now)
-        v = View(clock=time.strftime("%H:%M", local), ticker=[h for _, h in self.ticker],
+        gone = self.weather_head[0] if self.weather_head and now - self.weather_head[1] > TICKER_WEATHER_S else None
+        v = View(clock=time.strftime("%H:%M", local), ticker=[h for e in self.ticker if e != gone for h in e[1:]],
                  buffer_depth_s=self.buffer.ready_depth_s(), slot_id=self.next_slot,
                  tod=time_of_day(now),               # by the sun (sun.py); the sky, the forecast's (forecast.py)
                  weather=forecast.sky_at(self.world, datetime.fromtimestamp(now)))

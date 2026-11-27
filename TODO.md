@@ -419,7 +419,8 @@ bottom with the date.
     when it is missing or its music is newer (`assets._stale`), so a pronunciation fix never reaches one already baked. Baked again on 2026-11-15 through
     the station's own ident code and chosen by ear over the old take (data/voice-samples/idents-2026-11-15, take
     B); that exact file is now `assets/bumper_wits.wav`. No other baked ident has a respelled word in its line.
-    Left: an ident should be baked again when its line's spoken form changes, not only its music. The scoreboard
+    Done 2026-11-27: an ident is baked again when its line's spoken form changes, not only its music (the line as
+    voiced, after the respellings, is kept beside it as `bumper_<show>.wav.said`; `assets._said_changed`). The scoreboard
     on the set now shows the score, going up answer by answer on Clive's verdict (6467328, that evening; the look
     approved on a contact sheet), after the user saw it change only at a round's end. Done 2026-11-23, from the
     editor's remarks at the offline rehearsal ("Who Said That? runs out of quotes": "prune" and "smallest prime" from
@@ -845,6 +846,8 @@ bottom with the date.
     THE GUEST" in the log. Dolores Finch came up in a third of the replayed answers, and she sits on The Panel.
   - The harbour church (`church`): offered to every writer since 2026-11-15, chosen by none on 2026-11-15.
   - The breakfast ticker at 06:04 still carried the evening's weather ("Calm Evening, Clear Spells Overnight").
+    Fixed 2026-11-27: a weather headline gives way to the next weather's and leaves the ticker 3 hours after it
+    aired (`player.TICKER_WEATHER_S`).
   - On the next Channel 8 evening: The Kettle's On on its own set and its new order (the dish out at about 19:57
     and not cut by the hour, the sofa guest at about 19:17, whether "part two" talks as if no time had passed),
     and parallax there for the first time (The Coast Road's stops have layers).
