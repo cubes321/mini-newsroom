@@ -70,6 +70,11 @@ The anchor of `15a9f4c` is gone. After dark "sunny" is said as clear (the map st
 warning (once a night or so) is now caught while a line is voiced; the line is done again with Pocket, then
 Kokoro's if it runs on twice (`tts.RanOn`, `POCKET_TRIES`). On a real night look for "pocket ran on" in the log:
 each one is a take that would have aired cut off or babbling.
+
+**Game facts (2026-11-27, TODO):** a Wits title that gives a round, the lead or the quiz to the wrong pub is put
+right in code ("wits: title ... gave it to the wrong pub" in the log; 3 of 14 titles on the 16th and 24th). A High
+Water round that puts a climber on the wrong step is asked once more, then stands ("steps still wrong after asking
+again"; 2 on the 24th). Neither replayed with the model: watch the next Channel 8 evening.
 - **To see on a real night:** the weathers' figures across the evening and the morning, the sofa and the news
   saying the same, and the first day's seed from the -4.
 

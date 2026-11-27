@@ -375,9 +375,70 @@ def darts_round(world: World, brief: str) -> dict | None:
     return r if r and r["kind"] in DARTS_ROUNDS else None
 
 
+# A title that says who took a round, or who leads. Three of the ten round titles of 2026-11-16 and 24 named the wrong
+# pub: "Round two on the coast goes to The Crown at Saltby" (4-4), "Pot Luck round goes to The Crown at Saltby" (The
+# Ferryman's, 6-4), "Who Said That: The Anchor and Bell Edge Round Five" (The Lugger's, 4-3; the Anchor led 18-16).
+_LEADS = re.compile(r"\b(leads?|leading|ahead|in front|on top|tops?|clear|pull away|pulls? away|stretch|stretches)\b")
+_TAKES = re.compile(r"\b(goes to|go to|edges?|edged|wins?|won|takes?|took|claims?|claimed|snatch(es)?|snatched|"
+                    r"steals?|stole|grabs?|grabbed|sweeps?|swept|scoops?|scooped|seals?|sealed|clinch(es)?|clinched|"
+                    r"beats?|bests?|nicks?|nicked)\b")
+
+
+def _pub(name: str) -> str:
+    """How a title names a pub: "The Crown at Saltby" as "crown", "The Anchor and Bell" as "anchor and bell"."""
+    return name.lower().removeprefix("the ").split(" at ")[0]
+
+
+def _ahead(s: list[int]) -> int | None:
+    return None if s[0] == s[1] else (0 if s[0] > s[1] else 1)
+
+
+def mend_title(seg, script, world: World) -> str | None:
+    """Put right a round's or the result's title that gives a round, the lead or the quiz to the wrong pub (or to one
+    pub when it was level): the code knows each round's points, so it says it rather than ask again and risk the
+    round. The title it had, if it was changed."""
+    q, title = tonight(world), getattr(script, "headline", "") or ""
+    m = re.search(r"\{r([1-9])\}", seg.brief or "")
+    if not q or not q.get("rounds") or not (m or "{close}" in (seg.brief or "")):
+        return None
+    said = title.lower()
+    named = [i for i, t in enumerate(q["teams"]) if _pub(t["name"]) in said]
+    leads, takes = bool(_LEADS.search(said)), bool(_TAKES.search(said) or (len(named) == 1 and re.search(
+        rf"\bto (the )?{re.escape(_pub(q['teams'][named[0]]['name']))}", said)))
+    if len(named) != 1 or not (leads or takes):
+        return None
+    names = [t["name"] for t in q["teams"]]
+    if m:
+        n = int(m.group(1)) - 1
+        before = q["rounds"][n - 1]["scores_after"] if n else [0, 0]
+        after = q["rounds"][n]["scores_after"]
+        got = [after[0] - before[0], after[1] - before[1]]
+        word = oche.words(n + 1)
+        if leads:
+            want, s = _ahead(after), after
+            fixed = (f"{names[want]} lead after round {word}, {oche.words(max(s))} to {oche.words(min(s))}"
+                     if want is not None else f"All square after round {word}, {oche.words(s[0])} each")
+        else:
+            want, s = _ahead(got), got
+            fixed = (f"Round {word} to {names[want]}, {oche.words(max(s))} points to {oche.words(min(s))}"
+                     if want is not None else f"Round {word} shared, {oche.words(s[0])} points each")
+    else:
+        s = q["final"]
+        want = _ahead(s)
+        fixed = (f"{names[want]} win Wexley Wits, {oche.words(max(s))} to {oche.words(min(s))}"
+                 if want is not None else f"Wexley Wits ends level, {oche.words(s[0])} each")
+    if named[0] == want:
+        return None
+    script.headline = fixed[0].upper() + fixed[1:]
+    log.info("wits: title %r gave it to the wrong pub; now %r", title, script.headline)
+    return title
+
+
 def check(seg, script, world: World) -> None:
-    """A darts round's script must call every dart, in order, each in a line of Clive's (oche.calls_in). One that
-    misses a call is asked for once more, told the first one missing, before the code's own round stands in."""
+    """A title that gives a round, the lead or the quiz to the wrong pub is put right in code (mend_title). A darts
+    round's script must call every dart, in order, each in a line of Clive's (oche.calls_in). One that misses a call
+    is asked for once more, told the first one missing, before the code's own round stands in."""
+    mend_title(seg, script, world)
     r = darts_round(world, seg.brief)
     if not r:
         return

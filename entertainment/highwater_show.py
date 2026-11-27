@@ -517,14 +517,78 @@ def missing(lines, qs: list[dict]) -> list[str]:
     return [q["q"] for q, at in zip(qs, asked_at(lines, qs)) if at is None]
 
 
+_NUMBERS = {w: n for n, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve".split())}
+_ON_STEP = re.compile(r"\b(?:on|at) step (\d+|" + "|".join(_NUMBERS) + r")\b", re.I)
+
+
+def step_slips(lines, k: dict, n: int) -> list[str]:
+    """Where Des puts a climber "on step N" in round `n + 1` (in his line, with their name) and they weren't there.
+    The 2026-11-24 rounds opened "Doris Penhallow, you're on step seven" (round 2: on five, seven where her first turn
+    took her) and "on step twelve" (round 4: on eleven, twelve after her first turn), so a step is held to the moment:
+    before a climber's question, the step that turn starts from; after it, where it left them; after their last,
+    where the round and its tide leave them. A climber whose question Des didn't ask can't be placed: any step of
+    theirs this round will do."""
+    r = k["game"]["rounds"][n]
+    turns = r["turns"]
+    asked = [t for t in turns if "question" in t]
+    at = {id(t): i for t, i in zip(asked, asked_at(lines, [t["question"] for t in asked]))}
+    names = {c["name"]: c["name"].split()[0] for c in k["climbers"]}
+    ends = {a["who"]: a["step"] for a in r.get("after", [])}
+    washed = {w["who"]: {w["from"], w["to"]} for w in r.get("washed", [])}
+    out = []
+    for i, line in enumerate(lines):
+        if getattr(line, "speaker", "") != HOST:
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+", line.text or ""):
+            for m in _ON_STEP.finditer(sentence):
+                before = [(sentence.lower().rfind(first.lower(), 0, m.start()), who) for who, first in names.items()]
+                pos, who = max(before)
+                if pos < 0:
+                    continue                                 # no climber named before it: "the water's at step two"
+                mine = [t for t in turns if t["who"] == who]
+                every = {s for t in mine for s in (t["from"], t["to"])} | {ends.get(who)} | washed.get(who, set())
+                done = [j for j, t in enumerate(mine) if at.get(id(t)) is not None and at[id(t)] < i]
+                last = done[-1] if done else -1
+                if any("question" in t and at.get(id(t)) is None for t in mine[:last + 2]):
+                    allowed = every                          # a turn up to here that can't be placed
+                elif not done:
+                    allowed = {mine[0]["from"]}
+                else:
+                    allowed = {mine[last]["to"]} | {t["from"] for t in mine[last + 1:last + 2]}
+                    if all(at.get(id(t)) is not None and at[id(t)] < i for t in mine if "question" in t):
+                        allowed |= {ends.get(who)} | washed.get(who, set())
+                said = int(m.group(1)) if m.group(1).isdigit() else _NUMBERS[m.group(1).lower()]
+                if said not in allowed:
+                    out.append(f"{who} is on step {' or '.join(map(str, sorted(s for s in allowed if s is not None)))}"
+                               f" there, not {said} (\"{sentence.strip()[:90]}\")")
+    return out
+
+
 def check(seg, script, world: World) -> None:
-    """writers.CHECK_HOOKS: a round, or the spring tide, asks every question it was given, in order."""
+    """writers.CHECK_HOOKS: a round, or the spring tide, asks every question it was given, in order. A round puts each
+    climber on the step they're on (step_slips): asked once more, and a step still wrong after that stands (logged),
+    rather than give the round to the code's own script for a step."""
     if seg.type is not T.interview:
         return
-    gone = missing(script.lines, _questions(booked(world), seg.brief or ""))
+    k = booked(world)
+    gone = missing(script.lines, _questions(k, seg.brief or ""))
+    m = re.search(r"\{r([1-4])\}", seg.brief or "")
+    slips = step_slips(script.lines, k, int(m.group(1)) - 1) if m else []
+    if not gone and not slips:
+        return
+    if not gone and seg.work.get("steps_asked"):
+        log.warning("high water slot %s: steps still wrong after asking again; they stand: %s", seg.slot_id,
+                    "; ".join(slips))
+        return
+    seg.work["steps_asked"] = True
+    said = []
     if gone:
-        raise llm.AskAgain("Des must ask every question in THIS ITEM, word for word and in order; these weren't "
-                           "asked: " + " / ".join(f"\"{q}\"" for q in gone))
+        said.append("Des must ask every question in THIS ITEM, word for word and in order; these weren't asked: "
+                    + " / ".join(f"\"{q}\"" for q in gone))
+    if slips:
+        said.append("every climber is on the step THIS ITEM gives them at that moment (the step a turn starts from "
+                    "until Des asks its question); these were wrong: " + "; ".join(slips))
+    raise llm.AskAgain(". ".join(said))
 
 
 def caption(world: World, name: str) -> str | None:

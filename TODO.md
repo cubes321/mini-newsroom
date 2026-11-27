@@ -543,10 +543,16 @@ bottom with the date.
   came back as sentences of x2 and x3 word for word; `_not_again` took every line (slot 132, 2026-11-24). Since
   `61b428b` that is asked again, told why. Watch the next Coast Road for "asking once more" on the waits; if the
   repeats go on, fewer waits a stop, or a wait's brief names what the earlier waits were about.
-- [ ] **Game facts the code already knows** (2026-11-25 review of the 24th): Wexley Wits slot 90 was titled "The
+- [x] **Game facts the code already knows** (2026-11-25 review of the 24th): Wexley Wits slot 90 was titled "The
   Anchor and Bell Edge Round Five" when The Lugger won it 4-3 (the board, 16-18, was right), and High Water's round
   4 opened with Doris "on step twelve" when she was on eleven. The code holds both (`quiz` rounds, `highwater`
-  steps), so a check could ask again, as the tide times are checked against the table.
+  steps), so a check could ask again, as the tide times are checked against the table. Done 2026-11-27, over the
+  scripts of the 16th and 24th: three of fourteen Wits titles gave a round to the wrong pub (one a 4-4 tie), now put
+  right in code (`quiz.mend_title`: a round's winner, the lead, or the result, from the points; a title is cheaper
+  mended than the round asked again); High Water had two wrong steps (round 2 "on step seven" when Doris started on
+  five, round 4 "twelve" for eleven) and no false ones, now asked once more and then let stand, logged
+  (`highwater_show.step_slips`: before a climber's question the step the turn starts from, after it where it left
+  them). Not yet replayed with the model.
 - [ ] **Two open decisions from the 2026-11-24 night** (HANDOVER, "What went wrong" 3 and 4): whether a saved
   Coast Road route that the map now turns down (Lorna's, probably since the 18 places added on 2026-11-21) is mended
   rather than replaced; and the Kettle's On booking, where DeepSeek Flash spent 15,601 of its 16,000 tokens on
