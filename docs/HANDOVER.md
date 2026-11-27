@@ -1,5 +1,34 @@
 # Handover
 
+## The business directory (2026-11-27): adverts for businesses the town knows
+
+- **The problem:** every model-written advert was a new business, usually "Wexley X & Y": six sail and rope
+  menders, five pie hatches. Residents were given trades that weren't theirs (Brenda Fisk, the tailor, had six
+  businesses; a night nurse made pies). Each business aired once or twice and was gone.
+- **What changed:** `newsroom/directory.py` holds a hand-written core that the user approved (`CORE`):
+  - 16 residents' own businesses;
+  - the ten darts pubs;
+  - 4 kept from the old pool, renamed;
+  - 18 filling gaps (a butcher, a barber, a garage...).
+
+  `World.directory` holds the rest: invented businesses, plus each business's history (a landlord or tagline its
+  adverts established, its last lines, when last tried).
+- **How it works:** code chooses, not Haiku. About 3 adverts in 4 re-advertise the business advertised longest
+  ago and not on air; its name, place, owner and tagline are fixed in code, and the writer hears the last
+  advert's lines. The rest invent a trade the town lacks (`TRADES`), with a new owner, never a resident. The
+  business joins the directory unless it is a "Wexley X & Y" name or too like one already known. From 80
+  businesses, 1 in 10 are invented. The seeds are listed but never chosen.
+- **Readers:** the advert writer only; Out and About is the natural next one.
+- **Tested** on a copy of the world and ads with real Haiku calls (`python -m newsroom.adverts --make --known` /
+  `--new`):
+  - Mabey's Greengrocers was advertised, taken off air, and re-advertised: a new angle (frost, parsnips,
+    clementines), the same owner and tagline.
+  - Tallack's Ropes came out under its kept tagline.
+  - One invention was refused: "Wexley Curd & Rind Cheese Shop". The habit is strong.
+  - The next invention, Kessick Bingo Hall, joined the directory.
+- **Not yet on air:** today's 32 old adverts age out over about a night and a half, as the user chose.
+  `python -m newsroom.directory` lists the directory and each business's advert count.
+
 ## The afternoon of 2026-11-27: Channel 7 14:49 to 17:10, Out and About and Rock Pool first aired
 
 The user asked for an afternoon run "to get the programmes we don't test as often": no logged run (since 5 November)

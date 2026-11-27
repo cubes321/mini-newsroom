@@ -269,6 +269,9 @@ class World:
     last_documentary_aired_ts: float = 0.0   # when it aired (broadcast clock),
     last_documentary_repeated: str = ""      # and the last one repeated
     guest_returns: dict[str, str] = field(default_factory=dict)   # show id -> the day a guest last came back to it
+    # The business directory's records (directory.py), by lower-case name: the businesses the advert writer invented,
+    # and for every business what its adverts established (a landlord, a tagline), their last lines, when last tried.
+    directory: dict[str, dict] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.lock = threading.RLock()        # not a field: asdict() and the JSON leave it out

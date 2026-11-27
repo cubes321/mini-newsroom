@@ -141,21 +141,21 @@ def test_the_model_writes_a_new_one_and_never_a_duplicate(pool, world, monkeypat
                           lines=[{"speaker": "owner", "text": "Ever seen the estuary from the water?"},
                                  {"speaker": "voiceover", "text": "Saltby Kayaks. Paddle the Grey."}])
     monkeypatch.setattr(llm, "complete_json", lambda *a, **k: script)
-    ad = adverts.make(world)
+    ad = adverts.make(world, "new")
     assert ad and "Saltby Kayaks" in pool.businesses()
     assert world.person_by_name("Rhona Day").voice.startswith(("af_", "bf_"))
-    assert adverts.make(world) is None                          # already on air
+    assert adverts.make(world, "new") is None                          # already on air
 
     long = AdvertScript(business="Saltby Windsurf", tagline="t", where="w", backdrop="estuary",
                         lines=[{"speaker": "voiceover", "text": "Waves crash. " * 12}] * 4)
     monkeypatch.setattr(llm, "complete_json", lambda *a, **k: long)
-    assert adverts.make(world) is None and "Saltby Windsurf" not in pool.businesses()   # over 32 s
+    assert adverts.make(world, "new") is None and "Saltby Windsurf" not in pool.businesses()   # over 32 s
     assert not [f for f in pool.dir.glob("ad_*.wav") if "Windsurf" in f.name]
 
     def down(*a, **k):
         raise llm.LLMUnavailable("off")
     monkeypatch.setattr(llm, "complete_json", down)
-    assert adverts.make(world) is None
+    assert adverts.make(world, "new") is None
 
 
 def test_an_advert_that_adds_nothing_waits_before_the_next_try(pool, world, monkeypatch):
@@ -174,7 +174,7 @@ def test_an_advert_that_adds_nothing_waits_before_the_next_try(pool, world, monk
     monkeypatch.setattr(llm, "complete_json", write)
     monkeypatch.setattr(pool, "newest_made_ts", lambda: 0.0)        # long overdue for a new one
     assert adverts.should_make()
-    assert adverts.make(world) is None and len(calls) == 1
+    assert adverts.make(world, "new") is None and len(calls) == 1
     tried = adverts._last_try
     assert abs(tried - time.time()) < 60
     assert not adverts.should_make(tried + 5)                       # the idle workers don't ask again at once

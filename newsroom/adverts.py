@@ -13,13 +13,15 @@ day-keyed segment cache. It is never empty for long: a hand-written set of
 SEEDS is voiced on the worker's first idle ticks, whatever the buffer and
 whether or not a model is available. In idle time, when the live buffer is
 healthy, the model writes a new one every `[adverts] make_every_s`, up to
-`pool_size` (the oldest model-written ones go first).
+`pool_size` (the oldest model-written ones go first). What it advertises is chosen in code from the town's
+business directory (directory.py): mostly a business we know, with a fresh advert, now and then a new one.
 
 An owner who speaks in their own advert joins the town's cast, so their voice
 and look are the same wherever they turn up next.
 
     python -m newsroom.adverts            # list the pool
     python -m newsroom.adverts --make     # write and voice one now (uses the model)
+    python -m newsroom.adverts --make --known   # ... for a business the directory knows (--new: invent one)
 """
 from __future__ import annotations
 
@@ -34,7 +36,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from . import llm, safety, tts
+from . import directory, llm, safety, tts
 from .config import CONFIG
 from .locations import locations_for_prompt
 from .models import AdLine, AdvertScript, Line, Segment, SegmentState, SegmentType, VisualCue
@@ -346,31 +348,88 @@ You write local TV adverts for channel seven in the FICTIONAL town in the briefi
 trades, clubs, events and services. Each one runs 15 to 30 seconds: 40 to 55 words in all, in two to
 four short lines. A voiceover ("voiceover") and, if it suits, the owner speaking for themselves
 ("owner"). Warm and a little homemade, like real local adverts: what it is, one detail that makes it
-this town's, a gentle joke if it fits, then the tagline. A business can belong to someone in the
-briefing (a resident we have met) or to a new local who fits the town. Never a real brand, a real
-person or a real place outside the town; everything is fiction. Return ONLY JSON.
+this town's, a gentle joke if it fits, then the tagline. You are told which business to advertise, or
+what kind of new one to invent. Never a real brand, a real person or a real place outside the town;
+everything is fiction. Return ONLY JSON.
 """
 
 
-def write_script(world: World) -> AdvertScript:
+def _brief(choice: directory.Choice, on_air: list[str], world: World) -> str:
+    """What to advertise: a business the town knows, as it is, or a new one of the trade the code chose."""
+    b = choice.known
+    if b is not None:
+        owner = (f"Owner: {b.owner}, {b.owner_role or 'the owner'}; if anyone speaks for it, they do.\n" if b.owner else
+                 "No owner we know of: voiceover only, or the owner (or landlord) as a NEW local, never anyone in "
+                 "the briefing.\n")
+        last = ("Its last advert said: " + " / ".join(choice.last_lines) +
+                "\nSay something different this time: another detail, the season, an offer, a little of the "
+                "town's news if it fits.\n") if choice.last_lines else ""
+        return (f"THE BUSINESS TO ADVERTISE, one the town already knows (keep its name, owner and place as given):\n"
+                f"Name: {b.name}\nWhat it is: {b.kind}\nWhere: {b.where or 'choose'}\n{owner}"
+                + (f"About it: {b.note}\n" if b.note else "")
+                + (f"Tagline (end on it, word for word): {b.tagline}\n" if b.tagline else "")
+                + last)
+    known = ", ".join(x.name for x in directory.businesses(world, seeds=True))
+    return (f"INVENT A NEW LOCAL BUSINESS: a {choice.trade}. Give it a name of its own, as a real one on a "
+            f"high street would have (the owner's name, a local word, a pun); never \"Wexley something & "
+            f"something\". Its owner, if they speak, is a NEW local with a name not in the briefing.\n"
+            f"The town already has these (invent none of them, and nothing close): {known}\n"
+            f"On air now: {', '.join(on_air) or 'none'}\n")
+
+
+def write_script(world: World, choice: directory.Choice | None = None) -> AdvertScript:
     from .writers import _keys_hint
 
+    on_air = pool().businesses()
+    choice = choice or directory.choose(world, on_air)
     user = (f"TOWN BRIEFING\n{world.summary_for_prompt()}\n\n"
             f"LOCATIONS (choose the backdrop id where the advert is set):\n{locations_for_prompt()}\n\n"
-            f"ADVERTS ALREADY ON AIR (advertise something else): {', '.join(pool().businesses()) or 'none'}\n"
+            f"{_brief(choice, on_air, world)}"
             + _keys_hint(AdvertScript))
     return llm.complete_json("advert", AdvertScript, _SYSTEM, user)
 
 
-def make(world: World) -> Advert | None:
-    """Have the model write a new advert, voice it and add it to the pool. None if the model was
-    unavailable or advertised something already on air; either way the next try waits RETRY_AFTER_S."""
+def _settle(script: AdvertScript, choice: directory.Choice, world: World) -> str | None:
+    """Hold a known business to what the town knows of it (name, place, owner, tagline: set here, not trusted to
+    the model), and check an invented one. The reason it can't air, or None."""
+    b = choice.known
+    if b is not None:
+        script.business = b.name
+        script.where = b.where or script.where
+        script.backdrop = b.backdrop or script.backdrop
+        script.tagline = b.tagline or script.tagline
+        if b.owner:
+            script.owner_name, script.owner_role, script.owner_gender = b.owner, b.owner_role, b.owner_gender
+    else:
+        if directory.formulaic(script.business):
+            return "a Wexley-this-and-that name"
+        if near := directory.clash(world, script.business):
+            return f"too like {near}, which the town has"
+    named = (script.owner_name or "").strip()
+    if named and not (b and b.owner) and (world.person_by_name(named) or named.lower() in directory.owners(world)):
+        return f"its owner {named} is someone the town knows already"      # residents keep the trades they have
+    return None
+
+
+def make(world: World, mode: str | None = None) -> Advert | None:
+    """Have the model write a new advert, voice it and add it to the pool: for a business the directory knows,
+    or (now and then, or with `mode` "new") a new one, which joins the directory. None if the model was
+    unavailable or the advert couldn't air; either way the next try waits RETRY_AFTER_S."""
     global _last_try
     _last_try = time.time()
+    choice = directory.choose(world, pool().businesses(), mode=mode)
+    if choice.known:
+        directory.tried(world, choice.known.name)         # a business whose advert keeps failing doesn't jam the rest
+        log.info("advert: a new one for %s", choice.known.name)
+    else:
+        log.info("advert: a new business, a %s", choice.trade)
     try:
-        script = write_script(world)
+        script = write_script(world, choice)
     except llm.LLMError as e:
         log.warning("advert not written: %s", e)
+        return None
+    if why := _settle(script, choice, world):
+        log.info("advert for %r dropped: %s", script.business, why)
         return None
     if bad := safety.check(safety.strings(script)):
         log.warning("advert for %r has %r in it; dropped", script.business, bad)
@@ -378,13 +437,16 @@ def make(world: World) -> Advert | None:
     if script.business.strip().lower() in {b.lower() for b in pool().businesses()}:
         log.info("advert for %r is already on air; skipping", script.business)
         return None
-    ad = build(f"ad_{zlib.crc32((script.business + date.today().isoformat()).encode()):08x}", script, world)
+    # The time in the id, not the day: a business advertised again the same day mustn't reuse the WAV names of
+    # its last advert, which may still be in an ad break in the buffer.
+    ad = build(f"ad_{zlib.crc32(f'{script.business}{time.time()}'.encode()):08x}", script, world)
     if ad.segment.duration_s > MAX_S:            # a gap filler that outstays the gap
         for line in ad.segment.lines:
             Path(line.wav_path).unlink(missing_ok=True)
         log.info("advert for %r ran %.0fs; dropped", script.business, ad.segment.duration_s)
         return None
     pool().add(ad)
+    directory.advertised(world, script, choice)
     log.info("new advert: %s, %r (%.0fs; %d in the pool)", script.business, script.tagline,
              ad.segment.duration_s, len(pool()))
     return ad
@@ -397,13 +459,17 @@ def _cli(argv: list[str]) -> int:
 
     ap = argparse.ArgumentParser(prog="python -m newsroom.adverts")
     ap.add_argument("--make", action="store_true", help="write and voice one advert now (calls the model)")
+    kind = ap.add_mutually_exclusive_group()
+    kind.add_argument("--known", action="store_const", const="known", dest="mode",
+                      help="with --make: for a business the directory knows")
+    kind.add_argument("--new", action="store_const", const="new", dest="mode", help="with --make: invent one")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s: %(message)s", datefmt="%H:%M:%S")
     if a.make:
         w = world_mod.load()
         while seed_one(w):
             pass
-        if make(w):
+        if make(w, a.mode):
             world_mod.save(w)
     with pool()._lock:
         ads = sorted(pool()._ads.values(), key=lambda x: (not x.seed, x.made, x.id))
