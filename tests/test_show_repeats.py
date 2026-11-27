@@ -183,3 +183,49 @@ def test_the_news_check_sees_one_story_split_across_threads(monkeypatch):
     writers.script_segment(seg, w)
     assert len(asked) == 2 and f'("{head}")' in asked[1] and "on another subject" in asked[1]
     assert seg.headline == "Saltby ferry readies first school run for Cliff Road pupils"
+
+
+def test_rock_pool_tells_no_story_twice_and_brings_no_animal_or_make_twice():
+    """2026-11-27, Rock Pool's first real afternoon: Nettle the gull in three of Hugh's five stories, Nell's button
+    twice, a hundred-year-old tortoise twice and owls made twice, all under titles too unlike for `_repeated`."""
+    w = world_mod.seed()
+    show = schedule.get("rockpool")
+    story, visitor, make, poem = schedule._STORY, schedule._VISITOR, schedule._MAKE, schedule._POEM
+    for brief, head in ((story, "Hugh's Story of Nell and the Blue Button"),
+                        (story, "Nettle the Gull and the Town Hall Clock"),
+                        (visitor, "Dolores Finch Brings Tuppence, a Hundred-Year Tortoise"),
+                        (make, "Paper Plate Owl To Make At Home"),
+                        (poem, "Gully Shares a Silly Crab Poem")):
+        w.record_aired("links" if brief != visitor else "interview", head, None, "...", show="rockpool", brief=brief)
+    same = lambda head, brief: writers._same_subject(head, w, show, brief)   # noqa: E731
+    assert same("Hugh Tells the Legend of Nettle's Blue Shell", story) == (
+        "Nettle the Gull and the Town Hall Clock", ["nettle"])
+    assert same("Hugh Tells the Legend of Nell and the Brass Button", story)[1] == ["button", "nell"]
+    assert same("Dumpling the Hundred-Year Tortoise Visits Rock Pool", visitor)[1] == ["hundred", "tortoise", "year"]
+    assert same("Loo Roll Tube Owls To Make At Home", make)[1] == ["owl"]
+    # something else on the same brief, or the same thing on another, is fine
+    assert same("Hugh Tells the Legend of the Mermaid of Kessick Bay", story) is None
+    assert same("Winston Barrow Brings Pebble the Hedgehog", visitor) is None
+    assert same("Egg Box Birds To Make At Home", make) is None
+    assert same("Gully Shares a Crab Poem From the Rocks", poem) is None                 # poems keep _repeated's rule
+    assert same("Nettle and the Town Hall Clock", visitor) is None
+
+
+def test_a_story_with_the_same_hero_is_asked_for_again_naming_the_hero(monkeypatch):
+    w = world_mod.seed()
+    w.record_aired("links", "Nettle the Gull and the Town Hall Clock", None, "...", show="rockpool",
+                   brief=schedule._STORY)
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        head = "Hugh Tells the Legend of Nettle's Blue Shell" if len(asked) == 1 else "The Mermaid of Kessick Bay"
+        return schema.model_validate({
+            "headline": head, "lower_third": "Rock Pool: Story Time",
+            "lines": [{"speaker": "kids", "text": "Story time!"}, {"speaker": "historian", "text": "Once, long ago..."},
+                      {"speaker": "gully", "text": "Was there a chip in it?"}]})
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=40, type=T.links, show="rockpool", target_s=240, brief=schedule._STORY)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and "this one has nettle in it too. Nothing with nettle in it" in asked[1]
+    assert seg.headline == "The Mermaid of Kessick Bay"

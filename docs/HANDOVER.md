@@ -1,5 +1,38 @@
 # Handover
 
+## The afternoon of 2026-11-27: Channel 7 14:49 to 17:10, Out and About and Rock Pool first aired
+
+The user asked for an afternoon run "to get the programmes we don't test as often": no logged run (since 5 November)
+had ever aired Quayside, Out and About or Rock Pool, as every real run started in the evening. Started 14:49 from
+`data/afternoon_channel7.cmd` (new: the night launcher's steps, `--minutes 140 --obs`, its own backup
+`world.backup-2026-11-27-1449-pre-afternoon.json`), both keys checked on `/v1/models` first, OBS already up.
+`station-2026-11-27-1449.log`: 150 segments, 8 adverts, no filler, no ERROR, no template, no Pocket run-on, worst p99
+13.6 ms. Three files in `E:\recordings` (the documentary at 14:50, `15-02 Out And About`, `16-00 Rock Pool`; the news
+between isn't recorded, by design), each with sound throughout (mean about -27 dB, no silence over 3 s). Haiku 225
+calls (1.79 M in, 874 k from the cache, 136 k out), Sonnet 5, DeepSeek Flash 16, two other Anthropic calls.
+
+- **Worked:** the town lock (`town claimed` at the start); no ident baked again (the 23 `.said` records matched); the
+  15 weathers all on the forecast at the first try (4 °C and sunny now, 0 tonight, 6 Saturday, 9 Sunday), "clear"
+  in the headlines after the 16:19 sunset; Rock Pool's ticker carried only its own items; Out and About's seven
+  places each on their own set, in daylight to 15:44. Not seen: a location going to dusk (Rock Pool is a studio,
+  and the 15:45 and 16:45 news, which had field reports, isn't recorded).
+- **Fixed after (`tides.given`):** the first ferry after a low-water gap ("the next one is at half past four this
+  afternoon (16:30)", in the prompt) wasn't among the times the check allows, so four items that said it right
+  were asked again, and two weathers' second takes were logged as slips that stood. Now it is (test_tides).
+- **Rock Pool repeated itself in 45 minutes.** Hugh told Nettle the gull three times (the Town Hall clock, "Nettle
+  and the Clock", "Nettle's Blue Shell") and a lost-and-found twice more (Nell's blue button, then a brass button);
+  a hundred-year-old tortoise came twice (Tuppence, then Dumpling); owls were made twice. `writers._repeated` compares
+  headline words, and story titles share format words ("Hugh tells the legend of"), not the story: it asked again
+  five times (poems and makes) and caught none of these. **Fixed after:** story time, the animal visitor and the make
+  (`schedule.SUBJECT_BRIEFS`) are checked by subject too (`writers._same_subject`): one word in common with an
+  earlier item on the same brief, its title's format words aside, is asked again once, naming the words ("this one
+  has nettle in it too. Nothing with nettle in it"). Replayed over the afternoon's 15 such items: all six repeats
+  asked again (Nettle, Nell's button, the clock, the tortoise, the owls, and the egg boxes and loo-roll tubes twice),
+  none of the first ones. "A lost thing found" left story time's examples (three of five were one). Not yet aired.
+  Out and About's three weekend walks were three different walks under one title, and its vox pop asked the same
+  question twice (the brief's own): left as they are.
+- Quayside (13:00) is still never aired.
+
 ## The night of 2026-11-26: a real Channel 7 night, no pictures
 
 Started 21:04 from `data/night_channel7_nopictures.cmd` (no ComfyUI: another project's `night-imagedoctor` job had

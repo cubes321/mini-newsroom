@@ -295,13 +295,16 @@ def _clock_spans(text: str) -> list[tuple[str, int, int, tuple[int, int]]]:
 
 def given(now: datetime, map_state: str | None = None) -> list[datetime]:
     """Every time `for_prompt` gives the writer at `now`: today's and tomorrow's waters, each day's first and last
-    ferry and the edges of its gaps, and the hour itself."""
+    ferry, the edges of its gaps and the first ferry back after each (`ferry_now`'s "the next one is at half past
+    four": until 2026-11-27 it wasn't here, so a weather that said it right was asked again, and its second take
+    logged as a slip), and the hour itself."""
     out = [now]
     for day in (now.date(), now.date() + timedelta(days=1)):
         out += [t for t, _, _ in tides(day)]
         f = ferry(day, map_state if day == now.date() else None)
         if f["sailings"]:
             out += [f["sailings"][0], f["sailings"][-1]] + [x for gap in f["gaps"] for x in gap]
+            out += [next((x for x in f["sailings"] if x >= b), f["sailings"][-1]) for _, b in f["gaps"]]
     return out
 
 

@@ -254,3 +254,15 @@ def test_a_span_of_the_ferry_is_not_a_tense():
     now = datetime(2026, 11, 21, 22, 24)
     assert tides.tense_slips(["The Saltby landing has gone dry, and there is no boat from just before ten o'clock "
                               "tonight until just before twenty to twelve."], now, "sunny") == []
+
+
+def test_the_first_ferry_back_after_a_gap_is_a_time_given():
+    """At 15:34 on 2026-11-27 the prompt said the ferry was off until 16:15 and "the next one is at half past four
+    this afternoon (16:30)"; four items said so, and each was asked again, as if it were none of the times given."""
+    from datetime import datetime
+
+    now = datetime(2026, 11, 27, 15, 34)
+    assert "the next one is at half past four this afternoon (16:30)" in tides.for_prompt(now.date(), "sunny", now=now)
+    assert tides.clock_slips(["The Saltby ferry is off until quarter past four, then runs again at half past four."],
+                             now, "sunny") == []
+    assert tides.clock_slips(["The ferry's next one is at twenty to five."], now, "sunny") == ["twenty to five"]

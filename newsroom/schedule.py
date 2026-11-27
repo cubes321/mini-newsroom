@@ -131,7 +131,7 @@ _LETTERS = ("LETTERS AND DRAWINGS: Gully reads out two or three letters from vie
 # and 11-13, and "a smuggler's dog" became "Biscuit the dog outwits the harbour smugglers" twice in an afternoon
 # (Biscuit is the lifeboat station's cat).
 _STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town or the coast for children, one of "
-          "its own (the sea, the weather, a creature, a ship, a lost thing found), gentle and a little funny, nothing "
+          "its own (the sea, the weather, a creature, a ship), gentle and a little funny, nothing "
           "frightening; Poppy introduces it in a line, and she and Gully ask one question at the end")
 _POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to eight rhyming lines) about "
          "something on the beach; Poppy is kind about it")
@@ -139,6 +139,12 @@ _POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to
 SAME_TITLE_BRIEFS = (_LETTERS,)
 # Briefs whose item is a story: a retelling shares fewer words than a repeated headline, so the check is stricter.
 RETOLD_BRIEFS = (_STORY,)
+# Briefs whose item has one subject (a story's hero, the animal, the thing made): a second item that names any of
+# the first's, its title's format words aside, is the same item again (writers._same_subject). On 2026-11-27 Rock
+# Pool's first real afternoon had Nettle the gull in three of Hugh's five stories, a hundred-year-old tortoise twice
+# and owls made twice, all under titles too unlike for the word count. "A lost thing found" left _STORY's examples
+# the same day: three of the five were one.
+SUBJECT_BRIEFS = (_STORY, _VISITOR, _MAKE)
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(

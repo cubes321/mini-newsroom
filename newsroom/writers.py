@@ -2180,11 +2180,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        if seg.part != "close" and (done := _repeated(getattr(script, "headline", ""), world, show, seg.type,
-                                                      seg.brief)):   # asked not to, models do; ask again once
-            log.info("%s slot %d: %r was on %s already today; asking for another subject", seg.type.value,
-                     seg.slot_id, done, show.id)
-            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today. Write "
+        head = getattr(script, "headline", "")
+        same = None if seg.part == "close" else _same_subject(head, world, show, seg.brief)
+        if seg.part != "close" and (done := _repeated(head, world, show, seg.type, seg.brief)   # asked not to,
+                                    or (same and same[0])):                                    # models do; once more
+            log.info("%s slot %d: %r was on %s already today%s; asking for another subject", seg.type.value,
+                     seg.slot_id, done, show.id, f" ({', '.join(same[1])} again)" if same and same[0] == done else "")
+            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today"
+                     + (f", and this one has {' and '.join(same[1])} in it too. Nothing with {' or '.join(same[1])} in "
+                        "it" if same and same[0] == done else "") + ". Write "
                      + ("it again as THIS ITEM says, with other people and other words, from what has happened "
                         "since, under its own headline."
                         if show.id == chamber.SHOW and seg.type in (SegmentType.links, SegmentType.vox_pop) else
@@ -2581,6 +2585,45 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
         old = _words(head)
         if old and len(new & old) / len(new | old) >= likeness:
             return head
+    return None
+
+
+# The words in a Rock Pool title that say what kind of item it is, or where, rather than what it is about
+# (_same_subject): "Hugh Tells the Legend of Nettle and the Clock" is about Nettle and a clock.
+_FORMAT_WORDS = frozenset("""a an and at by for from her his in into its of on our the their to with who what
+    hugh tell tells told read reads legend story stories tale time make makes making made home rock pool poppy
+    gully visit visits visitor visiting bring brings meet meets show shows say says come comes little big very
+    silly special friend friends new day today port wexley harbour coast beach sea town gull""".split())
+
+
+def _subject_words(headline: str) -> set[str]:
+    """What a title is about, by its words: possessives and plurals folded ("Nettle's" is Nettle, "Owls" an owl),
+    format words left out."""
+    out = set()
+    for w in re.findall(r"[a-z]+(?:'[a-z]+)?", (headline or "").lower()):
+        w = w.removesuffix("'s")
+        if len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+            w = w[:-1]
+        if len(w) > 2 and w not in _FORMAT_WORDS:
+            out.add(w)
+    return out
+
+
+def _same_subject(headline: str, world: World, show: schedule.Show, brief: str) -> tuple[str, list[str]] | None:
+    """An item on this brief already on the show today that shares a subject with this one: (its headline, the
+    words), or None. For the briefs whose item has one subject (schedule.SUBJECT_BRIEFS): Rock Pool's story time,
+    animal visitor and make. One word is enough there, where `_repeated` wants half of them: on 2026-11-27 "Nettle
+    the Gull and the Town Hall Clock" came back as "Hugh Tells the Legend of Nettle and the Clock" (two words of
+    eight), and the tortoise as "Dumpling the Hundred-Year Tortoise Visits Rock Pool"."""
+    if brief not in schedule.SUBJECT_BRIEFS:
+        return None
+    new = _subject_words(headline)
+    with world.lock:
+        earlier = [e["headline"] for e in world.archive if e["date"] == world.last_date and e.get("show") == show.id
+                   and e.get("brief") == brief and e.get("headline")]
+    for head in reversed(earlier):
+        if shared := sorted(new & _subject_words(head)):
+            return head, shared
     return None
 
 
