@@ -50,9 +50,17 @@ recordings' sound; no frames sampled.
       whole (`models._clip_phrase`): "Pennick's Lane, behind Harrow Street", not "... down to the…". On screen a
       long line drops to size 7 before it is cut (`scenes.fitting`). A tagline stored cut, two in the directory,
       is never used or learned again; the next advert writes it afresh.
+    - **Caption and set mismatches, in b13e2ec (not yet on air).** `writers.set_mismatch` sends a script
+      back once when:
+      - its location is inside a room no chosen set shows (a studio, a gallery, a workshop...), as with "Quarry
+        Ridge studio" over the harbour front and "Quarry Ridge Gallery" in the market shed;
+      - or, on a Quayside or Out and About feature, the guest's record places them on another town street (Brenda
+        Fisk's shop on Harrow Street, her record "Main Street"; Bernard Moss, "sailmaker, Harbour Row", making a
+        sail at the stadium).
+
+      Replayed over the afternoon's 127 located scripts, it flags 7, all real. "Live from the bottom of the cliff
+      path" in the tea room was the caption cut on screen; the full text names the tea room, and size 7 fits it.
   - **Not fixed:**
-    - Caption and set mismatches: "Quarry Ridge studio" over the harbour front, Brenda Fisk's shop on "Main
-      Street" in captions and on Harrow Street in the scripts.
     - Ruth Caddick's role changes between the wide shot and the close-up (the known role-clash item).
     - Out and About's light doesn't warm towards sunset.
 
