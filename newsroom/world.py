@@ -681,8 +681,11 @@ class World:
         if pin := _pinned(guest_name):
             return pin[2]
         if CONFIG.tts.british_guests and not self.presenter_named(guest_name):
+            # A local is British: only "american" (a visitor from away) isn't. 97 residents cast before the accent
+            # was kept (Marjorie Pell, Ivy Marchetti, Brenda Fisk) have it blank, and until 2026-11-28 they found no
+            # `.a` clip and Kokoro voiced them in American: 144 lines on the 27th's night.
             p = self.person_by_name(guest_name)
-            if p and p.accent == "british":
+            if p and p.accent != "american":
                 return "b"
         return None
 

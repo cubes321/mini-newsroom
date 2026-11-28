@@ -118,10 +118,11 @@ def test_a_known_guest_keeps_their_voice_and_gets_an_age_if_they_had_none():
     assert again is p and (p.voice, p.speed, p.accent) == (voice, speed, "") and p.age == "old"
 
 
-def test_british_pronunciation_only_when_switched_on_and_only_for_british_guests():
+def test_british_pronunciation_only_when_switched_on_and_never_for_visitors():
     w = world_mod.seed()
     w.ensure_person("Morag Penrose", "harbour pilot", gender="f", accent="british")
     w.ensure_person("Dwight Calder", "tourist", gender="m", accent="american")
+    w.ensure_person("Marjorie Pellow", "archivist", gender="f")          # cast with no accent, as 97 locals were
     old = CONFIG.tts
     try:
         object.__setattr__(CONFIG, "tts", dataclasses.replace(old, british_guests=False))   # CONFIG is frozen
@@ -129,6 +130,7 @@ def test_british_pronunciation_only_when_switched_on_and_only_for_british_guests
         object.__setattr__(CONFIG, "tts", dataclasses.replace(old, british_guests=True))
         assert w.lang_for("guest", "Morag Penrose") == "b"
         assert w.lang_for("guest", "Dwight Calder") is None
+        assert w.lang_for("guest", "Marjorie Pellow") == "b"     # a local: until 2026-11-28 American Kokoro voiced them
         assert w.lang_for("anchor") is None
     finally:
         object.__setattr__(CONFIG, "tts", old)
