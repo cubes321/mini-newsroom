@@ -20,6 +20,23 @@ segment, in `data/contact-sheets/2026-11-27-channel7/`.
   ("Night ferry hand, Saltby crossing"). `writers.caption_names_guest` gives the name and the role. It applies
   only to model-written interviews with the guest rules, not The Panel, The Chamber or the hand-built shows.
   31 of the night's 143 are renamed.
+- **A deeper pass (scripts, log, audio) found two more, fixed:**
+  - **American voices for 97 locals (c0a435c):** residents cast before the accent was kept have it blank, and
+    `lang_for` gave British only to "british", so Kokoro voiced them in American: Marjorie Pell, Ivy Marchetti,
+    Brenda Fisk, 144 lines that night. Now only "american" is not British. They will sound different from now on.
+  - **Repeats tied to their hour (0aef969):** 62 of 190 repeats greeted the viewer or gave the time ("your Friday
+    weather, coming up to ten o'clock" at 02:00). The weather and the sofa no longer repeat, and
+    `workers.of_its_hour` keeps out greetings, the time now and "this morning". 171 candidates are left at 02:10.
+- **Found and not fixed yet** (design choices):
+  - A guest's job that clashes with their record airs after one re-ask: 6 aired, including Sadie Rourke as the
+    Railway's landlady, a role Gwen Hollis also claimed.
+  - The cannery ledger's state flipped between programmes.
+  - The lights took about 40 of 125 live news items (the same-story window is 4 items).
+  - Morning Tide had Dev's bread 5 times in 17 minutes.
+  - Kokoro lines aren't levelled to Pocket's.
+  - Some British guest clips leave 1.2-2.1 s pauses at sentence ends.
+  - The Last Ferry overran by 55 s.
+  - Pocket reads digits raw, and the tide card says "10 03".
 - **Left:**
   - Seventext repeats near-identical lines in EARLIER and in Council Watch.
   - The night weather card still shows SUNNY with a sun; this was already known, and a fix needs art.
