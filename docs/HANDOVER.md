@@ -41,11 +41,18 @@ recordings' sound; no frames sampled.
       from the fish quay" stayed up over Howard.
     - **A chip shop is reviewed in the tea room**, not out on the fish quay. A takeaway still keeps the writer's
       pick. A chip-shop set of its own would be new art.
+  - **Fixed after, in 19393b4 (not yet on air):**
+    - **Seven Ruths.** The town has 101 of 1,649 residents called Ruth (the next first names have about 35), and
+      five of the afternoon's seven were residents, whom the first-name check let through. Now `worn_names` counts
+      a resident too, unless the item booked them or they've been on today already. Nobody new gets a first name
+      40 or more residents have (`TOWN_FIRST_NAME`), and the briefing says so.
+    - **Cut captions.** Locations, "where", captions, the vox pop question and taglines are cut where a phrase ends,
+      whole (`models._clip_phrase`): "Pennick's Lane, behind Harrow Street", not "... down to the…". On screen a
+      long line drops to size 7 before it is cut (`scenes.fitting`). A tagline stored cut, two in the directory,
+      is never used or learned again; the next advert writes it afresh.
   - **Not fixed:**
-    - Seven guests called Ruth.
     - Caption and set mismatches: "Quarry Ridge studio" over the harbour front, Brenda Fisk's shop on "Main
       Street" in captions and on Harrow Street in the scripts.
-    - Captions cut with "…".
     - Ruth Caddick's role changes between the wide shot and the close-up (the known role-clash item).
     - Out and About's light doesn't warm towards sunset.
 
