@@ -94,7 +94,12 @@ class OvernightRepeats(unittest.TestCase):
         self.assertTrue(workers.repeatable(Segment(slot_id=0, type=T.bulletin, show="news")))
         self.assertTrue(workers.repeatable(Segment(slot_id=0, type=T.interview, show="late")))
         self.assertTrue(workers.repeatable(Segment(slot_id=0, type=T.feature, show="magazine")))
-        self.assertTrue(workers.repeatable(Segment(slot_id=0, type=T.weather, show="")))   # old cache: news
+        self.assertTrue(workers.repeatable(Segment(slot_id=0, type=T.bulletin, show="")))  # old cache: news
+
+    def test_the_weather_and_the_sofa_never_repeat_overnight(self) -> None:
+        # "Your Friday weather, coming up to ten o'clock" at two in the morning (2026-11-28).
+        for t in (T.weather, T.sofa):
+            self.assertFalse(workers.repeatable(Segment(slot_id=0, type=t, show="news")), t)
 
     def test_unrepeatable_types_stay_out(self) -> None:
         self.assertFalse(workers.repeatable(Segment(slot_id=0, type=T.bumper, show="news")))

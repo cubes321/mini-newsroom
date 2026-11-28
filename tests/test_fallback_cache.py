@@ -174,3 +174,17 @@ def test_a_piece_with_a_town_event_still_to_come_isnt_repeated_after_it_has_begu
     heads = {workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight")).headline
              for _ in range(40)}
     assert heads == {"Frost on the quay", "Harrow Street Lights Glow as Carols Fill the Bandstand"}
+
+
+def test_a_piece_tied_to_its_hour_isnt_repeated_overnight():
+    """62 of the 2026-11-28 repeats greeted the viewer or gave the time: "Good morning, Dana" at 04:06, "two degrees
+    right now, just after eleven o'clock" at 03:16. A time in its own story ("came on at six") is fine."""
+    seg = lambda text: Segment(slot_id=1, type=SegmentType.bulletin, show="news",        # noqa: E731
+                               lines=[Line(speaker="anchor", text=text)])
+    for tied in ("Good morning, Dana. The frost is still on the quay.", "Coming up to quarter to twelve, and frost.",
+                 "Two degrees right now, just after eleven o'clock.", "A coat brought in this morning.",
+                 "Quay Steps, just after ten past nine, and it is bitterly cold."):
+        assert workers.of_its_hour(seg(tied)), tied
+    for fine in ("The lights went on at six to a cheer.", "High water is at twenty past ten.",
+                 "The council meets on Thursday at seven."):
+        assert not workers.of_its_hour(seg(fine)), fine

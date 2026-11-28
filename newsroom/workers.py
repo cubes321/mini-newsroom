@@ -106,8 +106,24 @@ def _save_cached(seg: Segment, h: str) -> None:
 
 # ----------------------------------------------------------------- repeats
 
-REPEATABLE = (SegmentType.weather, SegmentType.bulletin, SegmentType.field_report, SegmentType.sofa,
-              SegmentType.interview, SegmentType.feature, SegmentType.vox_pop, SegmentType.consumer)
+# Not the weather or the sofa: both belong to their hour. On 2026-11-28 the repeats aired "your Friday weather, coming
+# up to ten o'clock" at two in the morning, and 22 of the night's 190 repeats were weathers.
+REPEATABLE = (SegmentType.bulletin, SegmentType.field_report, SegmentType.interview, SegmentType.feature,
+              SegmentType.vox_pop, SegmentType.consumer)
+_HOUR = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|midnight|noon|midday)"
+# A greeting, the time it is now, or the day's own morning or afternoon: wrong in the small hours. 62 of the 28th's
+# 190 repeats said one ("Good morning, Dana" at 04:06; "two degrees right now, just after eleven o'clock" at 03:16).
+_OF_ITS_HOUR = re.compile(
+    r"\bgood (?:morning|afternoon|evening)\b"
+    r"|\b(?:coming up to|just after|just gone|just before|it's gone|it is gone|it's just gone)\s+"
+    rf"(?:(?:a )?quarter (?:past|to) |half past |[\w-]+ (?:minutes )?(?:past|to) )?{_HOUR}\b"
+    r"|\b(?:this morning|this afternoon|right now)\b", re.I)
+
+
+def of_its_hour(c: Segment) -> bool:
+    """Does the piece greet the viewer, give the time it is, or speak of this morning or afternoon? Then it is tied
+    to the hour it was made for, and never repeated overnight."""
+    return bool(_OF_ITS_HOUR.search(" ".join(l.text for l in c.lines)))
 REPEAT_WINDOW_S = 48 * 3600         # how long a finished special keeps (special.py)
 REPEAT_DAY_STARTS_H = 6             # the overnight repeats come from the day that began at six
 _recent_repeats: deque[str] = deque(maxlen=12)
@@ -188,7 +204,7 @@ def repeat_segment(seg: Segment) -> Segment:
         except Exception:  # noqa: BLE001
             continue
         if (repeatable(c) and c.lines and not before_council_sat(c, written + shift, now)
-                and not before_event_began(c, written + shift, now)
+                and not before_event_began(c, written + shift, now) and not of_its_hour(c)
                 and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines)):
             candidates.append((meta.stem, c))
     if not candidates:
