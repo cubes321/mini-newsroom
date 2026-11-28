@@ -153,3 +153,23 @@ def test_a_piece_with_the_council_still_to_sit_isnt_repeated_after_it_has(tmp_ca
     now = datetime(2026, 11, 19, 19, 45).timestamp()                  # before it sits, nothing is held back
     assert not workers.before_council_sat(Segment(slot_id=1, type=SegmentType.bulletin, headline="Council sits tonight"),
                                           now - 600, now)
+
+
+def test_a_piece_with_a_town_event_still_to_come_isnt_repeated_after_it_has_begun(tmp_cache, monkeypatch):
+    """The Christmas lights went on at six on 2026-11-27; between 00:21 and 04:43 the overnight repeats aired the
+    afternoon's "Harrow Street Lights Go On at Six Tonight" fourteen times."""
+    now = datetime(2026, 11, 28, 2, 10).timestamp()
+    shift = now - time.time()
+    monkeypatch.setattr(schedule, "now", lambda: now)
+    for key, headline, at in (("before", "Harrow Street Lights Go On at Six Tonight", (15, 30)),
+                              ("other", "Frost on the quay", (15, 40)),
+                              ("after", "Harrow Street Lights Glow as Carols Fill the Bandstand", (19, 10))):
+        wav = tmp_cache / f"{key}_00.wav"
+        wav.write_bytes(b"")
+        workers._save_cached(Segment(slot_id=1, type=SegmentType.bulletin, show="news", state=SegmentState.ready,
+                                     headline=headline, lines=[Line(speaker="anchor", text="Hi.", wav_path=wav)]), key)
+        t = datetime(2026, 11, 27, *at).timestamp() - shift
+        os.utime(tmp_cache / f"{key}.json", (t, t))
+    heads = {workers.repeat_segment(Segment(slot_id=9, type=SegmentType.repeat, show="overnight")).headline
+             for _ in range(40)}
+    assert heads == {"Frost on the quay", "Harrow Street Lights Glow as Carols Fill the Bandstand"}

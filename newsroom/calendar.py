@@ -17,6 +17,7 @@ The charter (14 March 1871), the Mariner's Gale (9 December 1910), the cannery's
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Callable
@@ -308,6 +309,69 @@ def _started(o: On, now: datetime | None) -> str:
                 "done, never as still to come.")
     return (f" It starts at {o.event.at}, so it has not happened yet: tell it as still to come, never as "
             "under way or done.")
+
+
+# ------------------------------------------------------------- once it has begun
+# On 2026-11-27 the Christmas lights went on at six. At 18:29 a report written with "It began at 18:00" in its
+# prompt was still "Harrow Street Lights Due at Six" ("the name will be read out at six"): a board thread's NEXT
+# said "Tonight... once the six o'clock". And between 00:21 and 04:43 the overnight repeats aired the afternoon's
+# "Harrow Street Lights Go On at Six Tonight" fourteen times.
+
+def begun(day: date, now: datetime) -> list[tuple[Event, datetime]]:
+    """The one-day events on `day` with a start time that `now` has reached: each with its start."""
+    out = []
+    for o in events_on(day):
+        if o.event.at and o.first == o.last == day:
+            h, m = map(int, o.event.at.split(":"))
+            if (start := datetime(day.year, day.month, day.day, h, m)) <= now:
+                out.append((o.event, start))
+    return out
+
+
+_NAME_STOP = {"the", "of", "and", "a", "night", "day", "sunday", "week", "weekend"}
+
+
+def mentions(e: Event, text: str) -> bool:
+    """Does the text name the event, by a word of its name: "lights" for the Christmas lights, "bonfire"."""
+    words = [w.removesuffix("'s").rstrip("s") for w in re.findall(r"[a-z']+", e.name.lower()) if w not in _NAME_STOP]
+    return any(re.search(rf"\b{re.escape(w)}s?\b", text, re.I) for w in words if len(w) > 2)
+
+
+# "will be read out at six" is to come whatever else the clause says; "go on at six" only with nothing done in it.
+_SURELY_TO_COME = re.compile(r"\b(will|'ll|is due|are due|due|set to|going to|about to|is to be|are to be)\b", re.I)
+_TO_COME = re.compile(r"\b(starts?|begins?|opens?|goes on|go on|switch(?:es)? on|comes? on|kicks? off|leaves|"
+                      r"sets? off|is at|are at|'s at)\b", re.I)
+_DONE = re.compile(r"\b(was|were|came|went|had|has|have|been|already|gone|began|begun|started|opened|switched|lit|"
+                   r"threw|thrown|kicked off|happened|did|read out|earlier|since)\b", re.I)
+_OTHER_DAY = re.compile(r"\b(tomorrow|morning|every|each|yesterday|last year|next year|next week)\b", re.I)
+
+
+def tense_slips(texts: list[str], now: datetime) -> list[str]:
+    """Where a script tells an event of today as still to come once its start time has passed: a note for each,
+    to put to the writer. Only a sentence giving the event's own time ("at six") is read, and only a clause with
+    words for what is to come in it; a question, a span ("since six") and another day are left."""
+    on = begun(now.date(), now)
+    if not on:
+        return []
+    from . import tides
+    notes = []
+    for text in texts:
+        for sentence in re.split(r"(?<=[.!?])\s+", text or ""):
+            if sentence.rstrip().endswith("?"):
+                continue
+            for words, minutes, slack, (a, b) in tides._clock_spans(sentence):
+                for e, start in on:
+                    if minutes < 0 or not tides._near(minutes, start, slack):
+                        continue
+                    cuts = [m.end() for m in tides._CLAUSE_CUT.finditer(sentence, 0, a)]
+                    lead = sentence[cuts[-1] if cuts else 0:a]
+                    clause = lead + words + tides._CLAUSE_CUT.split(sentence[b:], maxsplit=1)[0]
+                    if tides._RANGE.search(lead) or _OTHER_DAY.search(clause):
+                        continue
+                    if _SURELY_TO_COME.search(clause) or (_TO_COME.search(clause) and not _DONE.search(clause)):
+                        notes.append(f"\"{sentence.strip()}\": {e.name} began at {e.at}, so at {now:%H:%M} it is "
+                                     "under way or over, not still to come")
+    return list(dict.fromkeys(notes))
 
 
 def due(text: str, day: date) -> date | None:

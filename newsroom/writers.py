@@ -2269,6 +2269,23 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 if still:
                     log.warning("%s slot %d: tide or ferry slips again after the second ask; they stand: %s",
                                 seg.type.value, seg.slot_id, "; ".join(still))
+        # A town event of today told as still to come once it has begun (calendar.tense_slips): on 2026-11-27 at
+        # 18:29, "Harrow Street Lights Due at Six", with "It began at 18:00" in the prompt. One more ask naming them;
+        # the one with fewer stands.
+        if not getattr(script, "fiction", False) and show.id not in FICTION_SHOWS:
+            airs = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
+            said = lambda sc: [getattr(sc, "headline", "") or "", *(getattr(l, "text", "") for l in getattr(sc, "lines", []))]  # noqa: E731
+            if late := calendar.tense_slips(said(script), airs):
+                log.info("%s slot %d: town event told as still to come (%s); asking again", seg.type.value,
+                         seg.slot_id, "; ".join(n[:90] for n in late))
+                again = llm.complete_json(seg.type.value, schema, system, user + (
+                    f"\n\nALREADY BEGUN (it is {airs:%H:%M} as this airs):\n" + "\n".join(f"  - {n}" for n in late)
+                    + "\nWrite it again with the event told as happening now or as done, headline included."))
+                if len(calendar.tense_slips(said(again), airs)) < len(late):
+                    script = again
+                else:
+                    log.warning("%s slot %d: town event still to come after the second ask; it stands",
+                                seg.type.value, seg.slot_id)
         # The sport against the sports desk's facts: how long ago, a club's place, another match's result
         # (sport.slips). One more ask naming them; the one with fewer stands.
         if not getattr(script, "fiction", False) and show.id not in FICTION_SHOWS:

@@ -127,3 +127,28 @@ def test_whats_on_fits_the_page():
         assert all(len(r["t"]) < teletext.COLS for r in p["rows"])
     text = " ".join(r["t"] for r in teletext._whats_on(date(2026, 11, 3))["rows"])
     assert "Bonfire Night" in text and "Full council" in text and "Thursday 5 November" in text
+
+
+def test_an_event_that_has_begun_is_never_told_as_still_to_come():
+    """2026-11-27: the Christmas lights went on at six, and at 18:29 the news had "Harrow Street Lights Due at Six"
+    ("the name will be read out at six"), with "It began at 18:00" in its prompt."""
+    now = datetime(2026, 11, 27, 18, 30)
+    assert [e.name for e, _ in calendar.begun(now.date(), now)] == ["the Christmas lights"]
+    for late in ("Harrow Street Lights Due at Six", "Harrow Street Lights Go On at Six Tonight",
+                 "Harrow Street Lights Switch On Tonight at Six",
+                 "Sandra Okoye has been handed the envelope, and she says the name will be read out at six, straight "
+                 "from the bandstand."):
+        assert calendar.tense_slips([late], now), late
+    for fine in ("The lights went on at six to a cheer from the bandstand.", "The lights have been on since six.",
+                 "The lights were switched on at six, and the carols began.", "Will the lights stay on past six?",
+                 "The market opens at six tomorrow morning.", "The ferry leaves at ten past ten."):
+        assert not calendar.tense_slips([fine], now), fine
+    assert not calendar.tense_slips(["Harrow Street Lights Due at Six"], datetime(2026, 11, 27, 17, 0))  # before six
+    assert not calendar.tense_slips(["Harrow Street Lights Due at Six"], datetime(2026, 11, 26, 18, 30))  # not the day
+
+
+def test_an_event_is_named_by_a_word_of_its_name():
+    lights = _on("the Christmas lights", date(2026, 11, 27)).event
+    assert calendar.mentions(lights, "Harrow Street Lights Go On at Six Tonight")
+    assert not calendar.mentions(lights, "Frost settles on the quay")
+    assert calendar.mentions(_on("Bonfire Night", date(2026, 11, 1)).event, "Gates open for the bonfire at six")

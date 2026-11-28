@@ -27,7 +27,7 @@ from collections import deque
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import council, pictures, schedule, tts, world as world_mod, writers
+from . import calendar, council, pictures, schedule, tts, world as world_mod, writers
 from .buffer import Buffer
 from .config import CONFIG
 from .models import Line, Segment, SegmentState, SegmentType
@@ -155,6 +155,16 @@ def before_council_sat(c: Segment, written: float, now: float) -> bool:
             and bool(_COUNCIL.search(" ".join([c.headline or "", *(l.text for l in c.lines)]))))
 
 
+def before_event_began(c: Segment, written: float, now: float) -> bool:
+    """A piece naming one of the day's timed town events (calendar.begun), written before it began, once it has:
+    it has the event still to come. On 2026-11-28 the afternoon's "Harrow Street Lights Go On at Six Tonight"
+    went out again fourteen times between 00:21 and 04:43. `written` and `now` are on the broadcast clock."""
+    day = datetime.fromtimestamp(repeat_since(now)).date()
+    text = " ".join([c.headline or "", *(l.text for l in c.lines)])
+    return any(written < start.timestamp() and calendar.mentions(e, text)
+               for e, start in calendar.begun(day, datetime.fromtimestamp(now)))
+
+
 def repeat_segment(seg: Segment) -> Segment:
     """Overnight: fill the slot with an earlier segment from the cache, aired again.
 
@@ -176,6 +186,7 @@ def repeat_segment(seg: Segment) -> Segment:
         except Exception:  # noqa: BLE001
             continue
         if (repeatable(c) and c.lines and not before_council_sat(c, written + shift, now)
+                and not before_event_began(c, written + shift, now)
                 and all(l.wav_path and Path(l.wav_path).exists() for l in c.lines)):
             candidates.append((meta.stem, c))
     if not candidates:
