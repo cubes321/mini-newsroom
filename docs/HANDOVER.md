@@ -23,8 +23,8 @@ segment, in `data/contact-sheets/2026-11-27-channel7/`.
 - **Left:**
   - Seventext repeats near-identical lines in EARLIER and in Council Watch.
   - The night weather card still shows SUNNY with a sun; this was already known, and a fix needs art.
-  - `test_wits.py::test_a_darts_round_with_a_call_missing...` fails on master since 96fbf77: it expects dart 2,
-    and the prompt names dart 3.
+  - `test_wits.py::test_a_darts_round_with_a_call_missing...` was failing on the date, not the code: fixed in
+    38076ad (it now leaves out a dart whose call its thrower doesn't repeat).
 - **Next timed events:** the Mariner's Gale (9 Dec, 12:00) and Christmas. Check the overnight repeats and the
   "town event told as still to come" lines then.
 
