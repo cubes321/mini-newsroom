@@ -446,7 +446,12 @@ def test_a_darts_round_with_a_call_missing_is_asked_for_once_more_and_told_which
     q = quiz._record(w, quiz.teams(w), _booking())
     r = q["rounds"][2]
     from newsroom.models import PanelScript
-    fifth = r["throws"][4]
+    # A dart whose call its thrower doesn't repeat later in the turn: the round is drawn from the date, and on
+    # 2026-11-28 Shirley Vosper's second and third darts were both "Twenty.", so with the second's call left out
+    # the third's line answered for it and the note (fairly) named dart 3.
+    throws = r["throws"]
+    fifth = next(d for k, d in enumerate(throws)
+                 if k and d["call"] not in [t["call"] for t in throws[k + 1:] if t["who"] == d["who"]])
     missed = lambda d: "What a throw!" if d is fifth else d["call"]
 
     def reply(schema):
@@ -457,7 +462,7 @@ def test_a_darts_round_with_a_call_missing_is_asked_for_once_more_and_told_which
     seg = Segment(slot_id=8, type=T.interview, show="wits", brief="{r3}", target_s=200)
     writers.script_segment(seg, w)
     assert not seg.fallback and len(seen) == 2 and len(seg.work["darts"]) == 12      # the model's round, asked twice
-    n = sum(t["who"] == fifth["who"] for t in r["throws"][:4]) + 1
+    n = sum(t["who"] == fifth["who"] for t in throws[:throws.index(fifth)]) + 1
     assert f"{fifth['who']}'s dart {n} (\"{fifth['call']}\") wasn't" in seen[1][2]
 
 
