@@ -338,8 +338,7 @@ eat or drink, or a show: a play, a concert, an exhibition) and gives it stars ou
 Name it in place, with kind and where. She says what she had or saw and what it cost; the owner, the
 cook or one of the players ("guest", named in guest_name with guest_role, guest_gender, guest_age and
 guest_accent) may speak for it once or twice, or set guest_name to null. Fair and specific: the good
-and the not so good, never cruel; most places get three or four stars, a five is rare, a one rarer. Three is
-for a mixed visit, not the safe middle: a good place is four (every review on one afternoon came out at three).
+and the not so good, never cruel; the stars are THIS VISIT's, given below, and the visit earns them.
 Her LAST line gives the stars and the verdict, as on the card ("Four stars: worth the walk for the
 crab alone"). Not a place reviewed in the last fortnight (PLACES MEG HAS REVIEWED); an older one may be
 revisited to see if it has changed. Choose a backdrop id from the LOCATIONS list near it; location is
@@ -1358,6 +1357,8 @@ def build_prompt(seg_type: SegmentType, world: World, *, target_s: float,
         user += "\n\n" + phonein.for_prompt(world, seg_type)
     if show.id == outabout.SHOW:
         user += "\n\n" + outabout.for_prompt(world)
+        if seg_type is SegmentType.review:
+            user += "\n" + outabout.stars_for_prompt(world)
     if show.id == "magazine" and seg_type is SegmentType.interview and (
             back := outabout.answer_back(world)):
         user += "\n\n" + back
@@ -2195,21 +2196,29 @@ def script_segment(seg: Segment, world: World) -> Segment:
     system += _keys_hint(schema)
     try:
         script = llm.complete_json(seg.type.value, schema, system, user)
-        head = getattr(script, "headline", "")
-        same = None if seg.part == "close" else _same_subject(head, world, show, seg.brief)
-        if seg.part != "close" and (done := _repeated(head, world, show, seg.type, seg.brief)   # asked not to,
-                                    or (same and same[0])):                                    # models do; once more
-            log.info("%s slot %d: %r was on %s already today%s; asking for another subject", seg.type.value,
-                     seg.slot_id, done, show.id, f" ({', '.join(same[1])} again)" if same and same[0] == done else "")
-            user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today"
-                     + (f", and this one has {' and '.join(same[1])} in it too. Nothing with {' or '.join(same[1])} in "
-                        "it" if same and same[0] == done else "") + ". Write "
-                     + ("it again as THIS ITEM says, with other people and other words, from what has happened "
-                        "since, under its own headline."
-                        if show.id == chamber.SHOW and seg.type in (SegmentType.links, SegmentType.vox_pop) else
-                        "PART TWO again: the same guest, but other questions and another story of theirs, never part "
-                        "one over again." if seg.part == "cont" else
-                        "about a different subject, with a different person and place, as THIS ITEM says."))
+        for _ in range(REPEAT_ASKS if seg.part != "close" else 0):   # asked not to, models do; asked again, they
+            head = getattr(script, "headline", "")                    # may do it again, so the retry is checked too
+            same = _same_subject(head, world, show, seg.brief)
+            if done := _repeated(head, world, show, seg.type, seg.brief) or (same and same[0]):
+                log.info("%s slot %d: %r was on %s already today%s; asking for another subject", seg.type.value,
+                         seg.slot_id, done, show.id, f" ({', '.join(same[1])} again)" if same and same[0] == done else "")
+                user += (f"\n\nNOT \"{done}\": that was on {REMEMBERS_ITS_SHOW.get(show.id, show.title).title()} earlier today"
+                         + (f", and this one has {' and '.join(same[1])} in it too. Nothing with {' or '.join(same[1])} in "
+                            "it" if same and same[0] == done else "") + ". Write "
+                         + ("it again as THIS ITEM says, with other people and other words, from what has happened "
+                            "since, under its own headline."
+                            if show.id == chamber.SHOW and seg.type in (SegmentType.links, SegmentType.vox_pop) else
+                            "PART TWO again: the same guest, but other questions and another story of theirs, never part "
+                            "one over again." if seg.part == "cont" else
+                            "about a different subject, with a different person and place, as THIS ITEM says."))
+            elif isinstance(script, ReviewScript) and (old := outabout.resting(world, script.place)):
+                log.info("review slot %d: %r was reviewed on %s; asking for another place", seg.slot_id,
+                         script.place, old["date"])
+                user += (f"\n\nNOT {old['place']}: Meg reviewed it on {date.fromisoformat(old['date']):%A %d %B}, and "
+                         "a place rests a fortnight. Review somewhere she has not been, as THIS ITEM says, under its "
+                         "own name.")
+            else:
+                break
             script = llm.complete_json(seg.type.value, schema, system, user)
         if quay.about_the_auction(getattr(script, "headline", "")) and (done := _auction_on_news(world, show)):
             log.info("%s slot %d: the auction was on the news already (%r); asking for another story",
@@ -2606,8 +2615,9 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     # have none, and nine of them aired as "The town settles into winter, one story at a time" (2026-11-21).
     if links and (brief in schedule.SAME_TITLE_BRIEFS or (not brief and show.id not in LINKS_TRAIL)):
         return None
-    new = _words(headline or "")
-    if len(new) < 3:
+    drop = _POEM_WORDS if brief == schedule._POEM else frozenset()
+    new = _words(headline or "") - drop
+    if len(new) < (1 if drop else 3):
         return None
     kinds = {SegmentType.links.value} if links else {t.value for t in _SHOW_TYPES} - {SegmentType.links.value}
     with world.lock:
@@ -2617,10 +2627,17 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
     likeness = (RETOLD_LIKENESS if (links and brief in schedule.RETOLD_BRIEFS) or (council_loop and not links)
                 else REPEAT_LIKENESS)
     for head in reversed(earlier):
-        old = _words(head)
+        old = _words(head) - drop
         if old and len(new & old) / len(new | old) >= likeness:
             return head
     return None
+
+
+# Gully's poem titles are mostly the format: on 2026-11-28 "Gully Shares A New Harbour Poem" was taken for "Gully
+# Shares A Brand New Beach Poem" (half the words alike) twice. A poem is what it is about, and the brief puts them all
+# on the beach.
+_POEM_WORDS = frozenset("gully gully's poem poems shares share reads read recites rhyme rhymes silly brand "
+                        "beach".split())
 
 
 # The words in a Rock Pool title that say what kind of item it is, or where, rather than what it is about
@@ -2628,7 +2645,14 @@ def _repeated(headline: str, world: World, show: schedule.Show, seg_type: Segmen
 _FORMAT_WORDS = frozenset("""a an and at by for from her his in into its of on our the their to with who what
     hugh tell tells told read reads legend story stories tale time make makes making made home rock pool poppy
     gully visit visits visitor visiting bring brings meet meets show shows say says come comes little big very
-    silly special friend friends new day today port wexley harbour coast beach sea town gull""".split())
+    silly special friend friends new day today port wexley harbour coast beach sea town gull
+    off how out all along goes job jobs work works crew member helper volunteer keeper
+    street road lane hill quay market square green front station harrow saltby kessick polgrey tidewater
+    greymouth""".split())
+# The job guests' titles ("Fire Station Visitor Shows Off The Big Ladder", "Lifeboat Helper Shows Off Her Dry Socks")
+# and where a visitor came from ("... Visits From Harrow Street Market", the pony "Harrow Street Pony Hetty") are
+# format too: by them a rabbit was the pony and the lifeboat the fire station (2026-11-28). The place names
+# are the town's own, and a sea bell or a lifeboat is still a subject.
 
 
 def _subject_words(headline: str) -> set[str]:
@@ -2664,6 +2688,10 @@ def _same_subject(headline: str, world: World, show: schedule.Show, brief: str) 
 
 LOOP_NET = ("late", "sport")    # shows with a wrapping order and no ON ... ALREADY TODAY list of their own
 REPEAT_LIKENESS = 0.5           # headline words in common (of both together) that make an item a repeat
+# How many times a repeat is sent back. Once was not enough: on 2026-11-28 the retry came back the same again on
+# Rock Pool (a paper bird, then a paper plate; a sock boat, then a rocket after a rocket) and on Out and About (the
+# chips vox pop), as nothing looked at it. The second retry is taken as it comes.
+REPEAT_ASKS = 2
 # A story told again: "Biscuit the dog outwits the harbour smugglers" and "... outwits smugglers with the Town Hall
 # clock" share 3 of 7 words (2026-11-13). Not for every item: Gully's poems all share "Gully reads ... poem".
 RETOLD_LIKENESS = 0.4

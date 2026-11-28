@@ -7,6 +7,7 @@ changed, and on Coastwide an owner may come on to answer back.
 """
 from __future__ import annotations
 
+import random
 import re
 from datetime import date, timedelta
 
@@ -45,6 +46,52 @@ def record(world: World, script: ReviewScript) -> dict:
 
 def _since(world: World, days: int) -> str:
     return (date.fromisoformat(world.last_date) - timedelta(days=days)).isoformat()
+
+
+def _name_words(place: str) -> frozenset[str]:
+    return frozenset(w for w in re.findall(r"[a-z0-9]+", (place or "").lower().replace("'s", "")) if w != "the")
+
+
+def resting(world: World, place: str) -> dict | None:
+    """The review of this place in the last REST_DAYS, or None. The prompt names them, and on 2026-11-28 Meg
+    reviewed all three of the day before's again: The Bay Window, Saltby Players and The Gull's Rest, two of them
+    with the same verdict word for word. A name inside the other's is the same place ("Bay Window Tea Room")."""
+    new = _name_words(place)
+    if not new:
+        return None
+    rest = _since(world, REST_DAYS)
+    with world.lock:
+        recent = [r for r in world.reviews if r["date"] > rest]
+    return next((r for r in reversed(recent)
+                 if (old := _name_words(r["place"])) and (old <= new or new <= old)), None)
+
+
+# The stars, drawn in code: told "most places get three or four", every review on one afternoon came out at three
+# (2026-10-30); told "a good place is four", all six on 2026-11-27 and 11-28 came out at four.
+STARS = (2, 3, 3, 3, 4, 4, 4, 5)
+_STAR_VISIT = {
+    1: "a bad visit: say plainly and fairly what went wrong",
+    2: "a disappointing visit: one thing worth having, and what let it down",
+    3: "a mixed visit: something good and something not, and who would still enjoy it",
+    4: "a good visit with one small quibble",
+    5: "a rare great one: say what makes it the best of its kind on the coast",
+}
+
+
+def stars_due(world: World) -> int:
+    """The stars for the next review today: drawn from STARS by the date and how many came before, never the
+    same as the one before it."""
+    with world.lock:
+        today = [r["stars"] for r in world.reviews if r["date"] == world.last_date]
+    rng = random.Random(f"{world.last_date}/{len(today)}")
+    choices = [s for s in STARS if not today or s != today[-1]]
+    return rng.choice(choices)
+
+
+def stars_for_prompt(world: World) -> str:
+    n = stars_due(world)
+    return (f"THIS VISIT: {n} star{'s' if n != 1 else ''} out of five, {_STAR_VISIT[n]}. Set stars to {n} and "
+            "write the visit that earns them.")
 
 
 def _row(r: dict) -> str:

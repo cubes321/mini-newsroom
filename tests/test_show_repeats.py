@@ -211,6 +211,68 @@ def test_rock_pool_tells_no_story_twice_and_brings_no_animal_or_make_twice():
     assert same("Nettle and the Town Hall Clock", visitor) is None
 
 
+def test_the_job_guest_is_checked_and_places_and_job_words_are_not_subjects():
+    """2026-11-28: the fire station twice running (the job guest had no check), and a rabbit "From Harrow Street
+    Market" would have been the "Harrow Street Pony" by the street's name."""
+    w = world_mod.seed()
+    show = schedule.get("rockpool")
+    guest, visitor = schedule._GUEST, schedule._VISITOR
+    w.record_aired("interview", "Fire Station Visitor Shows Off The Big Ladder", None, "...", show="rockpool",
+                   brief=guest)
+    w.record_aired("interview", "Harrow Street Pony Hetty Carries Apples Up The Hill", None, "...", show="rockpool",
+                   brief=visitor)
+    same = lambda head, brief: writers._same_subject(head, w, show, brief)   # noqa: E731
+    assert same("Fire Station Crew Member Shows Off Her Boots", guest)[1] == ["fire"]
+    assert same("Lifeboat Helper Shows Off Her Dry Socks", guest) is None
+    assert same("Lighthouse Keeper Shows How The Light Goes Round", guest) is None
+    assert same("Clementine The Rabbit Visits From Harrow Street Market", visitor) is None
+    assert same("Hetty The Pony Comes Back With Her Carrots", visitor)[1] == ["hetty", "pony"]
+
+
+def test_gullys_poems_are_known_by_what_they_are_about():
+    """2026-11-28: "Gully Shares A New Harbour Poem" was taken for "... A Brand New Beach Poem" twice."""
+    w = world_mod.seed()
+    show = schedule.get("rockpool")
+    poem = schedule._POEM
+    for head in ("Gully Shares A Brand New Beach Poem", "Gully Reads His Silly Chip Poem"):
+        w.record_aired("links", head, None, "...", show="rockpool", brief=poem)
+    assert not writers._repeated("Gully Shares A New Harbour Poem", w, show, T.links, poem)
+    assert not writers._repeated("Gully Shares A Poem About Beach Crabs", w, show, T.links, poem)
+    assert writers._repeated("Gully Reads A Silly Little Chip Poem", w, show, T.links, poem)
+    w.record_aired("links", "Gully Shares A Poem About Beach Crabs", None, "...", show="rockpool", brief=poem)
+    assert writers._repeated("Gully Reads His Poem About Crabs", w, show, T.links, poem)
+
+
+def _make(head):
+    return {"headline": head, "lower_third": "Rock Pool: The Make",
+            "lines": [{"speaker": "kids", "text": "Let's make something!"}, {"speaker": "gully", "text": "Glue!"},
+                      {"speaker": "kids", "text": "Ask a grown-up for the scissors."}]}
+
+
+def test_the_retry_is_checked_too(monkeypatch):
+    """2026-11-28: sent back for paper, Haiku came back with a paper plate; sent back for the sock boat, with a tube
+    rocket after a loo-roll rocket. Nothing checked the retry."""
+    w = world_mod.seed()
+    w.record_aired("links", "Make A Paper Egg Box Bird At Home", None, "...", show="rockpool", brief=schedule._MAKE)
+    heads = ["Make A Paper Egg Box Bird At Home", "Make A Paper Plate Shaker At Home", "Make A Sock Pot Holder"]
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return schema.model_validate(_make(heads[len(asked) - 1]))
+    monkeypatch.setattr(llm, "complete_json", write)
+    seg = Segment(slot_id=41, type=T.links, show="rockpool", target_s=180, brief=schedule._MAKE)
+    writers.script_segment(seg, w)
+    assert len(asked) == 3 and seg.headline == "Make A Sock Pot Holder"
+    assert "Nothing with paper in it" in asked[2]
+    # and no more than REPEAT_ASKS times: the last comes as it is
+    heads[:] = ["Make A Paper Egg Box Bird At Home"] * 5
+    asked.clear()
+    seg = Segment(slot_id=42, type=T.links, show="rockpool", target_s=180, brief=schedule._MAKE)
+    writers.script_segment(seg, w)
+    assert len(asked) == 1 + writers.REPEAT_ASKS
+
+
 def test_a_story_with_the_same_hero_is_asked_for_again_naming_the_hero(monkeypatch):
     w = world_mod.seed()
     w.record_aired("links", "Nettle the Gull and the Town Hall Clock", None, "...", show="rockpool",

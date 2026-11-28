@@ -83,6 +83,58 @@ def test_a_place_rests_a_fortnight_then_may_be_revisited():
     assert "The Gull's Rest" in outabout.for_prompt(w).split("):")[0]       # still resting, though not shown
 
 
+def test_a_resting_place_is_sent_back_however_it_is_named(monkeypatch):
+    """2026-11-28: Meg reviewed all three of the day before's places again, though the prompt said not."""
+    w = _town()
+    old = (date.fromisoformat(w.last_date) - timedelta(days=20)).isoformat()
+    w.reviews = [{"date": old, "place": "The Anchor", "kind": "pub", "where": "the quay", "stars": 2,
+                  "verdict": "Cold chips", "owner": ""},
+                 {"date": w.last_date, "place": "The Bay Window", "kind": "tea room", "where": "the cliff path",
+                  "stars": 4, "verdict": "Worth the walk", "owner": ""}]
+    assert outabout.resting(w, "Bay Window Tea Room")["place"] == "The Bay Window"
+    assert outabout.resting(w, "the bay window")
+    assert outabout.resting(w, "The Anchor") is None                 # older than a fortnight: a revisit
+    assert outabout.resting(w, "The Window Seat") is None and outabout.resting(w, "") is None
+    asked = []
+
+    def write(task, schema, system, user):
+        asked.append(user)
+        return _review(w, place="The Bay Window" if len(asked) == 1 else "Kessick Crab Shack",
+                       guest_name="Rosa Penhale", guest_role="owner")
+    monkeypatch.setattr(writers.llm, "complete_json", write)
+    seg = Segment(slot_id=3, type=T.review, show="outabout", target_s=120)
+    writers.script_segment(seg, w)
+    assert len(asked) == 2 and "NOT The Bay Window: Meg reviewed it on" in asked[1]
+    assert w.reviews[-1]["place"] == "Kessick Crab Shack"
+
+
+def test_the_stars_are_drawn_not_left_to_the_model():
+    """Left to Haiku, every review on 2026-10-30 was three stars, and all six on 11-27 and 11-28 were four."""
+    w = _town()
+    w.reviews = []
+    seen = []
+    for n in range(12):
+        due = outabout.stars_due(w)
+        assert due in outabout.STARS and (not seen or due != seen[-1])
+        assert outabout.stars_due(w) == due                         # the same until that review is kept
+        seen.append(due)
+        w.reviews.append({"date": w.last_date, "place": f"Cafe {n}", "kind": "cafe", "where": "x", "stars": due,
+                          "verdict": "v", "owner": ""})
+    assert len(set(seen)) >= 3
+    line = outabout.stars_for_prompt(w)
+    assert line.startswith(f"THIS VISIT: {outabout.stars_due(w)} star")
+    system, user = writers.build_prompt(T.review, w, target_s=150, show=schedule.get("outabout"))
+    assert "THIS VISIT:" in user
+    system, user = writers.build_prompt(T.feature, w, target_s=150, show=schedule.get("outabout"))
+    assert "THIS VISIT:" not in user
+
+
+def test_an_afternoons_vox_pops_ask_four_different_questions():
+    """Two angles made walks, chips, walks, chips on 2026-11-27 and 11-28."""
+    show = schedule.get("outabout")
+    assert len(show.briefs[T.vox_pop]) >= 4 and len(set(show.briefs[T.vox_pop])) == len(show.briefs[T.vox_pop])
+
+
 def test_an_owner_may_answer_back_on_coastwide_and_not_on_the_news():
     w = _town()
     w.reviews = [{"date": w.last_date, "place": "The Anchor", "kind": "pub", "where": "the quay", "stars": 2,

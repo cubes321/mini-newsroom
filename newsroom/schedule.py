@@ -133,6 +133,8 @@ _LETTERS = ("LETTERS AND DRAWINGS: Gully reads out two or three letters from vie
 _STORY = ("STORY TIME: Hugh Tremayne (\"historian\") reads a legend of the town or the coast for children, one of "
           "its own (the sea, the weather, a creature, a ship), gentle and a little funny, nothing "
           "frightening; Poppy introduces it in a line, and she and Gully ask one question at the end")
+_GUEST = ("a GUEST with a job children love (a lifeboat volunteer, the lighthouse keeper, a baker, a vet, the bus "
+          "driver, a fisherman): what they do all day, the best bit, and one question from Gully")
 _POEM = ("GULLY'S POEM: Gully recites a short silly poem he has written (four to eight rhyming lines) about "
          "something on the beach; Poppy is kind about it")
 # Briefs whose item has the same title every time by design: no repeat check (writers._repeated).
@@ -143,8 +145,8 @@ RETOLD_BRIEFS = (_STORY,)
 # the first's, its title's format words aside, is the same item again (writers._same_subject). On 2026-11-27 Rock
 # Pool's first real afternoon had Nettle the gull in three of Hugh's five stories, a hundred-year-old tortoise twice
 # and owls made twice, all under titles too unlike for the word count. "A lost thing found" left _STORY's examples
-# the same day: three of the five were one.
-SUBJECT_BRIEFS = (_STORY, _VISITOR, _MAKE)
+# the same day: three of the five were one. The job guest too: the fire station twice running on 2026-11-28.
+SUBJECT_BRIEFS = (_STORY, _VISITOR, _MAKE, _GUEST)
 
 SHOWS: dict[str, Show] = {s.id: s for s in (
     Show(
@@ -533,9 +535,14 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
                 "where Meg is standing now: what's special about this spot, and how to get here",
                 "a rainy-day idea: somewhere indoors along the coast worth the trip",
             ),
+            # Two made four vox pops an afternoon of two questions, each asked twice (2026-11-27 and 11-28): six.
             T.vox_pop: (
                 "people out walking: the best walk, cafe or view on the coast",
                 "people in town: the best thing on this week, or the best chips",
+                "families on the front: where to take the children on a wet afternoon",
+                "people at the market: what's in the basket today and what they'll cook with it",
+                "anyone passing: the one place they would send a visitor first, and why",
+                "people out and about: something they tried for the first time this year, a class, a club or a trip",
             ),
         },
         # Haiku wrote reviews of about 50 s to a 120 s budget in the first run: 150 for about a minute and a quarter.
@@ -563,9 +570,7 @@ SHOWS: dict[str, Show] = {s.id: s for s in (
             I(T.links, brief=_LETTERS, target_s=90.0),
             # the order wraps back to here
             I(T.links, brief=_STORY, target_s=240.0),
-            I(T.interview, brief="a GUEST with a job children love (a lifeboat volunteer, the lighthouse keeper, a "
-                                 "baker, a vet, the bus driver, a fisherman): what they do all day, the best bit, and "
-                                 "one question from Gully"),
+            I(T.interview, brief=_GUEST),
             I(T.links, brief=_POEM, target_s=60.0),
             I(T.links, brief=_MAKE, target_s=180.0),
             I(T.interview, brief=_VISITOR),
