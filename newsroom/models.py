@@ -240,6 +240,27 @@ def _clip_words(n: int) -> BeforeValidator:
     return BeforeValidator(cut)
 
 
+# Where a caption's phrase may end: before one of these words, or at a comma or a dash.
+_PHRASE_BREAK = re.compile(r",\s|\s[—–-]\s|\s(?=(?:below|behind|beside|by|near|past|above|under|off|along|beyond|"
+                           r"opposite|outside|inside|down|up|at|on|in|across|round|around|towards?|over|from|with|"
+                           r"for|where|while|and|or|just)\b)")
+
+
+def _clip_phrase(n: int) -> BeforeValidator:
+    """For a caption on screen: cut where a phrase ends, at a comma or a dash or before "behind", "and" and the like,
+    and show it whole, with no "…"; with no such place in its second half, at a word with "…" (_clip_words). On
+    2026-11-28 "Report from Pennick's Lane, behind Harrow Street, down to the…" and "the bottom of the cliff path
+    below the…" went out: "Pennick's Lane, behind Harrow Street" and "the bottom of the cliff path" say where."""
+    words = _clip_words(n).func
+
+    def cut(v):
+        if not isinstance(v, str) or len(v) <= n:
+            return v
+        ends = [m.start() for m in _PHRASE_BREAK.finditer(v[:n + 1]) if n // 2 <= m.start() <= n]
+        return v[:ends[-1]].rstrip(" ,;:—–-") if ends else words(v)
+    return BeforeValidator(cut)
+
+
 Status = Annotated[str | None, _clip(160)]
 # A guest's memory (world.Person.memories): cut at a word, since Wexley Wits reads it out as a quote in Who Said That
 Memo = Annotated[str | None, _clip_words(140)]
@@ -253,7 +274,7 @@ Memo = Annotated[str | None, _clip_words(140)]
 _HEADLINE_HELP = ("this item's own headline on the running order, a few words in Title Case; never empty: an item "
                   "with no story of its own has one too, saying what it shows")
 Headline = Annotated[str, _clip_words(90), Field(description=_HEADLINE_HELP)]
-Caption = Annotated[str, _clip_words(60)]
+Caption = Annotated[str, _clip_phrase(60)]
 # Models sometimes write "speaker_id" (the prompts say "speaker id"); accept both.
 SPEAKER_KEY = AliasChoices("speaker", "speaker_id")
 
@@ -427,11 +448,11 @@ class CallScript(BaseModel):
     lines: list[CallLine] = Field(min_length=3, max_length=14)
     headline: Headline = Field(min_length=4, max_length=90)
     # "Have Your Say: " and the whole question overran 60 in the first run, and a retry costs a call.
-    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
+    lower_third: Annotated[str, _clip_phrase(60)] = Field(min_length=4, max_length=60)
     # Stripped first: a name of three spaces passed min_length and writers._guest_of took its first word.
     caller_name: Annotated[str, BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v)] = Field(
         min_length=3, max_length=40, description="the caller's first name and surname")
-    caller_from: Annotated[str, _clip_words(40)] = Field(
+    caller_from: Annotated[str, _clip_phrase(40)] = Field(
         max_length=40, description="where they are ringing from, as Jonah would say it: a street, a village, a boat; "
                                    "never the town's own name ('Harbour Row', not 'Harbour Row, Port Wexley')")
     caller_gender: Gender = Field(default=None, description="for casting the caller's voice: 'f' or 'm'")
@@ -455,10 +476,10 @@ class FeatureScript(BaseModel):
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
     headline: Headline = Field(min_length=4, max_length=90)
     # On screen ("Report from ..."): cut at a word, not failed; a retry cost a whole feature on 2026-10-30.
-    location: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60,
+    location: Annotated[str, _clip_phrase(60)] = Field(min_length=4, max_length=60,
                                                       description="the place in words, never a backdrop id")
     backdrop: Backdrop
-    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)   # likewise, the same day
+    lower_third: Annotated[str, _clip_phrase(60)] = Field(min_length=4, max_length=60)   # likewise, the same day
     guest_name: str | None = Field(default=None, max_length=40)
     guest_role: str | None = Field(default=None, max_length=80)
     guest_gender: Gender = None
@@ -492,16 +513,16 @@ class ReviewScript(BaseModel):
     five that the town remembers; the owner, the cook or one of the players may speak for it."""
     lines: list[GuestLine] = Field(min_length=3, max_length=14)
     headline: Headline = Field(min_length=4, max_length=90)
-    lower_third: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60)
+    lower_third: Annotated[str, _clip_phrase(60)] = Field(min_length=4, max_length=60)
     place: Annotated[str, _clip_words(40)] = Field(
         max_length=40, description="its name as on the sign or the poster: 'The Gull's Rest', 'Saltby Players'")
     kind: Annotated[str, _clip_words(24)] = Field(
         max_length=24, description="what it is: cafe, restaurant, pub, takeaway, bakery, play, gallery, music night")
-    where: Annotated[str, _clip_words(40)] = Field(
+    where: Annotated[str, _clip_phrase(40)] = Field(
         max_length=40, description="where it is, in a few words, never the town's own name: 'the back lane above "
                                    "the harbour'")
     # On screen ("Report from ..."): cut at a word, not failed; a retry cost a whole feature on 2026-10-30.
-    location: Annotated[str, _clip_words(60)] = Field(min_length=4, max_length=60,
+    location: Annotated[str, _clip_phrase(60)] = Field(min_length=4, max_length=60,
                                                       description="the place in words, never a backdrop id")
     backdrop: Backdrop
     stars: int = Field(ge=1, le=5, description="out of five: most places three or four, a five is rare, a one rarer")
@@ -542,7 +563,7 @@ class VoxLine(BaseModel):
 class VoxPopScript(BaseModel):
     """Miles puts one question to several passers-by."""
     lines: list[VoxLine] = Field(min_length=4, max_length=12)
-    question: Annotated[str, _clip_words(90)] = Field(max_length=90, description="the question Miles asks, as a caption")
+    question: Annotated[str, _clip_phrase(90)] = Field(max_length=90, description="the question Miles asks, as a caption")
     headline: Headline = Field(min_length=4, max_length=90)
     location: Caption = Field(min_length=4, max_length=60)
     backdrop: Backdrop
@@ -799,7 +820,7 @@ class AdvertScript(BaseModel):
     """A 15-30 second local TV advert: a voiceover, and perhaps the owner speaking for themselves.
     The end-card text is clipped rather than failed when it runs long (Kimi overruns limits)."""
     business: Annotated[str, _clip_words(40)] = Field(max_length=40, description="the business's name as on its sign")
-    tagline: Annotated[str, _clip_words(48)] = Field(max_length=48, description="the slogan on the end card")
+    tagline: Annotated[str, _clip_phrase(48)] = Field(max_length=48, description="the slogan on the end card")
     where: Annotated[str, _clip(48)] = Field(max_length=48,
                                              description="where to find it, for the end card ('Harrow Street, from seven')")
     backdrop: Backdrop

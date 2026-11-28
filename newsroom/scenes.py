@@ -219,6 +219,11 @@ def wrap(s: str, size: int, maxw: int, max_lines: int = 3) -> list[str]:
     return lines
 
 
+def fitting(s: str, sizes: tuple[int, ...], maxw: int) -> int:
+    """The first of `sizes` (largest first) at which s fits maxw, or the last: it is cut there (clip)."""
+    return next((z for z in sizes if font(z).size(s)[0] <= maxw), sizes[-1])
+
+
 def clip(s: str, f: pygame.font.Font, maxw: int) -> str:
     """Cut s to fit maxw with an ellipsis, at a word break when one leaves most of the line. In bold, three full
     stops: the face's own ellipsis comes out as a bar, and every cut advert name ended "_" (2026-11-24)."""
@@ -800,8 +805,10 @@ def draw_advert(canvas: pygame.Surface, v: View, t: float) -> None:
     name, maxw = a.get("business", ""), card.w - 16
     size = next((s for s in (14, 12) if font(s).size(name)[0] <= maxw), 10)
     text(canvas, name, card.x + 11, card.y + {14: 4, 12: 5, 10: 6}[size], size, maxw=maxw)
-    text(canvas, a.get("tagline", ""), card.x + 11, card.y + 21, 8, (215, 215, 225), maxw=card.w - 16)
-    text(canvas, a.get("where", ""), card.x + 11, card.bottom - 12, 8, (16, 16, 22), maxw=card.w - 16)
+    for s, y, colour in ((a.get("tagline", ""), card.y + 21, (215, 215, 225)),
+                         (a.get("where", ""), card.bottom - 12, (16, 16, 22))):
+        size = fitting(s, (8, 7), maxw)
+        text(canvas, s, card.x + 11, y if size == 8 else y + 1, size, colour, maxw=maxw)
     pygame.draw.rect(canvas, (235, 235, 235), (8, 8, 70, 10))
     text(canvas, "ADVERTISEMENT", 43, 13, 8, (30, 30, 36), center=True)
 
@@ -841,9 +848,12 @@ def draw_lower_third(canvas: pygame.Surface, v: View) -> None:
     pygame.draw.rect(canvas, (200, 30, 30), (8, y, 6, 26))
     pygame.draw.rect(canvas, (170, 16, 22) if v.breaking else (20, 20, 30), (14, y, w - 60, 16))
     pygame.draw.rect(canvas, (240, 240, 240), (14, y + 16, w - 60, 10))
-    size = 10 if font(10).size(title)[0] <= w - 70 else 8     # a long headline drops a size first
-    text(canvas, title, 18, y + 3 if size == 10 else y + 4, size, maxw=w - 70)
-    text(canvas, sub, 18, y + 17, 8, (20, 20, 30), maxw=w - 70)
+    # A long line drops a size or two before it's cut: at 8, the vox pop's question "What's been the best thing in
+    # Port Wexley this week, or where's the…" went out (2026-11-28); at 7 it fits, and still reads.
+    size = fitting(title, (10, 8, 7), w - 70)
+    text(canvas, title, 18, {10: y + 3, 8: y + 4, 7: y + 5}[size], size, maxw=w - 70)
+    small = fitting(sub, (8, 7), w - 70)
+    text(canvas, sub, 18, y + 17 if small == 8 else y + 18, small, (20, 20, 30), maxw=w - 70)
 
 
 def draw_ticker(canvas: pygame.Surface, v: View, t: float) -> None:

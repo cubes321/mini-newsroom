@@ -29,7 +29,7 @@ def test_an_overlong_caption_is_cut_at_a_word_not_failed():
 
     place = "the harbour front, by the lifeboat station where the crews are tied up for the night"
     s = FieldReportScript.model_validate({**REPLY, "location": place, "headline": "Harbour crews " * 8})
-    assert len(s.location) <= 60 and s.location.endswith("…") and place.startswith(s.location[:-1])
+    assert s.location == "the harbour front, by the lifeboat station"       # where its phrase ends (2026-11-28)
     assert len(s.headline) <= 90 and s.headline.endswith("Harbour crews…")
     assert len(EditorDecision(commission=False, reason="Not yet. " * 60).reason) == 400
 
@@ -72,3 +72,22 @@ def test_only_interviews_written_with_the_guest_rules_have_their_caption_changed
 
     assert writers._GUEST_RULES in system("late") and writers._GUEST_RULES in system("magazine")
     assert writers._GUEST_RULES not in system("panel")
+
+
+def test_a_caption_is_cut_where_its_phrase_ends():
+    """2026-11-28: "Report from Pennick's Lane, behind Harrow Street, down to the…" and "the bottom of the cliff path
+    below the…" went out. Cut where a phrase ends, a caption says where, whole."""
+    from newsroom.models import AdvertScript, ReviewScript, VoxPopScript, _clip_phrase
+
+    cut = _clip_phrase(60).func
+    assert cut("Pennick's Lane, behind Harrow Street, down to the harbour wall and the old slip") ==         "Pennick's Lane, behind Harrow Street"
+    assert _clip_phrase(40).func("the bottom of the cliff path below the coastguard cottages") ==         "the bottom of the cliff path"
+    assert _clip_phrase(48).func("Every hinge, hook and hasp, and a kind word with every nail you buy") ==         "Every hinge, hook and hasp, and a kind word"
+    assert cut("the harbour front") == "the harbour front"                                  # short: as it is
+    long_word = "Supercalifragilisticexpialidocious " * 3                                   # no phrase end: a word
+    assert cut(long_word.strip()).endswith("…")
+    for model, field in ((ReviewScript, "where"), (ReviewScript, "location"), (ReviewScript, "lower_third"),
+                         (VoxPopScript, "question"), (AdvertScript, "tagline")):
+        assert "_clip_phrase" in repr(model.model_fields[field].metadata) or any(
+            getattr(m, "func", None) and m.func.__qualname__.startswith("_clip_phrase") for m in
+            model.model_fields[field].metadata), (model.__name__, field)

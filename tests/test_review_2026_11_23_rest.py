@@ -191,9 +191,36 @@ def test_a_new_guest_with_a_worn_first_name():
         w.ensure_person(f"Ruth {last}", "resident")
         w.record_aired("vox_pop", "View", None, f"Ruth {last} told us.", show="magazine")
     assert w.first_names_worn() == {"Ruth": 3}
-    assert writers.worn_names(NS(guest_name="Ruth Adair", lines=[]), w) == [("Ruth Adair", 3)]
-    assert writers.worn_names(NS(guest_name="Ruth Hollis", lines=[]), w) == []       # known: keeps her name
+    assert writers.worn_names(NS(guest_name="Ruth Adair", lines=[]), w) == [
+        ("Ruth Adair", "Ruth Adair would be one of 4 people called Ruth on today")]
+    assert writers.worn_names(NS(guest_name="Ruth Hollis", lines=[]), w) == []       # on today already: no new Ruth
     assert writers.worn_names(NS(guest_name="Wenna Treloar", lines=[]), w) == []
+
+
+def test_a_resident_with_a_worn_first_name_counts_unless_booked():
+    """2026-11-28: five of the afternoon's seven Ruths were residents the town knew (Ruth Carvell, Ruth Caddick,
+    Ruth Penrose...), and only a new person's first name was checked."""
+    w = world_mod.seed()
+    for last in ("Penhale", "Hollis", "Carrow"):
+        w.ensure_person(f"Ruth {last}", "resident")
+        w.record_aired("vox_pop", "View", None, f"Ruth {last} told us.", show="magazine")
+    w.ensure_person("Ruth Caddick", "resident")                        # known, not on today
+    assert writers.worn_names(NS(guest_name="Ruth Caddick", lines=[]), w) == [
+        ("Ruth Caddick", "Ruth Caddick would be one of 4 people called Ruth on today")]
+    assert writers.worn_names(NS(guest_name="Ruth Caddick", lines=[]), w, booked={"Ruth Caddick"}) == []   # asked back
+
+
+def test_nobody_new_gets_a_first_name_half_the_town_has():
+    """101 of the town's 1,649 residents were called Ruth on 2026-11-28; the next names about 35 each."""
+    w = world_mod.seed()
+    for k in range(world_mod.TOWN_FIRST_NAME):
+        w.ensure_person(f"Ruth Test{k:02d}", "resident")
+    assert w.first_names_overused() == {"Ruth": world_mod.TOWN_FIRST_NAME}
+    assert writers.worn_names(NS(guest_name="Ruth Newcombe", lines=[]), w) == [
+        ("Ruth Newcombe", f"Ruth Newcombe would be one more of {world_mod.TOWN_FIRST_NAME} people in the town "
+                          "called Ruth")]
+    assert writers.worn_names(NS(guest_name="Ruth Test03", lines=[]), w) == []    # one of them: once is fine
+    assert "FIRST NAMES HALF THE TOWN HAS (never for anyone new): Ruth" in w.rested_line()
 
 
 def test_a_known_person_given_another_job():

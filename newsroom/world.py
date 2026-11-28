@@ -25,6 +25,7 @@ under it, so the player waits milliseconds at most.
 """
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Collection
 import json
 import logging
@@ -57,6 +58,8 @@ RESTED = 8                      # the most named at once
 OFFICIAL_TODAY = 12             # a public figure is rested later: stories need them, but Ivy Marchetti, the
                                 # Harbourmaster, was in 26 news items on 2026-11-22 and never rested
 SAME_FIRST_NAME = 3             # different people today with one first name before it is rested
+TOWN_FIRST_NAME = 40            # residents with one first name before nobody new is given it: on 2026-11-28 the town
+                                # had 101 Ruths of 1,649 (the model's favourite), the next names about 35 each
 TIC_TODAY = 3                   # times today a presenter's trait has been said aloud before it is rested
 # A presenter's trait that the writers say aloud, as (how it is put to them, what finds it said in an item's text).
 TICS = {"always slightly out of breath": ("out of breath", r"out of breath|breathless|puffed|run the length|"
@@ -427,14 +430,24 @@ class World:
                        and p.name.lower() not in spare), key=lambda x: -x[1])[:RESTED]
 
     @_locked
-    def first_names_worn(self) -> dict[str, int]:
-        """Each first name worn today by SAME_FIRST_NAME or more different people, with how many."""
+    def first_names_today(self) -> dict[str, set[str]]:
+        """Each first name worn on air today, with the people (full names) who wore it."""
         firsts: dict[str, set] = {}
         for pid in {pid for e in self.archive if e.get("date") == self.last_date and not e.get("fiction")
                     for pid in e.get("people") or []}:
             if (p := self.person(pid)) and p.name:
                 firsts.setdefault(p.name.split()[0], set()).add(p.name)
-        return {f: len(s) for f, s in sorted(firsts.items()) if len(s) >= SAME_FIRST_NAME}
+        return firsts
+
+    def first_names_worn(self) -> dict[str, int]:
+        """Each first name worn today by SAME_FIRST_NAME or more different people, with how many."""
+        return {f: len(s) for f, s in sorted(self.first_names_today().items()) if len(s) >= SAME_FIRST_NAME}
+
+    @_locked
+    def first_names_overused(self) -> dict[str, int]:
+        """Each first name TOWN_FIRST_NAME or more residents have, with how many: nobody new is given it."""
+        counts = Counter(p.name.split()[0] for p in self.people if p.name and p.name.split())
+        return {f: n for f, n in sorted(counts.items()) if n >= TOWN_FIRST_NAME}
 
     def rested_line(self, booked: frozenset[str] = frozenset()) -> str:
         """Who and what has been on a lot today, for the writers to rest: on the 2026-11-21 night Dolores Finch was
@@ -453,9 +466,14 @@ class World:
         if seen:
             out.append("ON A LOT LATELY (give someone else a turn: none of these unless the item is about them): "
                        + ", ".join(f"{p.name} ({n} items)" for p, n in seen))
+        # Not just anyone new: on 2026-11-28 five of the afternoon's seven Ruths were residents the town knew,
+        # booked again by name, and the line let them through.
         if names:
-            out.append("FIRST NAMES ALREADY WORN BY SEVERAL PEOPLE TODAY (anyone new is called something else): "
-                       + ", ".join(f"{f} ({n})" for f, n in names))
+            out.append("FIRST NAMES ALREADY WORN BY SEVERAL PEOPLE TODAY (nobody else with one of these today, new or "
+                       "a resident, unless this item has booked them): " + ", ".join(f"{f} ({n})" for f, n in names))
+        if common := self.first_names_overused():
+            out.append("FIRST NAMES HALF THE TOWN HAS (never for anyone new): "
+                       + ", ".join(f"{f} ({n} residents)" for f, n in common.items()))
         if tics:
             out.append("SAID ENOUGH TODAY (leave it out of this item): "
                        + "; ".join(f"{who} {what} ({n} times)" for who, what, n in tics))

@@ -206,6 +206,12 @@ def _record(world: World, name: str) -> dict:
     return rec
 
 
+def _cut(tagline: str) -> bool:
+    """A tagline stored cut short ("Everything for the boat, since before the tide…"): every advert ended on it,
+    word for word, until 2026-11-28. Never learned, and one already kept is written afresh by the next advert."""
+    return tagline.rstrip().endswith(("…", "..."))
+
+
 def businesses(world: World, seeds: bool = False) -> list[Business]:
     """Every business the directory knows: CORE with what its adverts have established (a landlord, a tagline),
     then the invented ones. `seeds` puts the seeds' businesses first."""
@@ -218,12 +224,13 @@ def businesses(world: World, seeds: bool = False) -> list[Business]:
         core_keys.add(_key(b.name))
         rec = recs.get(_key(b.name), {})
         learned = {f: rec[f] for f in ("owner", "owner_role", "owner_gender", "tagline")
-                   if rec.get(f) and not getattr(b, f)}
+                   if rec.get(f) and not getattr(b, f) and not (f == "tagline" and _cut(rec[f]))}
         out.append(replace(b, **learned))
     seed_keys = {_key(b.name) for b in SEED_BUSINESSES}
     for k, rec in recs.items():
         if rec.get("invented") and k not in core_keys and k not in seed_keys:
-            out.append(Business(**{f: rec.get(f) or fields[f].default for f in fields}))
+            out.append(Business(**{f: rec.get(f) if rec.get(f) and not (f == "tagline" and _cut(rec[f]))
+                                   else fields[f].default for f in fields}))
     return out
 
 
@@ -329,7 +336,8 @@ def advertised(world: World, script, choice: Choice) -> None:
             rec.update(invented=world.last_date, kind=choice.trade, where=script.where, backdrop=script.backdrop)
         for f, v in (("owner", script.owner_name), ("owner_role", script.owner_role),
                      ("owner_gender", script.owner_gender), ("tagline", script.tagline)):
-            if v and not (choice.known and getattr(choice.known, f)) and not rec.get(f):
+            if v and not (choice.known and getattr(choice.known, f)) and not (rec.get(f) and not (
+                    f == "tagline" and _cut(rec[f]))) and not (f == "tagline" and _cut(v)):
                 rec[f] = v
 
 

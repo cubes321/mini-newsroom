@@ -24,4 +24,30 @@ def test_a_long_tagline_is_cut_at_a_word():
         "business": "Wexley Kettle & Cake Supplies", "tagline": "Everything for the kettle, nothing you can't carry home",
         "where": "Harrow Street", "backdrop": "main_street", "lines": [{"speaker": "voiceover", "text": "Hello."},
                                                                     {"speaker": "voiceover", "text": "Come in."}]})
-    assert a.tagline == "Everything for the kettle, nothing you can't…"
+    assert a.tagline == "Everything for the kettle"                  # at its comma, whole (2026-11-28)
+
+
+def test_a_tagline_stored_cut_is_never_used_again():
+    """2026-11-28: two of the town's taglines were kept cut ("Everything for the boat, since before the tide…"), and
+    every advert for the business ends on its tagline, word for word."""
+    from newsroom import directory, world as world_mod
+
+    w = world_mod.seed()
+    plain = next(b for b in directory.CORE if not b.tagline)
+    w.directory[directory._key(plain.name)] = {"tagline": "Everything for the boat, since before the tide…"}
+    w.directory["veryan's chandlery"] = {"invented": w.last_date, "kind": "chandlery", "where": "the quay",
+                                         "backdrop": "harbour", "tagline": "Grown close, sold fresh…"}
+    known = {b.name: b for b in directory.businesses(w)}
+    assert known[plain.name].tagline == "" and directory.find(w, "Veryan's Chandlery").tagline == ""
+    w.directory[directory._key(plain.name)]["tagline"] = "Tied up tight since 1871"
+    assert directory.find(w, plain.name).tagline == "Tied up tight since 1871"
+
+
+def test_a_long_caption_drops_a_size_before_it_is_cut():
+    """At 8, "What's been the best thing in Port Wexley this week, or where's the…" went out (2026-11-28)."""
+    import pygame
+    pygame.init()
+    q = "What's been the best thing in Port Wexley this week, or where's the best chips?"
+    assert scenes.fitting(q, (10, 8, 7), 250) == 7
+    assert scenes.fitting("Vox pop", (10, 8, 7), 250) == 10
+    assert scenes.fitting("x " * 200, (8, 7), 250) == 7                 # too long even so: cut at 7

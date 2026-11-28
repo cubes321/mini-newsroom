@@ -18,6 +18,7 @@ import re
 import string
 import time
 from collections import deque
+from collections.abc import Collection
 from datetime import date, datetime, timedelta
 from typing import Callable
 
@@ -46,7 +47,7 @@ from .models import (
     WeatherScript,
     script_schema,
 )
-from .world import (RETURN_EXPIRE_S, Person, World,status_words, said_next, said_status,
+from .world import (RETURN_EXPIRE_S, SAME_FIRST_NAME, Person, World,status_words, said_next, said_status,
                     same_story_words, tells_next_as_done)
 
 log = logging.getLogger(__name__)
@@ -2020,15 +2021,27 @@ def role_drift(script, world: World) -> tuple[str, str, str] | None:
     return None if new & old else (p.name, role, p.role)
 
 
-def worn_names(script, world: World) -> list[tuple[str, int]]:
-    """The NEW people in a script (the guest, and any guest_name on a line) whose first name has been worn by
-    SAME_FIRST_NAME or more people today (World.first_names_worn), with how many. Someone the town already knows
-    keeps their name."""
-    worn = world.first_names_worn()
+def worn_names(script, world: World, booked: Collection[str] = ()) -> list[tuple[str, str]]:
+    """The people in a script (the guest, and any guest_name on a line) with a first name worn enough already, each
+    with why: worn by SAME_FIRST_NAME or more people today (World.first_names_worn), or, for someone new, by
+    TOWN_FIRST_NAME or more residents (World.first_names_overused). A resident counts too, unless the item booked
+    them (`booked`) or they have been on today already: on 2026-11-28 five of the afternoon's seven Ruths were
+    residents the town knew, and only the new ones were checked."""
+    today, common = world.first_names_today(), world.first_names_overused()
+    keep = {b.lower() for b in booked if b}
     names = dict.fromkeys([getattr(script, "guest_name", None),
                            *(getattr(l, "guest_name", None) for l in getattr(script, "lines", []))])
-    return [(n, worn[n.split()[0]]) for n in names
-            if n and n.split() and n.split()[0] in worn and not world.person_by_name(n)]
+    out = []
+    for n in names:
+        if not n or not n.split() or n.lower() in keep:
+            continue
+        first, known = n.split()[0], world.person_by_name(n)
+        been = today.get(first, set())
+        if len(been) >= SAME_FIRST_NAME and not (known and known.name in been):
+            out.append((n, f"{n} would be one of {len(been) + 1} people called {first} on today"))
+        elif not known and first in common:
+            out.append((n, f"{n} would be one more of {common[first]} people in the town called {first}"))
+    return out
 
 
 def wrong_mouths(lines: list[Line], world: World) -> int:
@@ -2448,16 +2461,17 @@ def script_segment(seg: Segment, world: World) -> Segment:
                                                           *(getattr(l, "guest_name", None) for l in again.lines)] if n) \
                     and not (taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
-        # A new person with a first name worn by several today: one more ask; the one with fewer stands. The prompt
-        # said "Ruth (5)", then "Ruth (6)", and The Last Ferry booked Ruth Adair (2026-11-22); Coastwide had nine Ruths.
-        if (worn := worn_names(script, world)) and not cont and not booked:
-            log.info("%s slot %d: %s, a first name worn today already; asking once more", seg.type.value,
-                     seg.slot_id, ", ".join(f"{n} ({c})" for n, c in worn))
+        # Someone with a first name worn by several today, or new with one half the town has: one more ask; the one
+        # with fewer stands. The prompt said "Ruth (5)", then "Ruth (6)", and The Last Ferry booked Ruth Adair
+        # (2026-11-22); Coastwide had nine Ruths, and the 11-28 afternoon seven, five of them residents.
+        mine = _booked_here(world, show, seg.part, seg.work) or ()
+        if (worn := worn_names(script, world, mine)) and not cont and not booked:
+            log.info("%s slot %d: %s; asking once more", seg.type.value, seg.slot_id, "; ".join(c for _, c in worn))
             again = llm.complete_json(seg.type.value, schema, system, user + (
-                "\n\nFIRST NAMES TAKEN: " + "; ".join(f"{n} is one of {c} people called {n.split()[0]} on today"
-                                                      for n, c in worn)
-                + ". Anyone new in this item needs a first name nobody on air has had today."))
-            if len(worn_names(again, world)) < len(worn) and not (
+                "\n\nFIRST NAMES TAKEN: " + "; ".join(c for _, c in worn)
+                + ". Anyone in this item who isn't booked for it needs a first name nobody on air has had today, "
+                "and nobody new is given a first name half the town has."))
+            if len(worn_names(again, world, mine)) < len(worn) and not (
                     taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
         # Someone the town knows given another job: one more ask; kept as it was if the next does it too (and then
