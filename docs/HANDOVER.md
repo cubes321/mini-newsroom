@@ -60,9 +60,18 @@ recordings' sound; no frames sampled.
 
       Replayed over the afternoon's 127 located scripts, it flags 7, all real. "Live from the bottom of the cliff
       path" in the tea room was the caption cut on screen; the full text names the tea room, and size 7 fits it.
-  - **Not fixed:**
-    - Ruth Caddick's role changes between the wide shot and the close-up (the known role-clash item).
-    - Out and About's light doesn't warm towards sunset.
+    - **The rest, in 5c87d32 (not yet on air):**
+      - **Golden hour.** A fourth light step, "golden", runs the hour before the dusk grade
+        (`locations.GOLDEN_BEFORE`). It is the daylight art through a gentle colour ramp (`backdrops._golden_grade`,
+        dusk's method): warm-blue overhead, gold low down, the sea still blue, the people warmer. No lamps or
+        lighthouse beam. Today it starts at 15:19, so Out and About turns golden partway through. Contact sheet:
+        `data/contact-sheets/2026-11-28-golden-hour.png`.
+      - **A job clash that survives the re-ask** is asked a third time for someone new. If that clashes too, the
+        caption keeps to the record, as the close-ups already did (`writers._keep_to_record`). The town still
+        doesn't keep what they said.
+      - **`test_townlock`'s kill-then-claim tests** wait up to 10 s for Windows to let a killed holder's lock go. Six
+        copies at once passed every time.
+  - **Nothing from this afternoon is left open.** The golden grade was approved from the contact sheet (11-28).
 
 ## The 11-27 night reviewed (2026-11-28): stale Christmas lights, unnamed guests
 
