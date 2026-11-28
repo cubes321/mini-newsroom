@@ -197,3 +197,17 @@ def test_the_light_follows_the_sun_not_the_clock():
     assert time_of_day(datetime(2027, 6, 21, 21, 30).timestamp()) == "dusk"     # a timestamp, as the player gives
     assert sun.times(date(2027, 3, 29))[0].hour == 7 and sun.times(date(2027, 3, 27))[0].hour == 6   # summer time
     assert forecast.dark(datetime(2026, 12, 21, 16, 30)) and not forecast.dark(datetime(2027, 6, 21, 20, 30))
+
+
+def test_the_hour_before_dusk_is_golden():
+    """On 2026-11-28 Out and About's last scenes, half an hour before a 16:19 sunset, were as white as noon."""
+    from newsroom import backdrops
+    from newsroom.locations import GOLDEN_BEFORE, time_of_day
+    from newsroom import sun
+    sett = sun.times(date(2026, 11, 28))[2]
+    tod = lambda m: time_of_day(sett - timedelta(minutes=m))                  # noqa: E731
+    assert [tod(m) for m in (90, 61, 59, 35, 29, 0)] == ["day", "day", "golden", "golden", "dusk", "dusk"]
+    assert GOLDEN_BEFORE == timedelta(minutes=60)
+    assert "golden" in backdrops.TODS and "golden" in backdrops.LIT_BY_DAY      # no lamps, no beam
+    warm = backdrops.person_light("harbour", "golden", None)
+    assert warm[0] > 1.0 > warm[2] and backdrops.person_light("studio_wide", "golden", None) == (1.0, 1.0, 1.0)

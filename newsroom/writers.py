@@ -2064,6 +2064,17 @@ def role_drift(script, world: World) -> tuple[str, str, str] | None:
     return None if new & old else (p.name, role, p.role)
 
 
+def _keep_to_record(script, drift: tuple[str, str, str], interview: bool) -> None:
+    """A guest still given another job after every ask: the item's caption says the record's, as the close-ups do
+    (_finish's role()). `drift` is role_drift's (name, the script's job, the record's). The script's guest_role
+    stays as written, so the town still doesn't keep what they said (_apply_to_world). An interview's caption that
+    doesn't name them would be named from the script's job (caption_names_guest), so it is named here first."""
+    name, theirs, record = drift
+    cap = getattr(script, "lower_third", "") or ""
+    if (theirs and theirs.lower() in cap.lower()) or (interview and name.split()[-1].lower() not in cap.lower()):
+        script.lower_third = f"{name}, {record}" if len(name) + len(record) + 2 <= 60 else name[:60]
+
+
 def worn_names(script, world: World, booked: Collection[str] = ()) -> list[tuple[str, str]]:
     """The people in a script (the guest, and any guest_name on a line) with a first name worn enough already, each
     with why: worn by SAME_FIRST_NAME or more people today (World.first_names_worn), or, for someone new, by
@@ -2528,6 +2539,22 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 "as in \"lifeboat coxswain and knitter\"), or book someone else."))
             if not role_drift(again, world) and not (taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
+            elif still := role_drift(script, world):
+                # Asked twice, the job still isn't theirs: someone new, then. On 2026-11-28 Ruth Caddick, a former council
+                # accountant, aired as "market stallholder and pony keeper" in the wide shot and under her record in the
+                # close-ups. If the third ask clashes too, the captions keep to the record (_keep_to_record).
+                log.info("%s slot %d: %s still given as %r; asking for someone new", seg.type.value, seg.slot_id,
+                         still[0], still[1])
+                other = llm.complete_json(seg.type.value, schema, system, user + (
+                    f"\n\nNOT {still[0]}: they are {still[2]} on the town's record, never {still[1]}. Book someone NEW "
+                    f"for this item, with a name of their own (not {still[0]}), who is {still[1]}."))
+                if not role_drift(other, world) and not same_person(getattr(other, "guest_name", None), still[0]) \
+                        and not (taken and same_person(getattr(other, "guest_name", None), taken)):
+                    script = other
+                else:
+                    _keep_to_record(script, still, seg.type is SegmentType.interview)
+                    log.warning("%s slot %d: %s keeps their record's job on screen (%r)", seg.type.value, seg.slot_id,
+                                still[0], still[2])
         # The caption against the set: one more ask; kept as it was if the next disagrees too. Not on a show out on
         # one location all night (the player puts it there), nor a review (outabout.backdrop_for takes it indoors).
         if (seg.type is not SegmentType.review and not seg.work.get("location")

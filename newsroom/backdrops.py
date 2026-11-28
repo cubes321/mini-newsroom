@@ -38,7 +38,7 @@ W, H = 320, 180
 HZ = 120                                   # default ground line
 ART_DIR = CONFIG.paths.assets / "backdrops"
 CACHE_SIZE = 24
-TODS = ("day", "dusk", "night")
+TODS = ("day", "golden", "dusk", "night")
 
 GLASS = (60, 75, 95)
 LIT = (255, 214, 130)
@@ -70,9 +70,16 @@ HORIZON: dict[str, int] = {"seafront": 80, "estuary": 62, "farm": 86, "lighthous
 DUSK_RAMP = ((0.0, (96, 72, 150)), (0.55, (220, 110, 150)), (1.0, (255, 150, 70)), (1.6, (190, 120, 95)))
 DUSK_WATER = (95, 85, 150)                 # sea and river below the horizon: violet, not the ground's warm brown
 DUSK_K_SKY, DUSK_K_REST, DUSK_DARKEN = 0.75, 0.22, 0.86
+# The golden hour the same way, gentler: a warm-blue sky overhead, gold low down, the sea still blue. A multiply
+# alone turned the daylight skies sage green (the first try, 2026-11-28).
+GOLDEN_RAMP = ((0.0, (140, 175, 220)), (0.6, (225, 205, 170)), (1.0, (255, 205, 140)), (1.6, (220, 175, 120)))
+GOLDEN_WATER = (80, 120, 170)
+GOLDEN_K_SKY, GOLDEN_K_REST, GOLDEN_DARKEN = 0.5, 0.2, 0.97
 
-TOD_MULT = {"day": (1.0, 1.0, 1.0), "dusk": (1.0, 0.82, 0.72), "night": (0.38, 0.42, 0.62)}
-TOD_K = {"day": 1.0, "dusk": 0.7, "night": 0.25}
+# golden: the hour before the dusk grade, the daylight art warmed by a low sun (locations.GOLDEN_BEFORE, 2026-11-28)
+TOD_MULT = {"day": (1.0, 1.0, 1.0), "golden": (1.05, 0.93, 0.78), "dusk": (1.0, 0.82, 0.72), "night": (0.38, 0.42, 0.62)}
+TOD_K = {"day": 1.0, "golden": 0.92, "dusk": 0.7, "night": 0.25}
+LIT_BY_DAY = ("day", "golden")             # no lamps in the windows, no lighthouse beam
 # weather -> (multiply, desaturate 0..1, (mix colour, amount) or None)
 WX_GRADE: dict[str, tuple[tuple[float, float, float], float, tuple | None]] = {
     "sunny": ((1.04, 1.0, 0.94), 0.0, None),
@@ -87,7 +94,8 @@ WX_GRADE: dict[str, tuple[tuple[float, float, float], float, tuple | None]] = {
 SKY_DRIFT = 1.2
 SKY_DRIFT_LAYER = (1.0, 0.55)
 SKY_DRIFT_WX = {"wind": 3.0, "storm": 3.0, "rain": 1.6, "cloudy": 1.3}
-SKY_TOD = {"dusk": ((70, 60, 120), (245, 160, 110)), "night": ((8, 10, 28), (28, 34, 70))}
+SKY_TOD = {"golden": ((110, 140, 190), (250, 205, 150)), "dusk": ((70, 60, 120), (245, 160, 110)),
+           "night": ((8, 10, 28), (28, 34, 70))}
 SKY_WX = {"cloudy": ((165, 170, 180), 0.5), "rain": ((105, 110, 122), 0.75), "storm": ((60, 62, 76), 0.85),
           "snow": ((200, 205, 215), 0.6), "fog": ((190, 190, 195), 0.85)}
 
@@ -1300,6 +1308,8 @@ def _sky(loc: Location, tod: str, wx: str | None) -> pygame.Surface:
         pygame.draw.circle(s, top, (55, 34), 5)
     elif tod == "day" and wx in (None, "sunny"):
         pygame.draw.circle(s, (255, 235, 150), (52, 40), 8)
+    elif tod == "golden" and clear:
+        pygame.draw.circle(s, (255, 205, 120), (56, HZ - 32), 10)
     elif tod == "dusk" and clear:
         pygame.draw.circle(s, (255, 170, 90), (60, HZ - 14), 12)
     return s
@@ -1339,21 +1349,31 @@ def _dusk_grade(surf: pygame.Surface, horizon: int, top: int = 0) -> None:
     most of it; buildings and grass a little, so they stay readable. `top`: rows of padding above the
     frame (a parallax plate's), so each row takes the colour of the screen row it shows.
     """
+    _ramp_grade(surf, horizon, top, DUSK_RAMP, DUSK_WATER, DUSK_K_SKY, DUSK_K_REST, DUSK_DARKEN)
+
+
+def _golden_grade(surf: pygame.Surface, horizon: int, top: int = 0) -> None:
+    """The hour before sunset for art made in daylight: _dusk_grade's way, with GOLDEN_RAMP."""
+    _ramp_grade(surf, horizon, top, GOLDEN_RAMP, GOLDEN_WATER, GOLDEN_K_SKY, GOLDEN_K_REST, GOLDEN_DARKEN)
+
+
+def _ramp_grade(surf: pygame.Surface, horizon: int, top: int, stops_rgb, water_rgb, k_sky: float, k_rest: float,
+                darken: float) -> None:
     rgb = pygame.surfarray.pixels3d(surf)                       # indexed [x, y, channel]
     a = rgb.astype(np.float32)
     ys = (np.arange(a.shape[1], dtype=np.float32) - top) / max(1, horizon)
-    stops = np.array([s for s, _ in DUSK_RAMP], np.float32)
-    ramp = np.stack([np.interp(ys, stops, [c[i] for _, c in DUSK_RAMP]) for i in range(3)], axis=1)
+    stops = np.array([s for s, _ in stops_rgb], np.float32)
+    ramp = np.stack([np.interp(ys, stops, [c[i] for _, c in stops_rgb]) for i in range(3)], axis=1)
     lum = a @ np.array([0.299, 0.587, 0.114], np.float32)
     blue = np.clip((a[..., 2] - np.maximum(a[..., 0], a[..., 1])) / 30.0, 0, 1)
     water = blue * np.clip((ys[None, :] - 1.0) * 10, 0, 1)    # blue below the horizon
-    target = ramp[None, :, :] + (np.array(DUSK_WATER, np.float32) - ramp[None, :, :]) * water[..., None]
+    target = ramp[None, :, :] + (np.array(water_rgb, np.float32) - ramp[None, :, :]) * water[..., None]
     target_lum = target @ np.array([0.299, 0.587, 0.114], np.float32)
     tint = target * (lum / target_lum)[..., None]
     haze = np.clip((lum - 185) / 45.0, 0, 1) * (ys[None, :] < 1.05)
-    k = DUSK_K_REST + (DUSK_K_SKY - DUSK_K_REST) * np.maximum(blue, haze)
-    a = a * DUSK_DARKEN
-    a += (np.minimum(tint, 255) * DUSK_DARKEN - a) * k[..., None]
+    k = k_rest + (k_sky - k_rest) * np.maximum(blue, haze)
+    a = a * darken
+    a += (np.minimum(tint, 255) * darken - a) * k[..., None]
     rgb[...] = np.clip(a, 0, 255).astype(np.uint8)
     del rgb
 
@@ -1371,7 +1391,7 @@ def _glow(c) -> pygame.Surface:
 
 
 def _light_up(surf: pygame.Surface, p: _Paint, tod: str) -> None:
-    if tod == "day":
+    if tod in LIT_BY_DAY:
         return
     share = 65 if tod == "night" else 30
     for r in p.windows:
@@ -1432,10 +1452,10 @@ def day_art_at_night(backdrop_id: str | None) -> bool:
 
 
 def _grade_art(img: pygame.Surface, loc: Location, tod: str, wx: str | None, own_tod: bool, top: int = 0) -> None:
-    dusk = tod == "dusk" and not own_tod
-    if dusk:                                                     # sunset first, so the weather sits on top of it
-        _dusk_grade(img, HORIZON.get(loc.id, DUSK_HZ), top)
-    _grade(img, tod, wx, tod_grade=not own_tod and not dusk)
+    ramp = None if own_tod else {"dusk": _dusk_grade, "golden": _golden_grade}.get(tod)
+    if ramp:                                                     # the low sun first, so the weather sits on top of it
+        ramp(img, HORIZON.get(loc.id, DUSK_HZ), top)
+    _grade(img, tod, wx, tod_grade=not own_tod and not ramp)
 
 
 def _build(loc: Location, tod: str, wx: str | None, clean: bool = False) -> pygame.Surface:
@@ -1565,7 +1585,7 @@ def _shimmer(canvas: pygame.Surface, loc_id: str, tod: str, t: float) -> None:
     global _shimmer_buf
     if _shimmer_buf is None:
         _shimmer_buf = pygame.Surface((W, H), pygame.SRCALPHA)
-    c = {"day": (160, 195, 225), "dusk": (230, 170, 140), "night": (70, 85, 125)}[tod]
+    c = {"day": (160, 195, 225), "golden": (225, 195, 155), "dusk": (230, 170, 140), "night": (70, 85, 125)}[tod]
     buf = _shimmer_buf
     buf.fill((0, 0, 0, 0))
     for x0, y0, w, h in WATER[loc_id]:
@@ -1596,7 +1616,7 @@ def _beam(canvas: pygame.Surface, t: float) -> None:
 def _weather_fx(canvas: pygame.Surface, wx: str | None, tod: str, t: float) -> None:
     if wx in ("rain", "storm"):
         n, slant = (45, 1) if wx == "rain" else (80, 3)
-        c = (190, 200, 220) if tod == "day" else (110, 120, 150)
+        c = (190, 200, 220) if tod in LIT_BY_DAY else (110, 120, 150)
         for i in range(n):
             x = (i * 37 - int(t * 30 * slant)) % (W + 20) - 10
             y = (i * 53 + int(t * 260)) % H
@@ -1722,7 +1742,7 @@ BEAM_ROWS = (LIGHTHOUSE_LAMP[1] - 12, LIGHTHOUSE_LAMP[1] + 11)     # the rows _b
 
 def draw_beam(canvas: pygame.Surface, backdrop_id: str | None, tod: str, t: float) -> bool:
     """The lighthouse's beam after dark; whether this backdrop has one."""
-    if locations.get(backdrop_id).id != "lighthouse" or tod == "day":
+    if locations.get(backdrop_id).id != "lighthouse" or tod in LIT_BY_DAY:
         return False
     _beam(canvas, t)
     return True

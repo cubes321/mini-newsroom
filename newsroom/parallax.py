@@ -226,7 +226,7 @@ class Scene:
         lx, ly = backdrops.LIGHTHOUSE_LAMP              # the beam leaves the lantern, wherever it has moved
         lamp = int(front[lx + PAD, ly + PAD]) or int(feet[lx + PAD, ly + PAD])
         self.lamp_foot = lamp - PAD if lamp else None    # None: the lamp is in the sky, which stays still
-        self.beam = loc.id == "lighthouse" and tod != "day"
+        self.beam = loc.id == "lighthouse" and tod not in backdrops.LIT_BY_DAY
 
     def _crop(self, rgb: np.ndarray, have: np.ndarray) -> tuple[pygame.Surface, tuple[int, int]]:
         xs, ys = np.nonzero(have)

@@ -19,7 +19,7 @@ from typing import Literal
 from . import sun
 
 Kind = Literal["town", "country", "studio"]
-TimeOfDay = Literal["day", "dusk", "night"]
+TimeOfDay = Literal["day", "golden", "dusk", "night"]
 RGB = tuple[int, int, int]
 
 
@@ -181,16 +181,22 @@ def locations_for_prompt() -> str:
 
 DAWN_BEFORE, DAWN_AFTER = timedelta(minutes=40), timedelta(minutes=20)    # the dawn grade around sunrise
 DUSK_BEFORE, DUSK_AFTER = timedelta(minutes=30), timedelta(minutes=50)    # the dusk grade around sunset
+# The low sun's warmth before the dusk grade: on 2026-11-28 Out and About's last scenes, half an hour before the sun
+# went at 16:19, were as bright and white as noon. An hour before sunset it turns golden, until the dusk grade.
+GOLDEN_BEFORE = timedelta(minutes=60)
 
 
 def time_of_day(when: datetime | float) -> TimeOfDay:
     """The art's grade at `when` (a local datetime or a timestamp), by Port Wexley's sun (sun.py): dusk from 40
-    minutes before sunrise to 20 after, and from 30 before sunset to 50 after; day between, night outside. Until
+    minutes before sunrise to 20 after, and from 30 before sunset to 50 after; golden the hour before that (the low
+    sun's warmth, GOLDEN_BEFORE); day between, night outside. Until
     2026-11-27 it went by the hour alone, all year (day 07-17, dusk 17-20 and at six)."""
     t = when if isinstance(when, datetime) else datetime.fromtimestamp(when)
     rise, _, sett = sun.times(t.date())
-    if rise + DAWN_AFTER <= t < sett - DUSK_BEFORE:
+    if rise + DAWN_AFTER <= t < sett - GOLDEN_BEFORE:
         return "day"
+    if sett - GOLDEN_BEFORE <= t < sett - DUSK_BEFORE:
+        return "golden"
     if rise - DAWN_BEFORE <= t < rise + DAWN_AFTER or sett - DUSK_BEFORE <= t < sett + DUSK_AFTER:
         return "dusk"
     return "night"

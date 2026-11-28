@@ -24,7 +24,18 @@ def _holder(world: Path) -> subprocess.Popen:
     return p
 
 
-def test_a_second_station_is_refused_and_a_killed_one_leaves_no_lock(tmp_path):
+# Windows lets a killed process's lock go "in due course" (townlock.release), not the moment the process is reaped:
+# on a busy machine a claim straight after the kill found it still held, and these tests failed one run in three or
+# so (2026-11-28, the full suite taking four minutes). A station waits WAIT_S for this; the tests wait up to FREED_S.
+FREED_S = 10.0
+
+
+def _claim_after_kill(world: Path, who: str, monkeypatch) -> Path:
+    monkeypatch.setattr(townlock, "POLL_S", 0.05)
+    return townlock.claim(world, who, wait_s=FREED_S)
+
+
+def test_a_second_station_is_refused_and_a_killed_one_leaves_no_lock(tmp_path, monkeypatch):
     world = tmp_path / "world.json"
     p = _holder(world)
     try:
@@ -35,7 +46,7 @@ def test_a_second_station_is_refused_and_a_killed_one_leaves_no_lock(tmp_path):
         p.kill()                                     # not a clean exit: the lock must go with the process
         p.wait()
     try:
-        townlock.claim(world, "Channel 8", wait_s=0)
+        _claim_after_kill(world, "Channel 8", monkeypatch)
         assert townlock.holder(world).startswith("Channel 8, pid ")
         assert townlock.claim(world, "Channel 8", wait_s=0)                    # its own town again: no-op
     finally:
@@ -43,7 +54,7 @@ def test_a_second_station_is_refused_and_a_killed_one_leaves_no_lock(tmp_path):
         townlock.release(tmp_path / "copy.json")
 
 
-def test_a_save_beside_a_station_is_refused(tmp_path):
+def test_a_save_beside_a_station_is_refused(tmp_path, monkeypatch):
     from newsroom import world as world_mod
 
     path = tmp_path / "world.json"
@@ -55,7 +66,9 @@ def test_a_save_beside_a_station_is_refused(tmp_path):
     finally:
         p.kill()
         p.wait()
+    _claim_after_kill(path, "a save from pytest", monkeypatch)       # then the save's own claim is a no-op
     world_mod.save(world_mod.seed(), path)
+    assert path.exists()
     townlock.release(path)
 
 

@@ -109,7 +109,7 @@ class View:
     map_state: str | None = None
     temp_c: int | None = None
     backdrop: str | None = None
-    tod: str = "day"                     # day | dusk | night, from the broadcast clock
+    tod: str = "day"                     # day | golden | dusk | night, from the broadcast clock
     weather: str | None = None           # last weather report's map_state; grades exteriors
     shot: str = "wide"                   # studio framing: wide | close | wall
     wall_label: str = ""                 # caption on the big-picture wall's side panel
