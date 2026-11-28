@@ -138,11 +138,15 @@ def test_an_event_that_has_begun_is_never_told_as_still_to_come():
                  "Harrow Street Lights Switch On Tonight at Six",
                  "Sandra Okoye has been handed the envelope, and she says the name will be read out at six, straight "
                  "from the bandstand."):
-        assert calendar.tense_slips([late], now), late
+        assert calendar.tense_slips(["Miles is on Harrow Street for the lights.", late], now), late
     for fine in ("The lights went on at six to a cheer from the bandstand.", "The lights have been on since six.",
                  "The lights were switched on at six, and the carols began.", "Will the lights stay on past six?",
-                 "The market opens at six tomorrow morning.", "The ferry leaves at ten past ten."):
-        assert not calendar.tense_slips([fine], now), fine
+                 "The market opens at six tomorrow morning.", "The ferry leaves at ten past ten.",
+                 "Her grandad apparently held her up to see the tree switch on at six.",   # Coastwide, 19:32
+                 "The first ferry leaves at six."):                                        # tomorrow's, at 22:14
+        assert not calendar.tense_slips(["Miles is on Harrow Street for the lights.", fine], now), fine
+    # Only an event the script names: "the quiz starts at six" is no news of the lights.
+    assert not calendar.tense_slips(["The pub quiz starts at six."], now)
     assert not calendar.tense_slips(["Harrow Street Lights Due at Six"], datetime(2026, 11, 27, 17, 0))  # before six
     assert not calendar.tense_slips(["Harrow Street Lights Due at Six"], datetime(2026, 11, 26, 18, 30))  # not the day
 

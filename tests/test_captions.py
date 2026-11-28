@@ -41,23 +41,34 @@ def test_a_blank_caption_fails_validation(field):
             FieldReportScript.model_validate({**REPLY, field: placeholder})
 
 
+
 def test_an_interview_caption_names_the_guest():
     """On the 2026-11-27 night one interview in five was captioned without the guest's name: "Night ferry hand,
-    Saltby crossing" for Callum Tate, "Interview: Local Resident" for Cora Jessop. The Panel's stays its question."""
-    from newsroom.models import InterviewScript, PanelScript
+    Saltby crossing" for Callum Tate, "Interview: Local Resident" for Cora Jessop."""
+    from types import SimpleNamespace
 
-    say = [{"speaker": "late_host", "text": "Welcome on."}, {"speaker": "guest", "text": "Evening."}]
-    cap = lambda lt, name, role=None: InterviewScript.model_validate(          # noqa: E731
-        {"lines": say, "headline": "A ferry hand at midnight", "lower_third": lt, "guest_name": name,
-         "guest_role": role}).lower_third
-    assert cap("Night ferry hand, Saltby crossing", "Callum Tate", "ferry hand, Saltby foot ferry") == \
-        "Callum Tate, ferry hand, Saltby foot ferry"
+    from newsroom import writers
+
+    def cap(lt, name, role=None):
+        s = SimpleNamespace(lower_third=lt, guest_name=name, guest_role=role)
+        writers.caption_names_guest(s)
+        return s.lower_third
+
+    assert cap("Night ferry hand, Saltby crossing", "Callum Tate", "ferry hand, Saltby foot ferry") ==         "Callum Tate, ferry hand, Saltby foot ferry"
     assert cap("Interview: Local Resident", "Cora Jessop") == "Cora Jessop"
     assert cap("Callum Tate, Saltby Foot Ferry", "Callum Tate", "ferry hand") == "Callum Tate, Saltby Foot Ferry"
-    assert cap("Night nurse", "Ruth Carver", "night nurse and volunteer steward on the ward at Harbour Hill") == \
-        "Ruth Carver"                                                          # name and role past 60: the name
-    panel = PanelScript.model_validate(
-        {"lines": [{"speaker": "anchor", "text": "Q1."}] + [{"speaker": "guest", "guest_name": n, "text": "Yes."}
-                                                            for n in ("Ann Lee", "Bo Ray", "Cy Fox")],
-         "headline": "Second engine", "lower_third": "Q1: Second fire engine"})
-    assert panel.lower_third == "Q1: Second fire engine"
+    assert cap("Night nurse", "Ruth Carver", "night nurse and volunteer steward on the ward at Harbour Hill") ==         "Ruth Carver"                                                          # name and role past 60: the name
+    assert cap("Consumer: boiler cover", None) == "Consumer: boiler cover"     # nobody to name
+
+
+def test_only_interviews_written_with_the_guest_rules_have_their_caption_changed():
+    """The Panel's and The Chamber's captions are the programme's, and so are the hand-built shows' (The Kettle,
+    Tideline, the Mayor's message): the rule is in script_segment, for prompts with the guest rules only."""
+    from newsroom import schedule, writers, world as world_mod
+    from newsroom.models import SegmentType
+
+    def system(show):
+        return writers.build_prompt(SegmentType.interview, world_mod.seed(), target_s=60, show=schedule.get(show))[0]
+
+    assert writers._GUEST_RULES in system("late") and writers._GUEST_RULES in system("magazine")
+    assert writers._GUEST_RULES not in system("panel")

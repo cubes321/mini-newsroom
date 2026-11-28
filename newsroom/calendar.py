@@ -333,31 +333,39 @@ _NAME_STOP = {"the", "of", "and", "a", "night", "day", "sunday", "week", "weeken
 
 def mentions(e: Event, text: str) -> bool:
     """Does the text name the event, by a word of its name: "lights" for the Christmas lights, "bonfire"."""
-    words = [w.removesuffix("'s").rstrip("s") for w in re.findall(r"[a-z']+", e.name.lower()) if w not in _NAME_STOP]
-    return any(re.search(rf"\b{re.escape(w)}s?\b", text, re.I) for w in words if len(w) > 2)
+    # A plural stays plural: "lights", not the "first light" of a weather (on the 28th's repeats "light" held back
+    # "Cannery Ledger Names Second Packer"); "bonfire" also takes "bonfires".
+    words = [w.removesuffix("'s") for w in re.findall(r"[a-z']+", e.name.lower()) if w not in _NAME_STOP]
+    return any(re.search(rf"\b{re.escape(w)}{'' if w.endswith('s') else 's?'}\b", text, re.I)
+               for w in words if len(w) > 2)
 
 
 # "will be read out at six" is to come whatever else the clause says; "go on at six" only with nothing done in it.
 _SURELY_TO_COME = re.compile(r"\b(will|'ll|is due|are due|due|set to|going to|about to|is to be|are to be)\b", re.I)
 _TO_COME = re.compile(r"\b(starts?|begins?|opens?|goes on|go on|switch(?:es)? on|comes? on|kicks? off|leaves|"
                       r"sets? off|is at|are at|'s at)\b", re.I)
-_DONE = re.compile(r"\b(was|were|came|went|had|has|have|been|already|gone|began|begun|started|opened|switched|lit|"
-                   r"threw|thrown|kicked off|happened|did|read out|earlier|since)\b", re.I)
+# Any "-ed" past ("cheered", "switched") but those that look ahead, and the common irregular ones: "her grandad held
+# her up to see the tree switch on at six" (Coastwide, 19:32) is a memory of tonight, not a time to come.
+_DONE = re.compile(r"\b(was|were|came|went|had|has|have|been|already|gone|began|begun|lit|threw|thrown|kicked off|did|"
+                   r"read out|earlier|since|held|saw|stood|said|told|sang|heard|brought|took|got|watched|"
+                   r"(?!(?:expect|schedul|plann|suppos|tim|bill|slat|book|need|hop|promis)ed\b)\w+ed)\b", re.I)
 _OTHER_DAY = re.compile(r"\b(tomorrow|morning|every|each|yesterday|last year|next year|next week)\b", re.I)
 
 
-def tense_slips(texts: list[str], now: datetime) -> list[str]:
-    """Where a script tells an event of today as still to come once its start time has passed: a note for each,
-    to put to the writer. Only a sentence giving the event's own time ("at six") is read, and only a clause with
-    words for what is to come in it; a question, a span ("since six") and another day are left."""
-    on = begun(now.date(), now)
+def tense_slips(texts: list[str], now: datetime, day: date | None = None) -> list[str]:
+    """Where a script tells an event of `day` (today) as still to come once its start time has passed: a note for
+    each, to put to the writer. Only an event the script names somewhere (`mentions`: the 18:29 report said
+    "lights" in one line and "will be read out at six" in another), only a sentence giving the event's own time
+    ("at six"), and only a clause with words for what is to come in it; a question, a span ("since six"), another
+    day and a sentence about the tide or the ferry ("the first ferry leaves at six", which is tomorrow's) are left."""
+    on = [(e, start) for e, start in begun(day or now.date(), now) if mentions(e, " ".join(texts))]
     if not on:
         return []
     from . import tides
     notes = []
     for text in texts:
         for sentence in re.split(r"(?<=[.!?])\s+", text or ""):
-            if sentence.rstrip().endswith("?"):
+            if sentence.rstrip().endswith("?") or tides._WATER.search(sentence):
                 continue
             for words, minutes, slack, (a, b) in tides._clock_spans(sentence):
                 for e, start in on:

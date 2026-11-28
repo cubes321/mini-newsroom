@@ -158,11 +158,13 @@ def before_council_sat(c: Segment, written: float, now: float) -> bool:
 def before_event_began(c: Segment, written: float, now: float) -> bool:
     """A piece naming one of the day's timed town events (calendar.begun), written before it began, once it has:
     it has the event still to come. On 2026-11-28 the afternoon's "Harrow Street Lights Go On at Six Tonight"
-    went out again fourteen times between 00:21 and 04:43. `written` and `now` are on the broadcast clock."""
-    day = datetime.fromtimestamp(repeat_since(now)).date()
-    text = " ".join([c.headline or "", *(l.text for l in c.lines)])
-    return any(written < start.timestamp() and calendar.mentions(e, text)
-               for e, start in calendar.begun(day, datetime.fromtimestamp(now)))
+    went out again fourteen times between 00:21 and 04:43. And one written after, that still has it to come: the
+    18:29 "Harrow Street Lights Due at Six" went out again at 00:54 and 04:30. `written` and `now` are on the
+    broadcast clock."""
+    day, at = datetime.fromtimestamp(repeat_since(now)).date(), datetime.fromtimestamp(now)
+    said = [c.headline or "", *(l.text for l in c.lines)]
+    return (any(written < start.timestamp() and calendar.mentions(e, " ".join(said)) for e, start in calendar.begun(day, at))
+            or bool(calendar.tense_slips(said, at, day)))
 
 
 def repeat_segment(seg: Segment) -> Segment:

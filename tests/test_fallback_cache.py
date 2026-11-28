@@ -157,12 +157,13 @@ def test_a_piece_with_the_council_still_to_sit_isnt_repeated_after_it_has(tmp_ca
 
 def test_a_piece_with_a_town_event_still_to_come_isnt_repeated_after_it_has_begun(tmp_cache, monkeypatch):
     """The Christmas lights went on at six on 2026-11-27; between 00:21 and 04:43 the overnight repeats aired the
-    afternoon's "Harrow Street Lights Go On at Six Tonight" fourteen times."""
+    afternoon's "Harrow Street Lights Go On at Six Tonight" fourteen times, and the 18:29 "Due at Six" twice."""
     now = datetime(2026, 11, 28, 2, 10).timestamp()
     shift = now - time.time()
     monkeypatch.setattr(schedule, "now", lambda: now)
     for key, headline, at in (("before", "Harrow Street Lights Go On at Six Tonight", (15, 30)),
                               ("other", "Frost on the quay", (15, 40)),
+                              ("late", "Harrow Street Lights Due at Six", (18, 29)),      # after, still to come
                               ("after", "Harrow Street Lights Glow as Carols Fill the Bandstand", (19, 10))):
         wav = tmp_cache / f"{key}_00.wav"
         wav.write_bytes(b"")

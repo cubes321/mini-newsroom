@@ -2092,6 +2092,21 @@ _READ_OH = re.compile(r"\b(" + "|".join(_H12_WORDS) + r")[ -]oh[ -](" + "|".join
                       re.I)
 
 
+def caption_names_guest(script) -> str | None:
+    """The caption under a studio guest names them: on the 2026-11-27 night one interview in five was captioned
+    without, "Night ferry hand, Saltby crossing" for Callum Tate, "Interview: Local Resident" for Cora Jessop, and
+    the viewer never saw who it was. Then it is the name and the role (the name alone past sixty characters), as
+    most captions are. Only the interviews written with the guest rules: The Panel's and The Chamber's captions
+    are the programme's, and so are the hand-built shows' (The Kettle, Tideline, the Mayor's message).
+    Returns the caption it replaced, or None."""
+    name, cap = (getattr(script, "guest_name", None) or "").strip(), getattr(script, "lower_third", "") or ""
+    if not name or name.split()[-1].lower() in cap.lower():
+        return None
+    role = (getattr(script, "guest_role", None) or "").strip()
+    script.lower_third = f"{name}, {role}" if role and len(name) + len(role) + 2 <= 60 else name[:60]
+    return cap
+
+
 def clock_read_out(text: str) -> str:
     """A 24-hour time read aloud, said as people say it: "kick-off fifteen hundred" is "kick-off three o'clock",
     "twenty-two forty-eight" "twelve minutes to eleven". Nobody says the 24-hour clock: on the 2026-11-21 night the
@@ -2535,6 +2550,9 @@ def script_segment(seg: Segment, world: World) -> Segment:
         seg.work["studio_guest"] = studio     # at the desk all hour (player.py), even when a caller speaks
     if call:
         seg.work["caller"], seg.work["caller_from"] = script.caller_name, script.caller_from   # on the phone
+    if (source == "llm" and seg.type is SegmentType.interview and _GUEST_RULES in system
+            and (named := caption_names_guest(script))):
+        log.info("interview slot %d: caption %r named no guest; now %r", seg.slot_id, named, script.lower_third)
     seg.headline = script.headline
     if show.id in AFTER_HOOKS:
         AFTER_HOOKS[show.id](seg, world)

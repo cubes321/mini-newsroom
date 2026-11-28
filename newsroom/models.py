@@ -15,7 +15,7 @@ import uuid
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, Literal
 
 from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, create_model, model_validator
 
@@ -363,18 +363,6 @@ class InterviewScript(BaseModel):
                                 description="usually null: something to ask the guest about next time")
 
     _lift = model_validator(mode="before")(_lift_guest)
-    CAPTION_NAMES_GUEST: ClassVar[bool] = True     # The Panel's caption is the question, and its "guest" a panellist
-
-    @model_validator(mode="after")
-    def _caption_names_guest(self):
-        """The caption under a guest names them: on the 2026-11-27 night one interview in five was captioned
-        without, "Night ferry hand, Saltby crossing" for Callum Tate, "Interview: Local Resident" for Cora Jessop,
-        and the viewer never saw who it was. Then it is the name and the role, as most captions are."""
-        name = (self.guest_name or "").strip()
-        if self.CAPTION_NAMES_GUEST and name and name.split()[-1].lower() not in self.lower_third.lower():
-            cap = f"{name}, {self.guest_role.strip()}" if (self.guest_role or "").strip() else name
-            self.lower_third = cap if len(cap) <= 60 else name[:60]
-        return self
 
     @model_validator(mode="after")
     def _guest_named(self):
@@ -418,7 +406,6 @@ class PanelScript(InterviewScript):
     """The Panel's debate: the chair and three panellists, each guest line naming its panellist (the
     first is lifted onto the script, as for any interview). Longer than an interview: four voices."""
     lines: list[PanelLine] = Field(min_length=4, max_length=24)
-    CAPTION_NAMES_GUEST: ClassVar[bool] = False
 
     @model_validator(mode="after")
     def _every_panellist_named(self):
