@@ -1,5 +1,33 @@
 # Handover
 
+## The 11-28 afternoon (12:50-17:10): Quayside's first, repeats fixed
+
+Channel 7 on the real town (`station-2026-11-28-1250.log`, `--obs`, no pictures). Checked from the log and the
+recordings' sound; no frames sampled.
+
+- **Clean:**
+  - 317 segments, 0 s filler, 1 failed call of 424 (an empty headline, the retry was fine).
+  - The four recordings have sound: no gap over 2.5 s, about -27 dB.
+- **Quayside aired for the first time** (12:58-13:31): 21 items, no subject twice.
+- **The checks:**
+  - Sport slips were caught 7 times and the ferry/tide slips twice.
+  - Rock Pool's subject check fired 11 times.
+- **Repeats that got through, fixed in fbd7709 (not yet on air):**
+  - **Retries weren't re-checked.** A re-ask was taken as it came: a paper bird became a paper plate, a sock boat
+    became a rocket after a rocket, and Out and About's chips vox pop came back as chips again. Now a retry is
+    checked too, up to `writers.REPEAT_ASKS` (2).
+  - **Rock Pool's job guest had no check** (the fire station twice running). It is `schedule._GUEST`, in
+    `SUBJECT_BRIEFS`. Place names and job words ("Harrow Street", "Shows Off", "Helper") are format words now; by
+    them a rabbit would have been the pony.
+  - **Poems.** Gully's poems are known by their subject, not by "Gully Shares A ... Poem".
+  - **Out and About asked two questions** twice each, every afternoon. It has six vox pop angles now.
+  - **All three reviews were of places Meg reviewed on 11-27**: The Bay Window, Saltby Players and The Gull's
+    Rest, two with the same verdict word for word, though the prompt names them as resting. `outabout.resting` now sends a resting place
+    back.
+  - **All six reviews got four stars.** The stars are now drawn in code (`outabout.stars_due`, never twice running),
+    and the prompt says "THIS VISIT: n stars".
+- **Not checked:** whether the two ferry/tide catches were real slips.
+
 ## The 11-27 night reviewed (2026-11-28): stale Christmas lights, unnamed guests
 
 Channel 7, 18:28 to 06:28 (`station-2026-11-27-1828.log`, `--obs --pictures`). Sampled, not watched: a frame per
