@@ -1,5 +1,33 @@
 # Handover
 
+## The 11-27 night reviewed (2026-11-28): stale Christmas lights, unnamed guests
+
+Channel 7, 18:28 to 06:28 (`station-2026-11-27-1828.log`, `--obs --pictures`). Sampled, not watched: a frame per
+segment, in `data/contact-sheets/2026-11-27-channel7/`.
+
+- **Clean:**
+  - 700 segments, 0 s filler, no errors, no template fallbacks, 110 shadow pictures, no credit errors.
+  - All 16 recordings have sound: no gap over 2.5 s, about -27 dB, through CABLE Input.
+- **Stale tense, fixed in 550e527 + a11ebe8:** the Christmas lights went on at six (`last(y, 11, 4)`).
+  - **Fresh scripts:** the 18:29 report was "Harrow Street Lights Due at Six", with "It began at 18:00" in its
+    prompt; a board thread's NEXT outweighed it. `calendar.tense_slips` now finds a begun event of the day told as
+    to come, in a script that names it, and the writers ask once more.
+  - **Overnight repeats:** the afternoon's "Lights Go On at Six Tonight" was repeated 14 times between 00:21 and
+    04:43. `workers.before_event_began` now holds back such a piece, as `before_council_sat` does for council.
+  - **Replayed:** over the night's 578 scripts, only the 18:29 report is flagged. At 02:10, 81 of 347 repeat
+    candidates are held, all with the lights still to come.
+- **Unnamed guests, fixed in a4aebc9 + a11ebe8:** one interview in five had a caption without the guest's name
+  ("Night ferry hand, Saltby crossing"). `writers.caption_names_guest` gives the name and the role. It applies
+  only to model-written interviews with the guest rules, not The Panel, The Chamber or the hand-built shows.
+  31 of the night's 143 are renamed.
+- **Left:**
+  - Seventext repeats near-identical lines in EARLIER and in Council Watch.
+  - The night weather card still shows SUNNY with a sun; this was already known, and a fix needs art.
+  - `test_wits.py::test_a_darts_round_with_a_call_missing...` fails on master since 96fbf77: it expects dart 2,
+    and the prompt names dart 3.
+- **Next timed events:** the Mariner's Gale (9 Dec, 12:00) and Christmas. Check the overnight repeats and the
+  "town event told as still to come" lines then.
+
 ## The business directory (2026-11-27): adverts for businesses the town knows
 
 - **The problem:** every model-written advert was a new business, usually "Wexley X & Y": six sail and rope
