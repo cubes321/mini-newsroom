@@ -26,7 +26,28 @@ recordings' sound; no frames sampled.
     back.
   - **All six reviews got four stars.** The stars are now drawn in code (`outabout.stars_due`, never twice running),
     and the prompt says "THIS VISIT: n stars".
-- **Not checked:** whether the two ferry/tide catches were real slips.
+- **The ferry/tide catches:** the weather's was a real slip ("twenty to eleven" for 10:54). Meg's "after half past
+  eleven" was a time she worked out herself, which the prompt forbids.
+- **A deeper pass** (frames sampled in `data/contact-sheets/2026-11-28-afternoon/`, scripts from the call log):
+  - **Fixed in d2b9578 (not yet on air):**
+    - **The first live Saturday football on air.** The live line has the ground and says there's no score
+      (`sport.live_line`): the news had the Tides at the Tidewater Stadium while they were away at Polgrey, and
+      "still level".
+    - **A game later today is "today".** Quayside's closing link sent the Tides to Polgrey "tomorrow".
+    - **The briefing's sport is as at the item's airtime**, and `sport.slips` (headline included) catches a game
+      over that is told as "still playing". "Tides Still Playing" aired at 16:57 and 16:59, after full time at
+      16:55, and at 17:08 over the 4-0.
+    - **The reporter's caption comes down** once the presenter takes it back in the studio: "Miles Okafor, live
+      from the fish quay" stayed up over Howard.
+    - **A chip shop is reviewed in the tea room**, not out on the fish quay. A takeaway still keeps the writer's
+      pick. A chip-shop set of its own would be new art.
+  - **Not fixed:**
+    - Seven guests called Ruth.
+    - Caption and set mismatches: "Quarry Ridge studio" over the harbour front, Brenda Fisk's shop on "Main
+      Street" in captions and on Harrow Street in the scripts.
+    - Captions cut with "…".
+    - Ruth Caddick's role changes between the wide shot and the close-up (the known role-clash item).
+    - Out and About's light doesn't warm towards sunset.
 
 ## The 11-27 night reviewed (2026-11-28): stale Christmas lights, unnamed guests
 
