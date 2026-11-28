@@ -24,8 +24,9 @@ from typing import Callable
 
 from . import (breaking, calendar, channel, chamber, council, forecast, inquiry, llm, outabout, panel, phonein, quay,
                rundown, safety, schedule, sport, tides, tipline, weathermap)
+from . import geography
 from .geography import lie_of_the_land
-from .locations import locations_for_prompt
+from .locations import BY_ID as location_by_id, locations_for_prompt
 from .models import (
     SCRIPT_SCHEMAS,
     BulletinScript,
@@ -2009,6 +2010,48 @@ def _job_stems(role: str) -> set[str]:
             if len(w) >= 4 and w not in _ROLE_GENERIC}
 
 
+# A room no outdoor set can show, and the words before it that put the piece outside it ("outside the gallery").
+_INDOORS = re.compile(r"\b(studio|gallery|workshop|museum|library|kitchen|bakehouse|classroom|surgery|exhibition)\b",
+                      re.I)
+_OUTSIDE_OF = re.compile(r"\b(?:outside|by|near|beside|behind|above|below|opposite|along|across|over|past|from|"
+                         r"in front of)\b", re.I)
+_AWAY_FROM_THE_SHOP = re.compile(r"\b(?:market|stall|shed|fair|show)\b", re.I)
+VISITS = ("quayside", "outabout")        # shows whose features visit someone at their own place
+
+
+def set_mismatch(script, world: World, seg_type: SegmentType, show_id: str = "") -> str | None:
+    """Where the caption and the set disagree, in words for the second ask, or None. On the 2026-11-28 Out and
+    About "Report from Quarry Ridge studio" went out over the harbour front and "Quarry Ridge Gallery" over the
+    market shed: no set shows a studio or a gallery, and the writer took the nearest. And a feature, which visits
+    someone at their place, put Brenda Fisk's shop on Harrow Street under a caption from her record, "tailor and
+    alterations, Main Street" (Quayside). Only Quayside's and Out and About's features visit (VISITS): an Inquiry
+    film may meet Dev Ramachandran on the fish quay."""
+    loc = getattr(script, "location", None) or ""
+    bd = location_by_id.get(getattr(script, "backdrop", None) or "")
+    if not loc or not bd or bd.kind == "studio":
+        return None
+    shown = f"{bd.name} {bd.blurb}".lower()
+    room = _INDOORS.search(loc)
+    if (room and not _OUTSIDE_OF.search(loc[:room.start()]) and room.group(1).lower() not in shown
+            and bd.name.lower().removeprefix("the ") not in loc.lower()):
+        return (f"the location, \"{loc}\", is inside a {room.group(1).lower()}, and the backdrop \"{bd.id}\" shows "
+                f"{bd.blurb}. No backdrop shows that room: set the piece where a backdrop can show it (outside, or "
+                "where the work is done or seen) and say that as the location, or choose the backdrop that shows "
+                "the place")
+    guest = getattr(script, "guest_name", None)
+    p = world.person_by_name(guest) if guest and seg_type is SegmentType.feature and show_id in VISITS else None
+    if p and "," in (p.role or "") and not _AWAY_FROM_THE_SHOP.search(loc):
+        # the place after the job ("sailmaker, Harbour Row"), not one in it ("Harbour campaigner")
+        theirs = {pid for _, pid in geography._named(p.role.rsplit(",", 1)[1]) if geography.in_town(pid)}
+        here = geography.place_at(loc)
+        if theirs and here and geography.in_town(here) and here not in theirs:
+            where = geography.BY_ID[sorted(theirs)[0]].name
+            return (f"{p.name} is \"{p.role}\" on the town's record, and this piece visits them at "
+                    f"{geography.BY_ID[here].name}. Their place is {where}: set it there, with the location and "
+                    "the backdrop to match")
+    return None
+
+
 def role_drift(script, world: World) -> tuple[str, str, str] | None:
     """(name, the job the script gave them, the job on their record) when the script's guest is someone the town
     knows and its guest_role shares no job word with their record; or None. On 2026-11-22 Coastwide filed Tam Buchanan,
@@ -2484,6 +2527,17 @@ def script_segment(seg: Segment, world: World) -> Segment:
                 "(guest_role and everything they say about their work; what this item is about may be added to it, "
                 "as in \"lifeboat coxswain and knitter\"), or book someone else."))
             if not role_drift(again, world) and not (taken and same_person(getattr(again, "guest_name", None), taken)):
+                script = again
+        # The caption against the set: one more ask; kept as it was if the next disagrees too. Not on a show out on
+        # one location all night (the player puts it there), nor a review (outabout.backdrop_for takes it indoors).
+        if (seg.type is not SegmentType.review and not seg.work.get("location")
+                and (odd := set_mismatch(script, world, seg.type, show.id))):
+            log.info("%s slot %d: caption and set disagree (%s); asking once more", seg.type.value, seg.slot_id,
+                     odd[:120])
+            again = llm.complete_json(seg.type.value, schema, system, user + (
+                f"\n\nTHE PLACE AND THE SET DISAGREE: {odd}."))
+            if not set_mismatch(again, world, seg.type, show.id) and not (
+                    taken and same_person(getattr(again, "guest_name", None), taken)):
                 script = again
         if bad := safety.check(safety.strings(script)):   # a word that can't go out: ask once more, then the template
             log.warning("%s slot %d: %r in the script; asking again", seg.type.value, seg.slot_id, bad)
