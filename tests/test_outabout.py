@@ -242,3 +242,11 @@ def test_the_review_goes_indoors_whatever_the_model_or_the_template_picked(monke
     seg = Segment(slot_id=5, type=T.review, show="outabout", target_s=120)
     writers.script_segment(seg, w)                                         # the canned tea room on the seafront
     assert [c.payload["backdrop"] for c in seg.cues if c.kind == "backdrop"] == ["tea_room"]
+
+
+def test_a_chip_shop_is_reviewed_indoors():
+    """The Gull's Rest, a "fish and chip shop", was reviewed out on the fish quay (2026-11-28)."""
+    assert outabout.backdrop_for("fish and chip shop", "harbour") == "tea_room"
+    assert outabout.backdrop_for("chippy", "harbour") == "tea_room"
+    assert outabout.backdrop_for("fish bar", "harbour") == "tea_room"
+    assert outabout.backdrop_for("takeaway", "seafront") == "seafront"

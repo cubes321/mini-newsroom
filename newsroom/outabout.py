@@ -22,7 +22,10 @@ ANSWER_BACK_DAYS = 7            # how recent a review an owner may answer back o
 # Where a review is set, by what the place is (ReviewScript.kind): Meg reviews indoors. The darts pub
 # isn't one of them: its oche and scoreboard say darts night, not supper.
 INTERIORS: tuple[tuple[re.Pattern, str], ...] = (
-    (re.compile(r"caf[eé]|tea ?(room|shop)|coffee|bakery|patisserie|cake", re.I), "tea_room"),
+    # A chip shop's counter and little tables are nearer the tea room's than the pub's inglenook: The Gull's Rest
+    # ("fish and chip shop") was reviewed out on the fish quay (2026-11-28). A takeaway is still eaten outside.
+    (re.compile(r"caf[eé]|tea ?(room|shop)|coffee|bakery|patisserie|cake|\bchip ?shop|chippy|fish bar", re.I),
+     "tea_room"),
     (re.compile(r"\bpubs?\b|\binn\b|restaurant|bistro|brasserie|dining|tavern|carvery|supper", re.I), "dining_room"),
     (re.compile(r"\bplays?\b|theat|drama|panto|concert|music|\bgig|choir|comedy|musical|recital|ceilidh|opera|"
                 r"\bshows?\b", re.I), "village_hall"),

@@ -2314,14 +2314,15 @@ def script_segment(seg: Segment, world: World) -> Segment:
         # (sport.slips). One more ask naming them; the one with fewer stands.
         if not getattr(script, "fiction", False) and show.id not in FICTION_SHOWS:
             when = datetime.fromtimestamp(seg.nominal_start_ts or schedule.now())
-            wrong = sport.slips([getattr(l, "text", "") for l in getattr(script, "lines", [])], when)
+            said = lambda sc: [getattr(sc, "headline", "") or "", *(getattr(l, "text", "") for l in getattr(sc, "lines", []))]  # noqa: E731
+            wrong = sport.slips(said(script), when)       # the headline too: "Tides Still Playing" over the 4-0
             if wrong:
                 log.info("%s slot %d: sport slips (%s); asking again", seg.type.value, seg.slot_id,
                          "; ".join(w[-70:] for w in wrong))
                 again = llm.complete_json(seg.type.value, schema, system, user + (
                     "\n\nSPORT WRONG (the Sport line in the briefing has the facts):\n"
                     + "\n".join(f"  - {w}" for w in wrong) + "\nWrite it again with these put right."))
-                if len(sport.slips([getattr(l, "text", "") for l in again.lines], when)) < len(wrong):
+                if len(sport.slips(said(again), when)) < len(wrong):
                     script = again
         # A weather off the station's forecast (forecast.py): one more ask; whichever is nearer stands.
         if seg.type is SegmentType.weather and (want := forecast.drift(

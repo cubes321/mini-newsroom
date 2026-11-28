@@ -72,3 +72,53 @@ def test_a_planned_next_loses_the_result_of_a_game():
     assert sport.without_result(card) == "On Thursday 26 November, darts night."
     assert sport.without_result("On Tuesday the Railway go to the Lantern and the match goes down five-three.") == ""
     assert {"Tides", "Wreckers", "Saltby Rovers", "Cannery Tap", "Tidewater Town FC"} <= set(sport.sides())
+
+
+def _today_game():
+    """The Tides' game of Saturday 28 November 2026, away at Polgrey Rangers, kicked off at three."""
+    day = datetime(2026, 11, 28, 12, 0)
+    return next(f for f in sport.fixtures(day.date()) if sport.CLUB in (f.home, f.away)
+                and f.kickoff.date() == day.date())
+
+
+def test_a_game_on_now_has_its_ground_and_no_score():
+    """2026-11-28, the first live Saturday on air: given "they are playing Polgrey Rangers right now", the news put
+    the Tides at the Tidewater Stadium while they were away, and the score "still level"."""
+    f = _today_game()
+    assert f.away == sport.CLUB and f.home == "Polgrey Rangers"
+    line = sport.summary(f.kickoff + timedelta(minutes=30))
+    assert "away, at Polgrey Rangers (not at Tidewater Stadium)" in line
+    assert "no score is known until full time, about five to five (16:55)" in line
+    assert "never a score, who leads or who is level" in line
+    assert "right now (kicked off at 15:00)" in sport.summary(f.kickoff + timedelta(minutes=30), said=False)  # Seventext
+
+
+def test_a_game_later_today_is_today():
+    """Quayside at half past one sent the Tides to Polgrey "at three o'clock tomorrow" (2026-11-28)."""
+    f = _today_game()
+    assert "next: away at Polgrey Rangers, today, Saturday 28 November, three o'clock (15:00)" in \
+        sport.summary(f.kickoff - timedelta(hours=2))
+    assert "tomorrow, Saturday 28 November" in sport.summary(f.kickoff - timedelta(hours=20))
+    assert "next: away at Polgrey Rangers, Saturday 28 November" in sport.summary(f.kickoff - timedelta(days=3))
+
+
+def test_a_game_over_is_not_still_being_played():
+    """17:08 on 2026-11-28: "Tides Still Playing, Wreckers Win At Saltby" over the Tides' four-nil."""
+    f = _today_game()
+    after = f.kickoff + timedelta(minutes=sport.FULL_TIME_MIN + 10)
+    wrong = sport.slips(["Tides Still Playing, Wreckers Win At Saltby",
+                         "The Tides are still playing Polgrey Rangers, kicked off at three."], after)
+    assert len(wrong) == 2 and all("is over: the Tides beat Polgrey Rangers" in w for w in wrong)
+    assert not sport.slips(["The Wreckers won at Saltby, and the Tides are still playing."],   # not over yet
+                           f.kickoff + timedelta(minutes=60))
+    assert not sport.slips(["The Tides won four-nil at Polgrey, and the Wreckers' fans are still out there."], after)
+
+
+def test_the_briefing_has_the_sport_as_it_airs():
+    """Written at ten to five for five past, the news had the Tides still playing after their final whistle."""
+    f = _today_game()
+    w = world_mod.seed()
+    during = f.kickoff + timedelta(minutes=sport.FULL_TIME_MIN - 5)
+    assert "right now" in w.summary_for_prompt(at=during.timestamp()).split("Sport:", 1)[1].split("\n")[0]
+    after = w.summary_for_prompt(at=(during + timedelta(minutes=10)).timestamp())
+    assert "the Tides beat Polgrey Rangers" in after.split("Sport:", 1)[1].split("\n")[0]

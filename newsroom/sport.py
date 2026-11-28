@@ -169,14 +169,31 @@ def ordinal(n: int) -> str:
     return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
-def _when(fx: Fixture, said: bool = True) -> str:
+def _when(fx: Fixture, said: bool = True, now: datetime | None = None) -> str:
     """"Saturday 28 November, three o'clock (15:00)": given "15:00" alone, the sport said "kick-off fifteen
-    hundred" eleven times on 2026-11-21."""
+    hundred" eleven times on 2026-11-21. "today, Saturday 28 November" on the day: given the date alone, Quayside
+    sent the Tides to Polgrey "at three o'clock tomorrow" at half past one that day (2026-11-28)."""
     from .schedule import said_clock        # schedule imports this module (through calendar)
 
     if not said:
         return f"{fx.kickoff:%A %d %B, %H:%M}"
-    return f"{fx.kickoff:%A %d %B}, {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M})"
+    soon = {0: "today, ", 1: "tomorrow, "}.get((fx.kickoff.date() - now.date()).days, "") if now else ""
+    return f"{soon}{fx.kickoff:%A %d %B}, {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M})"
+
+
+def live_line(fx, club: str, ground: str, full_time_min: int) -> str:
+    """A game of ours being played now, for the briefing: where, since when, and that there is no score. Given
+    "they are playing Polgrey Rangers right now", the news put the Tides at the Tidewater Stadium while they were
+    away at Polgrey, the Wreckers "at home to Saltby" in Saltby, and the score "still level" (2026-11-28)."""
+    from .schedule import said_clock
+
+    home = fx.home == club
+    other = fx.away if home else fx.home
+    ft = fx.kickoff + timedelta(minutes=full_time_min)
+    return (f"they are playing {other} right now, {f'at home at {ground}' if home else f'away, at {other} (not at {ground})'}"
+            f", kicked off at {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M}); no score is known "
+            f"until full time, about {said_clock(ft.hour, ft.minute)} ({ft:%H:%M}), so say only that it is under way: "
+            "never a score, who leads or who is level")
 
 
 def ago(day: date, now: datetime) -> str:
@@ -199,10 +216,11 @@ def summary(now: datetime, said: bool = True) -> str:
         parts.append(f"on {k:%A %d %B}" + (f" ({ago(k.date(), now)})" if said else "") + f" {_score_line(done[-1], said)}")
     if live:
         f = live[0]
-        parts.append(f"they are playing {f.away if f.home == CLUB else f.home} right now (kicked off at {f.kickoff:%H:%M})")
+        parts.append(live_line(f, CLUB, GROUND, FULL_TIME_MIN) if said else
+                     f"they are playing {f.away if f.home == CLUB else f.home} right now (kicked off at {f.kickoff:%H:%M})")
     elif nxt:
         parts.append(f"next: {'at home to' if nxt.home == CLUB else 'away at'} "
-                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt, said)}")
+                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt, said, now)}")
     else:
         parts.append("the season is over")
     pos = next(i for i, row in enumerate(table(now), 1) if row["club"] == CLUB)
@@ -287,7 +305,7 @@ def for_prompt(now: datetime) -> str:
     upcoming = [f for f in fixtures(now.date()) if _ours(f) and f.kickoff > now][:2]
     if upcoming:
         lines.append("Coming up: " + "; ".join(
-            f"{_when(f)}, {'at home to' if f.home == CLUB else 'away at'} {f.away if f.home == CLUB else f.home}"
+            f"{_when(f, now=now)}, {'at home to' if f.home == CLUB else 'away at'} {f.away if f.home == CLUB else f.home}"
             for f in upcoming) + ".")
     lines.append(f"The club: manager {MANAGER}; captain {SQUAD[0][0]}; in the squad "
                  + ", ".join(f"{n} ({pos})" for n, pos in SQUAD[1:]) + f". Home ground {GROUND}.")
@@ -317,6 +335,9 @@ _PLACES = "first second third fourth fifth sixth seventh eighth ninth tenth elev
 _PLACE = re.compile(r"\b(?:sit|sits|sitting|are|is|lie|lies|lying|in|now|still|climb to|up to|down to)\s+"
                     r"(" + "|".join(_PLACES) + r"|\d{1,2}(?:st|nd|rd|th))\b(?!\s+(?:half|minute|goal|try|game|match))",
                     re.I)
+# A game told as going on: on 2026-11-28 "Tides Still Playing, Wreckers Win At Saltby" went up at 17:08 over the
+# Tides' four-nil, its headline taken from the items before full time.
+_STILL = r"(?:still (?:playing|on the pitch|out there|under ?way|level|chasing|at it)|under ?way)\b"
 _TOP = re.compile(r"\btop of the (?:[\w&]+\s+){0,4}?(?:table|league)\b|\bleague leaders\b|\btop the (?:table|league)\b", re.I)
 _AGO = ((re.compile(r"\b(?:this afternoon|today(?!'s)|this evening)\b", re.I), (0, 0), "today"),
         (re.compile(r"\byesterday\b", re.I), (1, 1), "yesterday"),
@@ -379,6 +400,14 @@ def slips(lines: list[str], now: datetime) -> list[str]:
                         if n != pos and not re.search(r"\b(?:minute|half|place in the cup)\b", s[m.end():m.end() + 12]):
                             out.append(f"\"{s.strip()[:110]}\": the {short} are {_PLACES[pos - 1]} in the league, "
                                        f"not {w}")
+        if ours and ours[-1].fixture.kickoff.date() == now.date():    # today's game, over: not still being played
+            fx = ours[-1].fixture
+            still = re.compile(rf"\b(?:{short}|{re.escape(mod.CLUB)})\s+(?:are\s+|is\s+)?{_STILL}", re.I)
+            for s in said:
+                if still.search(s):
+                    out.append(f"\"{s.strip()[:110]}\": the {short}' game with "
+                               f"{fx.away if fx.home == mod.CLUB else fx.home} is over: "
+                               f"{mod._score_line(ours[-1])}")
     clubs = [c for c, _ in CLUBS]                   # another match's score or winner (the football)
     done = played(now)
     for s in said:

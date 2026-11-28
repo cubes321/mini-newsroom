@@ -16,7 +16,7 @@ import random
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from .sport import ago, ordinal, poisson, round_robin, season_start
+from .sport import ago, live_line, ordinal, poisson, round_robin, season_start
 
 CLUB, NICK, GROUND = "Port Wexley RFC", "the Wreckers", "the Quarry Field"
 LEAGUE = "Coastal Counties One"
@@ -150,12 +150,12 @@ def _score_line(r: Result) -> str:
     return f"{NICK} {verb} {other} {us.points}-{them.points} {where}{goals}"
 
 
-def _when(fx: Fixture) -> str:
-    """"Saturday 28 November, three o'clock (15:00)": given "15:00" alone, the sport said "kick-off fifteen
-    hundred" eleven times on 2026-11-21."""
-    from .schedule import said_clock        # schedule imports this module (through calendar)
+def _when(fx: Fixture, now: datetime | None = None) -> str:
+    """"Saturday 28 November, three o'clock (15:00)", with "today, " or "tomorrow, " before it when it is
+    (sport._when)."""
+    from .sport import _when as when
 
-    return f"{fx.kickoff:%A %d %B}, {said_clock(fx.kickoff.hour, fx.kickoff.minute)} ({fx.kickoff:%H:%M})"
+    return when(fx, now=now)
 
 
 def summary(now: datetime) -> str:
@@ -170,10 +170,10 @@ def summary(now: datetime) -> str:
         parts.append(f"on {k:%A %d %B} ({ago(k.date(), now)}) {_score_line(done[-1])}")
     if live:
         f = live[0]
-        parts.append(f"they are playing {f.away if f.home == CLUB else f.home} right now (kicked off at {f.kickoff:%H:%M})")
+        parts.append(live_line(f, CLUB, GROUND, FULL_TIME_MIN))
     elif nxt:
         parts.append(f"next: {'at home to' if nxt.home == CLUB else 'away at'} "
-                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt)}")
+                     f"{nxt.away if nxt.home == CLUB else nxt.home}, {_when(nxt, now)}")
     else:
         parts.append("the season is over")
     pos = next(i for i, row in enumerate(table(now), 1) if row["club"] == CLUB)
@@ -204,7 +204,7 @@ def for_prompt(now: datetime) -> str:
     upcoming = [f for f in fixtures(now.date()) if _ours(f) and f.kickoff > now][:2]
     if upcoming:
         lines.append("Coming up: " + "; ".join(
-            f"{_when(f)}, {'at home to' if f.home == CLUB else 'away at'} {f.away if f.home == CLUB else f.home}"
+            f"{_when(f, now)}, {'at home to' if f.home == CLUB else 'away at'} {f.away if f.home == CLUB else f.home}"
             for f in upcoming) + ".")
     lines.append(f"The club: head coach {COACH}; captain {SQUAD[0][0]} ({SQUAD[0][1]}); in the squad "
                  + ", ".join(f"{n} ({pos})" for n, pos in SQUAD[1:]) + f". Home ground {GROUND}.")

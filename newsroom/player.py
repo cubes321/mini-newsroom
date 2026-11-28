@@ -781,6 +781,10 @@ class Player:
             v.lower_third = (v.guest_name, line.guest_role or (p.role if p else "Port Wexley"))
         if seg.show in BANNER_S and elapsed > BANNER_S[seg.show]:
             v.lower_third = None                 # on at the item's start, then clear: the set has something to show
+        if (seg.type in OUTSIDE and v.mode == "studio" and not as_presenter
+                and any(l.speaker in (*FIELD_REPORTERS, "guest") for l in seg.lines[:self.line_idx])):
+            v.lower_third = None                 # back in the studio after the piece: the caption was the reporter's
+            #                                      ("Miles Okafor, live from the fish quay" over Howard, 2026-11-28)
         if v.mode == "studio":
             self._studio_shot(seg, v)
         v.slot_id = seg.slot_id

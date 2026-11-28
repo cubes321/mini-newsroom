@@ -389,7 +389,9 @@ class World:
             # hammer, a meeting), so they sit in the cached head with the town. Until 2026-11-09 they came
             # after the break: some 350 tokens at full price on every call (the 11-07 night: 44% of the
             # live writers' input read from the cache, 52% paid in full).
-            f"Sport: {sport.briefing(datetime.fromtimestamp(schedule.now()))}\n"
+            # As it is when the piece airs, like the weather below: written at ten to five for five past, the news
+            # had the Tides "still playing" ten minutes after their final whistle (2026-11-28).
+            f"Sport: {sport.briefing(datetime.fromtimestamp(at or schedule.now()))}\n"
             + (f"{QUAY_LABEL}{q}\n" if auction and (q := quay.summary(datetime.fromtimestamp(schedule.now())))
                else "") +
             f"{self._council_calendar(sitting)}\n{CACHE_BREAK}"
